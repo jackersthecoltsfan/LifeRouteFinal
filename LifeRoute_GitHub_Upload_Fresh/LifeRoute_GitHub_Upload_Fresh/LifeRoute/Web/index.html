@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c1424">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<title>LifeRoute V2</title>
+<style>
+:root{
+ --bg:#08111f;--panel:#111c30;--panel2:#17253d;--line:#263957;
+ --text:#f6f8fc;--muted:#9cacbf;--blue:#78b7ff;--green:#84e5a5;
+ --yellow:#ffd276;--red:#ff9292;--shadow:0 18px 55px rgba(0,0,0,.28)
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+ background:linear-gradient(180deg,#07101d,#0d1728 50%,#091321);color:var(--text)}
+button,input,select{font:inherit}
+.app{max-width:980px;margin:auto;padding:18px 16px 120px}
+header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+h1{margin:0;font-size:30px;letter-spacing:-.8px}.subtitle{color:var(--muted);font-size:13px;margin-top:7px}
+.status{font-size:12px;font-weight:800;padding:8px 10px;border-radius:999px;background:#18324f;color:#d7ebff}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0}
+.tab{background:#14223a;color:#b9c7d8;border:1px solid var(--line);padding:10px;border-radius:12px;font-weight:800}
+.tab.active{background:#eaf4ff;color:#102036}
+.view{display:none}.view.active{display:block}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.metric,.card{background:rgba(17,28,48,.94);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:18px}
+.metric{padding:13px}.metric b{font-size:20px}.metric span{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.section{margin-top:18px}.section h2{font-size:17px;margin:0 0 10px}
+.card{padding:14px;margin-bottom:10px}.row{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.title{font-size:17px;font-weight:850}.meta{color:var(--muted);font-size:13px;margin-top:4px}
+.route{background:var(--panel2);padding:10px 12px;border-radius:13px;margin-top:12px;font-size:13px;display:flex;justify-content:space-between;gap:10px}
+.route strong{color:var(--blue)}
+.gap{border-style:dashed}.warn{color:var(--yellow)}.good{color:var(--green)}.bad{color:var(--red)}
+.insight{line-height:1.45;border-left:3px solid var(--blue);padding-left:12px}
+.weekday{display:grid;grid-template-columns:76px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #263957}
+.weekday:last-child{border-bottom:0}.bar{height:11px;background:#253958;border-radius:999px;overflow:hidden}.fill{height:100%;background:#8dc5ff;border-radius:999px}
+.small{font-size:12px;color:var(--muted)}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{font-size:11px;color:var(--muted);display:block;margin-bottom:5px}
+input,select{width:100%;background:#0d1728;color:white;border:1px solid #2a3e5d;border-radius:11px;padding:11px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}
+button{border:0;border-radius:12px;padding:10px 12px;font-weight:850;cursor:pointer}
+.primary{background:#eef7ff;color:#102036}.secondary{background:#1d2e49;color:#dcecff;border:1px solid #314967}
+.danger{background:#3a2029;color:#ffdfe4;border:1px solid #68404b}
+.google{background:white;color:#172033}
+.bottom{position:fixed;bottom:0;left:0;right:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+ background:rgba(7,15,27,.93);backdrop-filter:blur(18px);border-top:1px solid #253651}
+.bottomin{max-width:980px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.badge{display:inline-block;padding:5px 8px;border-radius:999px;background:#1c304c;color:#bddcff;font-size:11px;font-weight:800}
+@media(max-width:680px){
+ .metrics{grid-template-columns:1fr 1fr}.formgrid{grid-template-columns:1fr}.full{grid-column:auto}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+ <div><h1>LifeRoute</h1><div class="subtitle">Your schedule, compressed around your life.</div></div>
+ <div class="status" id="connectionStatus">Local mode</div>
+</header>
+
+<div class="tabs">
+ <button class="tab active" data-view="today">Today</button>
+ <button class="tab" data-view="week">Week</button>
+ <button class="tab" data-view="setup">Setup</button>
+</div>
+
+<section id="today" class="view active">
+ <div class="metrics">
+  <div class="metric"><b id="mWork">0h</b><span>scheduled</span></div>
+  <div class="metric"><b id="mDrive">0m</b><span>driving</span></div>
+  <div class="metric"><b id="mGap">0h</b><span>open gaps</span></div>
+  <div class="metric"><b id="mSpread">0h</b><span>day spread</span></div>
+ </div>
+ <div class="section"><h2 id="todayLabel">Today</h2><div id="timeline"></div></div>
+ <div class="section"><h2>Make the day make sense</h2><div class="card"><div class="insight" id="dayInsight"></div></div></div>
+</section>
+
+<section id="week" class="view">
+ <div class="metrics">
+  <div class="metric"><b id="wWork">0h</b><span>weekly work</span></div>
+  <div class="metric"><b id="wDrive">0h</b><span>weekly driving</span></div>
+  <div class="metric"><b id="wGap">0h</b><span>dead time</span></div>
+  <div class="metric"><b id="wSpread">0h</b><span>total spread</span></div>
+ </div>
+ <div class="section"><h2>Week at a glance</h2><div class="card" id="weekChart"></div></div>
+ <div class="section"><h2>Compression opportunities</h2><div class="card"><div class="insight" id="weekInsight"></div></div></div>
+</section>
+
+<section id="setup" class="view">
+ <div class="section"><h2>Google Calendar</h2>
+  <div class="card">
+   <div class="row"><div><div class="title">Calendar connection</div><div class="meta">Read-only access is the planned default.</div></div><span class="badge">SAFE DEFAULT</span></div>
+   <div style="margin-top:12px"><button class="google" onclick="connectGoogle()">Connect Google Calendar</button></div>
+   <div class="small" style="margin-top:10px">This build contains the integration hooks, but Google requires your own Cloud project and OAuth client ID before sign-in can work from a deployed domain.</div>
+  </div>
+ </div>
+
+ <div class="section"><h2>Add appointment</h2>
+  <div class="card">
+   <div class="formgrid">
+    <div><label>Day</label><select id="fDay">
+     <option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+    </select></div>
+    <div><label>Appointment</label><input id="fTitle" placeholder="Client / appointment"></div>
+    <div><label>Start</label><input id="fStart" type="time" value="12:00"></div>
+    <div><label>End</label><input id="fEnd" type="time" value="14:00"></div>
+    <div class="full"><label>Location</label><input id="fAddress" placeholder="Address or place"></div>
+    <div><label>Drive from prior stop (min)</label><input id="fDrive" type="number" value="15" min="0"></div>
+    <div><label>Arrival buffer (min)</label><input id="fBuffer" type="number" value="10" min="0"></div>
+   </div>
+   <div style="margin-top:12px"><button class="primary" onclick="addEvent()">Add appointment</button></div>
+  </div>
+ </div>
+
+ <div class="section"><h2>Preferences</h2>
+  <div class="card">
+   <div class="formgrid">
+    <div><label>Ideal max gap</label><select id="pGap"><option value="60">1 hour</option><option value="90">1.5 hours</option><option value="120" selected>2 hours</option></select></div>
+    <div><label>Home-return threshold</label><select id="pHome"><option value="90">1.5 hours</option><option value="120" selected>2 hours</option><option value="180">3 hours</option></select></div>
+   </div>
+  </div>
+ </div>
+</section>
+</div>
+
+<div class="bottom"><div class="bottomin">
+ <button class="secondary" onclick="loadDemo()">Load workweek</button>
+ <button class="primary" onclick="optimizeWeek()">Optimize week</button>
+</div></div>
+
+<script>
+const DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+let events=JSON.parse(localStorage.getItem("liferoute_v2_events")||"[]");
+const state={selectedDay:(new Date().toLocaleDateString("en-US",{weekday:"long"}))};
+
+function mins(t){let [h,m]=t.split(":").map(Number);return h*60+m}
+function fmt(m){if(m<60)return m+"m";let h=Math.floor(m/60),r=m%60;return r?`${h}h ${r}m`:`${h}h`}
+function time12(t){let [h,m]=t.split(":").map(Number),ap=h>=12?"PM":"AM";h=((h+11)%12)+1;return `${h}:${String(m).padStart(2,"0")} ${ap}`}
+function leaveAt(start,drive,buffer){let x=(mins(start)-Number(drive||0)-Number(buffer||0)+1440)%1440;return time12(`${String(Math.floor(x/60)).padStart(2,"0")}:${String(x%60).padStart(2,"0")}`)}
+function esc(s){return String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
+function save(){localStorage.setItem("liferoute_v2_events",JSON.stringify(events))}
+function dayEvents(day){return events.filter(e=>e.day===day).sort((a,b)=>mins(a.start)-mins(b.start))}
+function stats(list){
+ if(!list.length)return {work:0,drive:0,gap:0,spread:0};
+ let work=0,drive=0,gap=0;
+ list.forEach((e,i)=>{work+=Math.max(0,mins(e.end)-mins(e.start));drive+=Number(e.drive||0);if(i<list.length-1)gap+=Math.max(0,mins(list[i+1].start)-mins(e.end))});
+ return {work,drive,gap,spread:mins(list[list.length-1].end)-mins(list[0].start)}
+}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab,.view").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.getElementById(b.dataset.view).classList.add("active")});
+
+function renderToday(){
+ const day=DAYS.includes(state.selectedDay)?state.selectedDay:"Monday",list=dayEvents(day),s=stats(list);
+ document.getElementById("todayLabel").textContent=day;
+ mWork.textContent=fmt(s.work);mDrive.textContent=fmt(s.drive);mGap.textContent=fmt(s.gap);mSpread.textContent=fmt(s.spread);
+ timeline.innerHTML="";
+ if(!list.length) timeline.innerHTML='<div class="card"><div class="meta">No appointments for this day.</div></div>';
+ list.forEach((e,i)=>{
+  let c=document.createElement("div");c.className="card";
+  c.innerHTML=`<div class="row"><div><div class="small">${time12(e.start)}–${time12(e.end)}</div><div class="title">${esc(e.title)}</div><div class="meta">${esc(e.address||"No location")}</div></div><button class="danger" onclick="removeEvent(${e.id})">×</button></div>
+  <div class="route"><span>🚗 ${e.drive||0}m + ${e.buffer||0}m buffer</span><span>Leave <strong>${leaveAt(e.start,e.drive,e.buffer)}</strong></span></div>`;
+  timeline.appendChild(c);
+  if(i<list.length-1){
+   let g=mins(list[i+1].start)-mins(e.end),gc=document.createElement("div");gc.className="card gap";
+   let cls=g>=120?"warn":"good";
+   gc.innerHTML=`<div class="row"><div><div class="title">Open gap · ${fmt(g)}</div><div class="meta">${time12(e.end)}–${time12(list[i+1].start)}</div></div><div class="${cls}">${g>=120?"Compress":"Usable"}</div></div>`;
+   timeline.appendChild(gc);
+  }
+ });
+ dayInsight.innerHTML=analyzeDay(list);
+}
+function analyzeDay(list){
+ if(list.length<2)return "Add at least two appointments to analyze compression.";
+ let best={g:-999,i:0};
+ for(let i=0;i<list.length-1;i++){let g=mins(list[i+1].start)-mins(list[i].end);if(g>best.g)best={g,i}}
+ if(best.g<0)return "At least two appointments overlap. Fix the overlap before optimizing.";
+ if(best.g>=120)return `The biggest dead zone is <b>${fmt(best.g)}</b> between <b>${esc(list[best.i].title)}</b> and <b>${esc(list[best.i+1].title)}</b>. This is the first block LifeRoute would try to move, fill, or intentionally use.`;
+ return `Your largest gap is <b>${fmt(best.g)}</b>. This day is already fairly condensed; travel reliability matters more than rearranging appointments.`;
+}
+function renderWeek(){
+ let totals={work:0,drive:0,gap:0,spread:0},maxSpread=1,rows=[];
+ DAYS.forEach(d=>{let s=stats(dayEvents(d));Object.keys(totals).forEach(k=>totals[k]+=s[k]);maxSpread=Math.max(maxSpread,s.spread);rows.push([d,s])});
+ wWork.textContent=fmt(totals.work);wDrive.textContent=fmt(totals.drive);wGap.textContent=fmt(totals.gap);wSpread.textContent=fmt(totals.spread);
+ weekChart.innerHTML=rows.map(([d,s])=>`<div class="weekday" onclick="state.selectedDay='${d}';renderAll();document.querySelector('[data-view=today]').click()"><b>${d.slice(0,3)}</b><div><div class="bar"><div class="fill" style="width:${Math.round(s.spread/maxSpread*100)}%"></div></div><div class="small">${fmt(s.work)} work · ${fmt(s.gap)} gaps</div></div><div>${fmt(s.spread)}</div></div>`).join("");
+ weekInsight.innerHTML=analyzeWeek();
+}
+function analyzeWeek(){
+ let candidates=[];
+ DAYS.forEach(d=>{let l=dayEvents(d);for(let i=0;i<l.length-1;i++){let g=mins(l[i+1].start)-mins(l[i].end);if(g>0)candidates.push({day:d,g,a:l[i],b:l[i+1]})}});
+ candidates.sort((a,b)=>b.g-a.g);
+ if(!candidates.length)return "Add appointments across your week and LifeRoute will rank the best opportunities to recover personal time.";
+ let top=candidates.slice(0,3),dead=candidates.reduce((n,x)=>n+x.g,0);
+ return `You currently have <b>${fmt(dead)}</b> of between-appointment time across the week. Your top compression target is <b>${top[0].day}</b>: ${fmt(top[0].g)} between <b>${esc(top[0].a.title)}</b> and <b>${esc(top[0].b.title)}</b>. ${top.length>1?`Next: ${top.slice(1).map(x=>`${x.day} (${fmt(x.g)})`).join(", ")}.`:""}`;
+}
+function renderAll(){renderToday();renderWeek()}
+function addEvent(){
+ let e={id:Date.now(),day:fDay.value,title:fTitle.value.trim()||"Appointment",start:fStart.value,end:fEnd.value,address:fAddress.value.trim(),drive:+fDrive.value||0,buffer:+fBuffer.value||0};
+ if(!e.start||!e.end||mins(e.end)<=mins(e.start)){alert("End time must be after start time.");return}
+ events.push(e);save();state.selectedDay=e.day;renderAll();fTitle.value="";fAddress.value="";
+}
+function removeEvent(id){events=events.filter(e=>e.id!==id);save();renderAll()}
+function loadDemo(){
+ events=[
+ {id:101,day:"Monday",title:"LiFe",start:"12:00",end:"14:00",address:"Client home",drive:24,buffer:10},
+ {id:102,day:"Monday",title:"JaHe",start:"16:30",end:"19:30",address:"Client home",drive:22,buffer:10},
+ {id:103,day:"Tuesday",title:"LiFe",start:"12:00",end:"14:00",address:"Client home",drive:24,buffer:10},
+ {id:104,day:"Wednesday",title:"LiFe",start:"12:00",end:"14:00",address:"Client home",drive:24,buffer:10},
+ {id:105,day:"Wednesday",title:"JaHe",start:"16:30",end:"19:30",address:"Client home",drive:22,buffer:10},
+ {id:106,day:"Thursday",title:"LiFe",start:"12:00",end:"14:00",address:"Client home",drive:24,buffer:10},
+ {id:107,day:"Friday",title:"LiFe",start:"12:00",end:"14:00",address:"Client home",drive:24,buffer:10},
+ {id:108,day:"Friday",title:"JaHe",start:"16:30",end:"19:30",address:"Client home",drive:22,buffer:10},
+ {id:109,day:"Sunday",title:"JaHe",start:"10:00",end:"16:00",address:"Client home",drive:22,buffer:10}
+ ];save();state.selectedDay="Friday";renderAll()
+}
+function optimizeWeek(){renderWeek();document.querySelector('[data-view=week]').click();weekInsight.scrollIntoView({behavior:"smooth",block:"center"})}
+function connectGoogle(){alert("Integration hook ready. To activate Google sign-in, deploy the app and add a Google OAuth client ID in config.js. See SETUP_GOOGLE.md in the package.")}
+
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
+renderAll();
+</script>
+</body>
+</html>

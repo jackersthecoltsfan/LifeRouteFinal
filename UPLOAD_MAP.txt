@@ -1,0 +1,29 @@
+LIFEROUTE — FRESH GITHUB UPLOAD SET
+
+Create/use an EMPTY GitHub repository and recreate this exact structure:
+
+ROOT
+├── codemagic.yaml
+├── LifeRoute.xcodeproj/
+│   ├── project.pbxproj
+│   └── xcshareddata/
+│       └── xcschemes/
+│           └── LifeRoute.xcscheme
+└── LifeRoute/
+    ├── LifeRouteApp.swift
+    ├── ContentView.swift
+    ├── LifeRouteWebView.swift
+    ├── Info.plist
+    ├── Web/
+    │   ├── index.html
+    │   └── manifest.webmanifest
+    └── Assets.xcassets/
+        ├── Contents.json
+        ├── AppIcon.appiconset/
+        │   ├── Contents.json
+        │   └── AppIcon-1024.png
+        └── LaunchBackground.colorset/
+            └── Contents.json
+
+Bundle ID already set to:
+com.brandongood.liferoute

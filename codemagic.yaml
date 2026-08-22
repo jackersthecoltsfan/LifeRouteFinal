@@ -1,0 +1,29 @@
+workflows:
+  liferoute-ios:
+    name: LifeRoute iOS
+    instance_type: mac_mini_m2
+
+    environment:
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.brandongood.liferoute
+
+    scripts:
+      - name: Show Xcode version
+        script: |
+          xcodebuild -version
+
+      - name: Apply signing profiles
+        script: |
+          xcode-project use-profiles
+
+      - name: Build LifeRoute IPA
+        script: |
+          xcode-project build-ipa \
+            --project "LifeRoute.xcodeproj" \
+            --scheme "LifeRoute"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app

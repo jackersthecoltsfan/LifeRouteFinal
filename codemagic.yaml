@@ -3,6 +3,9 @@ workflows:
     name: LifeRoute iOS
     instance_type: mac_mini_m2
 
+    integrations:
+      app_store_connect: Brandon
+
     environment:
       xcode: latest
       ios_signing:
@@ -18,21 +21,12 @@ workflows:
         script: |
           xcode-project use-profiles
 
-      - name: Verify signing setup
-        script: |
-          echo "Installed signing identities:"
-          security find-identity -v -p codesigning || true
-          echo "Installed provisioning profiles:"
-          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles" || true
-
       - name: Build LifeRoute IPA
         script: |
           xcode-project build-ipa \
             --project "LifeRoute.xcodeproj" \
             --scheme "LifeRoute" \
             --clean \
-            --verbose \
-            --disable-xcpretty \
             --archive-flags="-destination 'generic/platform=iOS'"
 
     artifacts:
@@ -40,3 +34,7 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    publishing:
+      app_store_connect:
+        auth: integration

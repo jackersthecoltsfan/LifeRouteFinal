@@ -18,12 +18,25 @@ workflows:
         script: |
           xcode-project use-profiles
 
+      - name: Verify signing setup
+        script: |
+          echo "Installed signing identities:"
+          security find-identity -v -p codesigning || true
+          echo "Installed provisioning profiles:"
+          ls -la "$HOME/Library/MobileDevice/Provisioning Profiles" || true
+
       - name: Build LifeRoute IPA
         script: |
           xcode-project build-ipa \
             --project "LifeRoute.xcodeproj" \
-            --scheme "LifeRoute"
+            --scheme "LifeRoute" \
+            --clean \
+            --verbose \
+            --disable-xcpretty \
+            --archive-flags="-destination 'generic/platform=iOS'"
 
     artifacts:
       - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM

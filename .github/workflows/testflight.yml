@@ -15,6 +15,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare LifeRoute app icon
+        run: |
+          ICON_SOURCE="$RUNNER_TEMP/LifeRouteLogo.jpg"
+          ICON_OUTPUT="LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+          base64 -D < LifeRoute/Web/liferoute-logo.b64 > "$ICON_SOURCE"
+          sips -z 1024 1024 -s format png "$ICON_SOURCE" --out "$ICON_OUTPUT" >/dev/null
+          test -s "$ICON_OUTPUT" || (echo "LifeRoute app icon was not generated" && exit 1)
+          echo "Prepared new LifeRoute logo as the 1024x1024 app icon."
+
       - name: Validate required Apple secrets
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

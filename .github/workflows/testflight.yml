@@ -17,35 +17,45 @@ jobs:
 
       - name: Prepare LifeRoute app icon
         run: |
-          python3 -m venv "$RUNNER_TEMP/liferoute-icon-venv"
-          source "$RUNNER_TEMP/liferoute-icon-venv/bin/activate"
-          python -m pip install --quiet --upgrade pip pillow
-          python - <<'PY'
+          set -euo pipefail
+          ICON_SOURCE="$RUNNER_TEMP/LifeRouteLogo.jpg"
+          ICON_OUTPUT="LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+          WEB_LOGO="LifeRoute/Web/liferoute-logo.png"
+
+          # The checked-in logo payload is base64 text. Normalize whitespace and
+          # restore any omitted '=' padding before decoding it.
+          python3 - <<'PY'
           import base64
-          import io
+          import os
           from pathlib import Path
-          from PIL import Image
 
-          encoded = Path("LifeRoute/Web/liferoute-logo.b64").read_bytes()
-          raw = base64.b64decode(encoded)
-          image = Image.open(io.BytesIO(raw)).convert("RGB")
-          image = image.resize((1024, 1024), Image.Resampling.LANCZOS)
+          source = Path("LifeRoute/Web/liferoute-logo.b64")
+          encoded = b"".join(source.read_bytes().split())
+          encoded += b"=" * (-len(encoded) % 4)
+          raw = base64.b64decode(encoded, validate=True)
 
-          icon = Path("LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png")
-          logo = Path("LifeRoute/Web/liferoute-logo.png")
-          icon.parent.mkdir(parents=True, exist_ok=True)
-          logo.parent.mkdir(parents=True, exist_ok=True)
+          # The source artwork is JPEG data; verify it before handing it to sips.
+          if not raw.startswith(b"\xff\xd8\xff"):
+              raise SystemExit("LifeRoute logo payload did not decode to a valid JPEG")
 
-          image.save(icon, format="PNG", optimize=True)
-          image.save(logo, format="PNG", optimize=True)
-
-          check = Image.open(icon)
-          assert check.format == "PNG", check.format
-          assert check.size == (1024, 1024), check.size
-          assert check.mode == "RGB", check.mode
-          print(f"Prepared clean {check.size[0]}x{check.size[1]} RGB PNG app icon: {icon}")
-          print(f"Prepared matching in-app LifeRoute logo: {logo}")
+          output = Path(os.environ["RUNNER_TEMP"]) / "LifeRouteLogo.jpg"
+          output.write_bytes(raw)
+          print(f"Decoded LifeRoute logo: {output} ({len(raw)} bytes)")
           PY
+
+          mkdir -p "$(dirname "$ICON_OUTPUT")"
+          mkdir -p "$(dirname "$WEB_LOGO")"
+
+          # Convert the verified JPEG source to a real 1024x1024 PNG.
+          sips -z 1024 1024 -s format png "$ICON_SOURCE" --out "$ICON_OUTPUT" >/dev/null
+          cp "$ICON_OUTPUT" "$WEB_LOGO"
+
+          test -s "$ICON_OUTPUT" || (echo "LifeRoute app icon was not generated" && exit 1)
+          file "$ICON_OUTPUT"
+          WIDTH=$(sips -g pixelWidth "$ICON_OUTPUT" | awk '/pixelWidth/ {print $2}')
+          HEIGHT=$(sips -g pixelHeight "$ICON_OUTPUT" | awk '/pixelHeight/ {print $2}')
+          test "$WIDTH" = "1024" && test "$HEIGHT" = "1024" || (echo "Unexpected icon dimensions: ${WIDTH}x${HEIGHT}" && exit 1)
+          echo "Prepared clean 1024x1024 PNG LifeRoute app icon and matching in-app logo."
 
       - name: Validate required Apple secrets
         env:

@@ -15,47 +15,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare LifeRoute app icon
+      - name: Validate app icon asset
         run: |
           set -euo pipefail
-          ICON_SOURCE="$RUNNER_TEMP/LifeRouteLogo.jpg"
-          ICON_OUTPUT="LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
-          WEB_LOGO="LifeRoute/Web/liferoute-logo.png"
-
-          # The checked-in logo payload is base64 text. Normalize whitespace and
-          # restore any omitted '=' padding before decoding it.
-          python3 - <<'PY'
-          import base64
-          import os
-          from pathlib import Path
-
-          source = Path("LifeRoute/Web/liferoute-logo.b64")
-          encoded = b"".join(source.read_bytes().split())
-          encoded += b"=" * (-len(encoded) % 4)
-          raw = base64.b64decode(encoded, validate=True)
-
-          # The source artwork is JPEG data; verify it before handing it to sips.
-          if not raw.startswith(b"\xff\xd8\xff"):
-              raise SystemExit("LifeRoute logo payload did not decode to a valid JPEG")
-
-          output = Path(os.environ["RUNNER_TEMP"]) / "LifeRouteLogo.jpg"
-          output.write_bytes(raw)
-          print(f"Decoded LifeRoute logo: {output} ({len(raw)} bytes)")
-          PY
-
-          mkdir -p "$(dirname "$ICON_OUTPUT")"
-          mkdir -p "$(dirname "$WEB_LOGO")"
-
-          # Convert the verified JPEG source to a real 1024x1024 PNG.
-          sips -z 1024 1024 -s format png "$ICON_SOURCE" --out "$ICON_OUTPUT" >/dev/null
-          cp "$ICON_OUTPUT" "$WEB_LOGO"
-
-          test -s "$ICON_OUTPUT" || (echo "LifeRoute app icon was not generated" && exit 1)
-          file "$ICON_OUTPUT"
-          WIDTH=$(sips -g pixelWidth "$ICON_OUTPUT" | awk '/pixelWidth/ {print $2}')
-          HEIGHT=$(sips -g pixelHeight "$ICON_OUTPUT" | awk '/pixelHeight/ {print $2}')
+          ICON="LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+          test -s "$ICON" || (echo "Missing app icon asset: $ICON" && exit 1)
+          file "$ICON"
+          WIDTH=$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/ {print $2}')
+          HEIGHT=$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/ {print $2}')
           test "$WIDTH" = "1024" && test "$HEIGHT" = "1024" || (echo "Unexpected icon dimensions: ${WIDTH}x${HEIGHT}" && exit 1)
-          echo "Prepared clean 1024x1024 PNG LifeRoute app icon and matching in-app logo."
+          echo "Using checked-in 1024x1024 app icon asset."
 
       - name: Validate required Apple secrets
         env:
@@ -79,7 +48,6 @@ jobs:
           chmod 600 "$KEY_PATH"
           echo "KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
 
-          # altool searches this standard location for App Store Connect API keys.
           ALTOOL_KEY_DIR="$HOME/.appstoreconnect/private_keys"
           mkdir -p "$ALTOOL_KEY_DIR"
           cp "$KEY_PATH" "$ALTOOL_KEY_DIR/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"

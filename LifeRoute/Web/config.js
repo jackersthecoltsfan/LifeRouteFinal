@@ -17,3 +17,31 @@ window.LifeRouteConfig = {
     }
   }
 };
+
+// Harden the web/native bridge after the main UI script initializes.
+// Provider-fed events stay in memory only; only manual events, places, and preferences persist locally.
+window.addEventListener("DOMContentLoaded", () => {
+  if (typeof window.persist === "function") {
+    window.persist = function persistLifeRouteState() {
+      localStorage.setItem(
+        STORE,
+        JSON.stringify({
+          events: events.filter(event => !event.source || event.source === "manual"),
+          places,
+          prefs
+        })
+      );
+    };
+  }
+
+  window.postNative = function postNativeSafely(payload) {
+    try {
+      const handler = window.webkit?.messageHandlers?.lifeRoute;
+      if (!handler) return false;
+      handler.postMessage(payload);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+});

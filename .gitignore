@@ -1,0 +1,17 @@
+# Xcode
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.ipa
+*.xcarchive
+
+# macOS
+.DS_Store
+
+# Secrets
+AuthKey_*.p8
+*.p12
+*.mobileprovision
+.env
+.env.*

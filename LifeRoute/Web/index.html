@@ -3,223 +3,316 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0c1424">
+<meta name="theme-color" content="#07111f">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-192.svg">
-<title>LifeRoute V2</title>
+<title>LifeRoute</title>
 <style>
 :root{
- --bg:#08111f;--panel:#111c30;--panel2:#17253d;--line:#263957;
- --text:#f6f8fc;--muted:#9cacbf;--blue:#78b7ff;--green:#84e5a5;
- --yellow:#ffd276;--red:#ff9292;--shadow:0 18px 55px rgba(0,0,0,.28)
+  --bg:#07111f;--bg2:#0b1b31;--panel:rgba(15,31,55,.92);--panel2:#142a48;
+  --line:rgba(147,181,225,.20);--text:#f8fbff;--muted:#aebed2;--blue:#78b9ff;
+  --gold:#f2c86d;--green:#83e5aa;--red:#ff9b9b;--shadow:0 18px 55px rgba(0,0,0,.28);
+  --glow:0 0 0 1px rgba(242,200,109,.10),0 20px 70px rgba(0,0,0,.32)
 }
+html[data-theme="daylight"]{--bg:#edf5ff;--bg2:#fdfcf7;--panel:rgba(255,255,255,.92);--panel2:#edf3fb;--line:#d2deed;--text:#10213a;--muted:#657991;--blue:#176bc3;--gold:#aa7717;--green:#137849;--red:#aa3f49;--shadow:0 14px 34px rgba(58,83,112,.12)}
+html[data-theme="ocean"]{--bg:#061c29;--bg2:#0c3040;--panel:rgba(9,43,59,.92);--panel2:#113e52;--line:rgba(144,211,232,.20);--text:#f3fcff;--muted:#abd1dd;--blue:#82dcff;--gold:#ebcd82}
+html[data-theme="slate"]{--bg:#11151b;--bg2:#1b2027;--panel:rgba(28,34,42,.94);--panel2:#252d37;--line:#394451;--text:#f4f6f8;--muted:#aeb6c1;--blue:#8fc5ff;--gold:#e4c17a}
 *{box-sizing:border-box}
-body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
- background:linear-gradient(180deg,#07101d,#0d1728 50%,#091321);color:var(--text)}
-button,input,select{font:inherit}
-.app{max-width:980px;margin:auto;padding:18px 16px 120px}
-header{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
-h1{margin:0;font-size:30px;letter-spacing:-.8px}.subtitle{color:var(--muted);font-size:13px;margin-top:7px}
-.status{font-size:12px;font-weight:800;padding:8px 10px;border-radius:999px;background:#18324f;color:#d7ebff}
-.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0}
-.tab{background:#14223a;color:#b9c7d8;border:1px solid var(--line);padding:10px;border-radius:12px;font-weight:800}
-.tab.active{background:#eaf4ff;color:#102036}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:
+radial-gradient(circle at 92% 2%,rgba(78,146,227,.18),transparent 30%),
+radial-gradient(circle at 8% 12%,rgba(242,200,109,.12),transparent 24%),
+linear-gradient(180deg,var(--bg),var(--bg2) 56%,var(--bg));color:var(--text);min-height:100vh}
+button,input,select{font:inherit} button{cursor:pointer}
+.app{max-width:1020px;margin:auto;padding:calc(16px + env(safe-area-inset-top)) 15px 118px}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.brand{display:flex;align-items:center;gap:11px}.mark{width:43px;height:43px;border-radius:14px;background:linear-gradient(135deg,var(--blue),var(--gold));display:grid;place-items:center;color:#07111f;font-weight:1000;box-shadow:var(--glow)}
+h1{font-size:29px;letter-spacing:-.9px;margin:0}.subtitle{font-size:12px;color:var(--muted);margin-top:4px}
+.status{font-size:11px;font-weight:900;padding:8px 10px;border:1px solid var(--line);background:var(--panel);border-radius:999px;color:var(--gold)}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:18px 0}
+.tab{border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:13px;padding:10px 6px;font-weight:850}
+.tab.active{background:linear-gradient(135deg,var(--blue),#d7ecff);color:#071629;border-color:transparent}
 .view{display:none}.view.active{display:block}
-.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.metric,.card{background:rgba(17,28,48,.94);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:18px}
-.metric{padding:13px}.metric b{font-size:20px}.metric span{display:block;color:var(--muted);font-size:11px;margin-top:3px}
-.section{margin-top:18px}.section h2{font-size:17px;margin:0 0 10px}
-.card{padding:14px;margin-bottom:10px}.row{display:flex;justify-content:space-between;gap:12px;align-items:center}
-.title{font-size:17px;font-weight:850}.meta{color:var(--muted);font-size:13px;margin-top:4px}
-.route{background:var(--panel2);padding:10px 12px;border-radius:13px;margin-top:12px;font-size:13px;display:flex;justify-content:space-between;gap:10px}
-.route strong{color:var(--blue)}
-.gap{border-style:dashed}.warn{color:var(--yellow)}.good{color:var(--green)}.bad{color:var(--red)}
-.insight{line-height:1.45;border-left:3px solid var(--blue);padding-left:12px}
-.weekday{display:grid;grid-template-columns:76px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #263957}
-.weekday:last-child{border-bottom:0}.bar{height:11px;background:#253958;border-radius:999px;overflow:hidden}.fill{height:100%;background:#8dc5ff;border-radius:999px}
-.small{font-size:12px;color:var(--muted)}
-.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-label{font-size:11px;color:var(--muted);display:block;margin-bottom:5px}
-input,select{width:100%;background:#0d1728;color:white;border:1px solid #2a3e5d;border-radius:11px;padding:11px}
-.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}
-button{border:0;border-radius:12px;padding:10px 12px;font-weight:850;cursor:pointer}
-.primary{background:#eef7ff;color:#102036}.secondary{background:#1d2e49;color:#dcecff;border:1px solid #314967}
-.danger{background:#3a2029;color:#ffdfe4;border:1px solid #68404b}
-.google{background:white;color:#172033}
-.bottom{position:fixed;bottom:0;left:0;right:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom));
- background:rgba(7,15,27,.93);backdrop-filter:blur(18px);border-top:1px solid #253651}
-.bottomin{max-width:980px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.badge{display:inline-block;padding:5px 8px;border-radius:999px;background:#1c304c;color:#bddcff;font-size:11px;font-weight:800}
-@media(max-width:680px){
- .metrics{grid-template-columns:1fr 1fr}.formgrid{grid-template-columns:1fr}.full{grid-column:auto}
-}
+.hero{padding:17px;border-radius:23px;background:linear-gradient(145deg,rgba(39,88,145,.27),rgba(242,200,109,.10)),var(--panel);border:1px solid var(--line);box-shadow:var(--glow);margin-bottom:14px}
+.hero h2{font-size:21px;margin:0 0 6px}.hero p{margin:0;color:var(--muted);font-size:13px;line-height:1.45}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.metric,.card{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:18px}
+.metric{padding:13px}.metric b{font-size:19px}.metric span{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.section{margin-top:18px}.sectionHead{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:9px}.section h2{font-size:16px;margin:0}.hint{font-size:10px;color:var(--muted)}
+.card{padding:14px;margin-bottom:9px}.row{display:flex;justify-content:space-between;gap:12px;align-items:center}.grow{flex:1;min-width:0}
+.title{font-size:16px;font-weight:900}.meta,.small{color:var(--muted);font-size:12px;line-height:1.4}.tiny{color:var(--muted);font-size:10px;line-height:1.4}
+.route{background:var(--panel2);padding:10px 11px;border-radius:13px;margin-top:10px;font-size:12px;display:flex;justify-content:space-between;gap:9px;align-items:center}.route strong{color:var(--gold)}
+.sourceLine{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.chip,.badge{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);font-size:10px;font-weight:850;color:var(--muted)}.chip.on{color:var(--text);border-color:rgba(120,185,255,.42)}.badge.gold{color:var(--gold)}.badge.green{color:var(--green)}
+.gap{border-style:dashed}.good{color:var(--green)}.warn{color:var(--gold)}.bad{color:var(--red)}
+.insight{line-height:1.48;border-left:3px solid var(--gold);padding-left:12px;font-size:13px}
+.weekday{display:grid;grid-template-columns:50px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.weekday:last-child{border-bottom:0}.bar{height:9px;background:var(--panel2);border-radius:999px;overflow:hidden}.fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--gold));border-radius:999px}
+.grid2,.formgrid,.providerGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.providerGrid{grid-template-columns:repeat(3,1fr)}.full{grid-column:1/-1}
+label{font-size:10px;color:var(--muted);display:block;margin-bottom:5px}
+input,select{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:11px;padding:11px;outline:none}
+input:focus,select:focus{border-color:var(--blue)}
+button{border:0;border-radius:12px;padding:10px 12px;font-weight:900}
+.primary{background:linear-gradient(135deg,var(--blue),#d6ecff);color:#0a1b30}.goldButton{background:linear-gradient(135deg,var(--gold),#ffe7a6);color:#2b210d}.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--line)}.danger{background:rgba(118,32,47,.24);color:#ffc4ca;border:1px solid rgba(255,155,155,.24)}
+.provider{padding:13px;text-align:left}.provider.active{box-shadow:inset 0 0 0 2px var(--gold);border-color:transparent}.provider .icon{font-size:20px;margin-bottom:7px}
+.toggleRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.toggleRow:last-child{border-bottom:0}
+.switch{position:relative;width:44px;height:26px;flex:0 0 44px}.switch input{opacity:0;width:0;height:0}.slider{position:absolute;inset:0;border-radius:99px;background:var(--panel2);border:1px solid var(--line)}.slider:before{content:"";position:absolute;width:20px;height:20px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.18s}.switch input:checked+.slider{background:#1e7bd5}.switch input:checked+.slider:before{transform:translateX(18px)}
+.integration{display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center}.integrationIcon{width:42px;height:42px;border-radius:13px;background:var(--panel2);display:grid;place-items:center;font-size:20px;border:1px solid var(--line)}
+.placeActions{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}.placeActions button{font-size:11px;padding:8px 10px}
+.notice{border:1px solid rgba(242,200,109,.28);background:rgba(242,200,109,.08);border-radius:14px;padding:11px;font-size:11px;color:var(--muted);line-height:1.45}
+.bottom{position:fixed;bottom:0;left:0;right:0;padding:9px 15px calc(9px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(20px);border-top:1px solid var(--line)}
+.bottomin{max-width:1020px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.empty{padding:24px 10px;text-align:center;color:var(--muted);font-size:12px}
+@media(max-width:680px){.metrics{grid-template-columns:1fr 1fr}.grid2,.formgrid{grid-template-columns:1fr}.full{grid-column:auto}.providerGrid{grid-template-columns:1fr 1fr 1fr}.provider{padding:10px}.provider .meta{font-size:10px}.integration{grid-template-columns:38px 1fr auto}.integrationIcon{width:38px;height:38px}.hideSmall{display:none}}
 </style>
 </head>
 <body>
 <div class="app">
 <header>
- <div><h1>LifeRoute</h1><div class="subtitle">Your schedule, compressed around your life.</div></div>
- <div class="status" id="connectionStatus">Local mode</div>
+  <div class="brand"><div class="mark">LR</div><div><h1>LifeRoute</h1><div class="subtitle">Your time, routes, and real life — in one path.</div></div></div>
+  <div class="status" id="connectionStatus">Local ready</div>
 </header>
 
 <div class="tabs">
- <button class="tab active" data-view="today">Today</button>
- <button class="tab" data-view="week">Week</button>
- <button class="tab" data-view="setup">Setup</button>
+  <button class="tab active" data-view="today">Today</button>
+  <button class="tab" data-view="week">Week</button>
+  <button class="tab" data-view="places">Places</button>
+  <button class="tab" data-view="setup">Setup</button>
 </div>
 
 <section id="today" class="view active">
- <div class="metrics">
-  <div class="metric"><b id="mWork">0h</b><span>scheduled</span></div>
-  <div class="metric"><b id="mDrive">0m</b><span>driving</span></div>
-  <div class="metric"><b id="mGap">0h</b><span>open gaps</span></div>
-  <div class="metric"><b id="mSpread">0h</b><span>day spread</span></div>
- </div>
- <div class="section"><h2 id="todayLabel">Today</h2><div id="timeline"></div></div>
- <div class="section"><h2>Make the day make sense</h2><div class="card"><div class="insight" id="dayInsight"></div></div></div>
+  <div class="hero"><h2 id="todayHero">Build a day that flows.</h2><p>LifeRoute combines the calendars you choose, finds the dead zones between commitments, and hands your route to your preferred maps app.</p><div class="sourceLine" id="activeSources"></div></div>
+  <div class="metrics">
+    <div class="metric"><b id="mWork">0h</b><span>scheduled</span></div>
+    <div class="metric"><b id="mDrive">0m</b><span>planned travel</span></div>
+    <div class="metric"><b id="mGap">0h</b><span>open gaps</span></div>
+    <div class="metric"><b id="mSpread">0h</b><span>day spread</span></div>
+  </div>
+  <div class="section"><div class="sectionHead"><h2 id="todayLabel">Today</h2><span class="hint" id="mapProviderLabel">Apple Maps</span></div><div id="timeline"></div></div>
+  <div class="section"><div class="sectionHead"><h2>Gap opportunities</h2><span class="hint">frequent places + memberships</span></div><div class="card"><div class="insight" id="dayInsight"></div></div></div>
 </section>
 
 <section id="week" class="view">
- <div class="metrics">
-  <div class="metric"><b id="wWork">0h</b><span>weekly work</span></div>
-  <div class="metric"><b id="wDrive">0h</b><span>weekly driving</span></div>
-  <div class="metric"><b id="wGap">0h</b><span>dead time</span></div>
-  <div class="metric"><b id="wSpread">0h</b><span>total spread</span></div>
- </div>
- <div class="section"><h2>Week at a glance</h2><div class="card" id="weekChart"></div></div>
- <div class="section"><h2>Compression opportunities</h2><div class="card"><div class="insight" id="weekInsight"></div></div></div>
+  <div class="metrics">
+    <div class="metric"><b id="wWork">0h</b><span>weekly scheduled</span></div>
+    <div class="metric"><b id="wDrive">0h</b><span>planned travel</span></div>
+    <div class="metric"><b id="wGap">0h</b><span>between-event time</span></div>
+    <div class="metric"><b id="wSpread">0h</b><span>total spread</span></div>
+  </div>
+  <div class="section"><div class="sectionHead"><h2>This week</h2><span class="hint">tap a day</span></div><div class="card" id="weekChart"></div></div>
+  <div class="section"><div class="sectionHead"><h2>Compression opportunities</h2><span class="hint">route-aware later</span></div><div class="card"><div class="insight" id="weekInsight"></div></div></div>
+</section>
+
+<section id="places" class="view">
+  <div class="hero"><h2>Places LifeRoute can use.</h2><p>Save home, work, gyms, coffee shops, parks, errands, and memberships. LifeRoute can suggest them when a gap is long enough instead of treating every gap as wasted time.</p></div>
+  <div class="section"><div class="sectionHead"><h2>Saved places</h2><span class="hint" id="placeCount">0 places</span></div><div id="placesList"></div></div>
+  <div class="section"><h2>Add a place</h2><div class="card">
+    <div class="formgrid">
+      <div><label>Name</label><input id="placeName" placeholder="Gym, home, favorite café"></div>
+      <div><label>Type</label><select id="placeType"><option>Gym</option><option>Home</option><option>Work</option><option>Coffee</option><option>Grocery</option><option>Park</option><option>Library</option><option>Errand</option><option>Other</option></select></div>
+      <div class="full"><label>Address or place</label><input id="placeAddress" placeholder="Address or searchable place name"></div>
+      <div><label>Useful visit length</label><select id="placeMin"><option value="30">30 min</option><option value="45">45 min</option><option value="60" selected>1 hour</option><option value="90">1.5 hours</option></select></div>
+      <div><label>Membership / frequent-place status</label><select id="placeMember"><option value="yes">Use in gap suggestions</option><option value="no">Save only</option></select></div>
+    </div>
+    <div class="placeActions"><button class="goldButton" onclick="addPlace()">Save place</button><button class="secondary" onclick="showGoogleMapsImport()">Import Google Maps link</button></div>
+  </div></div>
 </section>
 
 <section id="setup" class="view">
- <div class="section"><h2>Google Calendar</h2>
-  <div class="card">
-   <div class="row"><div><div class="title">Calendar connection</div><div class="meta">Read-only access is the planned default.</div></div><span class="badge">SAFE DEFAULT</span></div>
-   <div style="margin-top:12px"><button class="google" onclick="connectGoogle()">Connect Google Calendar</button></div>
-   <div class="small" style="margin-top:10px">This build contains the integration hooks, but Google requires your own Cloud project and OAuth client ID before sign-in can work from a deployed domain.</div>
+  <div class="section"><div class="sectionHead"><h2>Calendar inputs</h2><span class="hint">choose one, two, or all three</span></div>
+    <div class="card">
+      <div class="integration"><div class="integrationIcon"></div><div><div class="title">Apple Calendar</div><div class="meta">Native EventKit connection on this iPhone. LifeRoute only reads events in its own behavior.</div></div><span class="badge" id="appleStatus">READY</span></div>
+      <div class="placeActions"><button class="primary" onclick="connectAppleCalendar()">Connect Apple Calendar</button><button class="secondary" onclick="refreshAppleCalendar()">Refresh</button></div>
+      <div class="tiny" style="margin-top:9px">iOS requires “full calendar access” permission for an app to read existing events. LifeRoute’s implementation does not edit or delete them.</div>
+    </div>
+    <div class="card">
+      <div class="integration"><div class="integrationIcon">G</div><div><div class="title">Google Calendar</div><div class="meta">Read-only OAuth scope is scaffolded and ready for your Google Cloud client ID.</div></div><span class="badge gold" id="googleStatus">API READY</span></div>
+      <div class="placeActions"><button class="secondary" onclick="connectGoogle()">Connect Google Calendar</button></div>
+    </div>
+    <div class="card">
+      <div class="integration"><div class="integrationIcon">CR</div><div><div class="title">CentralReach calendar feed</div><div class="meta">Read-only schedule feed scaffold using CentralReach GET schedule endpoints.</div></div><span class="badge gold" id="crStatus">API READY</span></div>
+      <div class="placeActions"><button class="secondary" onclick="connectCentralReach()">Configure read-only feed</button></div>
+    </div>
   </div>
- </div>
 
- <div class="section"><h2>Add appointment</h2>
-  <div class="card">
-   <div class="formgrid">
-    <div><label>Day</label><select id="fDay">
-     <option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
-    </select></div>
-    <div><label>Appointment</label><input id="fTitle" placeholder="Client / appointment"></div>
-    <div><label>Start</label><input id="fStart" type="time" value="12:00"></div>
-    <div><label>End</label><input id="fEnd" type="time" value="14:00"></div>
-    <div class="full"><label>Location</label><input id="fAddress" placeholder="Address or place"></div>
-    <div><label>Drive from prior stop (min)</label><input id="fDrive" type="number" value="15" min="0"></div>
-    <div><label>Arrival buffer (min)</label><input id="fBuffer" type="number" value="10" min="0"></div>
-   </div>
-   <div style="margin-top:12px"><button class="primary" onclick="addEvent()">Add appointment</button></div>
-  </div>
- </div>
+  <div class="section"><div class="sectionHead"><h2>Use these sources</h2><span class="hint">combined into one timeline</span></div><div class="card">
+    <div class="toggleRow"><div><div class="title">Apple Calendar</div><div class="meta">Include native calendar events</div></div><label class="switch"><input id="srcApple" type="checkbox" onchange="sourceChanged()"><span class="slider"></span></label></div>
+    <div class="toggleRow"><div><div class="title">Google Calendar</div><div class="meta">Include Google events when connected</div></div><label class="switch"><input id="srcGoogle" type="checkbox" onchange="sourceChanged()"><span class="slider"></span></label></div>
+    <div class="toggleRow"><div><div class="title">CentralReach</div><div class="meta">Include read-only schedule events when connected</div></div><label class="switch"><input id="srcCentral" type="checkbox" onchange="sourceChanged()"><span class="slider"></span></label></div>
+  </div></div>
 
- <div class="section"><h2>Preferences</h2>
-  <div class="card">
-   <div class="formgrid">
-    <div><label>Ideal max gap</label><select id="pGap"><option value="60">1 hour</option><option value="90">1.5 hours</option><option value="120" selected>2 hours</option></select></div>
-    <div><label>Home-return threshold</label><select id="pHome"><option value="90">1.5 hours</option><option value="120" selected>2 hours</option><option value="180">3 hours</option></select></div>
-   </div>
-  </div>
- </div>
+  <div class="section"><div class="sectionHead"><h2>Navigation</h2><span class="hint">route handoff</span></div><div class="providerGrid">
+    <button class="card provider" id="providerApple" onclick="setMapProvider('apple')"><div class="icon"></div><div class="title">Apple Maps</div><div class="meta">Native Apple route handoff</div></button>
+    <button class="card provider" id="providerGoogle" onclick="setMapProvider('google')"><div class="icon">G</div><div class="title">Google Maps</div><div class="meta">Google route handoff</div></button>
+    <button class="card provider" id="providerAsk" onclick="setMapProvider('ask')"><div class="icon">↗</div><div class="title">Ask me</div><div class="meta">Choose each time</div></button>
+  </div></div>
+
+  <div class="section"><div class="sectionHead"><h2>Appearance</h2><span class="hint">customizable</span></div><div class="card">
+    <div class="grid2">
+      <div><label>Theme</label><select id="themeSelect" onchange="setTheme(this.value)"><option value="royal">Royal Blue + Gold</option><option value="daylight">Blue + Gold Light</option><option value="ocean">Ocean</option><option value="slate">Graphite</option></select></div>
+      <div><label>Ideal max gap</label><select id="pGap" onchange="prefChanged()"><option value="60">1 hour</option><option value="90" selected>1.5 hours</option><option value="120">2 hours</option></select></div>
+    </div>
+  </div></div>
+
+  <div class="section"><h2>Add appointment manually</h2><div class="card">
+    <div class="formgrid">
+      <div><label>Date</label><input id="fDate" type="date"></div>
+      <div><label>Appointment</label><input id="fTitle" placeholder="Client / appointment"></div>
+      <div><label>Start</label><input id="fStart" type="time" value="12:00"></div>
+      <div><label>End</label><input id="fEnd" type="time" value="14:00"></div>
+      <div class="full"><label>Location</label><input id="fAddress" placeholder="Address or place"></div>
+      <div><label>Drive estimate (min)</label><input id="fDrive" type="number" value="15" min="0"></div>
+      <div><label>Arrival buffer (min)</label><input id="fBuffer" type="number" value="10" min="0"></div>
+    </div>
+    <div class="placeActions"><button class="primary" onclick="addEvent()">Add appointment</button></div>
+  </div></div>
+
+  <div class="section"><h2>Integration readiness</h2><div class="notice">
+    <b>Ready now:</b> Apple Calendar permission/read, Apple Maps handoff, Google Maps handoff, saved places, membership-aware gap suggestions, multi-source UI, themes, local schedule planning.<br><br>
+    <b>Waiting on credentials/API setup:</b> Google Calendar OAuth, CentralReach partner credentials, live travel-time/distance matrices, and automatic importing of Google Maps saved lists.
+  </div></div>
 </section>
 </div>
 
-<div class="bottom"><div class="bottomin">
- <button class="secondary" onclick="loadDemo()">Load workweek</button>
- <button class="primary" onclick="optimizeWeek()">Optimize week</button>
-</div></div>
+<div class="bottom"><div class="bottomin"><button class="secondary" onclick="loadDemo()">Load sample week</button><button class="goldButton" onclick="optimizeWeek()">Find best gaps</button></div></div>
 
+<script src="config.js"></script>
 <script>
-const DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-let events=JSON.parse(localStorage.getItem("liferoute_v2_events")||"[]");
-const state={selectedDay:(new Date().toLocaleDateString("en-US",{weekday:"long"}))};
+const DAYS=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const STORE="liferoute_v3";
+const saved=JSON.parse(localStorage.getItem(STORE)||"{}");
+let events=Array.isArray(saved.events)?saved.events:[];
+let places=Array.isArray(saved.places)?saved.places:[];
+let prefs=Object.assign({sources:{apple:true,google:true,centralreach:true},mapProvider:"apple",theme:"royal",maxGap:90},saved.prefs||{});
+let nativeState={native:false,appleCalendarConnected:false};
+let selectedDate=localDateKey(new Date());
 
-function mins(t){let [h,m]=t.split(":").map(Number);return h*60+m}
-function fmt(m){if(m<60)return m+"m";let h=Math.floor(m/60),r=m%60;return r?`${h}h ${r}m`:`${h}h`}
-function time12(t){let [h,m]=t.split(":").map(Number),ap=h>=12?"PM":"AM";h=((h+11)%12)+1;return `${h}:${String(m).padStart(2,"0")} ${ap}`}
-function leaveAt(start,drive,buffer){let x=(mins(start)-Number(drive||0)-Number(buffer||0)+1440)%1440;return time12(`${String(Math.floor(x/60)).padStart(2,"0")}:${String(x%60).padStart(2,"0")}`)}
+function persist(){localStorage.setItem(STORE,JSON.stringify({events,places,prefs}))}
+function localDateKey(d){let y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");return `${y}-${m}-${day}`}
+function dateFromKey(k){let [y,m,d]=k.split("-").map(Number);return new Date(y,m-1,d)}
+function dayName(k){return DAYS[dateFromKey(k).getDay()]}
+function weekDates(){let now=new Date(),day=now.getDay(),offset=(day+6)%7,monday=new Date(now.getFullYear(),now.getMonth(),now.getDate()-offset);return Array.from({length:7},(_,i)=>{let d=new Date(monday);d.setDate(monday.getDate()+i);return localDateKey(d)})}
+function mins(t){let [h,m]=String(t||"00:00").split(":").map(Number);return h*60+m}
+function fmt(m){m=Math.max(0,Math.round(m||0));if(m<60)return m+"m";let h=Math.floor(m/60),r=m%60;return r?`${h}h ${r}m`:`${h}h`}
+function time12(t){let [h,m]=String(t||"00:00").split(":").map(Number),ap=h>=12?"PM":"AM";h=((h+11)%12)+1;return `${h}:${String(m).padStart(2,"0")} ${ap}`}
 function esc(s){return String(s||"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
-function save(){localStorage.setItem("liferoute_v2_events",JSON.stringify(events))}
-function dayEvents(day){return events.filter(e=>e.day===day).sort((a,b)=>mins(a.start)-mins(b.start))}
-function stats(list){
- if(!list.length)return {work:0,drive:0,gap:0,spread:0};
- let work=0,drive=0,gap=0;
- list.forEach((e,i)=>{work+=Math.max(0,mins(e.end)-mins(e.start));drive+=Number(e.drive||0);if(i<list.length-1)gap+=Math.max(0,mins(list[i+1].start)-mins(e.end))});
- return {work,drive,gap,spread:mins(list[list.length-1].end)-mins(list[0].start)}
+function visibleSource(e){if(!e.source||e.source==="manual")return true;if(e.source==="centralreach")return !!prefs.sources.centralreach;return !!prefs.sources[e.source]}
+function dayEvents(dateKey){return events.filter(e=>visibleSource(e)&&e.date===dateKey&&!e.allDay).sort((a,b)=>mins(a.start)-mins(b.start))}
+function stats(list){if(!list.length)return{work:0,drive:0,gap:0,spread:0};let work=0,drive=0,gap=0;list.forEach((e,i)=>{work+=Math.max(0,mins(e.end)-mins(e.start));drive+=Number(e.drive||0);if(i<list.length-1)gap+=Math.max(0,mins(list[i+1].start)-mins(e.end))});return{work,drive,gap,spread:Math.max(0,mins(list.at(-1).end)-mins(list[0].start))}}
+function sourceLabel(s){return({apple:"Apple",google:"Google",centralreach:"CentralReach",manual:"Manual"})[s]||"Calendar"}
+function providerLabel(){return prefs.mapProvider==="google"?"Google Maps":prefs.mapProvider==="ask"?"Ask each time":"Apple Maps"}
+function postNative(payload){try{window.webkit?.messageHandlers?.lifeRoute?.postMessage(payload);return true}catch(e){return false}}
+function setStatus(text){connectionStatus.textContent=text}
+
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>showView(b.dataset.view));
+function showView(id){document.querySelectorAll(".tab,.view").forEach(x=>x.classList.remove("active"));document.querySelector(`[data-view="${id}"]`).classList.add("active");document.getElementById(id).classList.add("active")}
+
+function renderSources(){
+  activeSources.innerHTML=[
+    ["apple","Apple Calendar"],["google","Google Calendar"],["centralreach","CentralReach"]
+  ].map(([k,n])=>`<span class="chip ${prefs.sources[k]?"on":""}">${prefs.sources[k]?"●":"○"} ${n}</span>`).join("");
+  srcApple.checked=!!prefs.sources.apple;srcGoogle.checked=!!prefs.sources.google;srcCentral.checked=!!prefs.sources.centralreach;
+  appleStatus.textContent=nativeState.appleCalendarConnected?"CONNECTED":"READY";
+  appleStatus.className="badge "+(nativeState.appleCalendarConnected?"green":"");
 }
-document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab,.view").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.getElementById(b.dataset.view).classList.add("active")});
+function sourceChanged(){prefs.sources={apple:srcApple.checked,google:srcGoogle.checked,centralreach:srcCentral.checked};persist();renderAll()}
+function renderProvider(){
+  ["Apple","Google","Ask"].forEach(x=>document.getElementById("provider"+x).classList.remove("active"));
+  document.getElementById("provider"+(prefs.mapProvider==="google"?"Google":prefs.mapProvider==="ask"?"Ask":"Apple")).classList.add("active");
+  mapProviderLabel.textContent=providerLabel()
+}
+function setMapProvider(p){prefs.mapProvider=p;persist();renderProvider()}
+function setTheme(t){prefs.theme=t;document.documentElement.dataset.theme=t==="royal"?"":t;themeSelect.value=t;persist()}
+function prefChanged(){prefs.maxGap=Number(pGap.value);persist();renderAll()}
 
 function renderToday(){
- const day=DAYS.includes(state.selectedDay)?state.selectedDay:"Monday",list=dayEvents(day),s=stats(list);
- document.getElementById("todayLabel").textContent=day;
- mWork.textContent=fmt(s.work);mDrive.textContent=fmt(s.drive);mGap.textContent=fmt(s.gap);mSpread.textContent=fmt(s.spread);
- timeline.innerHTML="";
- if(!list.length) timeline.innerHTML='<div class="card"><div class="meta">No appointments for this day.</div></div>';
- list.forEach((e,i)=>{
-  let c=document.createElement("div");c.className="card";
-  c.innerHTML=`<div class="row"><div><div class="small">${time12(e.start)}–${time12(e.end)}</div><div class="title">${esc(e.title)}</div><div class="meta">${esc(e.address||"No location")}</div></div><button class="danger" onclick="removeEvent(${e.id})">×</button></div>
-  <div class="route"><span>🚗 ${e.drive||0}m + ${e.buffer||0}m buffer</span><span>Leave <strong>${leaveAt(e.start,e.drive,e.buffer)}</strong></span></div>`;
-  timeline.appendChild(c);
-  if(i<list.length-1){
-   let g=mins(list[i+1].start)-mins(e.end),gc=document.createElement("div");gc.className="card gap";
-   let cls=g>=120?"warn":"good";
-   gc.innerHTML=`<div class="row"><div><div class="title">Open gap · ${fmt(g)}</div><div class="meta">${time12(e.end)}–${time12(list[i+1].start)}</div></div><div class="${cls}">${g>=120?"Compress":"Usable"}</div></div>`;
-   timeline.appendChild(gc);
-  }
- });
- dayInsight.innerHTML=analyzeDay(list);
+  const list=dayEvents(selectedDate),s=stats(list),d=dateFromKey(selectedDate),isToday=selectedDate===localDateKey(new Date());
+  todayLabel.textContent=`${isToday?"Today · ":""}${d.toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})}`;
+  todayHero.textContent=list.length?`${list.length} commitment${list.length===1?"":"s"}. Make the space between them useful.`:"A clear day is still a route.";
+  mWork.textContent=fmt(s.work);mDrive.textContent=fmt(s.drive);mGap.textContent=fmt(s.gap);mSpread.textContent=fmt(s.spread);
+  timeline.innerHTML="";
+  if(!list.length)timeline.innerHTML='<div class="card empty">No timed events from your selected sources for this day.</div>';
+  list.forEach((e,i)=>{
+    let c=document.createElement("div");c.className="card";
+    c.innerHTML=`<div class="row"><div class="grow"><div class="small">${time12(e.start)}–${time12(e.end)} · ${sourceLabel(e.source)}</div><div class="title">${esc(e.title)}</div><div class="meta">${esc(e.address||"No location")}</div></div>${e.source==="manual"?`<button class="danger" onclick="removeEvent('${e.id}')">×</button>`:""}</div>
+      ${e.address?`<div class="route"><span>🚙 ${e.drive||"—"}m est. + ${e.buffer||0}m buffer</span><button class="secondary" onclick="routeTo('${encodeURIComponent(e.address)}')">Route</button></div>`:""}`;
+    timeline.appendChild(c);
+    if(i<list.length-1){
+      let gap=mins(list[i+1].start)-mins(e.end),g=document.createElement("div");g.className="card gap";
+      g.innerHTML=`<div class="row"><div><div class="title">Open gap · ${fmt(gap)}</div><div class="meta">${time12(e.end)}–${time12(list[i+1].start)}</div></div><span class="${gap>=prefs.maxGap?"warn":"good"}">${gap>=prefs.maxGap?"Opportunity":"Compact"}</span></div>`;
+      timeline.appendChild(g)
+    }
+  });
+  dayInsight.innerHTML=analyzeDay(list)
+}
+function suggestionForGap(gap){
+  let usable=places.filter(p=>p.useInGaps&&Number(p.minVisit||60)<=gap);
+  if(!usable.length)return "";
+  let p=usable[0];
+  return ` One option you marked as useful is <b>${esc(p.name)}</b> (${esc(p.type)}). <button class="secondary" style="padding:5px 8px;margin-left:4px" onclick="routeTo('${encodeURIComponent(p.address)}')">Route there</button>`
 }
 function analyzeDay(list){
- if(list.length<2)return "Add at least two appointments to analyze compression.";
- let best={g:-999,i:0};
- for(let i=0;i<list.length-1;i++){let g=mins(list[i+1].start)-mins(list[i].end);if(g>best.g)best={g,i}}
- if(best.g<0)return "At least two appointments overlap. Fix the overlap before optimizing.";
- if(best.g>=120)return `The biggest dead zone is <b>${fmt(best.g)}</b> between <b>${esc(list[best.i].title)}</b> and <b>${esc(list[best.i+1].title)}</b>. This is the first block LifeRoute would try to move, fill, or intentionally use.`;
- return `Your largest gap is <b>${fmt(best.g)}</b>. This day is already fairly condensed; travel reliability matters more than rearranging appointments.`;
+  if(list.length<2)return places.some(p=>p.useInGaps)?"Your saved places are ready for future gap suggestions once this day has at least two timed commitments.":"Add a gym, café, errand, park, or other frequent place so LifeRoute knows what kinds of gaps are actually useful to you.";
+  let best={g:-1,i:0};for(let i=0;i<list.length-1;i++){let g=mins(list[i+1].start)-mins(list[i].end);if(g>best.g)best={g,i}}
+  if(best.g<0)return "Two appointments overlap. LifeRoute will flag overlaps before it tries to optimize the route.";
+  if(best.g>=prefs.maxGap)return `The biggest open block is <b>${fmt(best.g)}</b> between <b>${esc(list[best.i].title)}</b> and <b>${esc(list[best.i+1].title)}</b>.${suggestionForGap(best.g)} Live map travel-time validation will slot into this same decision once routing APIs are connected.`;
+  return `Your largest between-event gap is <b>${fmt(best.g)}</b>. This day is already fairly condensed.`
 }
 function renderWeek(){
- let totals={work:0,drive:0,gap:0,spread:0},maxSpread=1,rows=[];
- DAYS.forEach(d=>{let s=stats(dayEvents(d));Object.keys(totals).forEach(k=>totals[k]+=s[k]);maxSpread=Math.max(maxSpread,s.spread);rows.push([d,s])});
- wWork.textContent=fmt(totals.work);wDrive.textContent=fmt(totals.drive);wGap.textContent=fmt(totals.gap);wSpread.textContent=fmt(totals.spread);
- weekChart.innerHTML=rows.map(([d,s])=>`<div class="weekday" onclick="state.selectedDay='${d}';renderAll();document.querySelector('[data-view=today]').click()"><b>${d.slice(0,3)}</b><div><div class="bar"><div class="fill" style="width:${Math.round(s.spread/maxSpread*100)}%"></div></div><div class="small">${fmt(s.work)} work · ${fmt(s.gap)} gaps</div></div><div>${fmt(s.spread)}</div></div>`).join("");
- weekInsight.innerHTML=analyzeWeek();
+  let dates=weekDates(),tot={work:0,drive:0,gap:0,spread:0},rows=[],max=1;
+  dates.forEach(k=>{let s=stats(dayEvents(k));Object.keys(tot).forEach(x=>tot[x]+=s[x]);max=Math.max(max,s.spread);rows.push([k,s])});
+  wWork.textContent=fmt(tot.work);wDrive.textContent=fmt(tot.drive);wGap.textContent=fmt(tot.gap);wSpread.textContent=fmt(tot.spread);
+  weekChart.innerHTML=rows.map(([k,s])=>`<div class="weekday" onclick="selectedDate='${k}';renderAll();showView('today')"><b>${dayName(k).slice(0,3)}</b><div><div class="bar"><div class="fill" style="width:${Math.round(s.spread/max*100)}%"></div></div><div class="tiny">${fmt(s.work)} scheduled · ${fmt(s.gap)} gaps</div></div><div>${fmt(s.spread)}</div></div>`).join("");
+  weekInsight.innerHTML=analyzeWeek()
 }
 function analyzeWeek(){
- let candidates=[];
- DAYS.forEach(d=>{let l=dayEvents(d);for(let i=0;i<l.length-1;i++){let g=mins(l[i+1].start)-mins(l[i].end);if(g>0)candidates.push({day:d,g,a:l[i],b:l[i+1]})}});
- candidates.sort((a,b)=>b.g-a.g);
- if(!candidates.length)return "Add appointments across your week and LifeRoute will rank the best opportunities to recover personal time.";
- let top=candidates.slice(0,3),dead=candidates.reduce((n,x)=>n+x.g,0);
- return `You currently have <b>${fmt(dead)}</b> of between-appointment time across the week. Your top compression target is <b>${top[0].day}</b>: ${fmt(top[0].g)} between <b>${esc(top[0].a.title)}</b> and <b>${esc(top[0].b.title)}</b>. ${top.length>1?`Next: ${top.slice(1).map(x=>`${x.day} (${fmt(x.g)})`).join(", ")}.`:""}`;
+  let candidates=[];weekDates().forEach(k=>{let l=dayEvents(k);for(let i=0;i<l.length-1;i++){let g=mins(l[i+1].start)-mins(l[i].end);if(g>0)candidates.push({date:k,g,a:l[i],b:l[i+1]})}});
+  candidates.sort((a,b)=>b.g-a.g);if(!candidates.length)return "Connect a calendar or add appointments and LifeRoute will rank the best gaps to compress or use intentionally.";
+  let dead=candidates.reduce((n,x)=>n+x.g,0),top=candidates[0];
+  return `There are <b>${fmt(dead)}</b> between timed commitments this week. The largest block is <b>${dayName(top.date)} · ${fmt(top.g)}</b>, between <b>${esc(top.a.title)}</b> and <b>${esc(top.b.title)}</b>.${suggestionForGap(top.g)}`
 }
-function renderAll(){renderToday();renderWeek()}
-function addEvent(){
- let e={id:Date.now(),day:fDay.value,title:fTitle.value.trim()||"Appointment",start:fStart.value,end:fEnd.value,address:fAddress.value.trim(),drive:+fDrive.value||0,buffer:+fBuffer.value||0};
- if(!e.start||!e.end||mins(e.end)<=mins(e.start)){alert("End time must be after start time.");return}
- events.push(e);save();state.selectedDay=e.day;renderAll();fTitle.value="";fAddress.value="";
+function renderPlaces(){
+  placeCount.textContent=`${places.length} place${places.length===1?"":"s"}`;placesList.innerHTML="";
+  if(!places.length){placesList.innerHTML='<div class="card empty">No places saved yet. Add places you actually like using between commitments.</div>';return}
+  places.forEach(p=>{let c=document.createElement("div");c.className="card";c.innerHTML=`<div class="row"><div class="grow"><div class="small">${esc(p.type)} · ${p.useInGaps?"Gap suggestions on":"Saved only"}</div><div class="title">${esc(p.name)}</div><div class="meta">${esc(p.address)}</div></div><span class="badge ${p.useInGaps?"gold":""}">${p.minVisit||60}m</span></div><div class="placeActions"><button class="secondary" onclick="openPlace('${encodeURIComponent(p.address)}')">Open in ${providerLabel()}</button><button class="danger" onclick="removePlace('${p.id}')">Remove</button></div>`;placesList.appendChild(c)})
 }
-function removeEvent(id){events=events.filter(e=>e.id!==id);save();renderAll()}
-function loadDemo(){
- events=[
- {id:101,day:"Monday",title:"LiFe",start:"12:00",end:"14:00",address:"Client home",drive:24,buffer:10},
- {id:102,day:"Monday",title:"JaHe",start:"16:30",end:"19:30",address:"Client home",drive:22,buffer:10},
- {id:103,day:"Tuesday",title:"LiFe",start:"12:00",end:"14:00",address:"Client home",drive:24,buffer:10},
- {id:104,day:"Wednesday",title:"LiFe",start:"12:00",end:"14:00",address:"Client home",drive:24,buffer:10},
- {id:105,day:"Wednesday",title:"JaHe",start:"16:30",end:"19:30",address:"Client home",drive:22,buffer:10},
- {id:106,day:"Thursday",title:"LiFe",start:"12:00",end:"14:00",address:"Client home",drive:24,buffer:10},
- {id:107,day:"Friday",title:"LiFe",start:"12:00",end:"14:00",address:"Client home",drive:24,buffer:10},
- {id:108,day:"Friday",title:"JaHe",start:"16:30",end:"19:30",address:"Client home",drive:22,buffer:10},
- {id:109,day:"Sunday",title:"JaHe",start:"10:00",end:"16:00",address:"Client home",drive:22,buffer:10}
- ];save();state.selectedDay="Friday";renderAll()
-}
-function optimizeWeek(){renderWeek();document.querySelector('[data-view=week]').click();weekInsight.scrollIntoView({behavior:"smooth",block:"center"})}
-function connectGoogle(){alert("Integration hook ready. To activate Google sign-in, deploy the app and add a Google OAuth client ID in config.js. See SETUP_GOOGLE.md in the package.")}
+function addPlace(){let name=placeName.value.trim(),address=placeAddress.value.trim();if(!name||!address){alert("Add a name and address.");return}places.push({id:String(Date.now()),name,address,type:placeType.value,minVisit:Number(placeMin.value),useInGaps:placeMember.value==="yes"});placeName.value="";placeAddress.value="";persist();renderPlaces()}
+function removePlace(id){places=places.filter(p=>p.id!==id);persist();renderAll()}
+function showGoogleMapsImport(){alert("The import screen is prepared, but automatic Google Maps saved-list importing needs a supported Google data/API path. For now, paste the place name/address into Save place.")}
+function addEvent(){let date=fDate.value,title=fTitle.value.trim()||"Appointment";if(!date||!fStart.value||!fEnd.value||mins(fEnd.value)<=mins(fStart.value)){alert("Choose a date and valid start/end time.");return}events.push({id:"manual-"+Date.now(),source:"manual",date,title,start:fStart.value,end:fEnd.value,address:fAddress.value.trim(),drive:Number(fDrive.value||0),buffer:Number(fBuffer.value||0)});selectedDate=date;fTitle.value="";fAddress.value="";persist();renderAll();showView("today")}
+function removeEvent(id){events=events.filter(e=>String(e.id)!==String(id));persist();renderAll()}
 
-if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}
-renderAll();
+function isoToLocalParts(iso){let d=new Date(iso);return{date:localDateKey(d),time:`${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`}}
+function receiveProviderEvents(source,incoming){
+  events=events.filter(e=>e.source!==source);
+  (incoming||[]).forEach(x=>{let a=isoToLocalParts(x.start),b=isoToLocalParts(x.end);events.push({id:`${source}-${x.id}`,source,date:a.date,title:x.title||"Calendar event",start:a.time,end:b.time,address:x.location||x.address||"",calendarTitle:x.calendarTitle||"",allDay:!!x.isAllDay,drive:0,buffer:10})});
+  persist();renderAll()
+}
+
+window.lifeRouteNativeEvent=function(evt){
+  if(!evt||!evt.type)return;
+  if(evt.type==="nativeStatus"){nativeState.native=!!evt.native;nativeState.appleCalendarConnected=!!evt.appleCalendarConnected;setStatus(nativeState.appleCalendarConnected?"Apple Calendar connected":"Native ready");renderSources()}
+  if(evt.type==="appleCalendarStatus"){nativeState.appleCalendarConnected=!!evt.connected;setStatus(evt.connected?"Apple Calendar connected":"Calendar permission needed");renderSources();if(evt.message&&!evt.connected)alert(evt.message)}
+  if(evt.type==="appleCalendarEvents"){nativeState.appleCalendarConnected=true;receiveProviderEvents("apple",evt.events||[]);setStatus(`Apple synced · ${(evt.events||[]).length} events`);renderSources()}
+  if(evt.type==="bridgeError"&&evt.message)alert(evt.message)
+};
+function connectAppleCalendar(){if(!postNative({action:"requestAppleCalendar"}))alert("Apple Calendar connection is available inside the native iPhone app build.")}
+function refreshAppleCalendar(){postNative({action:"refreshAppleCalendar"})}
+function connectGoogle(){let cfg=window.LifeRouteConfig?.googleCalendar;if(cfg?.enabled&&cfg.clientId){alert("Google OAuth configuration detected. The next implementation step is the OAuth sign-in flow using the read-only Calendar scope.")}else alert("Google Calendar is API-ready, but it still needs a Google Cloud OAuth client ID. No client secret should be stored in this app.")}
+function connectCentralReach(){let cfg=window.LifeRouteConfig?.centralReach;if(cfg?.enabled){alert("CentralReach configuration is enabled. The remaining step is secure partner authentication and mapping GET schedule events into LifeRoute.")}else alert("CentralReach read-only schedule support is scaffolded. It needs your organization’s approved partner/API credentials before LifeRoute can fetch schedule events.")}
+function routeTo(encoded){let destination=decodeURIComponent(encoded),p=prefs.mapProvider;if(p==="ask"){let useGoogle=confirm("OK = Google Maps\nCancel = Apple Maps");p=useGoogle?"google":"apple"};if(postNative({action:"openRoute",provider:p,destination}))return;let u=p==="google"?`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`:`https://maps.apple.com/directions?destination=${encodeURIComponent(destination)}&mode=driving`;location.href=u}
+function openPlace(encoded){let query=decodeURIComponent(encoded),p=prefs.mapProvider;if(p==="ask"){let useGoogle=confirm("OK = Google Maps\nCancel = Apple Maps");p=useGoogle?"google":"apple"};if(postNative({action:"openPlace",provider:p,query}))return;let u=p==="google"?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`:`https://maps.apple.com/place?address=${encodeURIComponent(query)}`;location.href=u}
+
+function loadDemo(){
+  let dates=weekDates();events=events.filter(e=>e.source!=="demo"&&e.source!=="manual");
+  const add=(idx,title,start,end,address,drive)=>events.push({id:"demo-"+idx+"-"+title,source:"manual",date:dates[idx],title,start,end,address,drive,buffer:10});
+  add(0,"Morning appointment","09:30","11:15","Doylestown, PA",20);add(0,"Afternoon appointment","14:00","16:00","Warminster, PA",22);
+  add(2,"Work block","10:00","12:00","Horsham, PA",18);add(2,"Client visit","15:00","18:00","Warrington, PA",24);
+  add(4,"Work block","11:00","13:00","Warminster, PA",20);add(4,"Evening appointment","16:30","19:30","Doylestown, PA",25);
+  if(!places.length)places=[{id:"demo-gym",name:"My Gym",address:"Warrington, PA",type:"Gym",minVisit:60,useInGaps:true},{id:"demo-coffee",name:"Favorite Coffee",address:"Warminster, PA",type:"Coffee",minVisit:30,useInGaps:true}];
+  selectedDate=dates[0];persist();renderAll()
+}
+function optimizeWeek(){renderWeek();showView("week");weekInsight.scrollIntoView({behavior:"smooth",block:"center"})}
+function renderAll(){renderSources();renderProvider();renderToday();renderWeek();renderPlaces()}
+function init(){
+  fDate.value=localDateKey(new Date());pGap.value=String(prefs.maxGap);setTheme(prefs.theme||"royal");renderAll();postNative({action:"requestNativeStatus"})
+}
+init();
 </script>
 </body>
 </html>

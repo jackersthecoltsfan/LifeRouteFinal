@@ -44,6 +44,32 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // Remove any sample-week content left behind by an older build.
+  const oldEventCount = events.length;
+  const oldPlaceCount = places.length;
+  events = events.filter(event => !String(event.id || "").startsWith("demo-"));
+  places = places.filter(place => !String(place.id || "").startsWith("demo-"));
+  if (events.length !== oldEventCount || places.length !== oldPlaceCount) {
+    persist();
+  }
+
+  // Use the new LifeRoute artwork as the in-app brand mark.
+  const brandMark = document.querySelector(".mark");
+  if (brandMark) {
+    brandMark.innerHTML = '<img src="liferoute-logo.png" alt="LifeRoute">';
+    brandMark.style.background = "transparent";
+    brandMark.style.overflow = "hidden";
+    brandMark.style.boxShadow = "0 10px 30px rgba(0,0,0,.28)";
+    brandMark.style.borderRadius = "14px";
+    const logo = brandMark.querySelector("img");
+    if (logo) {
+      logo.style.width = "100%";
+      logo.style.height = "100%";
+      logo.style.objectFit = "cover";
+      logo.style.display = "block";
+    }
+  }
+
   const updateGoogleStatus = () => {
     const badge = document.getElementById("googleStatus");
     if (!badge) return;
@@ -61,15 +87,77 @@ window.addEventListener("DOMContentLoaded", () => {
     };
   }
 
+  window.connectGoogle = function connectGoogleCalendarNative() {
+    if (!postNative({action: "requestGoogleCalendar"})) {
+      alert("Google Calendar connection is available inside the native iPhone app build.");
+    }
+  };
+
+  window.refreshGoogleCalendar = function refreshGoogleCalendarNative() {
+    postNative({action: "refreshGoogleCalendar"});
+  };
+
+  window.disconnectGoogleCalendar = function disconnectGoogleCalendarNative() {
+    if (confirm("Disconnect Google Calendar from LifeRoute on this iPhone?")) {
+      postNative({action: "disconnectGoogleCalendar"});
+    }
+  };
+
+  window.refreshCalendars = function refreshAllConnectedCalendars() {
+    let didRequest = false;
+
+    if (nativeState?.appleCalendarConnected) {
+      postNative({action: "refreshAppleCalendar"});
+      didRequest = true;
+    } else if (nativeState?.appleCalendarStatus === "not-determined") {
+      postNative({action: "requestAppleCalendar"});
+      didRequest = true;
+    }
+
+    if (nativeState?.googleCalendarConnected) {
+      postNative({action: "refreshGoogleCalendar"});
+      didRequest = true;
+    }
+
+    if (!didRequest) {
+      setStatus("Connect a calendar in Setup");
+      showView("setup");
+    } else {
+      setStatus("Refreshing calendars…");
+    }
+  };
+
   const originalNativeEvent = window.lifeRouteNativeEvent;
-  window.lifeRouteNativeEvent = function lifeRouteNativeEventWithGoogle(evt) {
+  let autoAppleStarted = false;
+  let autoGoogleStarted = false;
+  window.lifeRouteNativeEvent = function lifeRouteNativeEventWithLiveCalendars(evt) {
     if (typeof originalNativeEvent === "function") originalNativeEvent(evt);
     if (!evt || !evt.type) return;
 
     if (evt.type === "nativeStatus") {
       nativeState.googleCalendarConfigured = !!evt.googleCalendarConfigured;
       nativeState.googleCalendarConnected = !!evt.googleCalendarConnected;
+      nativeState.appleCalendarStatus = evt.appleCalendarStatus || "unknown";
       updateGoogleStatus();
+
+      // Make calendar data real on launch: read immediately when permission already exists.
+      // On a first install, ask once for Apple Calendar permission so the user can start testing.
+      if (evt.appleCalendarConnected && !autoAppleStarted) {
+        autoAppleStarted = true;
+        postNative({action: "refreshAppleCalendar"});
+      } else if (evt.appleCalendarStatus === "not-determined" && !autoAppleStarted) {
+        autoAppleStarted = true;
+        postNative({action: "requestAppleCalendar"});
+      }
+
+      if (evt.googleCalendarConnected && !autoGoogleStarted) {
+        autoGoogleStarted = true;
+        postNative({action: "refreshGoogleCalendar"});
+      }
+    }
+
+    if (evt.type === "appleCalendarStatus") {
+      nativeState.appleCalendarStatus = evt.status || nativeState.appleCalendarStatus;
     }
 
     if (evt.type === "googleCalendarStatus") {
@@ -93,26 +181,14 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  window.connectGoogle = function connectGoogleCalendarNative() {
-    if (!postNative({action: "requestGoogleCalendar"})) {
-      alert("Google Calendar connection is available inside the native iPhone app build.");
-    }
-  };
-
-  window.refreshGoogleCalendar = function refreshGoogleCalendarNative() {
-    postNative({action: "refreshGoogleCalendar"});
-  };
-
-  window.disconnectGoogleCalendar = function disconnectGoogleCalendarNative() {
-    if (confirm("Disconnect Google Calendar from LifeRoute on this iPhone?")) {
-      postNative({action: "disconnectGoogleCalendar"});
-    }
-  };
-
   // Upgrade the existing Google Calendar card without duplicating the main UI markup.
   const googleBadge = document.getElementById("googleStatus");
   const googleCard = googleBadge?.closest(".card");
   const googleActions = googleCard?.querySelector(".placeActions");
+  const googleMeta = googleCard?.querySelector(".meta");
+  if (googleMeta) {
+    googleMeta.textContent = "Read-only Google Calendar sync. Sign in once, then LifeRoute refreshes your calendars automatically.";
+  }
   if (googleActions) {
     googleActions.innerHTML = `
       <button class="primary" onclick="connectGoogle()">Connect Google Calendar</button>
@@ -121,7 +197,28 @@ window.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
+  // Replace the old sample-data action with a real calendar refresh action.
+  const bottomButtons = document.querySelectorAll(".bottomin button");
+  const formerSampleButton = bottomButtons?.[0];
+  if (formerSampleButton) {
+    formerSampleButton.textContent = "Refresh calendars";
+    formerSampleButton.setAttribute("onclick", "refreshCalendars()");
+  }
+
+  // Keep the readiness copy aligned with what this build can actually do.
+  const readinessNotice = Array.from(document.querySelectorAll(".notice")).find(el =>
+    el.textContent.includes("Integration readiness") || el.textContent.includes("Waiting on credentials/API setup")
+  ) || document.querySelector("#setup .notice");
+  if (readinessNotice) {
+    readinessNotice.innerHTML = `
+      <b>Ready now:</b> Apple Calendar permission/read, Google Calendar read-only OAuth sync, Apple Maps handoff, Google Maps handoff, saved places, membership-aware gap suggestions, multi-source UI, themes, and local schedule planning.<br><br>
+      <b>Still waiting on later integrations:</b> CentralReach partner credentials, live travel-time/distance matrices, and automatic importing of Google Maps saved lists.
+    `;
+  }
+
   updateGoogleStatus();
-  // Request status again now that the Google event wrapper is installed.
+  renderAll();
+
+  // Request status again now that the live-calendar event wrapper is installed.
   postNative({action: "requestNativeStatus"});
 });

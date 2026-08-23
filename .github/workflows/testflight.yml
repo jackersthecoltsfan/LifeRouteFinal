@@ -17,8 +17,10 @@ jobs:
 
       - name: Prepare LifeRoute app icon
         run: |
-          python3 -m pip install --quiet pillow
-          python3 - <<'PY'
+          python3 -m venv "$RUNNER_TEMP/liferoute-icon-venv"
+          source "$RUNNER_TEMP/liferoute-icon-venv/bin/activate"
+          python -m pip install --quiet --upgrade pip pillow
+          python - <<'PY'
           import base64
           import io
           from pathlib import Path

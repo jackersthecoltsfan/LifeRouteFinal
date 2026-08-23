@@ -56,7 +56,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // Use the new LifeRoute artwork as the in-app brand mark.
   const brandMark = document.querySelector(".mark");
   if (brandMark) {
-    brandMark.innerHTML = '<img src="liferoute-logo.png" alt="LifeRoute">';
+    brandMark.innerHTML = '<img alt="LifeRoute">';
     brandMark.style.background = "transparent";
     brandMark.style.overflow = "hidden";
     brandMark.style.boxShadow = "0 10px 30px rgba(0,0,0,.28)";
@@ -67,6 +67,10 @@ window.addEventListener("DOMContentLoaded", () => {
       logo.style.height = "100%";
       logo.style.objectFit = "cover";
       logo.style.display = "block";
+      fetch("liferoute-logo.b64")
+        .then(response => response.text())
+        .then(encoded => { logo.src = `data:image/jpeg;base64,${encoded.trim()}`; })
+        .catch(() => { brandMark.textContent = "LR"; });
     }
   }
 

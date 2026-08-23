@@ -17,12 +17,33 @@ jobs:
 
       - name: Prepare LifeRoute app icon
         run: |
-          ICON_SOURCE="$RUNNER_TEMP/LifeRouteLogo.jpg"
-          ICON_OUTPUT="LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
-          base64 -D < LifeRoute/Web/liferoute-logo.b64 > "$ICON_SOURCE"
-          sips -z 1024 1024 -s format png "$ICON_SOURCE" --out "$ICON_OUTPUT" >/dev/null
-          test -s "$ICON_OUTPUT" || (echo "LifeRoute app icon was not generated" && exit 1)
-          echo "Prepared new LifeRoute logo as the 1024x1024 app icon."
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          import base64
+          import io
+          from pathlib import Path
+          from PIL import Image
+
+          encoded = Path("LifeRoute/Web/liferoute-logo.b64").read_bytes()
+          raw = base64.b64decode(encoded)
+          image = Image.open(io.BytesIO(raw)).convert("RGB")
+          image = image.resize((1024, 1024), Image.Resampling.LANCZOS)
+
+          icon = Path("LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png")
+          logo = Path("LifeRoute/Web/liferoute-logo.png")
+          icon.parent.mkdir(parents=True, exist_ok=True)
+          logo.parent.mkdir(parents=True, exist_ok=True)
+
+          image.save(icon, format="PNG", optimize=True)
+          image.save(logo, format="PNG", optimize=True)
+
+          check = Image.open(icon)
+          assert check.format == "PNG", check.format
+          assert check.size == (1024, 1024), check.size
+          assert check.mode == "RGB", check.mode
+          print(f"Prepared clean {check.size[0]}x{check.size[1]} RGB PNG app icon: {icon}")
+          print(f"Prepared matching in-app LifeRoute logo: {logo}")
+          PY
 
       - name: Validate required Apple secrets
         env:

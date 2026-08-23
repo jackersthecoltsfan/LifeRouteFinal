@@ -37,6 +37,12 @@ jobs:
           chmod 600 "$KEY_PATH"
           echo "KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
 
+          # altool searches this standard location for App Store Connect API keys.
+          ALTOOL_KEY_DIR="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$ALTOOL_KEY_DIR"
+          cp "$KEY_PATH" "$ALTOOL_KEY_DIR/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          chmod 600 "$ALTOOL_KEY_DIR/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+
       - name: Archive LifeRoute
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

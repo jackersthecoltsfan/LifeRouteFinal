@@ -160,15 +160,23 @@ struct LifeRouteWebView: UIViewRepresentable {
 
         private var authorizationLabel: String {
             let status = EKEventStore.authorizationStatus(for: .event)
-            if #available(iOS 17.0, *), status == .fullAccess { return "connected" }
-            switch status {
-            case .authorized: return "connected"
-            case .denied: return "denied"
-            case .restricted: return "restricted"
-            case .notDetermined: return "not-determined"
-            case .writeOnly: return "write-only"
-            case .fullAccess: return "connected"
-            @unknown default: return "unknown"
+            if #available(iOS 17.0, *) {
+                switch status {
+                case .fullAccess, .authorized: return "connected"
+                case .writeOnly: return "write-only"
+                case .denied: return "denied"
+                case .restricted: return "restricted"
+                case .notDetermined: return "not-determined"
+                @unknown default: return "unknown"
+                }
+            } else {
+                switch status {
+                case .authorized: return "connected"
+                case .denied: return "denied"
+                case .restricted: return "restricted"
+                case .notDetermined: return "not-determined"
+                default: return "unknown"
+                }
             }
         }
 
@@ -189,13 +197,21 @@ struct LifeRouteWebView: UIViewRepresentable {
 
             if provider.lowercased() == "google" {
                 var components = URLComponents(string: "https://www.google.com/maps/dir/")!
-                var items = [URLQueryItem(name: "api", value: "1"), URLQueryItem(name: "destination", value: destination), URLQueryItem(name: "travelmode", value: "driving")]
-                if let origin, !origin.isEmpty { items.append(URLQueryItem(name: "origin", value: origin)) }
+                var items = [
+                    URLQueryItem(name: "api", value: "1"),
+                    URLQueryItem(name: "destination", value: destination),
+                    URLQueryItem(name: "travelmode", value: "driving")
+                ]
+                if let origin, !origin.isEmpty {
+                    items.append(URLQueryItem(name: "origin", value: origin))
+                }
                 components.queryItems = items
                 if let url = components.url { UIApplication.shared.open(url) }
             } else {
                 var urlString = "https://maps.apple.com/directions?destination=\(encodedDestination)&mode=driving"
-                if let encodedOrigin, !encodedOrigin.isEmpty { urlString += "&source=\(encodedOrigin)" }
+                if let encodedOrigin, !encodedOrigin.isEmpty {
+                    urlString += "&source=\(encodedOrigin)"
+                }
                 if let url = URL(string: urlString) { UIApplication.shared.open(url) }
             }
         }
@@ -204,7 +220,10 @@ struct LifeRouteWebView: UIViewRepresentable {
             guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
             if provider.lowercased() == "google" {
                 var components = URLComponents(string: "https://www.google.com/maps/search/")!
-                components.queryItems = [URLQueryItem(name: "api", value: "1"), URLQueryItem(name: "query", value: query)]
+                components.queryItems = [
+                    URLQueryItem(name: "api", value: "1"),
+                    URLQueryItem(name: "query", value: query)
+                ]
                 if let url = components.url { UIApplication.shared.open(url) }
             } else {
                 let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""

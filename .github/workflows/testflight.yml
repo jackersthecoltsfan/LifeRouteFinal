@@ -15,16 +15,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate app icon asset
+      - name: Prepare LifeRoute app icon
         run: |
           set -euo pipefail
+          SOURCE="LifeRoute/Web/liferoute-logo-source.png"
           ICON="LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
-          test -s "$ICON" || (echo "Missing app icon asset: $ICON" && exit 1)
-          file "$ICON"
+          test -s "$SOURCE" || (echo "Missing LifeRoute PNG source: $SOURCE" && exit 1)
+          file "$SOURCE"
+          mkdir -p "$(dirname "$ICON")"
+          sips -z 1024 1024 "$SOURCE" --out "$ICON" >/dev/null
+          test -s "$ICON" || (echo "LifeRoute app icon was not generated" && exit 1)
           WIDTH=$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/ {print $2}')
           HEIGHT=$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/ {print $2}')
           test "$WIDTH" = "1024" && test "$HEIGHT" = "1024" || (echo "Unexpected icon dimensions: ${WIDTH}x${HEIGHT}" && exit 1)
-          echo "Using checked-in 1024x1024 app icon asset."
+          echo "Prepared LifeRoute app icon from checked-in PNG source."
 
       - name: Validate required Apple secrets
         env:

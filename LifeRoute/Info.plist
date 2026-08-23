@@ -17,6 +17,22 @@
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
 
+    <key>GOOGLE_OAUTH_CLIENT_ID</key>
+    <string>601974933090-8tah9eh7ur883j0oaenimgs556et7psk.apps.googleusercontent.com</string>
+    <key>GOOGLE_OAUTH_REDIRECT_SCHEME</key>
+    <string>com.googleusercontent.apps.601974933090-8tah9eh7ur883j0oaenimgs556et7psk</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>com.googleusercontent.apps.601974933090-8tah9eh7ur883j0oaenimgs556et7psk</string>
+            </array>
+        </dict>
+    </array>
+
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>LifeRoute reads the calendars you choose so it can combine appointments, find usable gaps, and plan routes. LifeRoute does not edit or delete your calendar events.</string>
     <key>NSCalendarsUsageDescription</key>

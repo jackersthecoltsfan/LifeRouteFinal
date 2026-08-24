@@ -49,13 +49,11 @@
     loadPreviewScript("nav-cleanup.js");
     loadPreviewScript("icloud-calendar-web.js");
     loadPreviewScript("google-calendar-web.js");
-    loadPreviewScript("google-calendar-return.js");
+    loadPreviewScript("google-calendar-stability.js");
     loadPreviewScript("first-then-back.js");
 
-    // The native config layer still owns the legacy Google badge and can label
-    // a browser connection as "SETUP NEEDED" after renderAll(). In the web
-    // build the OAuth client is already configured, so keep the browser UI in
-    // sync with the actual Google connection state and remove developer setup.
+    // Keep the legacy/native Google badge from overwriting the real browser
+    // OAuth status. Watch only the Google status element; never the whole DOM.
     const polishGoogleWebUI = () => {
       const configured = !!String(window.LifeRouteConfig?.googleCalendar?.clientId || "").trim();
       if (!configured) return;
@@ -81,10 +79,7 @@
         if (googleBadge.className !== wantedClass) googleBadge.className = wantedClass;
       }
 
-      // Nobody using the deployed web app should have to see or enter the
-      // project's OAuth Client ID. Keep that configuration developer-only.
       document.getElementById("googleWebSetup")?.remove();
-
       const connect = document.getElementById("googleWebConnect");
       if (connect) {
         const wanted = connected ? "Reconnect Google" : "Connect Google Calendar";
@@ -92,17 +87,27 @@
       }
     };
 
-    const googleChromeObserver = new MutationObserver(() => {
-      window.setTimeout(polishGoogleWebUI, 0);
-    });
-    googleChromeObserver.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ["data-kind"]
-    });
-    [50, 180, 450, 900, 1800, 3500].forEach(delay => window.setTimeout(polishGoogleWebUI, delay));
+    const attachGoogleObserver = () => {
+      const status = document.getElementById("googleWebStatus");
+      if (!status || status.dataset.lifeRoutePolishObserved === "1") return false;
+      status.dataset.lifeRoutePolishObserved = "1";
+      new MutationObserver(polishGoogleWebUI).observe(status, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["data-kind"]
+      });
+      polishGoogleWebUI();
+      return true;
+    };
+
+    let attempts = 0;
+    const observerTimer = setInterval(() => {
+      attempts += 1;
+      if (attachGoogleObserver() || attempts > 80) clearInterval(observerTimer);
+    }, 100);
+    [100, 300, 700, 1500, 3000].forEach(delay => setTimeout(polishGoogleWebUI, delay));
 
     // Keep browser-only previewing from appearing frozen when a native-only
     // feature is tapped. Normal tabs, forms, themes, To-Dos, Google Calendar,

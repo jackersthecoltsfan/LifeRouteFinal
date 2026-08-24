@@ -1,4 +1,5 @@
 from pathlib import Path
+import patch_day_navigation  # Also applies Day-view Previous / Today / Next controls.
 
 path = Path("LifeRoute/LifeRouteWebView.swift")
 text = path.read_text()

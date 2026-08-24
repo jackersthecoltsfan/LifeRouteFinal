@@ -41,15 +41,35 @@ jobs:
           cp scripts/web-preview.js dist/web-preview.js
           touch dist/.nojekyll
 
-          python3 - <<'PY'
+          BUILD_SHA="$GITHUB_SHA" python3 - <<'PY'
+          import os
+          import re
           from pathlib import Path
+
           path = Path("dist/index.html")
           html = path.read_text()
+          sha = os.environ["BUILD_SHA"][:8]
+
           tag = '<script src="web-preview.js"></script>'
           if tag not in html:
               if "</body>" not in html:
                   raise SystemExit("Could not build Pages preview: </body> not found")
               html = html.replace("</body>", tag + "\n</body>", 1)
+
+          # Safari can keep an older JavaScript file even after Pages deploys.
+          # Give every local script a commit-specific URL so each preview loads
+          # the exact code from the newest GitHub Pages deployment.
+          html = re.sub(
+              r'<script src="([^"]+\.js)(?:\?[^"]*)?"></script>',
+              lambda m: f'<script src="{m.group(1)}?v={sha}"></script>',
+              html
+          )
+
+          # Expose the deployed commit in the DOM for easy visual verification.
+          marker = f'<meta name="liferoute-web-build" content="{sha}">'
+          if "</head>" in html and "liferoute-web-build" not in html:
+              html = html.replace("</head>", marker + "\n</head>", 1)
+
           path.write_text(html)
           PY
 

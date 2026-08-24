@@ -477,7 +477,7 @@
   };
 
   const makeAutoFirstThenVisual = text => {
-    const clean = String(text || "").trim() || "Visual";
+    const clean = String(text || "").trim() || "Activity";
     const key = clean.toLowerCase();
     if (autoVisualCache.has(key)) return autoVisualCache.get(key);
 
@@ -531,7 +531,10 @@
 
   const firstThenModeFor = side => side === "first" ? state.firstMode : state.thenMode;
   const firstThenSavedIdFor = side => side === "first" ? state.firstIconId : state.thenIconId;
-  const firstThenTextFor = side => String(document.getElementById(side === "first" ? "firstThenFirst" : "firstThenThen")?.value || "").trim();
+  const firstThenTextFor = side => {
+    const field = document.getElementById(side === "first" ? "firstThenFirst" : "firstThenThen");
+    return String(field?.value || field?.placeholder || (side === "first" ? "Table work" : "Outside")).trim();
+  };
 
   const firstThenVisualFor = side => {
     const mode = firstThenModeFor(side);

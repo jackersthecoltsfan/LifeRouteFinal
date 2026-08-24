@@ -1,0 +1,118 @@
+name: Publish Web Preview
+run-name: LifeRoute web preview
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'LifeRoute/Web/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: liferoute-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Build browser preview
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          cp -R LifeRoute/Web dist
+          touch dist/.nojekyll
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("dist/index.html")
+          html = path.read_text()
+
+          # The native iPhone build injects these at build time. Pages needs the
+          # same feature layers explicitly so the browser preview matches TestFlight.
+          tags = [
+              '<script src="route-times.js"></script>',
+              '<script src="smart-context.js"></script>',
+              '<script src="todos.js"></script>',
+              '<script src="grocery-stores.js"></script>',
+              '<script src="transport-mode.js"></script>',
+              '<script src="sleek-ui.js"></script>',
+          ]
+
+          for tag in tags:
+              html = html.replace(tag, "")
+
+          preview = r'''
+          <script>
+          window.addEventListener("DOMContentLoaded", () => {
+            const isNative = !!window.webkit?.messageHandlers?.lifeRoute;
+            if (isNative) return;
+
+            const badge = document.createElement("div");
+            badge.id = "webPreviewBadge";
+            badge.textContent = "WEB PREVIEW · native calendar, GPS, and MapKit actions require the iPhone build";
+            badge.style.cssText = [
+              "position:sticky","top:0","z-index:9999","margin:0 auto 10px",
+              "max-width:880px","padding:8px 12px","border-radius:0 0 12px 12px",
+              "text-align:center","font:800 10px/1.3 system-ui,-apple-system,sans-serif",
+              "letter-spacing:.02em","background:rgba(10,20,36,.92)","color:#f2c86d",
+              "border:1px solid rgba(242,200,109,.20)","border-top:0",
+              "backdrop-filter:blur(18px)"
+            ].join(";");
+            document.body.prepend(badge);
+
+            // Make the preview useful immediately without touching real user data.
+            setTimeout(() => {
+              try {
+                if (Array.isArray(window.events) && window.events.length === 0 && typeof window.loadDemo === "function") {
+                  window.loadDemo();
+                }
+              } catch (_) {}
+            }, 250);
+          });
+          </script>
+          '''
+
+          if "</body>" not in html:
+              raise SystemExit("Could not build Pages preview: </body> not found")
+
+          html = html.replace("</body>", "\n".join(tags) + "\n" + preview + "\n</body>", 1)
+          path.write_text(html)
+          PY
+
+          test -s dist/index.html
+          for js in config.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js; do
+            test -s "dist/$js"
+            node --check "dist/$js"
+          done
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

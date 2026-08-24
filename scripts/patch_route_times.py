@@ -27,12 +27,12 @@ replace_once(
 
 replace_once(
     '            case "disconnectGoogleCalendar":\n                disconnectGoogleCalendar()\n',
-    '            case "disconnectGoogleCalendar":\n                disconnectGoogleCalendar()\n            case "requestRouteTimes":\n                calculateRouteTimes(body["segments"] as? [[String: Any]] ?? [])\n',
-    "route-time bridge action",
+    '            case "disconnectGoogleCalendar":\n                disconnectGoogleCalendar()\n            case "requestRouteTimes":\n                calculateRouteTimes(body["segments"] as? [[String: Any]] ?? [])\n            case "searchStoreLocations":\n                searchStoreLocations(\n                    requestID: (body["requestID"] as? String) ?? UUID().uuidString,\n                    queries: body["queries"] as? [String] ?? [],\n                    nearAddresses: body["nearAddresses"] as? [String] ?? [],\n                    limitPerQuery: (body["limitPerQuery"] as? NSNumber)?.intValue ?? 4\n                )\n',
+    "route/store bridge actions",
 )
 
 route_code = r'''
-        // MARK: - Route time data (Apple MapKit)
+        // MARK: - Route time data + nearby store search (Apple MapKit)
 
         private func calculateRouteTimes(_ segments: [[String: Any]]) {
             guard !segments.isEmpty else {
@@ -53,8 +53,16 @@ route_code = r'''
                     }
 
                     do {
-                        let sourceItem = try await resolveMapItem(origin)
-                        let destinationItem = try await resolveMapItem(destination)
+                        let sourceItem = try await resolveMapItem(
+                            origin,
+                            latitude: number(segment["originLatitude"]),
+                            longitude: number(segment["originLongitude"])
+                        )
+                        let destinationItem = try await resolveMapItem(
+                            destination,
+                            latitude: number(segment["destinationLatitude"]),
+                            longitude: number(segment["destinationLongitude"])
+                        )
 
                         let request = MKDirections.Request()
                         request.source = sourceItem
@@ -107,7 +115,124 @@ route_code = r'''
             }
         }
 
-        private func resolveMapItem(_ query: String) async throws -> MKMapItem {
+        private func searchStoreLocations(
+            requestID: String,
+            queries: [String],
+            nearAddresses: [String],
+            limitPerQuery: Int
+        ) {
+            let cleanedQueries = Array(Set(queries.map {
+                $0.trimmingCharacters(in: .whitespacesAndNewlines)
+            }.filter { !$0.isEmpty })).sorted()
+
+            guard !cleanedQueries.isEmpty else {
+                emit(type: "storeLocations", payload: [
+                    "requestID": requestID,
+                    "engine": "apple-mapkit",
+                    "locations": []
+                ])
+                return
+            }
+
+            Task {
+                let region = await storeSearchRegion(nearAddresses)
+                var locations: [[String: Any]] = []
+                var seen = Set<String>()
+                let perQuery = max(1, min(8, limitPerQuery))
+
+                for query in cleanedQueries {
+                    do {
+                        let request = MKLocalSearch.Request()
+                        request.naturalLanguageQuery = query
+                        request.resultTypes = [.pointOfInterest, .address]
+                        if let region { request.region = region }
+
+                        let response = try await MKLocalSearch(request: request).start()
+                        for item in response.mapItems.prefix(perQuery) {
+                            let coordinate = item.placemark.coordinate
+                            let name = item.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let address = displayAddress(item.placemark)
+                            let key = String(format: "%.5f|%.5f|%@", coordinate.latitude, coordinate.longitude, (name ?? query).lowercased())
+                            guard !seen.contains(key) else { continue }
+                            seen.insert(key)
+
+                            locations.append([
+                                "brand": query,
+                                "name": name?.isEmpty == false ? name! : query,
+                                "address": address.isEmpty ? (item.placemark.title ?? query) : address,
+                                "latitude": coordinate.latitude,
+                                "longitude": coordinate.longitude
+                            ])
+                        }
+                    } catch {
+                        // One chain failing should not prevent other preferred chains from returning.
+                        continue
+                    }
+                }
+
+                emit(type: "storeLocations", payload: [
+                    "requestID": requestID,
+                    "engine": "apple-mapkit",
+                    "locations": locations
+                ])
+            }
+        }
+
+        private func storeSearchRegion(_ nearAddresses: [String]) async -> MKCoordinateRegion? {
+            var coordinates: [CLLocationCoordinate2D] = []
+            for address in nearAddresses.prefix(2) {
+                let trimmed = address.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { continue }
+                if let item = try? await resolveMapItem(trimmed) {
+                    coordinates.append(item.placemark.coordinate)
+                }
+            }
+            guard let first = coordinates.first else { return nil }
+            if coordinates.count == 1 {
+                return MKCoordinateRegion(
+                    center: first,
+                    span: MKCoordinateSpan(latitudeDelta: 0.32, longitudeDelta: 0.32)
+                )
+            }
+
+            let second = coordinates[1]
+            let center = CLLocationCoordinate2D(
+                latitude: (first.latitude + second.latitude) / 2,
+                longitude: (first.longitude + second.longitude) / 2
+            )
+            let latDelta = max(0.22, abs(first.latitude - second.latitude) * 2.4 + 0.12)
+            let lonDelta = max(0.22, abs(first.longitude - second.longitude) * 2.4 + 0.12)
+            return MKCoordinateRegion(
+                center: center,
+                span: MKCoordinateSpan(latitudeDelta: min(1.2, latDelta), longitudeDelta: min(1.2, lonDelta))
+            )
+        }
+
+        private func displayAddress(_ placemark: MKPlacemark) -> String {
+            let street = [placemark.subThoroughfare, placemark.thoroughfare]
+                .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            let cityStateZip = [placemark.locality, placemark.administrativeArea, placemark.postalCode]
+                .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            return [street, cityStateZip].filter { !$0.isEmpty }.joined(separator: ", ")
+        }
+
+        private func resolveMapItem(
+            _ query: String,
+            latitude: Double? = nil,
+            longitude: Double? = nil
+        ) async throws -> MKMapItem {
+            if let latitude, let longitude,
+               (-90.0...90.0).contains(latitude),
+               (-180.0...180.0).contains(longitude) {
+                return MKMapItem(placemark: MKPlacemark(
+                    coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+                ))
+            }
+
             let key = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             if let cached = mapItemCache[key] {
                 return cached
@@ -124,6 +249,13 @@ route_code = r'''
             return mapItem
         }
 
+        private func number(_ value: Any?) -> Double? {
+            if let number = value as? NSNumber { return number.doubleValue }
+            if let value = value as? Double { return value }
+            if let value = value as? String { return Double(value) }
+            return nil
+        }
+
         private func parseRouteDate(_ value: String) -> Date? {
             let formatter = ISO8601DateFormatter()
             if let date = formatter.date(from: value) {
@@ -138,13 +270,13 @@ route_code = r'''
 replace_once(
     "        // MARK: - Google OAuth helpers / Keychain\n",
     route_code + "        // MARK: - Google OAuth helpers / Keychain\n",
-    "MapKit route functions",
+    "MapKit route/store functions",
 )
 
 replace_once(
     '                "googleCalendarConnected": googleCalendarConnected,\n                "googleMapsHandoffAvailable": true,\n',
-    '                "googleCalendarConnected": googleCalendarConnected,\n                "routeTimeEngine": "apple-mapkit",\n                "googleMapsHandoffAvailable": true,\n',
-    "native route-time status",
+    '                "googleCalendarConnected": googleCalendarConnected,\n                "routeTimeEngine": "apple-mapkit",\n                "storeSearchEngine": "apple-mapkit",\n                "googleMapsHandoffAvailable": true,\n',
+    "native route/store status",
 )
 
 if "private enum RouteTimeError" not in text:
@@ -166,4 +298,14 @@ private enum RouteTimeError: LocalizedError {
 '''
 
 path.write_text(text)
-print("Patched LifeRouteWebView.swift with native Apple MapKit route-time support.")
+
+web_path = Path("LifeRoute/Web/index.html")
+html = web_path.read_text()
+store_tag = '<script src="grocery-stores.js"></script>'
+if store_tag not in html:
+    if "</body>" not in html:
+        raise SystemExit("Could not enable grocery store preferences: </body> not found")
+    html = html.replace("</body>", f"{store_tag}\n</body>", 1)
+    web_path.write_text(html)
+
+print("Patched LifeRoute with Apple MapKit route times, store search, and grocery store preferences.")

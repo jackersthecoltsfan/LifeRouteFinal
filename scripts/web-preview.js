@@ -49,6 +49,7 @@
     loadPreviewScript("nav-cleanup.js");
     loadPreviewScript("icloud-calendar-web.js");
     loadPreviewScript("google-calendar-web.js");
+    loadPreviewScript("google-calendar-return.js");
     loadPreviewScript("first-then-back.js");
 
     // The native config layer still owns the legacy Google badge and can label

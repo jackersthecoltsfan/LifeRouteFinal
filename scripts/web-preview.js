@@ -30,9 +30,10 @@
       document.body.appendChild(script);
     };
 
-    // Browser-preview-only helpers. Both are cache-busted to the deployed SHA.
+    // Browser-preview-only helpers. All are cache-busted to the deployed SHA.
     loadPreviewScript("welcome.js");
     loadPreviewScript("nav-cleanup.js");
+    loadPreviewScript("icloud-calendar-web.js");
 
     // Keep browser-only previewing from appearing frozen when a native-only
     // feature is tapped. Normal tabs, forms, themes, To-Dos, and UI controls

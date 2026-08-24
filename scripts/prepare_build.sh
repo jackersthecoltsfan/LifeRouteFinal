@@ -90,6 +90,8 @@ grep -q 'makeAutoFirstThenVisual' LifeRoute/Web/visual-tools.js
 grep -q 'REAL_IMAGE_VISUALS' LifeRoute/Web/visual-tools.js
 test -s "LifeRoute/Web/assets/visuals/table-work.jpg"
 test -s "LifeRoute/Web/assets/visuals/outside.jpg"
+file "LifeRoute/Web/assets/visuals/table-work.jpg" | grep -q "JPEG image data"
+file "LifeRoute/Web/assets/visuals/outside.jpg" | grep -q "JPEG image data"
 grep -q 'choiceBoardTool' LifeRoute/Web/visual-tools.js
 grep -q 'visual-tools.js' LifeRoute/Web/index.html
 grep -q 'scheduleToolTimer' LifeRoute/LifeRouteWebView.swift

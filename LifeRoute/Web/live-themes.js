@@ -1,82 +1,73 @@
-// Subtle animated marble background for every LifeRoute theme.
-// The motion is intentionally slow and low-contrast so the UI feels alive
-// without becoming distracting or looking like a game/visualizer.
+// Theme-aware moving light waves for LifeRoute.
+// Slow, restrained bands of light drift behind the glass UI so every theme
+// feels alive and premium without becoming distracting.
 (() => {
   const style = document.createElement("style");
   style.id = "lifeRouteLiveThemeStyles";
   style.textContent = `
     :root{
-      --marble-a:#0b2948;--marble-b:#173e66;--marble-c:#8f6e2e;--marble-d:#07111f;
-      --marble-light:rgba(140,194,255,.10);--marble-vein:rgba(242,200,109,.055)
+      --wave-base:#07111f;--wave-deep:#0a2038;--wave-a:rgba(93,166,255,.22);--wave-b:rgba(242,200,109,.15);--wave-c:rgba(78,126,196,.15);--wave-glow:rgba(193,225,255,.12)
     }
-    html[data-theme="obsidian"]{--marble-a:#060709;--marble-b:#17191d;--marble-c:#493d24;--marble-d:#020203;--marble-light:rgba(232,197,116,.065);--marble-vein:rgba(232,197,116,.055)}
-    html[data-theme="carbon"]{--marble-a:#080b10;--marble-b:#1b222b;--marble-c:#37424f;--marble-d:#050609;--marble-light:rgba(169,199,234,.07);--marble-vein:rgba(215,224,235,.045)}
-    html[data-theme="midnight"]{--marble-a:#080b20;--marble-b:#18214a;--marble-c:#463f77;--marble-d:#03040c;--marble-light:rgba(149,167,255,.085);--marble-vein:rgba(230,199,122,.045)}
-    html[data-theme="navy-noir"]{--marble-a:#03101c;--marble-b:#0d2b49;--marble-c:#29405f;--marble-d:#02060b;--marble-light:rgba(114,183,255,.08);--marble-vein:rgba(216,185,108,.04)}
-    html[data-theme="titanium"]{--marble-a:#0d0f12;--marble-b:#262b31;--marble-c:#41464d;--marble-d:#070809;--marble-light:rgba(196,209,223,.065);--marble-vein:rgba(217,193,138,.04)}
-    html[data-theme="ocean"]{--marble-a:#041924;--marble-b:#0a3a4e;--marble-c:#14586b;--marble-d:#020e15;--marble-light:rgba(121,220,255,.08);--marble-vein:rgba(223,200,129,.035)}
-    html[data-theme="aurora"]{--marble-a:#061c20;--marble-b:#0b3b40;--marble-c:#285d55;--marble-d:#031011;--marble-light:rgba(120,225,232,.08);--marble-vein:rgba(217,229,143,.04)}
-    html[data-theme="forest"]{--marble-a:#061911;--marble-b:#123628;--marble-c:#355742;--marble-d:#020c08;--marble-light:rgba(135,209,190,.075);--marble-vein:rgba(220,196,125,.035)}
-    html[data-theme="plum"]{--marble-a:#160b1c;--marble-b:#3a1e46;--marble-c:#62406d;--marble-d:#09040c;--marble-light:rgba(199,156,221,.08);--marble-vein:rgba(229,195,122,.04)}
-    html[data-theme="ember"]{--marble-a:#1a0a06;--marble-b:#4a2115;--marble-c:#6d3a27;--marble-d:#0c0403;--marble-light:rgba(226,155,119,.08);--marble-vein:rgba(232,191,105,.045)}
-    html[data-theme="slate"]{--marble-a:#15191f;--marble-b:#2c343d;--marble-c:#424b55;--marble-d:#0b0d10;--marble-light:rgba(143,197,255,.065);--marble-vein:rgba(228,193,122,.035)}
-    html[data-theme="mono"]{--marble-a:#070809;--marble-b:#1b1d21;--marble-c:#34363b;--marble-d:#020303;--marble-light:rgba(255,255,255,.055);--marble-vein:rgba(255,255,255,.035)}
-    html[data-theme="daylight"]{--marble-a:#e6eef8;--marble-b:#f7f4e9;--marble-c:#ccdbea;--marble-d:#f6f9fd;--marble-light:rgba(255,255,255,.48);--marble-vein:rgba(70,105,145,.045)}
+    html[data-theme="obsidian"]{--wave-base:#040506;--wave-deep:#0b0d10;--wave-a:rgba(205,213,225,.10);--wave-b:rgba(232,197,116,.18);--wave-c:rgba(103,112,124,.10);--wave-glow:rgba(255,238,191,.08)}
+    html[data-theme="carbon"]{--wave-base:#07090c;--wave-deep:#11161d;--wave-a:rgba(169,199,234,.14);--wave-b:rgba(210,220,232,.10);--wave-c:rgba(94,113,136,.12);--wave-glow:rgba(220,234,250,.08)}
+    html[data-theme="midnight"]{--wave-base:#040611;--wave-deep:#101735;--wave-a:rgba(117,139,255,.22);--wave-b:rgba(230,199,122,.11);--wave-c:rgba(95,76,176,.16);--wave-glow:rgba(183,194,255,.10)}
+    html[data-theme="navy-noir"]{--wave-base:#020812;--wave-deep:#071a2d;--wave-a:rgba(75,155,241,.20);--wave-b:rgba(216,185,108,.10);--wave-c:rgba(35,86,141,.17);--wave-glow:rgba(135,197,255,.10)}
+    html[data-theme="titanium"]{--wave-base:#090a0c;--wave-deep:#181c21;--wave-a:rgba(196,209,223,.13);--wave-b:rgba(217,193,138,.09);--wave-c:rgba(107,117,128,.12);--wave-glow:rgba(240,244,248,.07)}
+    html[data-theme="ocean"]{--wave-base:#02101a;--wave-deep:#062a3b;--wave-a:rgba(69,194,236,.21);--wave-b:rgba(223,200,129,.09);--wave-c:rgba(27,123,157,.17);--wave-glow:rgba(151,232,255,.10)}
+    html[data-theme="aurora"]{--wave-base:#031113;--wave-deep:#0a2e32;--wave-a:rgba(74,210,216,.20);--wave-b:rgba(192,225,132,.11);--wave-c:rgba(69,147,132,.15);--wave-glow:rgba(171,255,240,.09)}
+    html[data-theme="forest"]{--wave-base:#030e09;--wave-deep:#0b271b;--wave-a:rgba(91,190,151,.18);--wave-b:rgba(220,196,125,.09);--wave-c:rgba(47,111,79,.15);--wave-glow:rgba(180,238,210,.08)}
+    html[data-theme="plum"]{--wave-base:#0b050f;--wave-deep:#25102d;--wave-a:rgba(181,121,207,.19);--wave-b:rgba(229,195,122,.10);--wave-c:rgba(109,63,132,.16);--wave-glow:rgba(235,190,255,.09)}
+    html[data-theme="ember"]{--wave-base:#100503;--wave-deep:#30130c;--wave-a:rgba(218,119,79,.18);--wave-b:rgba(232,191,105,.14);--wave-c:rgba(133,55,34,.15);--wave-glow:rgba(255,194,150,.08)}
+    html[data-theme="slate"]{--wave-base:#10141a;--wave-deep:#232b34;--wave-a:rgba(113,164,218,.14);--wave-b:rgba(228,193,122,.08);--wave-c:rgba(93,106,122,.14);--wave-glow:rgba(206,226,248,.08)}
+    html[data-theme="mono"]{--wave-base:#050607;--wave-deep:#15171a;--wave-a:rgba(255,255,255,.10);--wave-b:rgba(255,255,255,.055);--wave-c:rgba(150,150,150,.09);--wave-glow:rgba(255,255,255,.07)}
+    html[data-theme="daylight"]{--wave-base:#edf4fb;--wave-deep:#f9f6ec;--wave-a:rgba(74,138,203,.15);--wave-b:rgba(199,160,76,.11);--wave-c:rgba(151,182,211,.14);--wave-glow:rgba(255,255,255,.52)}
 
-    html{background:var(--bg)!important}
+    html{background:var(--wave-base)!important}
     body{position:relative;isolation:isolate;background:transparent!important;min-height:100vh}
-    #lifeRouteMarbleBackdrop{position:fixed;inset:-12vh -12vw;z-index:-2;pointer-events:none;overflow:hidden;background:linear-gradient(145deg,var(--marble-d),var(--marble-a) 42%,var(--marble-b) 72%,var(--marble-d));transform:translateZ(0)}
-    #lifeRouteMarbleBackdrop .marbleField{position:absolute;inset:-14%;will-change:transform;transform:translateZ(0);filter:blur(20px) saturate(108%)}
-    #lifeRouteMarbleBackdrop .marbleFieldA{opacity:.82;background:
-      radial-gradient(ellipse at 17% 24%,color-mix(in srgb,var(--marble-b) 88%,transparent) 0 16%,transparent 43%),
-      radial-gradient(ellipse at 78% 18%,color-mix(in srgb,var(--marble-c) 44%,transparent) 0 12%,transparent 38%),
-      radial-gradient(ellipse at 64% 77%,color-mix(in srgb,var(--marble-b) 76%,transparent) 0 18%,transparent 45%),
-      radial-gradient(ellipse at 21% 82%,color-mix(in srgb,var(--marble-a) 85%,transparent) 0 16%,transparent 42%),
-      linear-gradient(125deg,transparent 12%,var(--marble-light) 34%,transparent 53%)}
-    #lifeRouteMarbleBackdrop .marbleFieldB{opacity:.56;background:
-      conic-gradient(from 118deg at 48% 52%,transparent 0 12%,color-mix(in srgb,var(--marble-c) 25%,transparent) 18%,transparent 30% 55%,color-mix(in srgb,var(--marble-b) 42%,transparent) 67%,transparent 82%),
-      radial-gradient(ellipse at 84% 68%,color-mix(in srgb,var(--marble-a) 80%,transparent) 0 16%,transparent 45%),
-      radial-gradient(ellipse at 35% 45%,var(--marble-light) 0 9%,transparent 36%)}
-    #lifeRouteMarbleBackdrop .marbleVeins{position:absolute;inset:-20%;opacity:.72;will-change:transform;mix-blend-mode:soft-light;background:
-      repeating-linear-gradient(116deg,transparent 0 74px,var(--marble-vein) 75px 76px,transparent 77px 154px),
-      repeating-radial-gradient(ellipse at 40% 45%,transparent 0 92px,var(--marble-vein) 93px 95px,transparent 96px 182px);filter:blur(.4px)}
+    #lifeRouteLightBackdrop{position:fixed;inset:-16vh -14vw;z-index:-3;pointer-events:none;overflow:hidden;background:linear-gradient(160deg,var(--wave-base),var(--wave-deep) 52%,var(--wave-base));transform:translateZ(0)}
+    #lifeRouteLightBackdrop .lightWave{position:absolute;left:-18%;width:136%;height:46%;border-radius:50%;filter:blur(42px);opacity:.72;will-change:transform;transform:translate3d(0,0,0) rotate(-7deg)}
+    #lifeRouteLightBackdrop .waveA{top:4%;background:linear-gradient(100deg,transparent 5%,var(--wave-a) 34%,var(--wave-glow) 50%,var(--wave-a) 66%,transparent 95%);animation:lrWaveA 24s ease-in-out infinite}
+    #lifeRouteLightBackdrop .waveB{top:37%;height:38%;background:linear-gradient(95deg,transparent 7%,var(--wave-c) 30%,var(--wave-b) 50%,var(--wave-c) 70%,transparent 93%);opacity:.54;animation:lrWaveB 31s ease-in-out infinite}
+    #lifeRouteLightBackdrop .waveC{top:68%;height:34%;background:linear-gradient(102deg,transparent 4%,var(--wave-b) 28%,var(--wave-glow) 48%,var(--wave-a) 72%,transparent 96%);opacity:.38;animation:lrWaveC 39s ease-in-out infinite}
+    #lifeRouteLightBackdrop .waveSheen{position:absolute;inset:-10%;background:radial-gradient(ellipse at 30% 18%,var(--wave-glow),transparent 34%),radial-gradient(ellipse at 77% 64%,color-mix(in srgb,var(--wave-a) 60%,transparent),transparent 38%);filter:blur(34px);opacity:.46;animation:lrWaveSheen 46s ease-in-out infinite;will-change:transform}
 
-    @keyframes lrMarbleDriftA{
-      0%{transform:translate3d(-2.5%,-1.5%,0) scale(1.05) rotate(-1.2deg)}
-      35%{transform:translate3d(2.5%,1%,0) scale(1.10) rotate(.8deg)}
-      70%{transform:translate3d(-.5%,3%,0) scale(1.07) rotate(-.3deg)}
-      100%{transform:translate3d(-2.5%,-1.5%,0) scale(1.05) rotate(-1.2deg)}
+    @keyframes lrWaveA{
+      0%{transform:translate3d(-7%,-4%,0) rotate(-8deg) scaleX(1.03)}
+      50%{transform:translate3d(8%,8%,0) rotate(-3deg) scaleX(1.12)}
+      100%{transform:translate3d(-7%,-4%,0) rotate(-8deg) scaleX(1.03)}
     }
-    @keyframes lrMarbleDriftB{
-      0%{transform:translate3d(3%,-2%,0) scale(1.10) rotate(.8deg)}
-      45%{transform:translate3d(-2%,2.5%,0) scale(1.05) rotate(-1deg)}
-      100%{transform:translate3d(3%,-2%,0) scale(1.10) rotate(.8deg)}
+    @keyframes lrWaveB{
+      0%{transform:translate3d(8%,2%,0) rotate(7deg) scaleX(1.08)}
+      50%{transform:translate3d(-7%,-7%,0) rotate(2deg) scaleX(1.16)}
+      100%{transform:translate3d(8%,2%,0) rotate(7deg) scaleX(1.08)}
     }
-    @keyframes lrMarbleVeins{
-      0%{transform:translate3d(-1%,0,0) rotate(.15deg)}
-      50%{transform:translate3d(1.5%,-1%,0) rotate(-.2deg)}
-      100%{transform:translate3d(-1%,0,0) rotate(.15deg)}
+    @keyframes lrWaveC{
+      0%{transform:translate3d(-4%,6%,0) rotate(-5deg) scaleX(1.1)}
+      50%{transform:translate3d(7%,-5%,0) rotate(1deg) scaleX(1.18)}
+      100%{transform:translate3d(-4%,6%,0) rotate(-5deg) scaleX(1.1)}
     }
-    #lifeRouteMarbleBackdrop .marbleFieldA{animation:lrMarbleDriftA 38s ease-in-out infinite}
-    #lifeRouteMarbleBackdrop .marbleFieldB{animation:lrMarbleDriftB 52s ease-in-out infinite}
-    #lifeRouteMarbleBackdrop .marbleVeins{animation:lrMarbleVeins 68s ease-in-out infinite}
+    @keyframes lrWaveSheen{
+      0%{transform:translate3d(-3%,-2%,0) scale(1.02)}
+      50%{transform:translate3d(4%,3%,0) scale(1.08)}
+      100%{transform:translate3d(-3%,-2%,0) scale(1.02)}
+    }
 
-    /* Preserve the restrained glass look over the moving background. */
-    .card,.metric,.hero,.todoMetric,.monthMetric,.provider,.notice{background-color:color-mix(in srgb,var(--panel) 88%,transparent)!important}
-    .bottom{background:color-mix(in srgb,var(--bg) 69%,transparent)!important}
+    .card,.metric,.hero,.todoMetric,.monthMetric,.provider,.notice{background-color:color-mix(in srgb,var(--panel) 87%,transparent)!important}
+    .bottom{background:color-mix(in srgb,var(--bg) 67%,transparent)!important}
 
     @media(prefers-reduced-motion:reduce){
-      #lifeRouteMarbleBackdrop .marbleFieldA,#lifeRouteMarbleBackdrop .marbleFieldB,#lifeRouteMarbleBackdrop .marbleVeins{animation:none!important}
+      #lifeRouteLightBackdrop .lightWave,#lifeRouteLightBackdrop .waveSheen{animation:none!important}
     }
   `;
   document.head.appendChild(style);
 
   const mount = () => {
-    if (document.getElementById("lifeRouteMarbleBackdrop")) return;
+    document.getElementById("lifeRouteMarbleBackdrop")?.remove();
+    if (document.getElementById("lifeRouteLightBackdrop")) return;
     const backdrop = document.createElement("div");
-    backdrop.id = "lifeRouteMarbleBackdrop";
+    backdrop.id = "lifeRouteLightBackdrop";
     backdrop.setAttribute("aria-hidden", "true");
-    backdrop.innerHTML = '<div class="marbleField marbleFieldA"></div><div class="marbleField marbleFieldB"></div><div class="marbleVeins"></div>';
+    backdrop.innerHTML = '<div class="lightWave waveA"></div><div class="lightWave waveB"></div><div class="lightWave waveC"></div><div class="waveSheen"></div>';
     document.body.prepend(backdrop);
   };
 

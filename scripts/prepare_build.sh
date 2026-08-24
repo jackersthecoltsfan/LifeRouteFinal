@@ -84,7 +84,9 @@ grep -q 'fieldToolStyles' LifeRoute/Web/rbt-tools.js
 grep -q 'visualTimerOverlay' LifeRoute/Web/rbt-tools.js
 grep -q 'sessionPlanOutput' LifeRoute/Web/rbt-tools.js
 grep -q 'visualIconTool' LifeRoute/Web/visual-tools.js
-grep -q 'firstThenVisualToggle' LifeRoute/Web/visual-tools.js
+grep -q 'firstThenFirstMode' LifeRoute/Web/visual-tools.js
+grep -q 'firstThenThenMode' LifeRoute/Web/visual-tools.js
+grep -q 'makeAutoFirstThenVisual' LifeRoute/Web/visual-tools.js
 grep -q 'choiceBoardTool' LifeRoute/Web/visual-tools.js
 grep -q 'visual-tools.js' LifeRoute/Web/index.html
 grep -q 'scheduleToolTimer' LifeRoute/LifeRouteWebView.swift

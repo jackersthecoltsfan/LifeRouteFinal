@@ -34,7 +34,7 @@ tags = [
     '<script src="selected-gap-routes.js"></script>',
     '<script src="live-day.js"></script>',
     '<script src="rbt-tools.js"></script>',
-    '<script src="pecs-tools.js"></script>',
+    '<script src="visual-tools.js"></script>',
     '<script src="live-themes.js"></script>',
 ]
 
@@ -51,7 +51,7 @@ PY
 # Fast preflight checks before Xcode spends time compiling.
 python3 -m py_compile scripts/patch_route_times.py scripts/patch_location_context.py scripts/patch_transport_mode.py scripts/patch_store_route_guard.py scripts/patch_store_routing_resilience.py scripts/patch_store_mapitems.py scripts/patch_route_reliability_v2.py scripts/patch_route_reliability_v3.py scripts/patch_gap_multistop.py scripts/patch_route_origin_choice.py scripts/patch_selected_gap_routes.py scripts/patch_live_day.py scripts/patch_rbt_tools.py scripts/patch_sleek_icons.py scripts/patch_provider_selection.py
 plutil -lint LifeRoute/Info.plist
-for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js pecs-tools.js live-themes.js; do
+for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js visual-tools.js live-themes.js; do
   test -s "LifeRoute/Web/$js"
   node --check "LifeRoute/Web/$js"
   grep -q "<script src=\"$js\"></script>" LifeRoute/Web/index.html
@@ -83,10 +83,10 @@ grep -q 'dayNotificationsStatus' LifeRoute/LifeRouteWebView.swift
 grep -q 'fieldToolStyles' LifeRoute/Web/rbt-tools.js
 grep -q 'visualTimerOverlay' LifeRoute/Web/rbt-tools.js
 grep -q 'sessionPlanOutput' LifeRoute/Web/rbt-tools.js
-grep -q 'pecsIconTool' LifeRoute/Web/pecs-tools.js
-grep -q 'firstThenVisualToggle' LifeRoute/Web/pecs-tools.js
-grep -q 'choiceBoardTool' LifeRoute/Web/pecs-tools.js
-grep -q 'pecs-tools.js' LifeRoute/Web/index.html
+grep -q 'visualIconTool' LifeRoute/Web/visual-tools.js
+grep -q 'firstThenVisualToggle' LifeRoute/Web/visual-tools.js
+grep -q 'choiceBoardTool' LifeRoute/Web/visual-tools.js
+grep -q 'visual-tools.js' LifeRoute/Web/index.html
 grep -q 'scheduleToolTimer' LifeRoute/LifeRouteWebView.swift
 grep -q 'outMinutes' LifeRoute/Web/selected-gap-routes.js
 grep -q 'lifeRouteMetalBackdrop' LifeRoute/Web/live-themes.js

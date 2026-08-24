@@ -1,39 +1,43 @@
-# LifeRoute — GitHub to TestFlight setup
+# LifeRoute — GitHub to TestFlight
 
-The repository now contains two GitHub Actions workflows:
+LifeRoute uses two GitHub Actions workflows:
 
-- **iOS Build Check** — builds the app for the iOS Simulator without signing.
-- **Send to TestFlight** — manual release workflow for signed App Store/TestFlight builds.
+- **iOS Build Check** — automatically checks relevant code changes on the iOS Simulator without Apple signing.
+- **Send to TestFlight** — the one-button manual release workflow.
 
-## Required GitHub Actions secrets
+## One-time GitHub secrets
 
-In the repository, open **Settings → Secrets and variables → Actions → New repository secret** and add:
+Repository **Settings → Secrets and variables → Actions** needs these four secrets:
 
 1. `APPLE_TEAM_ID` — Apple Developer Team ID.
 2. `APP_STORE_CONNECT_KEY_ID` — App Store Connect API key ID.
 3. `APP_STORE_CONNECT_ISSUER_ID` — App Store Connect issuer ID.
-4. `APP_STORE_CONNECT_PRIVATE_KEY` — the complete contents of the downloaded `AuthKey_XXXXXXXXXX.p8` file, including the BEGIN/END PRIVATE KEY lines.
+4. `APP_STORE_CONNECT_PRIVATE_KEY` — complete contents of the `AuthKey_XXXXXXXXXX.p8` file, including the BEGIN/END PRIVATE KEY lines.
 
-Do not commit the `.p8` file to GitHub.
+Do not commit the `.p8` file itself.
 
 ## App identifiers
 
-The workflow expects:
-
-- Bundle ID: `com.brandongood.liferoute`
+- Bundle ID: `Com.Brandongood.LifeRoute`
 - Xcode project: `LifeRoute.xcodeproj`
 - Scheme: `LifeRoute`
 - Marketing version: `0.3.0`
 
-Each workflow run uses the GitHub Actions run number as the build number so repeated TestFlight uploads do not reuse the same build number.
+The GitHub run number becomes the TestFlight build number automatically.
 
-## First release
+## Normal release from now on
 
-1. Make sure the four secrets above are present.
-2. Open the repo's **Actions** tab.
-3. Select **Send to TestFlight**.
-4. Choose **Run workflow**.
-5. Watch the Archive, Export, and Upload steps.
-6. After Apple's processing completes, the build should appear in App Store Connect/TestFlight.
+1. Open **Actions**.
+2. Choose **Send to TestFlight**.
+3. Click **Run workflow**.
+4. Wait for the green check. The run summary confirms the TestFlight upload and build number.
 
-The workflow uses automatic signing and an App Store Connect API key. If Apple rejects automatic signing on the first attempt, inspect the workflow log; the most likely remaining issue will be the Apple Team/bundle identifier's signing configuration rather than the app code itself.
+No PC-side certificate work should be needed for routine releases.
+
+## Signing cleanup
+
+GitHub-hosted Macs are temporary. Xcode automatic signing may create a temporary Apple Development certificate and development provisioning profile during a release. The workflow now records the signing assets that existed before the build and, at the end of the run, deletes **only the new development certificate/profile created by that run**. Existing Distribution certificates are not touched.
+
+The TestFlight workflow also prevents two release jobs from signing at the same time, which avoids duplicate signing assets from accidental double-runs.
+
+If the cleanup step ever shows a warning, the TestFlight upload can still be valid; inspect that cleanup step before the next release so temporary Development certificates do not begin accumulating again.

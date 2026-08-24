@@ -74,7 +74,7 @@ jobs:
           PY
 
           # Pages must expose the prepared app features plus browser-only helpers.
-          for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js welcome.js nav-cleanup.js icloud-calendar-web.js google-calendar-web.js first-then-back.js web-preview.js; do
+          for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js welcome.js nav-cleanup.js icloud-calendar-web.js google-calendar-web.js first-then-back.js web-routing-bridge.js web-preview.js; do
             test -s "dist/$js"
             node --check "dist/$js"
           done
@@ -85,6 +85,10 @@ jobs:
           grep -q 'live-themes.js' dist/index.html
           grep -q 'selected-gap-routes.js' dist/index.html
           grep -q 'web-preview.js' dist/index.html
+          grep -q 'web-routing-bridge.js' dist/web-preview.js
+          grep -q 'requestRouteTimes' dist/web-routing-bridge.js
+          grep -q 'searchStoreLocations' dist/web-routing-bridge.js
+          grep -q 'requestCurrentLocation' dist/web-routing-bridge.js
           grep -q 'icloud-calendar-web.js' dist/web-preview.js
           grep -q 'google-calendar-web.js' dist/web-preview.js
           grep -q 'calendar.readonly' dist/google-calendar-web.js

@@ -15,6 +15,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Enable native route times
+        run: |
+          set -euo pipefail
+          python3 scripts/patch_route_times.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("LifeRoute/Web/index.html")
+          html = path.read_text()
+          tag = '<script src="route-times.js"></script>'
+          if tag not in html:
+              if "</body>" not in html:
+                  raise SystemExit("Could not inject route-times.js: </body> not found")
+              html = html.replace("</body>", f"{tag}\n</body>", 1)
+              path.write_text(html)
+          print("Enabled route-times.js in LifeRoute web interface.")
+          PY
+          grep -q 'requestRouteTimes' LifeRoute/LifeRouteWebView.swift
+          grep -q 'route-times.js' LifeRoute/Web/index.html
+
       - name: Generate LifeRoute app icon
         run: |
           set -euo pipefail

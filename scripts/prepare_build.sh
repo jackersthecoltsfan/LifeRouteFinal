@@ -87,6 +87,9 @@ grep -q 'visualIconTool' LifeRoute/Web/visual-tools.js
 grep -q 'firstThenFirstMode' LifeRoute/Web/visual-tools.js
 grep -q 'firstThenThenMode' LifeRoute/Web/visual-tools.js
 grep -q 'makeAutoFirstThenVisual' LifeRoute/Web/visual-tools.js
+grep -q 'REAL_IMAGE_VISUALS' LifeRoute/Web/visual-tools.js
+test -s "LifeRoute/Web/assets/visuals/table-work.jpg"
+test -s "LifeRoute/Web/assets/visuals/outside.jpg"
 grep -q 'choiceBoardTool' LifeRoute/Web/visual-tools.js
 grep -q 'visual-tools.js' LifeRoute/Web/index.html
 grep -q 'scheduleToolTimer' LifeRoute/LifeRouteWebView.swift

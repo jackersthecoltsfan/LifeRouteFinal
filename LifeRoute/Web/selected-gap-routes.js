@@ -148,6 +148,10 @@
       baseDistanceMeters: Number(pending.distanceMeters || 0),
       routeMinutes: originMode === "previous" ? Number(pending.routeMinutes || 0) : 0,
       distanceMeters: originMode === "previous" ? Number(pending.distanceMeters || 0) : 0,
+      outMinutes: Number(pending.outMinutes || 0),
+      backMinutes: Number(pending.backMinutes || 0),
+      outDistanceMeters: Number(pending.outDistanceMeters || 0),
+      backDistanceMeters: Number(pending.backDistanceMeters || 0),
       stopMinutes: Number(pending.stopMinutes || 0),
       metricStatus: originMode === "previous" ? "ready" : "loading",
       estimated: false,
@@ -173,7 +177,11 @@
     stopMinutes,
     encodedPreviousAddress = "",
     encodedPreviousLabel = "Previous client",
-    encodedMapItemKey = ""
+    encodedMapItemKey = "",
+    outMinutes = 0,
+    backMinutes = 0,
+    outDistanceMeters = 0,
+    backDistanceMeters = 0
   ) {
     const pending = {
       dateKey,
@@ -187,7 +195,11 @@
       stopMapItemKey: decodeURIComponent(encodedMapItemKey || "").trim(),
       routeMinutes: Number(routeMinutes || 0),
       distanceMeters: Number(distanceMeters || 0),
-      stopMinutes: Number(stopMinutes || 0)
+      stopMinutes: Number(stopMinutes || 0),
+      outMinutes: Number(outMinutes || 0),
+      backMinutes: Number(backMinutes || 0),
+      outDistanceMeters: Number(outDistanceMeters || 0),
+      backDistanceMeters: Number(backDistanceMeters || 0)
     };
     if (!pending.dateKey || !pending.previousID || !pending.nextID || !pending.stop) return;
 
@@ -296,6 +308,16 @@
       if (good.length) {
         selection.routeMinutes = good.reduce((sum, result) => sum + Number(result.minutes || 0), 0);
         selection.distanceMeters = good.reduce((sum, result) => sum + Number(result.distanceMeters || 0), 0);
+        const outResult = good.find(result => String(result.id || "").endsWith("|out"));
+        const backResult = good.find(result => String(result.id || "").endsWith("|back"));
+        if (outResult) {
+          selection.outMinutes = Number(outResult.minutes || 0);
+          selection.outDistanceMeters = Number(outResult.distanceMeters || 0);
+        }
+        if (backResult) {
+          selection.backMinutes = Number(backResult.minutes || 0);
+          selection.backDistanceMeters = Number(backResult.distanceMeters || 0);
+        }
         selection.metricStatus = "ready";
         selection.estimated = good.some(result => !!result.approximate) || good.length < request.expected;
       } else {

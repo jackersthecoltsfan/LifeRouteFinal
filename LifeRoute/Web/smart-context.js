@@ -92,12 +92,12 @@
         <div class="section"><div class="sectionHead"><h2>Clients</h2><span class="hint">ABA-style initials only</span></div>
           <div class="card">
             <div class="formgrid">
-              <div><label>First 2 initials</label><input id="clientFirst2" maxlength="2" autocapitalize="none" placeholder="Ja"></div>
-              <div><label>Last 2 initials</label><input id="clientLast2" maxlength="2" autocapitalize="none" placeholder="He"></div>
+              <div><label>First 2 initials</label><input id="clientFirst2" maxlength="2" autocapitalize="none"></div>
+              <div><label>Last 2 initials</label><input id="clientLast2" maxlength="2" autocapitalize="none"></div>
               <div class="full"><label>Client address / service location</label><input id="clientAddress" placeholder="Street address or searchable place"></div>
             </div>
             <div class="row" style="margin-top:10px"><div><div class="tiny">Calendar match preview</div><div class="clientCodePreview" id="clientCodePreview">—</div></div><button class="goldButton" id="saveClientButton">Save client</button></div>
-            <div class="privacyLine">LifeRoute stores only the four-letter ABA-style code and route address locally on this device. Calendar events such as <b>JaHe</b> can then inherit the saved address automatically.</div>
+            <div class="privacyLine">LifeRoute stores only the four-letter ABA-style code and route address locally on this device. Calendar events with that same code can then inherit the saved address automatically.</div>
           </div>
         </div>
         <div class="section"><div class="sectionHead"><h2>Saved clients</h2><span class="hint" id="clientCount">0 clients</span></div><div id="clientList"></div></div>`;

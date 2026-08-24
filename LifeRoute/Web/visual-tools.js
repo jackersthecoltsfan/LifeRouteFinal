@@ -67,7 +67,7 @@
       </div>
       <input id="visualCameraInput" type="file" accept="image/*" capture="environment" hidden>
       <div class="toolInline visualLabelRow">
-        <input id="visualIconLabel" maxlength="28" placeholder="Label · e.g. Outside">
+        <input id="visualIconLabel" maxlength="28" placeholder="Label">
         <button class="goldButton" id="createVisualIcon" type="button">Save visual</button>
       </div>
       <div class="tiny">Automatic style: white card, bold graphic edges, bright high-contrast color, centered square image, and a clear sans-serif label. Photos are processed locally and are not uploaded.</div>
@@ -1120,12 +1120,13 @@
   const firstThenSavedIdFor = side => side === "first" ? state.firstIconId : state.thenIconId;
   const firstThenTextFor = side => {
     const field = document.getElementById(side === "first" ? "firstThenFirst" : "firstThenThen");
-    return String(field?.value || field?.placeholder || (side === "first" ? "Table work" : "Outside")).trim();
+    return String(field?.value || "").trim();
   };
 
   const firstThenVisualFor = side => {
     const mode = firstThenModeFor(side);
-    if (mode === "text") return null;
+    const text = firstThenTextFor(side);
+    if (!text || mode === "text") return null;
     if (mode === "saved") return getIcon(firstThenSavedIdFor(side))?.dataURL || null;
     return makeAutoFirstThenVisual(firstThenTextFor(side));
   };

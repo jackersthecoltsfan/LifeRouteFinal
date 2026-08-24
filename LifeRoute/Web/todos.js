@@ -95,14 +95,14 @@ window.addEventListener("DOMContentLoaded", () => {
       </div>
       <div class="section"><h2>Add a to-do</h2><div class="card">
         <div class="formgrid">
-          <div class="full"><label>What needs to get done?</label><input id="todoTitle" placeholder="Get cat food, stop at Walmart, return package"></div>
+          <div class="full"><label>What needs to get done?</label><input id="todoTitle" placeholder="Task"></div>
           <div><label>Category</label><select id="todoCategory"><option>Errand</option><option>Shopping</option><option>Pickup</option><option>Chore</option><option>Call</option><option>Other</option></select></div>
           <div><label>Estimated task time</label><select id="todoDuration"><option value="10">10 min</option><option value="15">15 min</option><option value="20">20 min</option><option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">1 hour</option><option value="90">1.5 hours</option></select></div>
           <div><label>Saved place (optional)</label><select id="todoSavedPlace"><option value="">Choose saved place…</option></select></div>
           <div><label>Priority</label><select id="todoPriority"><option value="normal" selected>Normal</option><option value="high">High</option><option value="low">Low</option></select></div>
-          <div class="full"><label>Location / store (optional)</label><input id="todoAddress" placeholder="Walmart Warrington PA, pet store address, etc."></div>
+          <div class="full"><label>Location / store (optional)</label><input id="todoAddress" placeholder="Address or place"></div>
           <div><label>Do by</label><input id="todoDue" type="date"></div>
-          <div><label>Notes (optional)</label><input id="todoNotes" placeholder="Brand, list, pickup details…"></div>
+          <div><label>Notes (optional)</label><input id="todoNotes" placeholder="Optional details…"></div>
         </div>
         <div class="placeActions"><button class="goldButton" onclick="addLifeRouteTodo()">Add to-do</button></div>
       </div></div>

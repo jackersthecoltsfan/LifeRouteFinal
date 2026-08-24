@@ -86,8 +86,8 @@
         <div class="card toolCard" id="firstThenTool">
           <div class="toolHead"><div class="toolIcon">${icon("route", 20)}</div><div class="grow"><div class="title">First / Then</div><div class="meta">Instant full-screen visual support using simple text.</div></div></div>
           <div class="grid2">
-            <div><label>First</label><input id="firstThenFirst" value="Table work" placeholder="Table work"></div>
-            <div><label>Then</label><input id="firstThenThen" value="Outside" placeholder="Outside"></div>
+            <div><label>First</label><input id="firstThenFirst" placeholder="First activity"></div>
+            <div><label>Then</label><input id="firstThenThen" placeholder="Then activity"></div>
           </div>
           <div class="toolActions"><button class="goldButton" id="showFirstThen">Show board</button><button class="secondary" id="swapFirstThen">Swap</button></div>
         </div>
@@ -96,12 +96,12 @@
           <div class="toolHead"><div class="toolIcon">${icon("week", 20)}</div><div class="grow"><div class="title">Session plan builder</div><div class="meta">Organize supervisor-approved targets into a practical session flow.</div></div></div>
           <div class="grid2">
             <div><label>Client</label><select id="sessionPlanClient">${clientOptions()}</select></div>
-            <div><label>Session length</label><select id="sessionPlanMinutes"><option value="60">1 hour</option><option value="90">1.5 hours</option><option value="120" selected>2 hours</option><option value="180">3 hours</option><option value="240">4 hours</option></select></div>
+            <div><label>Session length</label><select id="sessionPlanMinutes"><option value="60" selected>1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="240">4 hours</option></select></div>
           </div>
           <label style="margin-top:9px">Supervisor-approved targets / priorities</label>
-          <textarea id="sessionPlanTargets" class="toolTextarea" rows="3" placeholder="FCT for more time; waiting; transitions; table targets…"></textarea>
+          <textarea id="sessionPlanTargets" class="toolTextarea" rows="3" placeholder="Enter targets, separated by semicolons…"></textarea>
           <label style="margin-top:9px">Known reinforcers / useful activities</label>
-          <textarea id="sessionPlanReinforcers" class="toolTextarea" rows="2" placeholder="Outside, water play, music, movement break…"></textarea>
+          <textarea id="sessionPlanReinforcers" class="toolTextarea" rows="2" placeholder="Enter preferred activities or reinforcers…"></textarea>
           <div class="toolActions"><button class="goldButton" id="generateSessionPlan">${icon("sparkles", 14)} Build plan</button></div>
           <div class="notice toolClinicalNote">Use only goals, prompting procedures, reinforcement plans, and behavior protocols already authorized by the supervising clinician.</div>
           <div id="sessionPlanOutput"></div>
@@ -362,8 +362,12 @@
     document.getElementById("showFirstThen")?.addEventListener("click", () => {
       const firstField = document.getElementById("firstThenFirst");
       const thenField = document.getElementById("firstThenThen");
-      const first = String(firstField?.value || firstField?.placeholder || "Table work").trim();
-      const then = String(thenField?.value || thenField?.placeholder || "Outside").trim();
+      const first = String(firstField?.value || "").trim();
+      const then = String(thenField?.value || "").trim();
+      if (!first || !then) {
+        alert("Enter both the First and Then activities.");
+        return;
+      }
       const overlay = ensureFirstThenOverlay();
       overlay.querySelector("#firstThenFirstValue").textContent = first;
       overlay.querySelector("#firstThenThenValue").textContent = then;
@@ -371,7 +375,7 @@
     });
 
     document.getElementById("generateSessionPlan")?.addEventListener("click", () => {
-      const minutes = Number(document.getElementById("sessionPlanMinutes")?.value || 120);
+      const minutes = Number(document.getElementById("sessionPlanMinutes")?.value || 60);
       const targets = splitList(document.getElementById("sessionPlanTargets")?.value);
       const reinforcers = splitList(document.getElementById("sessionPlanReinforcers")?.value);
       const planState = {

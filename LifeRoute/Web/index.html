@@ -145,7 +145,7 @@ button{border:0;border-radius:12px;padding:10px 12px;font-weight:900}
   <div class="section"><div class="sectionHead"><h2>Appearance</h2><span class="hint">customizable</span></div><div class="card">
     <div class="grid2">
       <div><label>Theme</label><select id="themeSelect" onchange="setTheme(this.value)"><option value="royal">Royal Blue + Gold</option><option value="daylight">Blue + Gold Light</option><option value="ocean">Ocean</option><option value="slate">Graphite</option></select></div>
-      <div><label>Ideal max gap</label><select id="pGap" onchange="prefChanged()"><option value="60">1 hour</option><option value="90" selected>1.5 hours</option><option value="120">2 hours</option></select></div>
+      <div><label>Ideal max gap</label><select id="pGap" onchange="prefChanged()"><option value="60" selected>1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option></select></div>
     </div>
   </div></div>
 
@@ -153,11 +153,11 @@ button{border:0;border-radius:12px;padding:10px 12px;font-weight:900}
     <div class="formgrid">
       <div><label>Date</label><input id="fDate" type="date"></div>
       <div><label>Appointment</label><input id="fTitle" placeholder="Client / appointment"></div>
-      <div><label>Start</label><input id="fStart" type="time" value="12:00"></div>
-      <div><label>End</label><input id="fEnd" type="time" value="14:00"></div>
+      <div><label>Start</label><input id="fStart" type="time"></div>
+      <div><label>End</label><input id="fEnd" type="time"></div>
       <div class="full"><label>Location</label><input id="fAddress" placeholder="Address or place"></div>
-      <div><label>Drive estimate (min)</label><input id="fDrive" type="number" value="15" min="0"></div>
-      <div><label>Arrival buffer (min)</label><input id="fBuffer" type="number" value="10" min="0"></div>
+      <div><label>Drive estimate (min)</label><input id="fDrive" type="number" min="0" placeholder="Optional"></div>
+      <div><label>Arrival buffer (min)</label><input id="fBuffer" type="number" min="0" placeholder="Optional"></div>
     </div>
     <div class="placeActions"><button class="primary" onclick="addEvent()">Add appointment</button></div>
   </div></div>
@@ -169,7 +169,7 @@ button{border:0;border-radius:12px;padding:10px 12px;font-weight:900}
 </section>
 </div>
 
-<div class="bottom"><div class="bottomin"><button class="secondary" onclick="loadDemo()">Load sample week</button><button class="goldButton" onclick="optimizeWeek()">Find best gaps</button></div></div>
+<div class="bottom"><div class="bottomin"><button class="secondary" onclick="refreshCalendars()">Refresh calendars</button><button class="goldButton" onclick="optimizeWeek()">Find best gaps</button></div></div>
 
 <script src="config.js"></script>
 <script>
@@ -178,7 +178,7 @@ const STORE="liferoute_v3";
 const saved=JSON.parse(localStorage.getItem(STORE)||"{}");
 let events=Array.isArray(saved.events)?saved.events:[];
 let places=Array.isArray(saved.places)?saved.places:[];
-let prefs=Object.assign({sources:{apple:true,google:true,centralreach:true},mapProvider:"apple",theme:"royal",maxGap:90},saved.prefs||{});
+let prefs=Object.assign({sources:{apple:true,google:true,centralreach:true},mapProvider:"apple",theme:"royal",maxGap:60},saved.prefs||{});
 let nativeState={native:false,appleCalendarConnected:false};
 let selectedDate=localDateKey(new Date());
 
@@ -298,15 +298,6 @@ function connectCentralReach(){let cfg=window.LifeRouteConfig?.centralReach;if(c
 function routeTo(encoded){let destination=decodeURIComponent(encoded),p=prefs.mapProvider;if(p==="ask"){let useGoogle=confirm("OK = Google Maps\nCancel = Apple Maps");p=useGoogle?"google":"apple"};if(postNative({action:"openRoute",provider:p,destination}))return;let u=p==="google"?`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`:`https://maps.apple.com/directions?destination=${encodeURIComponent(destination)}&mode=driving`;location.href=u}
 function openPlace(encoded){let query=decodeURIComponent(encoded),p=prefs.mapProvider;if(p==="ask"){let useGoogle=confirm("OK = Google Maps\nCancel = Apple Maps");p=useGoogle?"google":"apple"};if(postNative({action:"openPlace",provider:p,query}))return;let u=p==="google"?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`:`https://maps.apple.com/place?address=${encodeURIComponent(query)}`;location.href=u}
 
-function loadDemo(){
-  let dates=weekDates();events=events.filter(e=>e.source!=="demo"&&e.source!=="manual");
-  const add=(idx,title,start,end,address,drive)=>events.push({id:"demo-"+idx+"-"+title,source:"manual",date:dates[idx],title,start,end,address,drive,buffer:10});
-  add(0,"Morning appointment","09:30","11:15","Doylestown, PA",20);add(0,"Afternoon appointment","14:00","16:00","Warminster, PA",22);
-  add(2,"Work block","10:00","12:00","Horsham, PA",18);add(2,"Client visit","15:00","18:00","Warrington, PA",24);
-  add(4,"Work block","11:00","13:00","Warminster, PA",20);add(4,"Evening appointment","16:30","19:30","Doylestown, PA",25);
-  if(!places.length)places=[{id:"demo-gym",name:"My Gym",address:"Warrington, PA",type:"Gym",minVisit:60,useInGaps:true},{id:"demo-coffee",name:"Favorite Coffee",address:"Warminster, PA",type:"Coffee",minVisit:30,useInGaps:true}];
-  selectedDate=dates[0];persist();renderAll()
-}
 function optimizeWeek(){renderWeek();showView("week");weekInsight.scrollIntoView({behavior:"smooth",block:"center"})}
 function renderAll(){renderSources();renderProvider();renderToday();renderWeek();renderPlaces()}
 function init(){

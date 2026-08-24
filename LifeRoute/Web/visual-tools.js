@@ -1095,7 +1095,7 @@
     // This produces the same kind of recognizable scene card as LifeRoute's
     // established visual library instead of constructing a picture from shapes.
     if (REAL_IMAGE_VISUALS[scene]) {
-      const url = REAL_IMAGE_VISUALS[scene] + "?v=real-visual-v1";
+      const url = REAL_IMAGE_VISUALS[scene] + "?v=real-visual-v3";
       autoVisualCache.set(key, url);
       return url;
     }
@@ -1161,11 +1161,28 @@
       const visual = firstThenVisualFor(side);
       if (!panel || !img) return;
       if (visual) {
+        const label = firstThenTextFor(side);
+        img.onerror = () => {
+          // Never leave a blank/broken card if a raster asset fails to load.
+          const scene = resolveAutoVisual(label);
+          const svgLabel = svgEsc(label.slice(0, 28));
+          const labelSize = fontSizeFor(label);
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="${svgLabel}">
+            <rect x="9" y="9" width="494" height="494" rx="35" fill="#fff" stroke="#05070A" stroke-width="11"/>
+            <g>${sceneMarkup(scene)}</g>
+            <rect x="33" y="399" width="446" height="83" rx="18" fill="#fff"/>
+            <text x="256" y="449" text-anchor="middle" dominant-baseline="middle"
+              font-family="Arial Rounded MT Bold, Arial, sans-serif" font-size="${labelSize}"
+              font-weight="800" fill="#05070A">${svgLabel}</text>
+          </svg>`;
+          img.onerror = null;
+          img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+        };
         img.src = visual;
-        img.alt = firstThenTextFor(side);
+        img.alt = label;
         img.hidden = false;
         panel.classList.add("visualReady");
-        panel.setAttribute("aria-label", firstThenTextFor(side));
+        panel.setAttribute("aria-label", label);
       } else {
         img.hidden = true;
         img.removeAttribute("src");

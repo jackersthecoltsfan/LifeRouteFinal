@@ -1,0 +1,37 @@
+name: Auto TestFlight After CI
+run-name: Auto TestFlight · ${{ github.event.workflow_run.head_sha }}
+
+on:
+  workflow_run:
+    workflows: ["iOS Build Check"]
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: __CONCURRENCY_PREFIX__-auto-testflight
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Send latest validated main to TestFlight
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')
+          if [ "$CURRENT_SHA" != "$VALIDATED_SHA" ]; then
+            echo "Skipping older validated commit $VALIDATED_SHA; main is now $CURRENT_SHA."
+            exit 0
+          fi
+          echo "iOS Build Check passed for $VALIDATED_SHA. Starting TestFlight automatically."
+          gh workflow run testflight.yml --repo "$GITHUB_REPOSITORY" --ref main

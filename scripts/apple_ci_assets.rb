@@ -134,4 +134,17 @@ command = ARGV[0]
 path = ARGV[1]
 abort 'Usage: apple_ci_assets.rb snapshot|cleanup SNAPSHOT_PATH' unless %w[snapshot cleanup].include?(command) && path
 
-command == 'snapshot' ? snapshot(path) : cleanup(path)
+begin
+  command == 'snapshot' ? snapshot(path) : cleanup(path)
+rescue => error
+  # Asset tracking is protective housekeeping, not a reason to block a release.
+  # If Apple changes an endpoint/permission, let Xcode continue. Without a valid
+  # baseline the cleanup step will safely skip rather than guessing what to revoke.
+  if command == 'snapshot'
+    File.delete(path) if File.exist?(path)
+    warn "Warning: Apple signing asset tracking unavailable; continuing release without automatic cleanup."
+    warn error.message
+    exit 0
+  end
+  raise
+end

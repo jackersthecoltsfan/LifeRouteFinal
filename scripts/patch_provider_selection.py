@@ -16,14 +16,18 @@ else:
 
 index_path = Path("LifeRoute/Web/index.html")
 index_text = index_path.read_text()
+bridge_tag = '<script src="global-bridge.js"></script>'
 calendar_tag = '<script src="calendar-hub.js"></script>'
-if not Path("LifeRoute/Web/calendar-hub.js").is_file():
-    raise SystemExit("calendar-hub.js is missing")
-if calendar_tag not in index_text:
+for required in ["global-bridge.js", "calendar-hub.js"]:
+    if not Path("LifeRoute/Web", required).is_file():
+        raise SystemExit(f"{required} is missing")
+if bridge_tag not in index_text or calendar_tag not in index_text:
     if "</body>" not in index_text:
-        raise SystemExit("Could not inject calendar-hub.js: </body> not found")
-    index_path.write_text(index_text.replace("</body>", calendar_tag + "\n</body>", 1))
-    print("Enabled the LifeRoute calendar hub.")
+        raise SystemExit("Could not inject calendar feature scripts: </body> not found")
+    index_text = index_text.replace(bridge_tag, "").replace(calendar_tag, "")
+    bundle = bridge_tag + "\n" + calendar_tag + "\n"
+    index_path.write_text(index_text.replace("</body>", bundle + "</body>", 1))
+    print("Enabled the LifeRoute calendar hub and live-state bridge.")
 else:
     print("LifeRoute calendar hub already enabled.")
 

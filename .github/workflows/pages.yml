@@ -73,8 +73,8 @@ jobs:
           path.write_text(html)
           PY
 
-          # Pages must expose the same feature surface prepared for the app build.
-          for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js web-preview.js; do
+          # Pages must expose the prepared app features plus browser-only helpers.
+          for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js welcome.js nav-cleanup.js icloud-calendar-web.js web-preview.js; do
             test -s "dist/$js"
             node --check "dist/$js"
           done
@@ -85,6 +85,7 @@ jobs:
           grep -q 'live-themes.js' dist/index.html
           grep -q 'selected-gap-routes.js' dist/index.html
           grep -q 'web-preview.js' dist/index.html
+          grep -q 'icloud-calendar-web.js' dist/web-preview.js
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

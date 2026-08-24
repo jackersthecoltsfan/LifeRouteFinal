@@ -51,6 +51,9 @@
     loadPreviewScript("google-calendar-web.js");
     loadPreviewScript("google-calendar-stability.js");
     loadPreviewScript("first-then-back.js");
+    loadPreviewScript("visual-quality-web.js");
+    loadPreviewScript("photo-source-picker-web.js");
+    loadPreviewScript("end-home-route-web.js");
 
     // Keep the legacy/native Google badge from overwriting the real browser
     // OAuth status. Watch only the Google status element; never the whole DOM.

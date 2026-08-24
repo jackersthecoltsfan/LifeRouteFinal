@@ -1,12 +1,21 @@
 name: Send to TestFlight
+run-name: LifeRoute → TestFlight #${{ github.run_number }}
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+# Never let two ephemeral Macs create signing assets at the same time.
+concurrency:
+  group: liferoute-testflight
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 30
     env:
       SCHEME: LifeRoute
       PROJECT: LifeRoute.xcodeproj
@@ -14,69 +23,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Prepare LifeRoute features
-        run: |
-          set -euo pipefail
+        run: bash scripts/prepare_build.sh
 
-          # Native MapKit route/store support first, then selectable travel mode.
-          python3 scripts/patch_route_times.py
-          python3 scripts/patch_transport_mode.py
-
-          # Keep feature scripts in a deterministic order. To-Dos must initialize
-          # before grocery preferences decorate those To-Do cards.
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("LifeRoute/Web/index.html")
-          html = path.read_text()
-          tags = [
-              '<script src="route-times.js"></script>',
-              '<script src="todos.js"></script>',
-              '<script src="grocery-stores.js"></script>',
-              '<script src="transport-mode.js"></script>',
-              '<script src="sleek-ui.js"></script>',
-          ]
-
-          if "</body>" not in html:
-              raise SystemExit("Could not inject LifeRoute feature scripts: </body> not found")
-
-          for tag in tags:
-              html = html.replace(tag, "")
-          html = html.replace("</body>", "\n".join(tags) + "\n</body>", 1)
-          path.write_text(html)
-          print("LifeRoute feature scripts enabled in safe startup order.")
-          PY
-
-          # Fail the build early for malformed scripts/plists or missing feature files.
-          python3 -m py_compile scripts/patch_route_times.py scripts/patch_transport_mode.py
-          plutil -lint LifeRoute/Info.plist
-          for js in route-times.js todos.js grocery-stores.js transport-mode.js sleek-ui.js; do
-            test -s "LifeRoute/Web/$js"
-            node --check "LifeRoute/Web/$js"
-            grep -q "<script src=\"$js\"></script>" LifeRoute/Web/index.html
-          done
-          grep -q 'requestRouteTimes' LifeRoute/LifeRouteWebView.swift
-          grep -q 'searchStoreLocations' LifeRoute/LifeRouteWebView.swift
-          grep -q 'routeTransportType' LifeRoute/LifeRouteWebView.swift
-          echo "Feature preflight passed."
-
-      - name: Compile simulator build
-        run: |
-          set -euo pipefail
-          rm -rf build/PreflightDerivedData
-          xcodebuild \
-            -project "$PROJECT" \
-            -scheme "$SCHEME" \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build/PreflightDerivedData \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-          test -d "build/PreflightDerivedData/Build/Products/Debug-iphonesimulator/LifeRoute.app"
-          echo "Simulator compile preflight passed."
+      # The separate iOS Build Check workflow already compiles the simulator on every
+      # relevant push. The archive below compiles the app again for a real device, so
+      # doing another simulator compile here only slowed manual TestFlight releases.
 
       - name: Generate LifeRoute app icon
         run: |
@@ -167,7 +121,7 @@ jobs:
           test "$WIDTH" = "1024" && test "$HEIGHT" = "1024" || (echo "Unexpected icon dimensions: ${WIDTH}x${HEIGHT}" && exit 1)
           echo "Generated fresh 1024x1024 LifeRoute app icon and matching in-app logo."
 
-      - name: Validate required Apple secrets
+      - name: Validate Apple connection
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
@@ -194,6 +148,12 @@ jobs:
           mkdir -p "$ALTOOL_KEY_DIR"
           cp "$KEY_PATH" "$ALTOOL_KEY_DIR/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
           chmod 600 "$ALTOOL_KEY_DIR/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+
+      - name: Remember existing Apple signing assets
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: ruby scripts/apple_ci_assets.rb snapshot "$RUNNER_TEMP/apple-signing-baseline.json"
 
       - name: Archive LifeRoute
         env:
@@ -269,10 +229,29 @@ jobs:
             --apiKey "$APP_STORE_CONNECT_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
 
-      - name: Upload IPA artifact
-        if: always()
-        uses: actions/upload-artifact@v4
+          {
+            echo "### ✅ LifeRoute sent to TestFlight"
+            echo "Build **#${GITHUB_RUN_NUMBER}** uploaded successfully."
+            echo "Apple may take a few minutes to finish processing it."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save IPA artifact
+        uses: actions/upload-artifact@v6
         with:
-          name: LifeRoute-TestFlight-build
+          name: LifeRoute-TestFlight-build-${{ github.run_number }}
           path: build/export/*.ipa
           if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Clean temporary Apple signing assets
+        if: always()
+        continue-on-error: true
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          if [ -f "$RUNNER_TEMP/apple-signing-baseline.json" ]; then
+            ruby scripts/apple_ci_assets.rb cleanup "$RUNNER_TEMP/apple-signing-baseline.json"
+          else
+            echo "No Apple signing baseline was created, so there is nothing to clean."
+          fi

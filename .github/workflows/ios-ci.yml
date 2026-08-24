@@ -1,25 +1,44 @@
 name: iOS Build Check
+run-name: LifeRoute build check · ${{ github.ref_name }}
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'LifeRoute/**'
+      - 'LifeRoute.xcodeproj/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
   pull_request:
+    paths:
+      - 'LifeRoute/**'
+      - 'LifeRoute.xcodeproj/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer code check makes an older in-progress check irrelevant.
+concurrency:
+  group: liferoute-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Show Xcode version
-        run: xcodebuild -version
+      - name: Prepare the same features used by TestFlight
+        run: bash scripts/prepare_build.sh
 
       - name: Build LifeRoute for iOS Simulator
         run: |
-          set -o pipefail
+          set -euo pipefail
           xcodebuild \
             -project LifeRoute.xcodeproj \
             -scheme LifeRoute \

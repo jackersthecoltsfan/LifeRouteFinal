@@ -2,7 +2,6 @@
 // Images stay on-device/in-browser in localStorage. No upload service is used.
 (() => {
   const STORE = "liferoute_visual_tools_v2";
-  const LEGACY_STORE = "liferoute_" + "pe" + "cs_tools_v1";
   const MAX_ICONS = 18;
   let state = {
     icons: [],
@@ -13,7 +12,7 @@
   };
 
   try {
-    const saved = JSON.parse(localStorage.getItem(STORE) || localStorage.getItem(LEGACY_STORE) || "{}");
+    const saved = JSON.parse(localStorage.getItem(STORE) || "{}");
     state.icons = Array.isArray(saved.icons) ? saved.icons : [];
     state.firstIconId = String(saved.firstIconId || "");
     state.thenIconId = String(saved.thenIconId || "");
@@ -76,7 +75,7 @@
     boardTool.className = "card toolCard";
     boardTool.id = "choiceBoardTool";
     boardTool.innerHTML = `
-      <div class="toolHead"><div class="toolIcon">▦</div><div class="grow"><div class="title">Choice board creator</div><div class="meta">Build a visual board from your saved Visual support icons. Default layout matches an 8-choice, 2 × 4 board.</div></div></div>
+      <div class="toolHead"><div class="toolIcon">▦</div><div class="grow"><div class="title">Choice board creator</div><div class="meta">Build a visual board from your saved visual support icons. Default layout matches an 8-choice, 2 × 4 board.</div></div></div>
       <div class="grid2">
         <div><label>Board title</label><input id="choiceBoardTitle" value="Choices" maxlength="36"></div>
         <div><label>Layout</label><select id="choiceBoardLayout"><option value="2">2 columns · up to 8</option><option value="3">3 columns · up to 9</option></select></div>
@@ -400,7 +399,7 @@
       }
       if (empty) empty.style.display = "";
       renderAllVisual();
-      if (typeof setStatus === "function") setStatus(`${label} Visual support icon created`);
+      if (typeof setStatus === "function") setStatus(`${label} visual support icon created`);
     } catch (_) {
       alert("LifeRoute could not process that photo. Try another image.");
     } finally {

@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable native route times and To-Dos
+      - name: Enable native route times, To-Dos, and sleek UI
         run: |
           set -euo pipefail
           python3 scripts/patch_route_times.py
@@ -26,6 +26,7 @@ jobs:
           tags = [
               '<script src="route-times.js"></script>',
               '<script src="todos.js"></script>',
+              '<script src="sleek-ui.js"></script>',
           ]
           if "</body>" not in html:
               raise SystemExit("Could not inject LifeRoute feature scripts: </body> not found")
@@ -33,12 +34,14 @@ jobs:
               if tag not in html:
                   html = html.replace("</body>", f"{tag}\n</body>", 1)
           path.write_text(html)
-          print("Enabled route-times.js and todos.js in LifeRoute web interface.")
+          print("Enabled route-times.js, todos.js, and sleek-ui.js in LifeRoute web interface.")
           PY
           grep -q 'requestRouteTimes' LifeRoute/LifeRouteWebView.swift
           grep -q 'route-times.js' LifeRoute/Web/index.html
           grep -q 'todos.js' LifeRoute/Web/index.html
+          grep -q 'sleek-ui.js' LifeRoute/Web/index.html
           test -s LifeRoute/Web/todos.js
+          test -s LifeRoute/Web/sleek-ui.js
 
       - name: Generate LifeRoute app icon
         run: |

@@ -62,18 +62,19 @@
     return true;
   };
 
-  const loadPhotorealNature = () => {
-    if (document.getElementById("lifeRoutePhotorealNatureScript") || window.__lifeRoutePhotorealNatureLoaded) return;
+  const loadHelper = (id, filename, loadedFlag) => {
+    if (document.getElementById(id) || window[loadedFlag]) return;
     const script = document.createElement("script");
-    script.id = "lifeRoutePhotorealNatureScript";
+    script.id = id;
     const build = document.querySelector('meta[name="liferoute-web-build"]')?.content || "";
-    script.src = `photoreal-nature-web.js${build ? "?v=" + encodeURIComponent(build) : ""}`;
+    script.src = `${filename}${build ? "?v=" + encodeURIComponent(build) : ""}`;
     script.async = true;
     document.body.appendChild(script);
   };
 
   const start = () => {
-    loadPhotorealNature();
+    loadHelper("lifeRoutePhotorealNatureScript","photoreal-nature-web.js","__lifeRoutePhotorealNatureLoaded");
+    loadHelper("lifeRouteDynamicThemesScript","dynamic-themes-web.js","__lifeRouteDynamicThemesLoaded");
     let attempts = 0;
     const timer = setInterval(() => {
       attempts += 1;

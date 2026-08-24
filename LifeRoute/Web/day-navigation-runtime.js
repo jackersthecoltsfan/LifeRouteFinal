@@ -31,6 +31,29 @@
     setTimeout(restore, 180);
   };
 
+  const relativeDayLabel = () => {
+    const selected = dateFromKeySafe(window.selectedDate);
+    const today = new Date();
+    selected.setHours(12, 0, 0, 0);
+    today.setHours(12, 0, 0, 0);
+    const difference = Math.round((selected.getTime() - today.getTime()) / 86400000);
+    if (difference === 0) return "Today";
+    if (difference === 1) return "Tomorrow";
+    if (difference > 1) return "Next";
+    if (difference === -1) return "Yesterday";
+    return "Previous";
+  };
+
+  const updateCenterLabel = () => {
+    const center = document.getElementById("dayTodayButton");
+    if (!center) return;
+    center.textContent = relativeDayLabel();
+    center.removeAttribute("onclick");
+    center.setAttribute("aria-disabled", "true");
+    center.setAttribute("tabindex", "-1");
+    center.style.cursor = "default";
+  };
+
   const refreshDay = () => {
     const scrollX = window.scrollX || window.pageXOffset || 0;
     const scrollY = window.scrollY || window.pageYOffset || 0;
@@ -40,6 +63,7 @@
     else if (typeof window.renderToday === "function") window.renderToday();
     try { window.showView?.("today"); } catch (_) {}
 
+    updateCenterLabel();
     const selected = dateFromKeySafe(window.selectedDate);
     const label = selected.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
     try { window.setStatus?.(`Day · ${label}`); } catch (_) {}
@@ -54,6 +78,8 @@
     refreshDay();
   };
 
+  // Kept for compatibility with older markup/helpers, but the center control is
+  // now a context label rather than a navigation action.
   window.jumpSelectedDayToToday = function jumpSelectedDayToTodayRuntime() {
     window.selectedDate = keyForDate(new Date());
     refreshDay();
@@ -61,9 +87,11 @@
 
   const bind = () => {
     const previous = document.getElementById("dayPrevButton");
-    const today = document.getElementById("dayTodayButton");
+    const center = document.getElementById("dayTodayButton");
     const next = document.getElementById("dayNextButton");
-    if (!previous || !today || !next) return false;
+    if (!previous || !center || !next) return false;
+
+    updateCenterLabel();
 
     if (previous.dataset.dayNavBound !== "1") {
       previous.dataset.dayNavBound = "1";
@@ -73,12 +101,12 @@
         window.shiftSelectedDay(-1);
       });
     }
-    if (today.dataset.dayNavBound !== "1") {
-      today.dataset.dayNavBound = "1";
-      today.addEventListener("click", event => {
+    if (center.dataset.dayNavBound !== "1") {
+      center.dataset.dayNavBound = "1";
+      center.removeAttribute("onclick");
+      center.addEventListener("click", event => {
         event.preventDefault();
-        event.stopPropagation();
-        window.jumpSelectedDayToToday();
+        event.stopImmediatePropagation();
       });
     }
     if (next.dataset.dayNavBound !== "1") {

@@ -72,8 +72,9 @@ grep -q 'planLifeRouteGapRoute' LifeRoute/Web/grocery-stores.js
 grep -q 'outDistanceMeters' LifeRoute/Web/todos.js
 grep -q 'gapRouteStartPlanner' LifeRoute/Web/selected-gap-routes.js
 grep -q 'decorateLifeRouteSelectedGaps' LifeRoute/Web/selected-gap-routes.js
-grep -q 'lifeRouteLightBackdrop' LifeRoute/Web/live-themes.js
-grep -q 'lrWaveA' LifeRoute/Web/live-themes.js
+grep -q 'lifeRouteMetalBackdrop' LifeRoute/Web/live-themes.js
+grep -q 'requestAnimationFrame(animate)' LifeRoute/Web/live-themes.js
+grep -q 'metalWave' LifeRoute/Web/live-themes.js
 grep -q 'provider.active:after' LifeRoute/Web/sleek-ui.js
 grep -q 'storeSleekUIStyles' LifeRoute/Web/store-sleek-ui.js
 grep -q 'lifeRouteIcon' LifeRoute/Web/icons.js

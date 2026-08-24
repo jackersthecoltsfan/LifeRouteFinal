@@ -40,9 +40,9 @@ helper_code = r'''        // MARK: - Live Day leave reminders
                     return
                 }
 
-                let prefix = "liferoute-day-\\(dateKey)-"
+                let prefix = "liferoute-day-\(dateKey)-"
                 center.getPendingNotificationRequests { requests in
-                    let oldIDs = requests.map(\\.identifier).filter { $0.hasPrefix(prefix) }
+                    let oldIDs = requests.map(\.identifier).filter { $0.hasPrefix(prefix) }
                     if !oldIDs.isEmpty {
                         center.removePendingNotificationRequests(withIdentifiers: oldIDs)
                     }

@@ -21,7 +21,7 @@
     const badge = document.createElement("div");
     badge.id = "webPreviewBadge";
     const build = document.querySelector('meta[name="liferoute-web-build"]')?.content || "";
-    badge.innerHTML = `<b>WEB PREVIEW${build ? " · " + build : ""}</b><span>Interactive UI preview · Google Calendar and calendar links work here. Direct iPhone Apple Calendar, GPS, notifications, and MapKit actions require the iPhone build.</span>`;
+    badge.innerHTML = `<b>WEB PREVIEW${build ? " · " + build : ""}</b><span>Interactive UI preview · Google Calendar, calendar links, browser location, gap routing, and nearby-store comparisons work here. Apple Calendar, notifications, and Apple MapKit remain iPhone features.</span>`;
     badge.style.cssText = [
       "position:sticky","top:0","z-index:99999","display:flex","gap:8px",
       "align-items:center","justify-content:center","flex-wrap:wrap",
@@ -45,6 +45,9 @@
     };
 
     // Browser-preview-only helpers. All are cache-busted to the deployed SHA.
+    // Load route intelligence first so later user actions use the browser bridge
+    // instead of the old native-only postNative behavior.
+    loadPreviewScript("web-routing-bridge.js");
     loadPreviewScript("welcome.js");
     loadPreviewScript("nav-cleanup.js");
     loadPreviewScript("icloud-calendar-web.js");
@@ -118,7 +121,7 @@
 
     // Keep browser-only previewing from appearing frozen when a native-only
     // feature is tapped. Normal tabs, forms, themes, To-Dos, Google Calendar,
-    // calendar links, and UI controls remain fully interactive.
+    // calendar links, web gap routing, and UI controls remain interactive.
     const oldStatus = window.setStatus;
     window.webPreviewNativeNotice = () => {
       if (typeof oldStatus === "function") oldStatus("Web preview · iPhone feature");

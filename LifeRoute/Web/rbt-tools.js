@@ -86,8 +86,8 @@
         <div class="card toolCard" id="firstThenTool">
           <div class="toolHead"><div class="toolIcon">${icon("route", 20)}</div><div class="grow"><div class="title">First / Then</div><div class="meta">Instant full-screen visual support using simple text.</div></div></div>
           <div class="grid2">
-            <div><label>First</label><input id="firstThenFirst" placeholder="Table work"></div>
-            <div><label>Then</label><input id="firstThenThen" placeholder="Outside"></div>
+            <div><label>First</label><input id="firstThenFirst" value="Table work" placeholder="Table work"></div>
+            <div><label>Then</label><input id="firstThenThen" value="Outside" placeholder="Outside"></div>
           </div>
           <div class="toolActions"><button class="goldButton" id="showFirstThen">Show board</button><button class="secondary" id="swapFirstThen">Swap</button></div>
         </div>
@@ -360,8 +360,10 @@
       [first.value, then.value] = [then.value, first.value];
     });
     document.getElementById("showFirstThen")?.addEventListener("click", () => {
-      const first = String(document.getElementById("firstThenFirst")?.value || "Work").trim();
-      const then = String(document.getElementById("firstThenThen")?.value || "Break").trim();
+      const firstField = document.getElementById("firstThenFirst");
+      const thenField = document.getElementById("firstThenThen");
+      const first = String(firstField?.value || firstField?.placeholder || "Table work").trim();
+      const then = String(thenField?.value || thenField?.placeholder || "Outside").trim();
       const overlay = ensureFirstThenOverlay();
       overlay.querySelector("#firstThenFirstValue").textContent = first;
       overlay.querySelector("#firstThenThenValue").textContent = then;

@@ -124,6 +124,8 @@ grep -q 'lifeRouteIcon("car"' LifeRoute/Web/route-times.js
 grep -q 'authSetCredentials' LifeRoute/LifeRouteWebView.swift
 grep -q 'authVerifyCredentials' LifeRoute/LifeRouteWebView.swift
 grep -q 'authKeychainService' LifeRoute/LifeRouteWebView.swift
+grep -q 'normalizedAuthUsername' LifeRoute/LifeRouteWebView.swift
 grep -q 'PBKDF2' LifeRoute/Web/auth-gate.js
-grep -q 'PREVIEW_CODE' LifeRoute/Web/auth-gate.js
+grep -q 'validUsername' LifeRoute/Web/auth-gate.js
+! grep -q 'PREVIEW_CODE' LifeRoute/Web/auth-gate.js
 echo "LifeRoute feature preflight passed."

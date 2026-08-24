@@ -6,6 +6,7 @@
   let renderToken = 0;
   let scheduled = 0;
   let observer = null;
+  const lastAssignedSrc = new WeakMap();
 
   const normalize = value => window.LifeRouteVisualResolver?.normalize
     ? window.LifeRouteVisualResolver.normalize(value)
@@ -40,6 +41,7 @@
     if (!panel || !img) return;
     img.onerror = null;
     img.hidden = true;
+    lastAssignedSrc.set(img, "");
     img.removeAttribute("src");
     img.removeAttribute("data-smart-visual");
     panel.classList.remove("visualReady", "smartVisualLoading");
@@ -55,6 +57,7 @@
     img.onload = () => panel.classList.remove("smartVisualLoading");
     img.dataset.smartVisual = source || "resolved";
     img.alt = label;
+    lastAssignedSrc.set(img, url);
     img.src = url;
     img.hidden = false;
     panel.classList.add("visualReady");
@@ -65,7 +68,6 @@
   const sideConfig = side => ({
     input: document.getElementById(side === "first" ? "firstThenFirst" : "firstThenThen"),
     mode: document.getElementById(side === "first" ? "firstThenFirstMode" : "firstThenThenMode"),
-    savedSelect: document.getElementById(side === "first" ? "firstThenFirstIcon" : "firstThenThenIcon"),
     panelSelector: side === "first" ? ".firstPanel" : ".thenPanel",
     valueId: side === "first" ? "firstThenFirstValue" : "firstThenThenValue"
   });
@@ -144,7 +146,13 @@
         const relevant = mutations.some(mutation => {
           if (mutation.type === "attributes" && mutation.attributeName === "class" && mutation.target === overlay) return true;
           if (mutation.type === "attributes" && mutation.attributeName === "src") {
-            return mutation.target instanceof HTMLImageElement && mutation.target.classList.contains("firstThenVisualImage") && !mutation.target.dataset.smartVisual;
+            const img = mutation.target;
+            if (!(img instanceof HTMLImageElement) || !img.classList.contains("firstThenVisualImage")) return false;
+            const current = img.getAttribute("src") || "";
+            const ours = lastAssignedSrc.get(img) || "";
+            // If legacy visual-tools writes a different image after us, immediately
+            // resolve again so the old generic drawing never wins the race.
+            return current !== ours;
           }
           return false;
         });
@@ -186,9 +194,8 @@
     bodyObserver.observe(document.body, { childList: true, subtree: true });
   }, { once: true });
 
-  // Expose a tiny debugging surface for the web preview without exposing private state.
   window.LifeRouteSmartVisuals = {
     refresh: () => scheduleRender(0),
-    version: "1.0.0"
+    version: "1.0.1"
   };
 })();

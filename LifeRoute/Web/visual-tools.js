@@ -483,6 +483,13 @@
 
   const autoVisualCache = new Map();
 
+  // High-fidelity raster cards. These are complete image illustrations, not
+  // browser-assembled SVG shapes. Prefer them whenever an exact concept exists.
+  const REAL_IMAGE_VISUALS = {
+    tableWork: "assets/visuals/table-work.jpg",
+    outside: "assets/visuals/outside.jpg"
+  };
+
   const svgEsc = value => String(value || "").replace(/[&<>"']/g, char => ({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
   }[char]));
@@ -1083,6 +1090,16 @@
     if (autoVisualCache.has(key)) return autoVisualCache.get(key);
 
     const scene = resolveAutoVisual(clean);
+
+    // The new image pipeline uses complete raster illustrations first.
+    // This produces the same kind of recognizable scene card as LifeRoute's
+    // established visual library instead of constructing a picture from shapes.
+    if (REAL_IMAGE_VISUALS[scene]) {
+      const url = REAL_IMAGE_VISUALS[scene] + "?v=real-visual-v1";
+      autoVisualCache.set(key, url);
+      return url;
+    }
+
     const label = svgEsc(clean.slice(0, 28));
     const labelSize = fontSizeFor(clean);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="${label}">

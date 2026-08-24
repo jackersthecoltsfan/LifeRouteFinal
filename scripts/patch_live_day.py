@@ -74,10 +74,11 @@ helper_code = r'''        // MARK: - Live Day leave reminders
                     }
 
                     requestsToAdd.forEach { center.add($0) }
+                    let scheduledCount = requestsToAdd.count
                     DispatchQueue.main.async {
                         self.emit(type: "dayNotificationsStatus", payload: [
                             "granted": true,
-                            "scheduled": requestsToAdd.count
+                            "scheduled": scheduledCount
                         ])
                     }
                 }

@@ -66,6 +66,7 @@
     // Load route intelligence first so later user actions use the browser bridge
     // instead of the old native-only postNative behavior.
     loadPreviewScript("web-routing-bridge.js");
+    loadPreviewScript("web-store-search-fallback.js");
     loadPreviewScript("welcome.js");
     loadPreviewScript("nav-cleanup.js");
     loadPreviewScript("icloud-calendar-web.js");

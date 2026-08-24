@@ -37,6 +37,8 @@
     <string>LifeRoute reads the calendars you choose so it can combine appointments, find usable gaps, and plan routes. LifeRoute does not edit or delete your calendar events.</string>
     <key>NSCalendarsUsageDescription</key>
     <string>LifeRoute reads the calendars you choose so it can combine appointments, find usable gaps, and plan routes. LifeRoute does not edit or delete your calendar events.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>LifeRoute uses your location while the app is open to start commute and route estimates from where you actually are. Your live location is not stored in your calendar.</string>
 
     <key>LSRequiresIPhoneOS</key>
     <true/>

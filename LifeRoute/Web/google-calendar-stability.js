@@ -3,6 +3,20 @@
   if (window.__lifeRouteGoogleCalendarStabilityLoaded) return;
   window.__lifeRouteGoogleCalendarStabilityLoaded = true;
 
+  // Keep the account connection across fresh web-app visits without persisting
+  // Google access/refresh tokens. The helper asks Google to restore a fresh token
+  // from the browser's existing signed-in session and prior consent.
+  const loadPersistenceHelper = () => {
+    if (window.__lifeRouteGoogleCalendarPersistenceLoaded || document.getElementById("lifeRouteGooglePersistenceScript")) return;
+    const script = document.createElement("script");
+    script.id = "lifeRouteGooglePersistenceScript";
+    const build = document.querySelector('meta[name="liferoute-web-build"]')?.content || "";
+    script.src = `google-calendar-persistence-web.js${build ? "?v=" + encodeURIComponent(build) : ""}`;
+    script.async = false;
+    document.body.appendChild(script);
+  };
+  loadPersistenceHelper();
+
   const RETURN_KEY = "liferoute_google_return_after_auth_v2";
   let returned = false;
 
@@ -124,9 +138,11 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => {
     restoreInteraction();
     attachStatusObserver();
+    loadPersistenceHelper();
   }, { once: true });
   else {
     restoreInteraction();
     attachStatusObserver();
+    loadPersistenceHelper();
   }
 })();

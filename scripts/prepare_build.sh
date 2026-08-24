@@ -1,6 +1,8 @@
 set -euo pipefail
 
-# Apply native/runtime features in a deterministic order.
+# Apply native/runtime features in a deterministic order. Keep feature patches
+# explicit here instead of importing one patch from another; that makes build
+# regressions visible and keeps unrelated auth/navigation changes independent.
 python3 scripts/patch_route_times.py
 python3 scripts/patch_location_context.py
 python3 scripts/patch_transport_mode.py
@@ -16,6 +18,7 @@ python3 scripts/patch_live_day.py
 python3 scripts/patch_rbt_tools.py
 python3 scripts/patch_sleek_icons.py
 python3 scripts/patch_provider_selection.py
+python3 scripts/patch_day_navigation.py
 python3 scripts/patch_auth_gate.py
 
 python3 - <<'PY'
@@ -40,6 +43,7 @@ tags = [
     '<script src="visual-tools.js"></script>',
     '<script src="visual-resolver-bridge.js"></script>',
     '<script src="live-themes.js"></script>',
+    '<script src="day-route-experience.js"></script>',
 ]
 
 if "</body>" not in html:
@@ -53,17 +57,18 @@ print("LifeRoute feature scripts enabled in safe startup order.")
 PY
 
 # Fast preflight checks before Xcode spends time compiling.
-python3 -m py_compile scripts/patch_route_times.py scripts/patch_location_context.py scripts/patch_transport_mode.py scripts/patch_store_route_guard.py scripts/patch_store_routing_resilience.py scripts/patch_store_mapitems.py scripts/patch_route_reliability_v2.py scripts/patch_route_reliability_v3.py scripts/patch_gap_multistop.py scripts/patch_route_origin_choice.py scripts/patch_selected_gap_routes.py scripts/patch_live_day.py scripts/patch_rbt_tools.py scripts/patch_sleek_icons.py scripts/patch_provider_selection.py scripts/patch_auth_gate.py
+python3 -m py_compile scripts/patch_route_times.py scripts/patch_location_context.py scripts/patch_transport_mode.py scripts/patch_store_route_guard.py scripts/patch_store_routing_resilience.py scripts/patch_store_mapitems.py scripts/patch_route_reliability_v2.py scripts/patch_route_reliability_v3.py scripts/patch_gap_multistop.py scripts/patch_route_origin_choice.py scripts/patch_selected_gap_routes.py scripts/patch_live_day.py scripts/patch_rbt_tools.py scripts/patch_sleek_icons.py scripts/patch_provider_selection.py scripts/patch_day_navigation.py scripts/patch_auth_gate.py
 plutil -lint LifeRoute/Info.plist
-for js in auth-gate.js icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js; do
+for js in auth-gate.js icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js day-route-experience.js; do
   test -s "LifeRoute/Web/$js"
   node --check "LifeRoute/Web/$js"
   grep -q "<script src=\"$js\"></script>" LifeRoute/Web/index.html
 done
-# Browser-only welcome code is loaded dynamically by the Pages preview, so validate
-# the file itself here without requiring it to be injected into the native app HTML.
-test -s "LifeRoute/Web/welcome.js"
-node --check "LifeRoute/Web/welcome.js"
+# Browser-only helpers are loaded dynamically by the Pages preview.
+for js in welcome.js web-routing-bridge.js web-store-search-fallback.js google-calendar-web.js google-calendar-stability.js nature-settings-web.js settings-classic-themes-web.js photoreal-nature-web.js dynamic-themes-web.js end-home-route-web.js mileage-tracker-web.js resources-hub-web.js; do
+  test -s "LifeRoute/Web/$js"
+  node --check "LifeRoute/Web/$js"
+done
 
 grep -q 'requestRouteTimes' LifeRoute/LifeRouteWebView.swift
 grep -q 'searchStoreLocations' LifeRoute/LifeRouteWebView.swift
@@ -128,4 +133,9 @@ grep -q 'normalizedAuthUsername' LifeRoute/LifeRouteWebView.swift
 grep -q 'PBKDF2' LifeRoute/Web/auth-gate.js
 grep -q 'validUsername' LifeRoute/Web/auth-gate.js
 ! grep -q 'PREVIEW_CODE' LifeRoute/Web/auth-gate.js
+grep -q 'class="lrDayPager"' LifeRoute/Web/index.html
+grep -q 'shiftSelectedDay' LifeRoute/Web/index.html
+grep -q 'lifeRouteChooseRouteOrigin' LifeRoute/Web/day-route-experience.js
+grep -q 'Stop on the way' LifeRoute/Web/day-route-experience.js
+grep -q 'Stop on the way back' LifeRoute/Web/day-route-experience.js
 echo "LifeRoute feature preflight passed."

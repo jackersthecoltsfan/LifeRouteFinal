@@ -21,10 +21,10 @@ window.addEventListener("DOMContentLoaded", () => {
     const home = homePlace();
 
     weekDates().forEach(dateKey => {
-      const list = dayEvents(dateKey).filter(event => String(event.address || "").trim());
+      const list = dayEvents(dateKey);
       if (!list.length) return;
 
-      // Clear stale route metadata for the selected week before rebuilding it.
+      // Clear stale route metadata before rebuilding the selected week.
       list.forEach(event => {
         event.routePending = false;
         event.routeError = "";
@@ -32,8 +32,11 @@ window.addEventListener("DOMContentLoaded", () => {
         event.routeOriginLabel = "";
       });
 
-      if (home && list[0]?.address) {
-        const first = list[0];
+      // Home -> first appointment is included only when the actual first timed
+      // appointment has a location. We never skip an unlocated appointment and
+      // pretend two non-consecutive events are adjacent.
+      const first = list[0];
+      if (home && String(first?.address || "").trim()) {
         first.routePending = true;
         segments.push({
           id: `${dateKey}|home|${first.id}`,
@@ -50,7 +53,8 @@ window.addEventListener("DOMContentLoaded", () => {
       for (let index = 1; index < list.length; index += 1) {
         const previous = list[index - 1];
         const current = list[index];
-        if (!previous.address || !current.address) continue;
+        if (!String(previous.address || "").trim() || !String(current.address || "").trim()) continue;
+
         current.routePending = true;
         segments.push({
           id: `${dateKey}|${previous.id}|${current.id}`,
@@ -95,7 +99,8 @@ window.addEventListener("DOMContentLoaded", () => {
     routeRefreshTimer = setTimeout(() => refreshRouteTimes(), delay);
   };
 
-  // Route-aware schedule metrics. Travel to each event is stored on that event.
+  // Travel to an appointment is stored on that appointment. This makes the
+  // weekly planned-travel metric and gap calculations use the same route data.
   window.stats = function routeAwareStats(list) {
     if (!list.length) return { work: 0, drive: 0, gap: 0, spread: 0 };
     let work = 0;
@@ -171,7 +176,6 @@ window.addEventListener("DOMContentLoaded", () => {
     return `There are <b>${fmt(usableTotal)}</b> of usable time between commitments this week after route time. The largest block is <b>${dayName(top.date)} · ${fmt(top.g)}</b>${driveText}, between <b>${esc(top.a.title)}</b> and <b>${esc(top.b.title)}</b>.${suggestionForGap(top.g)}`;
   };
 
-  // Show the actual route data in the Today timeline.
   window.renderToday = function renderRouteAwareToday() {
     const list = dayEvents(selectedDate);
     const summary = stats(list);
@@ -203,7 +207,7 @@ window.addEventListener("DOMContentLoaded", () => {
           const origin = event.routeOriginLabel ? ` from ${esc(event.routeOriginLabel)}` : "";
           travelText = `🚙 ${fmt(event.drive)}${distance}${origin}`;
         } else if (event.routeError) {
-          travelText = `🚙 Route time unavailable`;
+          travelText = "🚙 Route time unavailable";
         } else {
           travelText = "🚙 Route time pending";
         }
@@ -275,7 +279,6 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Refresh route data whenever the selected week changes.
   [["changeWeek", 250], ["goToCurrentWeek", 250], ["openCalendarDay", 250]].forEach(([name, delay]) => {
     const original = window[name];
     if (typeof original !== "function") return;
@@ -291,7 +294,5 @@ window.addEventListener("DOMContentLoaded", () => {
     notice.innerHTML += "<br><br><b>Route timing:</b> Apple MapKit driving-time estimates are calculated natively on the iPhone. Your preferred maps app can still be Apple Maps or Google Maps for navigation.";
   }
 
-  // Route calculations need the calendar events first. Native status/calendar refreshes
-  // already run during startup, so this acts as a fallback for manually entered events.
   scheduleRouteRefresh(1400);
 });

@@ -11,6 +11,16 @@ if new not in text:
     sleek.write_text(text.replace(old, new, 1))
 print("Provider selection styling ready.")
 
+# Extend the premium theme registry so the selector and setTheme accept the new dynamic themes.
+text = sleek.read_text()
+if '["solar-flare", "Solar Flare"]' not in text:
+    theme_marker = '    ["daylight", "Daylight"]\n  ];'
+    theme_replacement = '    ["solar-flare", "Solar Flare"],\n    ["electric-storm", "Electric Storm"],\n    ["ultraviolet", "Ultraviolet"],\n    ["molten-gold", "Molten Gold"],\n    ["arctic-pulse", "Arctic Pulse"],\n    ["emerald-tempest", "Emerald Tempest"],\n    ["rose-nebula", "Rose Nebula"],\n    ["royal-cosmos", "Royal Cosmos"],\n    ["sapphire-tide", "Sapphire Tide"],\n    ["phantom-silver", "Phantom Silver"],\n    ["daylight", "Daylight"]\n  ];'
+    if theme_marker not in text:
+        raise SystemExit("Could not extend theme selector: marker not found")
+    sleek.write_text(text.replace(theme_marker, theme_replacement, 1))
+print("Dynamic theme registry ready.")
+
 # Load the live-state bridge before the calendar hub.
 index = Path("LifeRoute/Web/index.html")
 html = index.read_text()

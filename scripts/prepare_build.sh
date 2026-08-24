@@ -44,6 +44,7 @@ tags = [
     '<script src="visual-resolver-bridge.js"></script>',
     '<script src="live-themes.js"></script>',
     '<script src="day-route-experience.js"></script>',
+    '<script src="day-navigation-runtime.js"></script>',
 ]
 
 if "</body>" not in html:
@@ -59,7 +60,7 @@ PY
 # Fast preflight checks before Xcode spends time compiling.
 python3 -m py_compile scripts/patch_route_times.py scripts/patch_location_context.py scripts/patch_transport_mode.py scripts/patch_store_route_guard.py scripts/patch_store_routing_resilience.py scripts/patch_store_mapitems.py scripts/patch_route_reliability_v2.py scripts/patch_route_reliability_v3.py scripts/patch_gap_multistop.py scripts/patch_route_origin_choice.py scripts/patch_selected_gap_routes.py scripts/patch_live_day.py scripts/patch_rbt_tools.py scripts/patch_sleek_icons.py scripts/patch_provider_selection.py scripts/patch_day_navigation.py scripts/patch_auth_gate.py
 plutil -lint LifeRoute/Info.plist
-for js in auth-gate.js icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js day-route-experience.js; do
+for js in auth-gate.js icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js day-route-experience.js day-navigation-runtime.js; do
   test -s "LifeRoute/Web/$js"
   node --check "LifeRoute/Web/$js"
   grep -q "<script src=\"$js\"></script>" LifeRoute/Web/index.html
@@ -134,8 +135,12 @@ grep -q 'PBKDF2' LifeRoute/Web/auth-gate.js
 grep -q 'validUsername' LifeRoute/Web/auth-gate.js
 ! grep -q 'PREVIEW_CODE' LifeRoute/Web/auth-gate.js
 grep -q 'class="lrDayPager"' LifeRoute/Web/index.html
-grep -q 'shiftSelectedDay' LifeRoute/Web/index.html
+grep -q 'id="dayPrevButton"' LifeRoute/Web/index.html
+grep -q 'id="dayTodayButton"' LifeRoute/Web/index.html
+grep -q 'id="dayNextButton"' LifeRoute/Web/index.html
+grep -q 'shiftSelectedDayRuntime' LifeRoute/Web/day-navigation-runtime.js
+grep -q 'dayNavBound' LifeRoute/Web/day-navigation-runtime.js
 grep -q 'lifeRouteChooseRouteOrigin' LifeRoute/Web/day-route-experience.js
-grep -q 'Stop on the way' LifeRoute/Web/day-route-experience.js
-grep -q 'Stop on the way back' LifeRoute/Web/day-route-experience.js
+grep -q 'BEFORE FIRST APPOINTMENT' LifeRoute/Web/day-route-experience.js
+grep -q 'AFTER LAST APPOINTMENT' LifeRoute/Web/day-route-experience.js
 echo "LifeRoute feature preflight passed."

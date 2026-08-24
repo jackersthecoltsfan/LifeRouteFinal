@@ -23,6 +23,13 @@
     if (strong) strong.style.color = "#f2c86d";
     document.body.prepend(badge);
 
+    // Load the first-visit welcome only in the browser preview. The build SHA is
+    // attached so Safari always receives the welcome code from this deployment.
+    const welcomeScript = document.createElement("script");
+    welcomeScript.src = `welcome.js${build ? "?v=" + encodeURIComponent(build) : ""}`;
+    welcomeScript.async = true;
+    document.body.appendChild(welcomeScript);
+
     // Keep browser-only previewing from appearing frozen when a native-only
     // feature is tapped. Normal tabs, forms, themes, To-Dos, and UI controls
     // remain fully interactive.

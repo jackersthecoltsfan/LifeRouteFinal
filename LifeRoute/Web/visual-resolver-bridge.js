@@ -12,6 +12,48 @@
     ? window.LifeRouteVisualResolver.normalize(value)
     : String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 
+  const SEARCH_HINTS = {
+    store: "grocery supermarket store aisle shopping cart",
+    chocolate: "chocolate bar cocoa candy food",
+    candy: "candy sweets food",
+    eat: "child eating meal table food",
+    drink: "child drinking cup water",
+    bathroom: "bathroom toilet",
+    wash_hands: "child washing hands sink",
+    brush_teeth: "child brushing teeth toothbrush",
+    park: "children playground park",
+    swing: "child playground swing",
+    pool: "child swimming pool",
+    water_play: "child water table play",
+    bubbles: "child blowing bubbles",
+    tablet: "child tablet computer",
+    phone: "smartphone phone",
+    music: "child music headphones",
+    break: "child resting quiet area",
+    home: "house home exterior",
+    car: "car automobile",
+    walk: "child walking outdoors",
+    hug: "child hugging caregiver",
+    drawing: "child drawing crayons table",
+    blocks: "child toy building blocks",
+    magna_tiles: "magnetic building tiles toy",
+    puzzle: "child jigsaw puzzle",
+    reading: "child reading picture book",
+    sleep: "child sleeping bed",
+    sit: "child sitting chair",
+    wait: "child waiting seated",
+    cleanup: "child putting toys storage bin",
+    shoes: "child putting on shoes",
+    coat: "child putting on jacket coat",
+    tv: "child watching television"
+  };
+
+  const BAD_PUBLIC_TITLES = [
+    "logo", "icon", "symbol", "diagram", "chart", "map", "flag", "coat of arms",
+    "poster", "sign", "drawing", "illustration", "clipart", "vector", "svg", "emoji",
+    "screenshot", "scan", "document", "text", "seal", "emblem"
+  ];
+
   const getSavedVisualForText = text => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORE) || "{}");
@@ -20,6 +62,76 @@
       if (!target) return null;
       const exact = icons.find(icon => normalize(icon?.label) === target && icon?.dataURL);
       return exact?.dataURL || null;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const usefulTerms = text => normalize(text)
+    .split(" ")
+    .filter(term => term.length > 2 && !["child","photo","photograph","object","activity","with","from","using","doing"].includes(term));
+
+  const publicPhotoFallback = async label => {
+    const resolver = window.LifeRouteVisualResolver;
+    if (!resolver?.safeForPublicLookup?.(label)) return null;
+
+    const canonical = resolver.canonicalFor?.(label) || normalize(label).replace(/\s+/g, "_");
+    const hint = SEARCH_HINTS[canonical] || `${normalize(label)} object activity`;
+    const query = `${hint} photograph`;
+    const params = new URLSearchParams({
+      action: "query",
+      generator: "search",
+      gsrsearch: query,
+      gsrnamespace: "6",
+      gsrlimit: "16",
+      prop: "imageinfo",
+      iiprop: "url|mime|size",
+      iiurlwidth: "1200",
+      format: "json",
+      origin: "*"
+    });
+
+    try {
+      const response = await fetch(`https://commons.wikimedia.org/w/api.php?${params.toString()}`, {
+        method: "GET",
+        mode: "cors",
+        credentials: "omit",
+        cache: "default"
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      const pages = Object.values(data?.query?.pages || {});
+      const terms = [...new Set([...usefulTerms(label), ...usefulTerms(hint)])];
+
+      const ranked = pages.map(page => {
+        const info = page?.imageinfo?.[0];
+        const title = normalize(String(page?.title || "").replace(/^file:/i, ""));
+        const mime = String(info?.mime || "");
+        if (!title || (mime && !/^image\/(jpeg|png|webp)$/i.test(mime))) return { page, score: -100 };
+        if (BAD_PUBLIC_TITLES.some(word => title.includes(word))) return { page, score: -100 };
+        let score = 0;
+        terms.forEach(term => { if (title.includes(term)) score += 3; });
+        if (/\b(child|children|kid|boy|girl)\b/.test(title)) score += 2;
+        if (/\b(photo|photograph|jpg|jpeg)\b/.test(title)) score += 1;
+        score -= Number(page?.index || 0) * 0.03;
+        return { page, score };
+      }).filter(item => item.score > -50).sort((a, b) => b.score - a.score);
+
+      const best = ranked[0]?.page;
+      const info = best?.imageinfo?.[0];
+      const url = info?.thumburl || info?.url;
+      if (!url) return null;
+
+      const result = {
+        url,
+        source: "wikimedia-fallback",
+        confidence: "medium",
+        canonical,
+        title: String(best.title || "").replace(/^File:/i, ""),
+        query
+      };
+      resolver.remember?.(normalize(label), result);
+      return result;
     } catch (_) {
       return null;
     }
@@ -83,7 +195,6 @@
     if (!panel || !value || !img || !label) return;
     value.textContent = label;
 
-    // Respect explicit user choices. Saved mode remains owned by visual-tools.js.
     if (mode === "text") {
       setTextOnly(panel, img, label);
       return;
@@ -111,12 +222,20 @@
       return;
     }
 
-    const result = await resolver.resolve(label);
+    let result = await resolver.resolve(label);
     if (token !== renderToken) return;
 
-    // Low-confidence public search results are intentionally rejected. A clean word
-    // card is more useful than showing a child the wrong object/activity.
+    // If the primary resolver cannot confidently identify a photo, run a broader
+    // category-aware Commons lookup. This is what lets terms like Store, Chocolate,
+    // foods, toys, places and new activity words resolve without hardcoded SVG art.
     if (!result?.url || result.confidence === "low") {
+      result = await publicPhotoFallback(label);
+      if (token !== renderToken) return;
+    }
+
+    // Wrong is worse than blank. If two search passes still fail, preserve the
+    // activity word as a clean text-only First / Then card.
+    if (!result?.url) {
       setTextOnly(panel, img, label);
       return;
     }
@@ -150,8 +269,6 @@
             if (!(img instanceof HTMLImageElement) || !img.classList.contains("firstThenVisualImage")) return false;
             const current = img.getAttribute("src") || "";
             const ours = lastAssignedSrc.get(img) || "";
-            // If legacy visual-tools writes a different image after us, immediately
-            // resolve again so the old generic drawing never wins the race.
             return current !== ours;
           }
           return false;
@@ -196,6 +313,6 @@
 
   window.LifeRouteSmartVisuals = {
     refresh: () => scheduleRender(0),
-    version: "1.0.1"
+    version: "1.1.0"
   };
 })();

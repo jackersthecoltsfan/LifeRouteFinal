@@ -51,6 +51,58 @@
     loadPreviewScript("google-calendar-web.js");
     loadPreviewScript("first-then-back.js");
 
+    // The native config layer still owns the legacy Google badge and can label
+    // a browser connection as "SETUP NEEDED" after renderAll(). In the web
+    // build the OAuth client is already configured, so keep the browser UI in
+    // sync with the actual Google connection state and remove developer setup.
+    const polishGoogleWebUI = () => {
+      const configured = !!String(window.LifeRouteConfig?.googleCalendar?.clientId || "").trim();
+      if (!configured) return;
+
+      const status = document.getElementById("googleWebStatus");
+      const kind = status?.dataset?.kind || "";
+      const statusText = String(status?.textContent || "");
+      const connected = kind === "connected" || /Google event(?:s)? synced/i.test(statusText);
+      const loading = kind === "loading";
+
+      try {
+        if (window.nativeState) {
+          window.nativeState.googleCalendarConfigured = true;
+          window.nativeState.googleCalendarConnected = connected;
+        }
+      } catch (_) {}
+
+      const googleBadge = document.getElementById("googleStatus");
+      if (googleBadge) {
+        const wanted = connected ? "CONNECTED" : loading ? "SYNCING" : "READY";
+        if (googleBadge.textContent !== wanted) googleBadge.textContent = wanted;
+        const wantedClass = `badge ${connected ? "green" : loading ? "gold" : ""}`.trim();
+        if (googleBadge.className !== wantedClass) googleBadge.className = wantedClass;
+      }
+
+      // Nobody using the deployed web app should have to see or enter the
+      // project's OAuth Client ID. Keep that configuration developer-only.
+      document.getElementById("googleWebSetup")?.remove();
+
+      const connect = document.getElementById("googleWebConnect");
+      if (connect) {
+        const wanted = connected ? "Reconnect Google" : "Connect Google Calendar";
+        if (connect.textContent !== wanted) connect.textContent = wanted;
+      }
+    };
+
+    const googleChromeObserver = new MutationObserver(() => {
+      window.setTimeout(polishGoogleWebUI, 0);
+    });
+    googleChromeObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["data-kind"]
+    });
+    [50, 180, 450, 900, 1800, 3500].forEach(delay => window.setTimeout(polishGoogleWebUI, delay));
+
     // Keep browser-only previewing from appearing frozen when a native-only
     // feature is tapped. Normal tabs, forms, themes, To-Dos, Google Calendar,
     // calendar links, and UI controls remain fully interactive.

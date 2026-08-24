@@ -34,6 +34,7 @@
     loadPreviewScript("welcome.js");
     loadPreviewScript("nav-cleanup.js");
     loadPreviewScript("icloud-calendar-web.js");
+    loadPreviewScript("first-then-back.js");
 
     // Keep browser-only previewing from appearing frozen when a native-only
     // feature is tapped. Normal tabs, forms, themes, To-Dos, and UI controls

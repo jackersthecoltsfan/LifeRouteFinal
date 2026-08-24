@@ -4,6 +4,20 @@
 
     document.documentElement.dataset.webPreview = "true";
 
+    // Public browser OAuth configuration. A Google OAuth Client ID is not a
+    // secret; never place the corresponding Client Secret in browser code.
+    window.LifeRouteConfig = window.LifeRouteConfig || {};
+    window.LifeRouteConfig.googleCalendar = Object.assign(
+      {},
+      window.LifeRouteConfig.googleCalendar || {},
+      {
+        enabled: true,
+        clientId: "601974933090-am03tgj3094d1hkb708ec74jjvvsh58j.apps.googleusercontent.com",
+        scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+        mode: "web-read-only-oauth"
+      }
+    );
+
     const badge = document.createElement("div");
     badge.id = "webPreviewBadge";
     const build = document.querySelector('meta[name="liferoute-web-build"]')?.content || "";

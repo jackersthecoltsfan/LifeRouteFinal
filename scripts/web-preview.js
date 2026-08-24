@@ -18,6 +18,21 @@
       }
     );
 
+    // Preload Google Identity Services before the user taps Connect. Mobile
+    // Safari can silently block an OAuth popup if the library finishes loading
+    // only after the original tap has already returned.
+    const preloadGoogleIdentity = () => {
+      if (window.google?.accounts?.oauth2) return;
+      if (document.querySelector('script[src^="https://accounts.google.com/gsi/client"]')) return;
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.dataset.lifeRouteGooglePreload = "1";
+      document.head.appendChild(script);
+    };
+    preloadGoogleIdentity();
+
     const badge = document.createElement("div");
     badge.id = "webPreviewBadge";
     const build = document.querySelector('meta[name="liferoute-web-build"]')?.content || "";
@@ -40,7 +55,10 @@
     const loadPreviewScript = name => {
       const script = document.createElement("script");
       script.src = `${name}${build ? "?v=" + encodeURIComponent(build) : ""}`;
-      script.async = true;
+      // Preserve insertion/execution order for browser helpers. Several of them
+      // wrap the same global functions, so random async execution can detach a
+      // handler on mobile Safari after a later helper mounts.
+      script.async = false;
       document.body.appendChild(script);
     };
 
@@ -61,6 +79,31 @@
     loadPreviewScript("resources-hub-web.js");
     loadPreviewScript("nature-settings-web.js");
     loadPreviewScript("settings-classic-themes-web.js");
+
+    // If Google is unusually slow to load, make the first tap visibly prepare
+    // sign-in rather than appearing dead. The normal Google handler remains in
+    // control once GIS is ready.
+    document.addEventListener("click", event => {
+      const connect = event.target.closest?.("#googleWebConnect");
+      if (!connect || window.google?.accounts?.oauth2) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      preloadGoogleIdentity();
+      const status = document.getElementById("googleWebStatus");
+      if (status) {
+        status.textContent = "Preparing Google sign-in… tap Connect again in a moment.";
+        status.dataset.kind = "loading";
+      }
+      const check = setInterval(() => {
+        if (!window.google?.accounts?.oauth2) return;
+        clearInterval(check);
+        if (status) {
+          status.textContent = "Google sign-in ready · tap Connect Google Calendar.";
+          status.dataset.kind = "";
+        }
+      }, 100);
+      setTimeout(() => clearInterval(check), 10000);
+    }, true);
 
     // Keep the legacy/native Google badge from overwriting the real browser
     // OAuth status. Watch only the Google status element; never the whole DOM.

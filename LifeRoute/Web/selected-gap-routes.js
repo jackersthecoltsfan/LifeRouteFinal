@@ -15,14 +15,14 @@
   };
 
   const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(selections));
-  const safeText = value => typeof window.esc === "function" ? window.esc(String(value || "")) : String(value || "");
+  const safeText = value => typeof esc === "function" ? esc(String(value || "")) : String(value || "");
   const routeKey = (dateKey, previousID, nextID) => `${dateKey}|${previousID}|${nextID}`;
   const miles = meters => Number(meters || 0) / 1609.344;
 
   const minutesLabel = value => {
     const amount = Math.max(0, Math.round(Number(value || 0)));
     if (!amount) return "Time unavailable";
-    if (typeof window.fmt === "function") return window.fmt(amount);
+    if (typeof fmt === "function") return fmt(amount);
     const hours = Math.floor(amount / 60);
     const mins = amount % 60;
     return hours ? `${hours}h${mins ? ` ${mins}m` : ""}` : `${mins}m`;
@@ -70,15 +70,15 @@
     };
     save();
 
-    if (typeof window.renderToday === "function") window.renderToday();
-    if (typeof window.setStatus === "function") window.setStatus(`Route selected · ${label}`);
+    if (typeof renderToday === "function") renderToday();
+    if (typeof setStatus === "function") setStatus(`Route selected · ${label}`);
 
     // Keep the handoff inside the same user gesture so iOS opens the selected
     // maps provider immediately.
-    if (typeof window.routeGapStop === "function") {
-      window.routeGapStop(encodeURIComponent(stop), encodeURIComponent(finalDestination));
-    } else if (typeof window.routeTo === "function") {
-      window.routeTo(encodeURIComponent(stop));
+    if (typeof routeGapStop === "function") {
+      routeGapStop(encodeURIComponent(stop), encodeURIComponent(finalDestination));
+    } else if (typeof routeTo === "function") {
+      routeTo(encodeURIComponent(stop));
     }
   };
 
@@ -87,16 +87,16 @@
     if (!key || !selections[key]) return;
     delete selections[key];
     save();
-    if (typeof window.renderToday === "function") window.renderToday();
-    if (typeof window.setStatus === "function") window.setStatus("Gap route cleared");
+    if (typeof renderToday === "function") renderToday();
+    if (typeof setStatus === "function") setStatus("Gap route cleared");
   };
 
   window.reopenLifeRouteGapRoute = function reopenLifeRouteGapRoute(encodedKey) {
     const key = decodeURIComponent(encodedKey || "");
     const selection = selections[key];
     if (!selection) return;
-    if (typeof window.routeGapStop === "function") {
-      window.routeGapStop(
+    if (typeof routeGapStop === "function") {
+      routeGapStop(
         encodeURIComponent(selection.stop),
         encodeURIComponent(selection.finalDestination || "")
       );
@@ -104,15 +104,15 @@
   };
 
   const decorateSelectedGaps = () => {
-    if (typeof window.dayEvents !== "function" || typeof window.selectedDate === "undefined") return;
-    const list = window.dayEvents(window.selectedDate);
+    if (typeof dayEvents !== "function" || typeof selectedDate === "undefined") return;
+    const list = dayEvents(selectedDate);
     const gaps = Array.from(document.querySelectorAll("#timeline .card.gap"));
 
     gaps.forEach((gap, index) => {
       const previous = list[index];
       const next = list[index + 1];
       if (!previous || !next) return;
-      const key = routeKey(window.selectedDate, String(previous.id), String(next.id));
+      const key = routeKey(selectedDate, String(previous.id), String(next.id));
       const selection = selections[key];
       if (!selection) return;
 
@@ -173,7 +173,7 @@
       window.renderToday = wrapped;
     }
     decorateSelectedGaps();
-    if (typeof window.renderToday === "function") window.renderToday();
+    if (typeof renderToday === "function") renderToday();
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });

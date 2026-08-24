@@ -7,6 +7,8 @@
     icons: [],
     firstIconId: "",
     thenIconId: "",
+    firstMode: "auto",
+    thenMode: "auto",
     firstThenVisual: true,
     boardSelection: []
   };
@@ -16,6 +18,8 @@
     state.icons = Array.isArray(saved.icons) ? saved.icons : [];
     state.firstIconId = String(saved.firstIconId || "");
     state.thenIconId = String(saved.thenIconId || "");
+    state.firstMode = ["text","auto","saved"].includes(saved.firstMode) ? saved.firstMode : "auto";
+    state.thenMode = ["text","auto","saved"].includes(saved.thenMode) ? saved.thenMode : "auto";
     state.firstThenVisual = saved.firstThenVisual !== false;
     state.boardSelection = Array.isArray(saved.boardSelection) ? saved.boardSelection : [];
   } catch (_) {}
@@ -89,12 +93,28 @@
     if (firstThen) {
       firstThen.insertAdjacentHTML("beforeend", `
         <div class="visualFirstThenControls">
-          <div class="row"><div><b>Visual option</b><div class="tiny">Add visual support icons above the words.</div></div><label class="switch"><input id="firstThenVisualToggle" type="checkbox" checked><span class="slider"></span></label></div>
+          <div class="row"><div><b>Board display</b><div class="tiny">LifeRoute can create the visual automatically from whatever you type.</div></div><span class="badge green">SMART</span></div>
           <div class="grid2 visualFirstThenSelects">
-            <div><label>First visual</label><select id="firstThenFirstIcon"></select></div>
-            <div><label>Then visual</label><select id="firstThenThenIcon"></select></div>
+            <div>
+              <label>First display</label>
+              <select id="firstThenFirstMode">
+                <option value="auto">Text + auto visual</option>
+                <option value="text">Text only</option>
+                <option value="saved">Text + saved visual</option>
+              </select>
+              <div class="savedVisualField" id="firstThenFirstSavedWrap"><label>Saved visual</label><select id="firstThenFirstIcon"></select></div>
+            </div>
+            <div>
+              <label>Then display</label>
+              <select id="firstThenThenMode">
+                <option value="auto">Text + auto visual</option>
+                <option value="text">Text only</option>
+                <option value="saved">Text + saved visual</option>
+              </select>
+              <div class="savedVisualField" id="firstThenThenSavedWrap"><label>Saved visual</label><select id="firstThenThenIcon"></select></div>
+            </div>
           </div>
-          <div class="tiny">Create or photograph new visuals in Visual support icon maker, then select them here.</div>
+          <div class="tiny">Auto visual is the default. No icon setup is required before using First / Then.</div>
         </div>
       `);
     }
@@ -108,7 +128,7 @@
   const styles = document.createElement("style");
   styles.id = "visualToolStyles";
   styles.textContent = `
-    .visualCaptureLayout{display:grid;grid-template-columns:150px 1fr;gap:9px;margin-bottom:9px}.visualCameraTile{min-height:145px;border:1px dashed color-mix(in srgb,var(--blue) 44%,var(--line));background:color-mix(in srgb,var(--blue) 5%,var(--panel2));color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}.visualCameraTile span{font-size:9px;color:var(--muted)}.visualCameraGlyph{font-size:28px;color:var(--blue);margin-bottom:4px}.visualDraftCard{min-height:145px;border-radius:14px;border:1px solid var(--line);background:#fff;overflow:hidden;display:grid;place-items:center}.visualDraftCard img{width:100%;height:145px;object-fit:cover}.visualDraftCard #visualDraftEmpty{color:#243348;text-align:center;padding:18px;display:grid;gap:4px}.visualDraftCard #visualDraftEmpty span{font-size:9px;color:#66768b;line-height:1.4}.visualLabelRow{margin-top:8px}.visualLibraryHead{display:flex;justify-content:space-between;align-items:center;margin:12px 0 7px}.visualIconLibrary,.choiceBoardPicker{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.visualLibraryItem,.choicePick{position:relative;border:1px solid var(--line);border-radius:12px;padding:6px;background:color-mix(in srgb,var(--panel2) 76%,transparent);text-align:center;color:var(--text);overflow:hidden}.visualLibraryItem img,.choicePick img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:white}.visualLibraryItem b,.choicePick b{display:block;font-size:9px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.visualDelete{position:absolute;right:3px;top:3px;width:24px;height:24px;padding:0;border-radius:999px;background:rgba(8,15,26,.82);color:white;font-size:13px}.choicePick.selected{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold);background:color-mix(in srgb,var(--gold) 8%,var(--panel2))}.choicePick.selected:after{content:"✓";position:absolute;top:5px;right:5px;width:21px;height:21px;border-radius:999px;display:grid;place-items:center;background:var(--gold);color:var(--bg);font-size:11px;font-weight:950}.visualFirstThenControls{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}.visualFirstThenSelects{margin-top:8px}
+    .visualCaptureLayout{display:grid;grid-template-columns:150px 1fr;gap:9px;margin-bottom:9px}.visualCameraTile{min-height:145px;border:1px dashed color-mix(in srgb,var(--blue) 44%,var(--line));background:color-mix(in srgb,var(--blue) 5%,var(--panel2));color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}.visualCameraTile span{font-size:9px;color:var(--muted)}.visualCameraGlyph{font-size:28px;color:var(--blue);margin-bottom:4px}.visualDraftCard{min-height:145px;border-radius:14px;border:1px solid var(--line);background:#fff;overflow:hidden;display:grid;place-items:center}.visualDraftCard img{width:100%;height:145px;object-fit:cover}.visualDraftCard #visualDraftEmpty{color:#243348;text-align:center;padding:18px;display:grid;gap:4px}.visualDraftCard #visualDraftEmpty span{font-size:9px;color:#66768b;line-height:1.4}.visualLabelRow{margin-top:8px}.visualLibraryHead{display:flex;justify-content:space-between;align-items:center;margin:12px 0 7px}.visualIconLibrary,.choiceBoardPicker{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.visualLibraryItem,.choicePick{position:relative;border:1px solid var(--line);border-radius:12px;padding:6px;background:color-mix(in srgb,var(--panel2) 76%,transparent);text-align:center;color:var(--text);overflow:hidden}.visualLibraryItem img,.choicePick img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:white}.visualLibraryItem b,.choicePick b{display:block;font-size:9px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.visualDelete{position:absolute;right:3px;top:3px;width:24px;height:24px;padding:0;border-radius:999px;background:rgba(8,15,26,.82);color:white;font-size:13px}.choicePick.selected{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold);background:color-mix(in srgb,var(--gold) 8%,var(--panel2))}.choicePick.selected:after{content:"✓";position:absolute;top:5px;right:5px;width:21px;height:21px;border-radius:999px;display:grid;place-items:center;background:var(--gold);color:var(--bg);font-size:11px;font-weight:950}.visualFirstThenControls{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}.visualFirstThenSelects{margin-top:8px}.savedVisualField{display:none;margin-top:7px}.savedVisualField.show{display:block}.autoVisualBadge{display:inline-flex;align-items:center;gap:5px;font-size:8px;font-weight:950;letter-spacing:.06em;text-transform:uppercase;color:#10213a;background:#f1ce74;border-radius:999px;padding:4px 7px;margin-bottom:8px}
     .firstThenVisualImage{width:min(42vw,330px);max-height:42vh;object-fit:contain;border-radius:22px;background:white;border:6px solid white;box-shadow:0 16px 48px rgba(0,0,0,.18);margin-bottom:18px}.firstThenPanel.visualReady .firstThenValue{font-size:clamp(24px,5vw,48px)}
     .choiceBoardOverlay{position:fixed;inset:0;z-index:12500;display:none;background:#f8fafc;color:#10213a;padding:calc(12px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom));overflow:auto}.choiceBoardOverlay.show{display:block}.choiceBoardTop{max-width:900px;margin:0 auto 12px;display:flex;justify-content:space-between;align-items:center}.choiceBoardTop button{background:#e9eff7;color:#10213a}.choiceBoardTitle{font-size:clamp(24px,5vw,42px);font-weight:950;text-align:center;margin:5px 0 18px}.choiceBoardGrid{--choice-columns:2;max-width:900px;margin:auto;display:grid;grid-template-columns:repeat(var(--choice-columns),minmax(0,1fr));gap:12px}.choiceBoardCell{min-height:190px;background:white;border:3px solid #10213a;border-radius:20px;padding:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 10px 28px rgba(16,33,58,.08)}.choiceBoardCell img{width:100%;max-height:260px;aspect-ratio:1;object-fit:contain}.choiceBoardCell b{font:900 clamp(18px,4vw,32px)/1.05 system-ui,-apple-system,sans-serif;margin-top:8px;text-align:center}.choiceBoardEmpty{grid-column:1/-1;text-align:center;color:#66768b;padding:30px}
     @media(max-width:680px){.visualCaptureLayout{grid-template-columns:115px 1fr}.visualCameraTile,.visualDraftCard{min-height:118px}.visualDraftCard img{height:118px}.visualIconLibrary,.choiceBoardPicker{grid-template-columns:repeat(3,minmax(0,1fr))}.choiceBoardCell{min-height:150px;border-width:2px;border-radius:16px;padding:8px}.firstThenVisualImage{width:min(70vw,300px);max-height:27vh;margin-bottom:10px}}
@@ -135,8 +155,12 @@
       then.innerHTML = options;
       then.value = getIcon(state.thenIconId) ? state.thenIconId : "";
     }
-    const toggle = document.getElementById("firstThenVisualToggle");
-    if (toggle) toggle.checked = !!state.firstThenVisual;
+    const firstMode = document.getElementById("firstThenFirstMode");
+    const thenMode = document.getElementById("firstThenThenMode");
+    if (firstMode) firstMode.value = state.firstMode || "auto";
+    if (thenMode) thenMode.value = state.thenMode || "auto";
+    document.getElementById("firstThenFirstSavedWrap")?.classList.toggle("show", state.firstMode === "saved");
+    document.getElementById("firstThenThenSavedWrap")?.classList.toggle("show", state.thenMode === "saved");
   };
 
   const renderLibraries = () => {
@@ -410,6 +434,112 @@
     }
   };
 
+
+  // ----- Automatic First / Then visuals -----
+  const AUTO_VISUALS = [
+    { terms:["outside","outdoors","play outside","yard","park"], glyph:"🌳", accent:"#7BCB68" },
+    { terms:["table work","work","worksheet","desk","school work"], glyph:"✏️", accent:"#77A7F7" },
+    { terms:["bathroom","toilet","potty"], glyph:"🚽", accent:"#AAB7C8" },
+    { terms:["eat","food","snack","lunch","dinner","breakfast"], glyph:"🍎", accent:"#F3A06C" },
+    { terms:["drink","water"], glyph:"🥤", accent:"#72BDEA" },
+    { terms:["swing"], glyph:"🛝", accent:"#F2C769" },
+    { terms:["pool","swim","swimming","water play"], glyph:"🏊", accent:"#62B7E7" },
+    { terms:["bubbles"], glyph:"🫧", accent:"#9FD8F6" },
+    { terms:["ipad","tablet","phone","screen"], glyph:"📱", accent:"#8C8CF2" },
+    { terms:["music","song","sing"], glyph:"🎵", accent:"#C796E9" },
+    { terms:["break","rest","calm","quiet"], glyph:"☁️", accent:"#C5CDD8" },
+    { terms:["home","go home"], glyph:"🏠", accent:"#E7AC6C" },
+    { terms:["car","drive","ride"], glyph:"🚗", accent:"#75A8EA" },
+    { terms:["walk","walking"], glyph:"🚶", accent:"#7CCB9A" },
+    { terms:["help"], glyph:"✋", accent:"#E7BE62" },
+    { terms:["more"], glyph:"➕", accent:"#77C88B" },
+    { terms:["hug"], glyph:"🤗", accent:"#E89DB7" },
+    { terms:["mom","mother"], glyph:"👩", accent:"#E99BB6" },
+    { terms:["dad","father"], glyph:"👨", accent:"#86A5EF" },
+    { terms:["grandma","grandmother"], glyph:"👵", accent:"#B99BE5" },
+    { terms:["draw","drawing","color","coloring"], glyph:"🖍️", accent:"#F0A36E" },
+    { terms:["blocks","lego","tiles"], glyph:"🧱", accent:"#D88D6D" },
+    { terms:["toy","toys","play"], glyph:"🧸", accent:"#D8AA73" },
+    { terms:["book","read","reading"], glyph:"📖", accent:"#85B6E7" },
+    { terms:["sleep","nap","bed"], glyph:"🌙", accent:"#8D96DB" }
+  ];
+  const autoVisualCache = new Map();
+
+  const resolveAutoVisual = text => {
+    const raw = String(text || "").trim().toLowerCase();
+    for (const item of AUTO_VISUALS) {
+      if (item.terms.some(term => raw.includes(term))) return item;
+    }
+    const palette = ["#78A7E7","#7CC7AE","#E2AC6A","#AF97E4","#E68FA7","#8FC47A"];
+    let hash = 0;
+    for (const char of raw) hash = ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+    return { glyph:"✨", accent:palette[Math.abs(hash) % palette.length] };
+  };
+
+  const makeAutoFirstThenVisual = text => {
+    const clean = String(text || "").trim() || "Visual";
+    const key = clean.toLowerCase();
+    if (autoVisualCache.has(key)) return autoVisualCache.get(key);
+
+    const concept = resolveAutoVisual(clean);
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, 512, 512);
+
+    ctx.fillStyle = concept.accent;
+    ctx.beginPath();
+    ctx.roundRect(28, 28, 456, 360, 28);
+    ctx.fill();
+
+    ctx.strokeStyle = "#162235";
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.roundRect(28, 28, 456, 360, 28);
+    ctx.stroke();
+
+    // Soft inner highlight keeps the generated visual closer to the bright,
+    // illustrated card language used elsewhere in LifeRoute.
+    const grad = ctx.createRadialGradient(205, 120, 20, 256, 190, 260);
+    grad.addColorStop(0, "rgba(255,255,255,.38)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(35, 35, 442, 346, 24);
+    ctx.fill();
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = '178px "Apple Color Emoji","Segoe UI Emoji",sans-serif';
+    ctx.fillText(concept.glyph, 256, 210);
+
+    ctx.fillStyle = "#111B29";
+    let size = 48;
+    ctx.font = `900 ${size}px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+    while (ctx.measureText(clean).width > 438 && size > 27) {
+      size -= 2;
+      ctx.font = `900 ${size}px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`;
+    }
+    ctx.fillText(clean.slice(0, 28), 256, 452);
+
+    const url = canvas.toDataURL("image/png");
+    autoVisualCache.set(key, url);
+    return url;
+  };
+
+  const firstThenModeFor = side => side === "first" ? state.firstMode : state.thenMode;
+  const firstThenSavedIdFor = side => side === "first" ? state.firstIconId : state.thenIconId;
+  const firstThenTextFor = side => String(document.getElementById(side === "first" ? "firstThenFirst" : "firstThenThen")?.value || "").trim();
+
+  const firstThenVisualFor = side => {
+    const mode = firstThenModeFor(side);
+    if (mode === "text") return null;
+    if (mode === "saved") return getIcon(firstThenSavedIdFor(side))?.dataURL || null;
+    return makeAutoFirstThenVisual(firstThenTextFor(side));
+  };
+
   const ensureFirstThenVisualSlots = overlay => {
     ["First", "Then"].forEach(side => {
       const panel = overlay.querySelector(side === "First" ? ".firstPanel" : ".thenPanel");
@@ -431,17 +561,17 @@
     if (!overlay) return;
     ensureFirstThenVisualSlots(overlay);
     const pairs = [
-      [".firstPanel", state.firstIconId],
-      [".thenPanel", state.thenIconId]
+      ["first", ".firstPanel"],
+      ["then", ".thenPanel"]
     ];
-    pairs.forEach(([selector, id]) => {
+    pairs.forEach(([side, selector]) => {
       const panel = overlay.querySelector(selector);
       const img = panel?.querySelector(".firstThenVisualImage");
-      const item = state.firstThenVisual ? getIcon(id) : null;
+      const visual = firstThenVisualFor(side);
       if (!panel || !img) return;
-      if (item) {
-        img.src = item.dataURL;
-        img.alt = item.label;
+      if (visual) {
+        img.src = visual;
+        img.alt = firstThenTextFor(side);
         img.hidden = false;
         panel.classList.add("visualReady");
       } else {
@@ -556,18 +686,35 @@
     });
     document.getElementById("createVisualIcon")?.addEventListener("click", createIcon);
 
-    document.getElementById("firstThenVisualToggle")?.addEventListener("change", event => {
-      state.firstThenVisual = !!event.target.checked;
+    document.getElementById("firstThenFirstMode")?.addEventListener("change", event => {
+      state.firstMode = event.target.value;
       save();
+      renderIconSelectors();
+      applyFirstThenVisuals();
+    });
+    document.getElementById("firstThenThenMode")?.addEventListener("change", event => {
+      state.thenMode = event.target.value;
+      save();
+      renderIconSelectors();
       applyFirstThenVisuals();
     });
     document.getElementById("firstThenFirstIcon")?.addEventListener("change", event => {
       state.firstIconId = event.target.value;
       save();
+      applyFirstThenVisuals();
     });
     document.getElementById("firstThenThenIcon")?.addEventListener("change", event => {
       state.thenIconId = event.target.value;
       save();
+      applyFirstThenVisuals();
+    });
+
+    ["firstThenFirst","firstThenThen"].forEach(id => {
+      document.getElementById(id)?.addEventListener("input", () => {
+        if ((id === "firstThenFirst" ? state.firstMode : state.thenMode) === "auto") {
+          applyFirstThenVisuals();
+        }
+      });
     });
 
     // Existing First/Then code builds and opens the overlay first; this listener

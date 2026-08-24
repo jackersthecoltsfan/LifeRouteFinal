@@ -18,7 +18,23 @@
     return Number.isNaN(date.getTime()) ? new Date() : date;
   };
 
+  const restoreScrollPosition = (x, y) => {
+    const restore = () => {
+      try { window.scrollTo(x, y); } catch (_) {}
+    };
+    restore();
+    requestAnimationFrame(() => {
+      restore();
+      requestAnimationFrame(restore);
+    });
+    setTimeout(restore, 60);
+    setTimeout(restore, 180);
+  };
+
   const refreshDay = () => {
+    const scrollX = window.scrollX || window.pageXOffset || 0;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+
     try { localStorage.setItem("liferoute_calendar_view", "today"); } catch (_) {}
     if (typeof window.renderAll === "function") window.renderAll();
     else if (typeof window.renderToday === "function") window.renderToday();
@@ -27,6 +43,8 @@
     const selected = dateFromKeySafe(window.selectedDate);
     const label = selected.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
     try { window.setStatus?.(`Day · ${label}`); } catch (_) {}
+
+    restoreScrollPosition(scrollX, scrollY);
   };
 
   window.shiftSelectedDay = function shiftSelectedDayRuntime(delta) {

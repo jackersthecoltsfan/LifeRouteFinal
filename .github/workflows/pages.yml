@@ -54,11 +54,12 @@ jobs:
           PY
 
           # Pages must expose the same feature surface prepared for TestFlight.
-          for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js live-themes.js web-preview.js; do
+          for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js pecs-tools.js live-themes.js web-preview.js; do
             test -s "dist/$js"
             node --check "dist/$js"
           done
           grep -q 'rbt-tools.js' dist/index.html
+          grep -q 'pecs-tools.js' dist/index.html
           grep -q 'live-themes.js' dist/index.html
           grep -q 'selected-gap-routes.js' dist/index.html
           grep -q 'web-preview.js' dist/index.html

@@ -48,8 +48,7 @@ helper_code = r'''        // MARK: - Live Day leave reminders
                     }
 
                     let formatter = ISO8601DateFormatter()
-                    var scheduled = 0
-                    let group = DispatchGroup()
+                    var requestsToAdd: [UNNotificationRequest] = []
 
                     for item in items.prefix(48) {
                         guard let rawID = item["id"] as? String,
@@ -67,23 +66,18 @@ helper_code = r'''        // MARK: - Live Day leave reminders
                             timeInterval: max(1, fireDate.timeIntervalSinceNow),
                             repeats: false
                         )
-                        let request = UNNotificationRequest(
+                        requestsToAdd.append(UNNotificationRequest(
                             identifier: prefix + rawID,
                             content: content,
                             trigger: trigger
-                        )
-
-                        group.enter()
-                        center.add(request) { addError in
-                            if addError == nil { scheduled += 1 }
-                            group.leave()
-                        }
+                        ))
                     }
 
-                    group.notify(queue: .main) {
+                    requestsToAdd.forEach { center.add($0) }
+                    DispatchQueue.main.async {
                         self.emit(type: "dayNotificationsStatus", payload: [
                             "granted": true,
-                            "scheduled": scheduled
+                            "scheduled": requestsToAdd.count
                         ])
                     }
                 }

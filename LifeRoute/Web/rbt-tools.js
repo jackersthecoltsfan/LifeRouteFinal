@@ -20,7 +20,7 @@
   };
   const clientCode = client => `${fmtPair(client?.first2)}${fmtPair(client?.last2)}`;
   const clientOptions = () => {
-    const clients = Array.isArray(window.prefs?.clients) ? window.prefs.clients : [];
+    const clients = typeof prefs !== "undefined" && Array.isArray(prefs.clients) ? prefs.clients : [];
     const codes = clients.map(clientCode).filter(code => code.length === 4);
     return ['<option value="">General / no client</option>']
       .concat(codes.map(code => `<option value="${safe(code)}">${safe(code)}</option>`))

@@ -1,0 +1,48 @@
+name: iOS Build Check
+run-name: __APP_NAME__ build check · ${{ github.ref_name }}
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '__APP_SOURCE_PATH__/**'
+      - '__PROJECT__/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - '__APP_SOURCE_PATH__/**'
+      - '__PROJECT__/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: __CONCURRENCY_PREFIX__-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Prepare the same features used by TestFlight
+        run: bash scripts/prepare_build.sh
+
+      - name: Build __APP_NAME__ for iOS Simulator
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project "__PROJECT__" \
+            -scheme "__SCHEME__" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build

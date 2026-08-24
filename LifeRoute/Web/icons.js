@@ -104,6 +104,7 @@
       week: "week",
       places: "pin",
       todos: "check",
+      tools: "briefcase",
       setup: "settings"
     };
     Object.entries(tabIcons).forEach(([view, name]) => {

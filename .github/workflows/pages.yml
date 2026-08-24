@@ -65,7 +65,6 @@ jobs:
               html
           )
 
-          # Expose the deployed commit in the DOM for easy visual verification.
           marker = f'<meta name="liferoute-web-build" content="{sha}">'
           if "</head>" in html and "liferoute-web-build" not in html:
               html = html.replace("</head>", marker + "\n</head>", 1)
@@ -73,26 +72,58 @@ jobs:
           path.write_text(html)
           PY
 
-          # Pages must expose the prepared app features plus browser-only helpers.
-          for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js welcome.js nav-cleanup.js icloud-calendar-web.js google-calendar-web.js first-then-back.js web-routing-bridge.js web-preview.js; do
+          # Validate every feature that is expected to ship in the current web
+          # experience, including dynamically loaded settings/theme helpers.
+          for js in \
+            auth-gate.js icons.js route-times.js smart-context.js todos.js grocery-stores.js \
+            transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js \
+            rbt-tools.js visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js \
+            day-route-experience.js welcome.js nav-cleanup.js icloud-calendar-web.js \
+            google-calendar-web.js google-calendar-stability.js first-then-back.js \
+            visual-quality-web.js photo-source-picker-web.js end-home-route-web.js \
+            mileage-tracker-web.js resources-hub-web.js nature-settings-web.js \
+            settings-classic-themes-web.js photoreal-nature-web.js dynamic-themes-web.js \
+            web-routing-bridge.js web-store-search-fallback.js web-preview.js; do
             test -s "dist/$js"
             node --check "dist/$js"
           done
+
           grep -q 'rbt-tools.js' dist/index.html
           grep -q 'visual-resolver.js' dist/index.html
           grep -q 'visual-tools.js' dist/index.html
           grep -q 'visual-resolver-bridge.js' dist/index.html
           grep -q 'live-themes.js' dist/index.html
           grep -q 'selected-gap-routes.js' dist/index.html
+          grep -q 'day-route-experience.js' dist/index.html
+          grep -q 'class="lrDayPager"' dist/index.html
           grep -q 'web-preview.js' dist/index.html
+
           grep -q 'web-routing-bridge.js' dist/web-preview.js
+          grep -q 'web-store-search-fallback.js' dist/web-preview.js
+          grep -q 'welcome.js' dist/web-preview.js
+          grep -q 'end-home-route-web.js' dist/web-preview.js
+          grep -q 'mileage-tracker-web.js' dist/web-preview.js
+          grep -q 'resources-hub-web.js' dist/web-preview.js
+          grep -q 'nature-settings-web.js' dist/web-preview.js
+          grep -q 'settings-classic-themes-web.js' dist/web-preview.js
+
           grep -q 'requestRouteTimes' dist/web-routing-bridge.js
           grep -q 'searchStoreLocations' dist/web-routing-bridge.js
           grep -q 'requestCurrentLocation' dist/web-routing-bridge.js
+          grep -q 'web-nominatim-fallback' dist/web-store-search-fallback.js
+          grep -q 'lifeRouteChooseRouteOrigin' dist/day-route-experience.js
+          grep -q 'BEFORE FIRST APPOINTMENT' dist/day-route-experience.js
+          grep -q 'AFTER LAST APPOINTMENT' dist/day-route-experience.js
           grep -q 'icloud-calendar-web.js' dist/web-preview.js
           grep -q 'google-calendar-web.js' dist/web-preview.js
           grep -q 'calendar.readonly' dist/google-calendar-web.js
           grep -q 'apps.googleusercontent.com' dist/google-calendar-web.js
+          grep -q 'Metallic Wave' dist/settings-classic-themes-web.js
+          grep -q 'Scenery' dist/dynamic-themes-web.js
+          grep -q 'Dynamic' dist/dynamic-themes-web.js
+          grep -q 'Unsplash photography' dist/photoreal-nature-web.js
+          ! grep -qi 'client_secret' dist/*.js
+          ! grep -q 'PREVIEW_CODE' dist/auth-gate.js
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

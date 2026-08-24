@@ -21,8 +21,8 @@ html = index_path.read_text()
 old_route = '''function routeTo(encoded){let destination=decodeURIComponent(encoded),p=prefs.mapProvider;if(p==="ask"){let useGoogle=confirm("OK = Google Maps\\nCancel = Apple Maps");p=useGoogle?"google":"apple"};if(postNative({action:"openRoute",provider:p,destination}))return;let u=p==="google"?`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`:`https://maps.apple.com/directions?destination=${encodeURIComponent(destination)}&mode=driving`;location.href=u}
 '''
 new_route = '''function selectedMapProvider(){let p=prefs.mapProvider;if(p==="ask"){let useGoogle=confirm("OK = Google Maps\\nCancel = Apple Maps");p=useGoogle?"google":"apple"}return p}
-function routeTo(encoded){let destination=decodeURIComponent(encoded),p=selectedMapProvider();if(postNative({action:"openRoute",provider:p,destination}))return;let u=p==="google"?`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`:`https://maps.apple.com/directions?destination=${encodeURIComponent(destination)}&mode=driving`;location.href=u}
-function routeGapStop(encodedStop,encodedFinal){let stop=decodeURIComponent(encodedStop||"").trim(),final=decodeURIComponent(encodedFinal||"").trim();if(!stop)return;if(!final){routeTo(encodedStop);return}let p=selectedMapProvider();if(postNative({action:"openRoute",provider:p,destination:final,waypoints:[stop]}))return;let u;if(p==="google"){let q=new URLSearchParams({api:"1",destination:final,travelmode:"driving",waypoints:stop});u=`https://www.google.com/maps/dir/?${q.toString()}`}else{let q=new URLSearchParams({destination:final,mode:"driving"});q.append("waypoint",stop);u=`https://maps.apple.com/directions?${q.toString()}`}location.href=u}
+function routeTo(encoded){let destination=decodeURIComponent(encoded),p=selectedMapProvider(),mode=prefs.transportMode||"driving";if(postNative({action:"openRoute",provider:p,destination}))return;let u=p==="google"?`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=${encodeURIComponent(mode)}`:`https://maps.apple.com/directions?destination=${encodeURIComponent(destination)}&mode=${encodeURIComponent(mode)}`;location.href=u}
+function routeGapStop(encodedStop,encodedFinal){let stop=decodeURIComponent(encodedStop||"").trim(),final=decodeURIComponent(encodedFinal||"").trim();if(!stop)return;if(!final){routeTo(encodedStop);return}let p=selectedMapProvider(),mode=prefs.transportMode||"driving";if(postNative({action:"openRoute",provider:p,destination:final,waypoints:[stop]}))return;let u;if(p==="google"){let q=new URLSearchParams({api:"1",destination:final,travelmode:mode,waypoints:stop});u=`https://www.google.com/maps/dir/?${q.toString()}`}else{let q=new URLSearchParams({destination:final,mode});q.append("waypoint",stop);u=`https://maps.apple.com/directions?${q.toString()}`}location.href=u}
 '''
 html = replace_once(html, old_route, new_route, "web multi-stop route helper")
 index_path.write_text(html)
@@ -53,25 +53,28 @@ stores_path.write_text(stores)
 
 
 # 4) Teach the native iPhone bridge to accept waypoint arrays and hand them to
-# Google Maps / Apple Maps using their supported URL parameters.
+# Google Maps / Apple Maps using their supported URL parameters. The transport
+# patch runs earlier, so preserve its selected driving/walking/transit mode.
 swift_path = Path("LifeRoute/LifeRouteWebView.swift")
 swift = swift_path.read_text()
 old_case = '''            case "openRoute":
                 let provider = (body["provider"] as? String) ?? "apple"
                 let destination = (body["destination"] as? String) ?? ""
                 let origin = body["origin"] as? String
-                openRoute(provider: provider, origin: origin, destination: destination)
+                let transportMode = (body["transportMode"] as? String) ?? "driving"
+                openRoute(provider: provider, origin: origin, destination: destination, transportMode: transportMode)
 '''
 new_case = '''            case "openRoute":
                 let provider = (body["provider"] as? String) ?? "apple"
                 let destination = (body["destination"] as? String) ?? ""
                 let origin = body["origin"] as? String
+                let transportMode = (body["transportMode"] as? String) ?? "driving"
                 let waypoints = (body["waypoints"] as? [String]) ?? []
-                openRoute(provider: provider, origin: origin, destination: destination, waypoints: waypoints)
+                openRoute(provider: provider, origin: origin, destination: destination, transportMode: transportMode, waypoints: waypoints)
 '''
 swift = replace_once(swift, old_case, new_case, "native openRoute waypoint bridge")
 
-old_native = '''        private func openRoute(provider: String, origin: String?, destination: String) {
+old_native = '''        private func openRoute(provider: String, origin: String?, destination: String, transportMode: String) {
             guard !destination.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
             let encodedDestination = destination.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
             let encodedOrigin = origin?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
@@ -81,7 +84,7 @@ old_native = '''        private func openRoute(provider: String, origin: String?
                 var items = [
                     URLQueryItem(name: "api", value: "1"),
                     URLQueryItem(name: "destination", value: destination),
-                    URLQueryItem(name: "travelmode", value: "driving")
+                    URLQueryItem(name: "travelmode", value: routeTravelModeName(transportMode))
                 ]
                 if let origin, !origin.isEmpty {
                     items.append(URLQueryItem(name: "origin", value: origin))
@@ -89,7 +92,7 @@ old_native = '''        private func openRoute(provider: String, origin: String?
                 components.queryItems = items
                 if let url = components.url { UIApplication.shared.open(url) }
             } else {
-                var urlString = "https://maps.apple.com/directions?destination=\\(encodedDestination)&mode=driving"
+                var urlString = "https://maps.apple.com/directions?destination=\\(encodedDestination)&mode=\\(routeTravelModeName(transportMode))"
                 if let encodedOrigin, !encodedOrigin.isEmpty {
                     urlString += "&source=\\(encodedOrigin)"
                 }
@@ -97,19 +100,20 @@ old_native = '''        private func openRoute(provider: String, origin: String?
             }
         }
 '''
-new_native = '''        private func openRoute(provider: String, origin: String?, destination: String, waypoints: [String] = []) {
+new_native = '''        private func openRoute(provider: String, origin: String?, destination: String, transportMode: String, waypoints: [String] = []) {
             let cleanDestination = destination.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !cleanDestination.isEmpty else { return }
             let cleanWaypoints = waypoints
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
+            let mode = routeTravelModeName(transportMode)
 
             if provider.lowercased() == "google" {
                 var components = URLComponents(string: "https://www.google.com/maps/dir/")!
                 var items = [
                     URLQueryItem(name: "api", value: "1"),
                     URLQueryItem(name: "destination", value: cleanDestination),
-                    URLQueryItem(name: "travelmode", value: "driving")
+                    URLQueryItem(name: "travelmode", value: mode)
                 ]
                 if let origin = origin?.trimmingCharacters(in: .whitespacesAndNewlines), !origin.isEmpty {
                     items.append(URLQueryItem(name: "origin", value: origin))
@@ -123,7 +127,7 @@ new_native = '''        private func openRoute(provider: String, origin: String?
                 var components = URLComponents(string: "https://maps.apple.com/directions")!
                 var items = [
                     URLQueryItem(name: "destination", value: cleanDestination),
-                    URLQueryItem(name: "mode", value: "driving")
+                    URLQueryItem(name: "mode", value: mode)
                 ]
                 if let origin = origin?.trimmingCharacters(in: .whitespacesAndNewlines), !origin.isEmpty {
                     items.append(URLQueryItem(name: "source", value: origin))

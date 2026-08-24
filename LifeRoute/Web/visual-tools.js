@@ -436,37 +436,37 @@
 
 
   // ----- Automatic First / Then visuals -----
-  // These are intentionally illustrated cards rather than emoji tiles. The
-  // visual language matches LifeRoute's established visual-support cards:
-  // white background, thick rounded black border, bold line art, bright
-  // natural colors, one clear concept, and a large readable label.
+  // Concrete visual scene generator. The goal is immediate child recognition:
+  // show the actual person, object, place, or action — not a symbol standing in
+  // for it. Cards use LifeRoute's established white background, black rounded
+  // border, bold outlines, bright natural colors, and one readable label.
   const AUTO_VISUALS = [
-    { terms:["table work","work","worksheet","desk","school work"], scene:"tableWork" },
+    { terms:["table work","work","worksheet","desk","school work","learning"], scene:"work" },
     { terms:["magna tiles","magna-tiles","magnet tiles","magnetic tiles"], scene:"magnaTiles" },
-    { terms:["outside","outdoors","play outside","yard","park"], scene:"outside" },
-    { terms:["eat","food","snack","lunch","dinner","breakfast"], scene:"eat" },
-    { terms:["play","toy","toys"], scene:"play" },
+    { terms:["outside","outdoors","play outside","yard","park","playground"], scene:"outside" },
+    { terms:["eat","food","snack","lunch","dinner","breakfast","meal"], scene:"eat" },
+    { terms:["play","toy","toys","free play"], scene:"play" },
     { terms:["bathroom","toilet","potty"], scene:"bathroom" },
-    { terms:["drink","water"], scene:"drink" },
-    { terms:["swing"], scene:"swing" },
+    { terms:["drink","water","juice"], scene:"drink" },
+    { terms:["swing","swinging"], scene:"swing" },
     { terms:["pool","swim","swimming","water play"], scene:"pool" },
-    { terms:["bubbles"], scene:"bubbles" },
+    { terms:["bubbles","bubble"], scene:"bubbles" },
     { terms:["ipad","tablet","phone","screen"], scene:"tablet" },
-    { terms:["music","song","sing"], scene:"music" },
-    { terms:["break","rest","calm","quiet"], scene:"break" },
-    { terms:["home","go home"], scene:"home" },
-    { terms:["car","drive","ride"], scene:"car" },
-    { terms:["walk","walking"], scene:"walk" },
-    { terms:["help"], scene:"help" },
-    { terms:["more"], scene:"more" },
-    { terms:["hug"], scene:"hug" },
-    { terms:["mom","mother"], scene:"person" },
-    { terms:["dad","father"], scene:"person" },
-    { terms:["grandma","grandmother"], scene:"person" },
-    { terms:["draw","drawing","color","coloring"], scene:"drawing" },
-    { terms:["blocks","lego","tiles"], scene:"blocks" },
-    { terms:["book","read","reading"], scene:"book" },
-    { terms:["sleep","nap","bed"], scene:"sleep" }
+    { terms:["music","song","sing","singing"], scene:"music" },
+    { terms:["break","rest","calm","quiet","relax"], scene:"break" },
+    { terms:["home","go home","house"], scene:"home" },
+    { terms:["car","drive","ride","car ride"], scene:"car" },
+    { terms:["walk","walking","go for a walk"], scene:"walk" },
+    { terms:["help","ask for help"], scene:"help" },
+    { terms:["more","more please"], scene:"more" },
+    { terms:["hug","hugs"], scene:"hug" },
+    { terms:["mom","mother","mommy"], scene:"mom" },
+    { terms:["dad","father","daddy"], scene:"dad" },
+    { terms:["grandma","grandmother","vovo","vovó"], scene:"grandma" },
+    { terms:["draw","drawing","color","coloring","art"], scene:"drawing" },
+    { terms:["blocks","lego","legos","building"], scene:"blocks" },
+    { terms:["book","read","reading","story"], scene:"book" },
+    { terms:["sleep","nap","bed","bedtime"], scene:"sleep" }
   ];
   const autoVisualCache = new Map();
 
@@ -482,259 +482,340 @@
     return "generic";
   };
 
-  const sceneTableWork = () => `
-    <g stroke="#111923" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-      <ellipse cx="245" cy="289" rx="153" ry="58" fill="#1772cf"/>
-      <path d="M126 316v72M364 316v72" fill="none" stroke="#1260ad" stroke-width="20"/>
-      <rect x="339" y="191" width="69" height="116" rx="16" fill="#1975cf"/>
-      <circle cx="302" cy="180" r="43" fill="#d89755"/>
-      <path d="M263 166q18-49 79-22q3 28-10 50" fill="#20242b"/>
-      <path d="M273 213q32 16 55 0l22 88h-91z" fill="#4fa63d"/>
-      <path d="M270 236q-22 22-47 43M335 240q15 26 35 43" fill="none" stroke="#d89755" stroke-width="18"/>
-      <rect x="174" y="252" width="46" height="37" rx="6" fill="#fff"/><circle cx="197" cy="270" r="8" fill="#ef4343"/>
-      <rect x="225" y="250" width="46" height="37" rx="6" fill="#fff"/><path d="M238 273l10-14 10 14z" fill="#f2cf3d"/>
-      <rect x="276" y="248" width="46" height="37" rx="6" fill="#fff"/><rect x="288" y="258" width="22" height="15" rx="5" fill="#5aa76a"/>
-      <rect x="115" y="221" width="75" height="61" rx="8" fill="#1673c6"/>
-      <path d="M127 222h50v-22h-50z" fill="#fff"/><circle cx="152" cy="211" r="9" fill="#ef3e36"/>
+  // Reusable illustrated child. The details are deliberate: face, eyes, hair,
+  // clothing, hands and shoes remain visible at card size.
+  const child = ({x=250,y=160,shirt="#4e9e42",pants="#2d6fa8",skin="#d99a5c",hair="#252525",scale=1,pose="sit"}={}) => {
+    const s = scale;
+    const tx = x - 250*s;
+    const ty = y - 160*s;
+    const body = pose === "kneel"
+      ? `<path d="M231 255q-8 60-48 82M286 255q12 57 56 75" fill="none" stroke="${pants}" stroke-width="27" stroke-linecap="round"/>
+         <path d="M178 337h52M324 330h50" stroke="#1f252b" stroke-width="18" stroke-linecap="round"/>`
+      : pose === "stand"
+      ? `<path d="M231 255v92M286 255v92" fill="none" stroke="${pants}" stroke-width="27" stroke-linecap="round"/>
+         <path d="M211 348h49M275 348h49" stroke="#1f252b" stroke-width="18" stroke-linecap="round"/>`
+      : `<path d="M231 255q6 54-22 89M286 255q10 46 45 76" fill="none" stroke="${pants}" stroke-width="27" stroke-linecap="round"/>
+         <path d="M192 345h50M318 333h48" stroke="#1f252b" stroke-width="18" stroke-linecap="round"/>`;
+
+    return `<g transform="translate(${tx} ${ty}) scale(${s})" stroke="#111923" stroke-linejoin="round" stroke-linecap="round">
+      <circle cx="253" cy="139" r="44" fill="${skin}" stroke-width="5"/>
+      <path d="M211 139q2-51 46-54q48 3 42 57q-12-17-28-22q-24 20-60 19z" fill="${hair}" stroke-width="5"/>
+      <circle cx="237" cy="143" r="4.5" fill="#111923" stroke="none"/>
+      <circle cx="270" cy="143" r="4.5" fill="#111923" stroke="none"/>
+      <path d="M241 164q12 9 25 0" fill="none" stroke-width="4"/>
+      <path d="M218 190q35-21 71 0l17 70h-105z" fill="${shirt}" stroke-width="5"/>
+      <path d="M220 204q-25 18-39 53M286 204q25 17 40 52" fill="none" stroke="${skin}" stroke-width="17"/>
+      <circle cx="179" cy="260" r="9" fill="${skin}" stroke-width="4"/>
+      <circle cx="328" cy="259" r="9" fill="${skin}" stroke-width="4"/>
+      ${body}
+    </g>`;
+  };
+
+  const adult = ({x=250,y=165,shirt="#6c8fd1",skin="#b9784f",hair="#2b2421",scale=.92,kind="adult"}={}) => `
+    <g transform="translate(${x-250*scale} ${y-165*scale}) scale(${scale})" stroke="#111923" stroke-linejoin="round" stroke-linecap="round">
+      <circle cx="250" cy="137" r="48" fill="${skin}" stroke-width="5"/>
+      <path d="M203 137q4-57 49-59q50 6 45 63q-40-25-94-4z" fill="${hair}" stroke-width="5"/>
+      <circle cx="233" cy="141" r="5" fill="#111923" stroke="none"/><circle cx="269" cy="141" r="5" fill="#111923" stroke="none"/>
+      <path d="M236 166q15 10 29 0" fill="none" stroke-width="4"/>
+      <path d="M184 361q17-154 66-154q50 0 67 154z" fill="${shirt}" stroke-width="5"/>
     </g>`;
 
-  const sceneOutside = () => `
-    <g stroke="#111923" stroke-width="4.5" stroke-linejoin="round">
-      <rect x="54" y="72" width="404" height="260" rx="24" fill="#6bc4f2"/>
-      <path d="M54 200h404v132H54z" fill="#d8d0bd"/>
-      <path d="M54 213L176 128L279 221L363 145L458 218V72H54z" fill="#79b957" opacity=".98"/>
-      <rect x="70" y="160" width="128" height="67" fill="#bd5f43"/><path d="M65 160l69-51 70 51z" fill="#555d68"/>
-      <rect x="91" y="180" width="23" height="47" fill="#fff"/><rect x="142" y="179" width="30" height="25" fill="#bfe6f6"/>
-      <path d="M253 225v-95" stroke="#6d462c" stroke-width="18"/><circle cx="254" cy="118" r="76" fill="#4b9a39"/>
-      <path d="M69 260h380" stroke="#31373e" stroke-width="7"/><path d="M85 231v90M131 231v90M177 231v90M223 231v90M269 231v90M315 231v90M361 231v90M407 231v90" stroke="#31373e" stroke-width="4"/>
-      <path d="M96 299h64l-8 48H104z" fill="#fff"/><path d="M112 299v-28h34v28" fill="none"/>
-      <path d="M351 297h64l-8 48h-48z" fill="#1d5f9f"/><path d="M365 297v-30h35v30" fill="none"/>
+  const workScene = () => `
+    <g>
+      <rect x="340" y="185" width="82" height="145" rx="18" fill="#2174c9" stroke="#111923" stroke-width="6"/>
+      ${child({x:296,y:155,scale:.92,pose:"sit"})}
+      <ellipse cx="252" cy="304" rx="176" ry="66" fill="#1975cf" stroke="#111923" stroke-width="6"/>
+      <path d="M128 337v73M376 337v73" stroke="#1366b5" stroke-width="22" stroke-linecap="round"/>
+      <rect x="113" y="226" width="83" height="64" rx="9" fill="#1573c8" stroke="#111923" stroke-width="5"/>
+      <path d="M126 225h56v-30h-56z" fill="#fff" stroke="#111923" stroke-width="4"/>
+      <circle cx="154" cy="211" r="10" fill="#ef433e" stroke="#111923" stroke-width="3"/>
+      <g stroke="#111923" stroke-width="4">
+        <rect x="170" y="270" width="54" height="43" rx="6" fill="#fff"/><path d="M185 298l12-18l12 18z" fill="#f4cc3c"/>
+        <rect x="230" y="266" width="54" height="43" rx="6" fill="#fff"/><rect x="244" y="278" width="26" height="17" rx="5" fill="#56a36b"/>
+        <rect x="290" y="268" width="54" height="43" rx="6" fill="#fff"/><circle cx="317" cy="289" r="10" fill="#ef4a47"/>
+      </g>
+      <path d="M226 330h105" stroke="#fff" stroke-width="5" opacity=".55"/>
+      <path d="M270 251l-30 30" stroke="#d99a5c" stroke-width="15" stroke-linecap="round"/>
     </g>`;
 
-  const sceneMagnaTiles = () => `
+  const magnaTilesScene = () => `
     <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <rect x="141" y="161" width="73" height="73" rx="6" fill="#ef302c"/>
-      <rect x="219" y="161" width="73" height="73" rx="6" fill="#ef302c"/>
-      <rect x="297" y="161" width="73" height="73" rx="6" fill="#ef302c"/>
-      <rect x="141" y="239" width="73" height="73" rx="6" fill="#ef302c"/>
-      <rect x="219" y="239" width="73" height="73" rx="6" fill="#ef302c"/>
-      <rect x="297" y="239" width="73" height="73" rx="6" fill="#ef302c"/>
-      <path d="M141 156l37-70 36 70z" fill="#65c92f"/>
-      <path d="M219 156l36-59 37 59z" fill="#278be7"/>
-      <path d="M297 156l36-70 37 70z" fill="#65c92f"/>
-      <path d="M141 317h73v73h-73zM297 317h73v73h-73z" fill="#ef302c"/>
-      <path d="M219 317h73v73h-73z" fill="#fff"/>
-      <path d="M219 390l36-36 37 36z" fill="#2d96ef"/>
-      <path d="M103 302l34-63 31 63zM372 302l33-63 31 63z" fill="#ffd52d"/>
-      <g fill="#fff" stroke-width="3"><circle cx="151" cy="172" r="6"/><circle cx="204" cy="172" r="6"/><circle cx="151" cy="224" r="6"/><circle cx="204" cy="224" r="6"/><circle cx="229" cy="172" r="6"/><circle cx="282" cy="172" r="6"/><circle cx="307" cy="172" r="6"/><circle cx="360" cy="172" r="6"/></g>
+      <rect x="119" y="235" width="79" height="79" rx="7" fill="#ef3934"/>
+      <rect x="203" y="235" width="79" height="79" rx="7" fill="#ef3934"/>
+      <rect x="287" y="235" width="79" height="79" rx="7" fill="#ef3934"/>
+      <rect x="161" y="151" width="79" height="79" rx="7" fill="#ef3934"/>
+      <rect x="245" y="151" width="79" height="79" rx="7" fill="#ef3934"/>
+      <path d="M161 146l40-76l39 76z" fill="#63cb30"/>
+      <path d="M245 146l39-66l40 66z" fill="#2d92ec"/>
+      <path d="M119 230l40-68l37 68zM329 230l38-68l39 68z" fill="#ffd32f"/>
+      <g fill="#fff" stroke-width="3">
+        <circle cx="131" cy="247" r="7"/><circle cx="186" cy="247" r="7"/><circle cx="131" cy="302" r="7"/><circle cx="186" cy="302" r="7"/>
+        <circle cx="215" cy="247" r="7"/><circle cx="270" cy="247" r="7"/><circle cx="299" cy="247" r="7"/><circle cx="354" cy="247" r="7"/>
+      </g>
+      ${child({x:365,y:210,scale:.52,pose:"kneel"})}
     </g>`;
 
-  const sceneEat = () => `
+  const outsideScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      <rect x="54" y="68" width="404" height="274" rx="22" fill="#72c9f4" stroke-width="5"/>
+      <path d="M54 214h404v128H54z" fill="#78bd57" stroke="none"/>
+      <rect x="68" y="173" width="122" height="70" fill="#bd6044" stroke-width="4"/><path d="M62 173l67-54l67 54z" fill="#5d6269" stroke-width="4"/>
+      <rect x="91" y="194" width="24" height="49" fill="#fff" stroke-width="3"/><rect x="143" y="191" width="31" height="26" fill="#c6e8f6" stroke-width="3"/>
+      <path d="M277 223v-100" stroke="#6d472d" stroke-width="18"/><circle cx="278" cy="112" r="78" fill="#4c9d3d" stroke-width="5"/>
+      <path d="M57 266h398" stroke="#33393f" stroke-width="6"/><path d="M80 235v101M126 235v101M172 235v101M218 235v101M264 235v101M310 235v101M356 235v101M402 235v101" stroke="#33393f" stroke-width="3"/>
+      <path d="M331 257h65l-7 43h-51z" fill="#1f629e" stroke-width="4"/><path d="M345 257v-29h36v29" fill="none" stroke-width="4"/>
+      ${child({x:205,y:222,scale:.52,pose:"stand",shirt:"#ef7d3c",pants:"#3678b8"})}
+      <circle cx="144" cy="288" r="24" fill="#ffd24f" stroke-width="4"/>
+    </g>`;
+
+  const eatScene = () => `
+    <g>
+      <rect x="348" y="181" width="76" height="143" rx="18" fill="#2376ca" stroke="#111923" stroke-width="6"/>
+      ${child({x:300,y:155,scale:.88,pose:"sit",shirt:"#5b9f43"})}
+      <ellipse cx="251" cy="303" rx="170" ry="62" fill="#1974ca" stroke="#111923" stroke-width="6"/>
+      <circle cx="239" cy="298" r="59" fill="#fff" stroke="#111923" stroke-width="5"/>
+      <path d="M208 299h61" stroke="#e5b566" stroke-width="16" stroke-linecap="round"/><circle cx="222" cy="279" r="15" fill="#ef4d45" stroke="#111923" stroke-width="3"/>
+      <path d="M272 277l30-20" stroke="#5fa544" stroke-width="9" stroke-linecap="round"/>
+      <rect x="119" y="247" width="52" height="75" rx="10" fill="#76c7ed" stroke="#111923" stroke-width="4"/>
+      <path d="M132 247l28-38" stroke="#ef6360" stroke-width="8" stroke-linecap="round"/>
+      <path d="M270 248q-20 19-31 42" stroke="#d99a5c" stroke-width="15" stroke-linecap="round"/>
+    </g>`;
+
+  const playScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      <ellipse cx="254" cy="343" rx="171" ry="50" fill="#cde6f6" stroke-width="5"/>
+      ${child({x:256,y:143,scale:.78,pose:"kneel",shirt:"#f08c3f",pants:"#3275b5"})}
+      <rect x="118" y="295" width="61" height="58" rx="7" fill="#ef4943" stroke-width="5"/>
+      <rect x="184" y="306" width="55" height="47" rx="7" fill="#327dd0" stroke-width="5"/>
+      <rect x="244" y="287" width="63" height="66" rx="7" fill="#f1cd32" stroke-width="5"/>
+      <path d="M310 329h84l-14 24h-65z" fill="#58a761" stroke-width="5"/>
+      <circle cx="330" cy="354" r="12" fill="#222a30" stroke-width="4"/><circle cx="371" cy="354" r="12" fill="#222a30" stroke-width="4"/>
+      <circle cx="105" cy="269" r="29" fill="#f2c940" stroke-width="5"/><path d="M84 269h42M105 248v42" stroke="#fff" stroke-width="5"/>
+      <path d="M205 246q20 26 34 57" stroke="#d99a5c" stroke-width="15" stroke-linecap="round"/>
+    </g>`;
+
+  const bathroomScene = () => `
     <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <ellipse cx="250" cy="298" rx="130" ry="54" fill="#f4f0e8"/>
-      <circle cx="250" cy="296" r="78" fill="#fff"/>
-      <path d="M211 293q38-48 78 0q-39 57-78 0z" fill="#ef493f"/>
-      <path d="M249 247q10-24 28-29" fill="none" stroke="#5b7d30" stroke-width="9"/>
-      <ellipse cx="285" cy="224" rx="20" ry="10" fill="#74a83d"/>
-      <path d="M131 237v123M112 237v64q0 28 19 28q19 0 19-28v-64" fill="none" stroke="#8e98a3" stroke-width="9"/>
-      <path d="M365 237v123M348 237q17 25 17 52q0-27 17-52" fill="none" stroke="#8e98a3" stroke-width="9"/>
+      <rect x="88" y="86" width="141" height="110" rx="12" fill="#d9eef8"/><rect x="110" y="108" width="97" height="66" rx="8" fill="#fff"/>
+      <rect x="300" y="104" width="112" height="43" rx="14" fill="#e9eef2"/>
+      <path d="M315 148h82v77q0 58-41 58t-41-58z" fill="#fff"/>
+      <ellipse cx="356" cy="209" rx="34" ry="19" fill="#c8e6f3"/>
+      <path d="M102 260h126q8 0 8 8v38H94v-38q0-8 8-8z" fill="#eef3f5"/><path d="M165 260v-57" stroke="#8ca2ae" stroke-width="9"/><path d="M140 211q25-22 50 0" fill="none" stroke="#8ca2ae" stroke-width="8"/>
+      <rect x="104" y="306" width="123" height="24" rx="10" fill="#b6c5cc"/>
+      <rect x="317" y="278" width="78" height="21" rx="9" fill="#d7e1e6"/>
+      <circle cx="398" cy="126" r="6" fill="#8798a3"/>
     </g>`;
 
-  const scenePlay = () => `
-    <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <circle cx="245" cy="202" r="53" fill="#c48b55"/>
-      <circle cx="202" cy="161" r="23" fill="#c48b55"/><circle cx="288" cy="161" r="23" fill="#c48b55"/>
-      <ellipse cx="245" cy="294" rx="76" ry="77" fill="#c48b55"/>
-      <circle cx="225" cy="193" r="5" fill="#111923"/><circle cx="266" cy="193" r="5" fill="#111923"/>
-      <ellipse cx="245" cy="220" rx="21" ry="16" fill="#e7b879"/><circle cx="245" cy="216" r="5" fill="#111923"/>
-      <path d="M175 274q-47 36-30 88M315 274q47 36 30 88" fill="none" stroke="#c48b55" stroke-width="27"/>
-      <rect x="102" y="326" width="67" height="62" rx="6" fill="#f04442"/><rect x="177" y="337" width="61" height="51" rx="6" fill="#317ddd"/><rect x="246" y="318" width="68" height="70" rx="6" fill="#f1ca2e"/>
+  const drinkScene = () => `
+    <g>
+      ${child({x:257,y:153,scale:.9,pose:"stand",shirt:"#4e9f48"})}
+      <path d="M310 212q25-9 39 6" fill="none" stroke="#d99a5c" stroke-width="17" stroke-linecap="round"/>
+      <path d="M332 193h54l-8 86q-2 19-19 19q-18 0-20-19z" fill="#79c8ec" stroke="#111923" stroke-width="5"/>
+      <path d="M364 194l24-42" stroke="#ed5d59" stroke-width="8" stroke-linecap="round"/>
+      <ellipse cx="359" cy="194" rx="27" ry="8" fill="#d9f4ff" stroke="#111923" stroke-width="4"/>
     </g>`;
 
-  const sceneBathroom = () => `
-    <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <rect x="142" y="128" width="228" height="53" rx="18" fill="#ecf1f6"/>
-      <path d="M165 182h184v113q0 67-92 67t-92-67z" fill="#f8fbfd"/>
-      <ellipse cx="257" cy="253" rx="69" ry="35" fill="#cfe6f2"/>
-      <rect x="187" y="340" width="140" height="31" rx="14" fill="#d7e4ea"/>
-      <circle cx="337" cy="154" r="8" fill="#8a98a3"/>
+  const swingScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      <path d="M103 389l96-285M409 389l-96-285M163 214h185" fill="none" stroke="#31638f" stroke-width="18"/>
+      <path d="M220 214v89M291 214v89" fill="none" stroke="#535c63" stroke-width="5"/>
+      <path d="M209 303h95l-10 38h-75z" fill="#efbd39" stroke-width="5"/>
+      ${child({x:257,y:182,scale:.52,pose:"sit",shirt:"#ef7e3d",pants:"#3a77b3"})}
     </g>`;
 
-  const sceneDrink = () => `
-    <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <path d="M178 143h162l-17 205q-3 31-64 31q-61 0-64-31z" fill="#d9f2ff"/>
-      <path d="M192 226h132l-10 122q-2 18-55 18q-53 0-55-18z" fill="#59b7ec"/>
-      <path d="M294 144l48-76" fill="none" stroke="#ef5a5a" stroke-width="12"/>
-      <ellipse cx="259" cy="144" rx="82" ry="19" fill="#edf8fd"/>
+  const poolScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      <rect x="70" y="168" width="372" height="207" rx="28" fill="#55b9ec" stroke-width="5"/>
+      <path d="M70 230q62-25 124 0q62 25 124 0q62-25 124 0M70 282q62-25 124 0q62 25 124 0q62-25 124 0" fill="none" stroke="#e9fbff" stroke-width="10"/>
+      <path d="M103 146v177M103 170h58M161 146v177" fill="none" stroke="#f5f6f7" stroke-width="12"/>
+      <circle cx="306" cy="202" r="39" fill="#d99a5c" stroke-width="5"/>
+      <path d="M274 191q10-42 45-43q35 6 30 45q-38-18-75-2z" fill="#292929" stroke-width="5"/>
+      <path d="M253 264q51-54 105 0" fill="none" stroke="#ed5c4f" stroke-width="27"/>
+      <circle cx="307" cy="270" r="58" fill="none" stroke="#ffd140" stroke-width="19"/>
     </g>`;
 
-  const sceneSwing = () => `
-    <g stroke="#111923" stroke-width="6" stroke-linejoin="round">
-      <path d="M116 380l91-252M396 380l-91-252M171 221h169" fill="none" stroke="#315f91" stroke-width="17"/>
-      <path d="M222 221v96M290 221v96" fill="none" stroke="#545b63" stroke-width="5"/>
-      <path d="M210 317h92l-10 37h-72z" fill="#efb735"/>
-      <circle cx="256" cy="125" r="18" fill="#75c65c"/>
+  const bubblesScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      ${child({x:207,y:176,scale:.64,pose:"stand",shirt:"#5aa052"})}
+      <path d="M252 220l52-38" stroke="#d99a5c" stroke-width="15" stroke-linecap="round"/>
+      <circle cx="321" cy="167" r="18" fill="none" stroke="#8a9da8" stroke-width="5"/><path d="M305 183l-20 49" stroke="#8a9da8" stroke-width="6"/>
+      <circle cx="355" cy="133" r="31" fill="#a9e4f4" fill-opacity=".62" stroke-width="4"/><circle cx="406" cy="195" r="43" fill="#c6aaf0" fill-opacity=".55" stroke-width="4"/><circle cx="342" cy="254" r="28" fill="#f5adca" fill-opacity=".58" stroke-width="4"/>
+      <path d="M344 121q8-8 17-7M392 178q11-12 23-10M331 244q8-7 14-6" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
     </g>`;
 
-  const scenePool = () => `
-    <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <rect x="91" y="165" width="330" height="207" rx="25" fill="#55b9ee"/>
-      <path d="M91 234q55-24 110 0q55 24 110 0q55-24 110 0M91 282q55-24 110 0q55 24 110 0q55-24 110 0" fill="none" stroke="#e9fbff" stroke-width="11"/>
-      <path d="M124 150v180M124 170h53M177 150v180" fill="none" stroke="#f3f5f6" stroke-width="12"/>
-      <circle cx="330" cy="198" r="34" fill="#f1a654"/><path d="M297 247q33-37 67 0" fill="none" stroke="#e95c49" stroke-width="24"/>
+  const tabletScene = () => `
+    <g>
+      ${child({x:256,y:146,scale:.78,pose:"sit",shirt:"#4d9c46"})}
+      <rect x="181" y="248" width="150" height="113" rx="15" fill="#242d36" stroke="#111923" stroke-width="6"/>
+      <rect x="195" y="261" width="122" height="82" rx="8" fill="#72c4eb"/>
+      <path d="M174 286q21 12 30 20M338 286q-20 12-29 20" stroke="#d99a5c" stroke-width="15" stroke-linecap="round"/>
+      <circle cx="256" cy="352" r="6" fill="#a6b0b8"/>
     </g>`;
 
-  const sceneBubbles = () => `
-    <g stroke="#111923" stroke-width="4">
-      <circle cx="151" cy="237" r="58" fill="#9be3f4" fill-opacity=".72"/>
-      <circle cx="279" cy="177" r="79" fill="#c5a9f1" fill-opacity=".68"/>
-      <circle cx="360" cy="291" r="64" fill="#f6a8c6" fill-opacity=".67"/>
-      <circle cx="229" cy="334" r="39" fill="#8bdcc9" fill-opacity=".72"/>
-      <path d="M133 218q19-21 40-20M252 145q28-29 56-26M340 267q20-23 39-22" fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round"/>
+  const musicScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      ${child({x:248,y:163,scale:.7,pose:"stand",shirt:"#8a67c7"})}
+      <path d="M180 151q5-75 73-75q69 0 76 75" fill="none" stroke="#3d4651" stroke-width="15"/>
+      <rect x="169" y="137" width="24" height="69" rx="11" fill="#4d5966" stroke-width="4"/><rect x="315" y="137" width="24" height="69" rx="11" fill="#4d5966" stroke-width="4"/>
+      <path d="M360 111v104q-16-10-31-4q-25 10-17 31q8 21 33 10q20-9 20-39v-61l55-13v65q-15-8-28-2q-22 10-14 30q8 19 31 8q19-9 19-38v-112z" fill="#5a78df" stroke-width="5"/>
     </g>`;
 
-  const sceneTablet = () => `
-    <g stroke="#111923" stroke-width="7" stroke-linejoin="round">
-      <rect x="143" y="112" width="226" height="260" rx="26" fill="#27313d"/>
-      <rect x="163" y="139" width="186" height="192" rx="12" fill="#6ec1ee"/>
-      <circle cx="256" cy="353" r="9" fill="#9da7b3"/>
-      <path d="M198 265l41-56l31 35l28-31l43 52z" fill="#6fb85b" stroke-width="4"/>
-      <circle cx="298" cy="185" r="24" fill="#ffd257" stroke-width="4"/>
+  const breakScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      <ellipse cx="257" cy="327" rx="153" ry="73" fill="#8fb0c8" stroke-width="5"/>
+      <path d="M128 329q14-103 128-103q115 0 131 103z" fill="#a9c4d8" stroke-width="5"/>
+      ${child({x:256,y:154,scale:.68,pose:"sit",shirt:"#5f97c7",pants:"#4a6786"})}
+      <path d="M205 313q50 30 102 0" fill="none" stroke="#d99a5c" stroke-width="14" stroke-linecap="round"/>
+      <path d="M352 141q-7 58 48 66q-61 13-76-43q-6-21 28-23z" fill="#f1d459" stroke-width="4"/>
     </g>`;
 
-  const sceneMusic = () => `
-    <g fill="#6d7ce8" stroke="#111923" stroke-width="6" stroke-linejoin="round">
-      <path d="M222 117v180q-17-10-38-5q-36 8-31 38q6 31 47 24q41-8 42-49V172l111-25v117q-18-10-39-4q-35 9-29 39q7 31 47 22q40-9 41-50V89z"/>
+  const homeScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      <path d="M108 227l148-121l148 121v151H108z" fill="#e6a061" stroke-width="6"/>
+      <path d="M85 234l171-144l171 144" fill="none" stroke="#5e6672" stroke-width="19"/>
+      <rect x="222" y="286" width="69" height="92" fill="#8f5c39" stroke-width="5"/>
+      <circle cx="278" cy="333" r="6" fill="#f5d064" stroke-width="3"/>
+      <rect x="139" y="257" width="58" height="54" fill="#bee4f4" stroke-width="5"/><path d="M168 257v54M139 284h58" stroke-width="3"/>
+      <rect x="316" y="257" width="58" height="54" fill="#bee4f4" stroke-width="5"/><path d="M345 257v54M316 284h58" stroke-width="3"/>
+      <path d="M104 379h306" stroke="#75b35b" stroke-width="18"/>
     </g>`;
 
-  const sceneBreak = () => `
-    <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <path d="M124 276q0-67 59-67q20-57 82-38q43-54 91 0q54 7 54 67q0 66-82 66H185q-61 0-61-28z" fill="#dbe8f2"/>
-      <path d="M176 326h169" stroke="#8b9cab" stroke-width="12"/>
-      <path d="M204 354h113" stroke="#a6b3bf" stroke-width="9"/>
+  const carScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      <path d="M98 292l42-93q11-24 42-24h145q29 0 42 24l45 93v70H98z" fill="#357fce" stroke-width="6"/>
+      <path d="M164 199h183l27 67H134z" fill="#bfe4f6" stroke-width="5"/>
+      <path d="M254 199v67" stroke-width="4"/>
+      <circle cx="165" cy="361" r="37" fill="#282f35" stroke-width="6"/><circle cx="165" cy="361" r="16" fill="#a6afb5" stroke-width="4"/>
+      <circle cx="347" cy="361" r="37" fill="#282f35" stroke-width="6"/><circle cx="347" cy="361" r="16" fill="#a6afb5" stroke-width="4"/>
+      <rect x="118" y="294" width="58" height="28" rx="10" fill="#ffd457" stroke-width="4"/><rect x="339" y="294" width="58" height="28" rx="10" fill="#ffd457" stroke-width="4"/>
+      <rect x="217" y="292" width="78" height="35" rx="8" fill="#e9eff4" stroke-width="4"/>
     </g>`;
 
-  const sceneHome = () => `
-    <g stroke="#111923" stroke-width="6" stroke-linejoin="round">
-      <path d="M105 229l151-123l151 123v153H105z" fill="#e6a061"/>
-      <path d="M83 235l173-145l173 145" fill="none" stroke="#5e6672" stroke-width="19"/>
-      <rect x="221" y="287" width="70" height="95" fill="#8f5c39"/>
-      <rect x="137" y="258" width="57" height="55" fill="#bfe3f4"/><rect x="317" y="258" width="57" height="55" fill="#bfe3f4"/>
+  const walkScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      <path d="M65 368q115-79 220-31q87 41 163 3" fill="none" stroke="#d6d1bf" stroke-width="56" stroke-linecap="round"/>
+      <path d="M68 368q114-79 219-31q86 41 160 3" fill="none" stroke="#a8a38f" stroke-width="4" stroke-dasharray="15 15"/>
+      ${child({x:249,y:143,scale:.82,pose:"stand",shirt:"#ed8242",pants:"#3778b5"})}
+      <path d="M190 328l-55 42M322 330l54 35" stroke="#2a3037" stroke-width="13" stroke-linecap="round"/>
+      <circle cx="404" cy="192" r="45" fill="#5ca748" stroke-width="5"/><path d="M404 232v67" stroke="#6f4a2f" stroke-width="13"/>
     </g>`;
 
-  const sceneCar = () => `
-    <g stroke="#111923" stroke-width="6" stroke-linejoin="round">
-      <path d="M114 284l38-84q10-22 37-22h133q27 0 39 22l38 84v65H114z" fill="#357fce"/>
-      <path d="M174 203h164l23 61H151z" fill="#bfe4f6"/>
-      <circle cx="172" cy="349" r="34" fill="#2b3035"/><circle cx="342" cy="349" r="34" fill="#2b3035"/>
-      <rect x="130" y="287" width="54" height="25" rx="10" fill="#ffd45a"/><rect x="328" y="287" width="54" height="25" rx="10" fill="#ffd45a"/>
+  const helpScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      ${child({x:183,y:168,scale:.66,pose:"stand",shirt:"#4e9e45"})}
+      ${adult({x:350,y:172,scale:.65,shirt:"#6e8fd0"})}
+      <path d="M204 212q39-65 68-84" fill="none" stroke="#d99a5c" stroke-width="14" stroke-linecap="round"/>
+      <circle cx="267" cy="118" r="9" fill="#d99a5c" stroke-width="4"/>
+      <path d="M286 238q-20 20-40 27M317 236q-18 26-42 33" fill="none" stroke="#b9784f" stroke-width="13" stroke-linecap="round"/>
+      <circle cx="256" cy="331" r="48" fill="#f3ce4b" stroke-width="5"/><path d="M256 303v56M228 331h56" stroke="#fff" stroke-width="14" stroke-linecap="round"/>
     </g>`;
 
-  const sceneWalk = () => `
-    <g stroke="#111923" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="255" cy="121" r="43" fill="#d99a5a"/>
-      <path d="M255 167v113M255 204l-67 64M255 207l67 53M255 280l-54 102M255 280l74 93" fill="none" stroke="#3577b9" stroke-width="24"/>
-      <path d="M183 268l-30 24M326 261l34 21" fill="none" stroke="#d99a5a" stroke-width="16"/>
+  const moreScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      ${child({x:255,y:155,scale:.72,pose:"stand",shirt:"#4e9e45"})}
+      <path d="M193 260q31 24 62 0M317 260q-31 24-62 0" fill="none" stroke="#d99a5c" stroke-width="17" stroke-linecap="round"/>
+      <circle cx="373" cy="284" r="49" fill="#6fc68a" stroke-width="5"/>
+      <path d="M373 255v58M344 284h58" stroke="#fff" stroke-width="15" stroke-linecap="round"/>
     </g>`;
 
-  const sceneHelp = () => `
-    <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <path d="M173 336V188q0-22 18-22q18 0 18 22v65V149q0-22 18-22q18 0 18 22v96V139q0-22 18-22q18 0 18 22v111V162q0-21 18-21q18 0 18 21v125q0 93-77 93q-67 0-97-44z" fill="#dda064"/>
-      <circle cx="365" cy="145" r="35" fill="#f0c445"/><path d="M365 125v40M345 145h40" stroke-width="8"/>
+  const hugScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      ${child({x:204,y:163,scale:.62,pose:"stand",shirt:"#4f8fd0"})}
+      ${child({x:312,y:163,scale:.62,pose:"stand",shirt:"#65a95d",skin:"#b87a4f",hair:"#25201d"})}
+      <path d="M191 243q66 82 133 0M323 243q-66 82-133 0" fill="none" stroke="#d99a5c" stroke-width="16" stroke-linecap="round"/>
+      <path d="M256 317c-44-33-72-56-72-89q0-31 29-31q23 0 43 26q20-26 43-26q29 0 29 31q0 33-72 89z" fill="#ef7d94" stroke-width="5"/>
     </g>`;
 
-  const sceneMore = () => `
-    <g stroke="#111923" stroke-width="7" stroke-linejoin="round">
-      <circle cx="256" cy="254" r="122" fill="#72c88a"/>
-      <path d="M256 176v156M178 254h156" stroke="#fff" stroke-width="34" stroke-linecap="round"/>
+  const portraitScene = (kind="mom") => {
+    const config = kind === "dad"
+      ? {shirt:"#4d83c4",skin:"#b97950",hair:"#29231f"}
+      : kind === "grandma"
+      ? {shirt:"#8f70ba",skin:"#c38b61",hair:"#c5c5c5"}
+      : {shirt:"#dd7b9d",skin:"#d89a62",hair:"#3a2a22"};
+    return adult({x:256,y:165,scale:1.05,...config});
+  };
+
+  const drawingScene = () => `
+    <g>
+      ${child({x:305,y:158,scale:.75,pose:"sit",shirt:"#4e9e45"})}
+      <ellipse cx="239" cy="307" rx="164" ry="55" fill="#1974ca" stroke="#111923" stroke-width="6"/>
+      <rect x="157" y="259" width="137" height="78" rx="8" fill="#fff" stroke="#111923" stroke-width="4"/>
+      <path d="M180 316l34-43l32 32l21-22l20 33z" fill="#6fb25a" stroke="#111923" stroke-width="3"/>
+      <circle cx="261" cy="280" r="12" fill="#ffd04f" stroke="#111923" stroke-width="3"/>
+      <path d="M278 243l-62 68" stroke="#ed684f" stroke-width="12" stroke-linecap="round"/>
+      <path d="M286 235q-19 21-32 36" stroke="#d99a5c" stroke-width="15" stroke-linecap="round"/>
     </g>`;
 
-  const sceneHug = () => `
-    <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <circle cx="204" cy="166" r="43" fill="#d99b5c"/><circle cx="307" cy="166" r="43" fill="#b77c4e"/>
-      <path d="M165 217q40-28 81 13l9 113q-86 46-126-25z" fill="#5c8fd9"/>
-      <path d="M346 217q-40-28-81 13l-9 113q86 46 126-25z" fill="#67ad65"/>
-      <path d="M182 246q75 89 150 0M330 246q-75 89-150 0" fill="none" stroke="#d99b5c" stroke-width="18"/>
+  const blocksScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      ${child({x:350,y:180,scale:.58,pose:"kneel",shirt:"#ef8543"})}
+      <rect x="105" y="277" width="77" height="77" rx="7" fill="#ef4a45" stroke-width="5"/>
+      <rect x="187" y="277" width="77" height="77" rx="7" fill="#3382d7" stroke-width="5"/>
+      <rect x="269" y="277" width="77" height="77" rx="7" fill="#f1cd34" stroke-width="5"/>
+      <rect x="146" y="195" width="77" height="77" rx="7" fill="#69b956" stroke-width="5"/>
+      <rect x="228" y="195" width="77" height="77" rx="7" fill="#ee7342" stroke-width="5"/>
+      <path d="M157 189l28-47l28 47z" fill="#66bd55" stroke-width="5"/><path d="M239 189l28-47l28 47z" fill="#318add" stroke-width="5"/>
     </g>`;
 
-  const scenePerson = () => `
-    <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <circle cx="256" cy="171" r="68" fill="#d89a5a"/>
-      <path d="M190 163q8-80 77-78q61 8 61 80q-45-29-138-2z" fill="#332822"/>
-      <path d="M151 380q18-120 105-120q88 0 106 120z" fill="#5d8fd7"/>
-      <circle cx="232" cy="173" r="5" fill="#111923"/><circle cx="281" cy="173" r="5" fill="#111923"/>
-      <path d="M237 207q20 13 39 0" fill="none"/>
+  const bookScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      ${child({x:255,y:145,scale:.72,pose:"sit",shirt:"#4d9c47"})}
+      <path d="M91 272q82-31 164 27v108q-80-56-164-27z" fill="#5b94da" stroke-width="5"/>
+      <path d="M421 272q-82-31-166 27v108q81-56 166-27z" fill="#76b56b" stroke-width="5"/>
+      <path d="M255 299v108" fill="none" stroke-width="5"/>
+      <path d="M115 313q52-13 106 17M115 344q52-13 106 17M397 313q-52-13-106 17M397 344q-52-13-106 17" fill="none" stroke="#edf3f6" stroke-width="7"/>
+      <path d="M192 253q25 18 46 45M318 253q-25 18-46 45" stroke="#d99a5c" stroke-width="14" stroke-linecap="round"/>
     </g>`;
 
-  const sceneDrawing = () => `
-    <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <rect x="124" y="118" width="264" height="246" rx="16" fill="#fff"/>
-      <path d="M164 308l55-75l48 53l38-40l45 62z" fill="#72b65c"/>
-      <circle cx="309" cy="182" r="28" fill="#ffd04d"/>
-      <path d="M115 371l188-188l42 42l-188 188z" fill="#ef6c53"/>
-      <path d="M115 371l-13 55l55-13z" fill="#f0c8a0"/>
+  const sleepScene = () => `
+    <g stroke="#111923" stroke-linejoin="round">
+      <rect x="77" y="249" width="359" height="121" rx="19" fill="#6d90c4" stroke-width="5"/>
+      <rect x="96" y="224" width="128" height="69" rx="24" fill="#f4f6f8" stroke-width="5"/>
+      <circle cx="204" cy="251" r="37" fill="#d99a5c" stroke-width="5"/>
+      <path d="M172 248q4-42 38-45q34 5 34 43q-29-16-72 2z" fill="#292929" stroke-width="5"/>
+      <path d="M220 260q53-45 121 2q38 27 62 76H176z" fill="#8fb3df" stroke-width="5"/>
+      <path d="M345 96q-12 79 62 91q-84 20-108-56q-9-31 46-35z" fill="#f3d55b" stroke-width="5"/>
+      <path d="M116 164l10-23l10 23l24 10l-24 10l-10 24l-10-24l-24-10z" fill="#fff4a8" stroke-width="4"/>
     </g>`;
 
-  const sceneBlocks = () => `
-    <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <rect x="127" y="256" width="88" height="88" rx="7" fill="#ef4a45"/>
-      <rect x="220" y="256" width="88" height="88" rx="7" fill="#3484d8"/>
-      <rect x="313" y="256" width="72" height="88" rx="7" fill="#f2ce3b"/>
-      <rect x="173" y="163" width="88" height="88" rx="7" fill="#6dbd58"/>
-      <rect x="266" y="163" width="88" height="88" rx="7" fill="#ef6f42"/>
-      <circle cx="171" cy="300" r="11" fill="#fff"/><circle cx="264" cy="300" r="11" fill="#fff"/><circle cx="349" cy="300" r="11" fill="#fff"/>
+  const genericScene = clean => `
+    <g stroke="#111923" stroke-linejoin="round">
+      ${child({x:258,y:146,scale:.72,pose:"stand",shirt:"#4e9e45"})}
+      <rect x="130" y="293" width="252" height="83" rx="16" fill="#eef3f7" stroke-width="5"/>
+      <path d="M156 336h200" stroke="#a4b0bb" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="256" cy="335" r="25" fill="#f3cc4a" stroke-width="5"/>
+      <path d="M256 319v32M240 335h32" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
     </g>`;
 
-  const sceneBook = () => `
-    <g stroke="#111923" stroke-width="6" stroke-linejoin="round">
-      <path d="M82 151q88-33 174 28v202q-83-58-174-29z" fill="#5a93da"/>
-      <path d="M430 151q-88-33-174 28v202q83-58 174-29z" fill="#74b66a"/>
-      <path d="M256 179v202" fill="none"/>
-      <path d="M111 203q57-15 113 20M111 245q57-15 113 20M401 203q-57-15-113 20M401 245q-57-15-113 20" fill="none" stroke="#e9f0f5" stroke-width="8"/>
-    </g>`;
-
-  const sceneSleep = () => `
-    <g stroke="#111923" stroke-width="5" stroke-linejoin="round">
-      <rect x="101" y="248" width="310" height="118" rx="18" fill="#6b8fc5"/>
-      <rect x="116" y="227" width="113" height="59" rx="20" fill="#f2f4f7"/>
-      <path d="M219 250q55-52 124 4q38 30 52 78H180z" fill="#8fb4e1"/>
-      <path d="M333 98q-11 87 69 100q-93 21-119-64q-9-30 50-36z" fill="#f2d55b"/>
-      <path d="M130 181l12-26l12 26l27 12l-27 12l-12 27l-12-27l-27-12z" fill="#fff4a7"/>
-    </g>`;
-
-  const sceneGeneric = () => `
-    <g stroke="#111923" stroke-width="6" stroke-linejoin="round">
-      <circle cx="256" cy="231" r="113" fill="#8fb6e5"/>
-      <path d="M256 139l27 57l62 8l-45 44l12 61l-56-30l-55 30l11-61l-45-44l62-8z" fill="#f3d15b"/>
-    </g>`;
-
-  const sceneMarkup = scene => ({
-    tableWork:sceneTableWork,
-    magnaTiles:sceneMagnaTiles,
-    outside:sceneOutside,
-    eat:sceneEat,
-    play:scenePlay,
-    bathroom:sceneBathroom,
-    drink:sceneDrink,
-    swing:sceneSwing,
-    pool:scenePool,
-    bubbles:sceneBubbles,
-    tablet:sceneTablet,
-    music:sceneMusic,
-    break:sceneBreak,
-    home:sceneHome,
-    car:sceneCar,
-    walk:sceneWalk,
-    help:sceneHelp,
-    more:sceneMore,
-    hug:sceneHug,
-    person:scenePerson,
-    drawing:sceneDrawing,
-    blocks:sceneBlocks,
-    book:sceneBook,
-    sleep:sceneSleep,
-    generic:sceneGeneric
-  }[scene] || sceneGeneric)();
+  const sceneMarkup = (scene, clean) => ({
+    work:workScene,
+    magnaTiles:magnaTilesScene,
+    outside:outsideScene,
+    eat:eatScene,
+    play:playScene,
+    bathroom:bathroomScene,
+    drink:drinkScene,
+    swing:swingScene,
+    pool:poolScene,
+    bubbles:bubblesScene,
+    tablet:tabletScene,
+    music:musicScene,
+    break:breakScene,
+    home:homeScene,
+    car:carScene,
+    walk:walkScene,
+    help:helpScene,
+    more:moreScene,
+    hug:hugScene,
+    mom:()=>portraitScene("mom"),
+    dad:()=>portraitScene("dad"),
+    grandma:()=>portraitScene("grandma"),
+    drawing:drawingScene,
+    blocks:blocksScene,
+    book:bookScene,
+    sleep:sleepScene,
+    generic:()=>genericScene(clean)
+  }[scene] || (()=>genericScene(clean)))();
 
   const makeAutoFirstThenVisual = text => {
     const clean = String(text || "").trim() || "Activity";
@@ -742,13 +823,14 @@
     if (autoVisualCache.has(key)) return autoVisualCache.get(key);
 
     const scene = resolveAutoVisual(clean);
+    let size = clean.length > 18 ? 34 : clean.length > 11 ? 39 : 44;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-      <rect x="10" y="10" width="492" height="492" rx="34" fill="#fff" stroke="#080b0f" stroke-width="11"/>
-      <g transform="translate(0,12)">${sceneMarkup(scene)}</g>
-      <rect x="35" y="404" width="442" height="76" rx="20" fill="#fff"/>
-      <text x="256" y="454" text-anchor="middle" dominant-baseline="middle"
-        font-family="Arial Rounded MT Bold, Arial, sans-serif" font-size="42"
-        font-weight="800" fill="#05070a">${svgEsc(clean.slice(0, 26))}</text>
+      <rect x="9" y="9" width="494" height="494" rx="34" fill="#fff" stroke="#080b0f" stroke-width="10"/>
+      <g transform="translate(0,7)">${sceneMarkup(scene, clean)}</g>
+      <rect x="30" y="407" width="452" height="75" rx="18" fill="#fff"/>
+      <text x="256" y="451" text-anchor="middle" dominant-baseline="middle"
+        font-family="Arial Rounded MT Bold, Arial, sans-serif" font-size="${size}"
+        font-weight="800" fill="#05070a">${svgEsc(clean.slice(0, 28))}</text>
     </svg>`;
 
     const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);

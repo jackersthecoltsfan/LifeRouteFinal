@@ -88,10 +88,8 @@ helper_code = r'''        private func fallbackCoordinate(
                (-180.0...180.0).contains(longitude) {
                 return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
             }
-            if let item = await routeMapItemCandidates(query, limit: 1).first {
-                return item.placemark.coordinate
-            }
-            return nil
+            let candidates = await routeMapItemCandidates(query, limit: 1)
+            return candidates.first?.placemark.coordinate
         }
 
         private func approximateRouteFallback(

@@ -78,5 +78,62 @@ text = text.replace(
     '            return "No route was returned for the selected travel mode."'
 )
 
+# If WebKit ever terminates its content process, recover instead of leaving a
+# permanent black screen.
+termination_marker = '''        func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+            webView?.window ?? UIWindow()
+        }
+'''
+termination_insert = '''        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                webView.reload()
+            }
+        }
+
+        func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+            webView?.window ?? UIWindow()
+        }
+'''
+if termination_insert not in text:
+    if termination_marker not in text:
+        raise SystemExit("Could not patch WebView termination recovery")
+    text = text.replace(termination_marker, termination_insert, 1)
+
 path.write_text(text)
-print("Patched LifeRoute native routing with Driving, Walking, and Transit modes.")
+
+# Fix the grocery UI decorator. The previous MutationObserver observed its own
+# DOM edits, which can cause an endless mutation callback loop that pegs the
+# WebKit JavaScript thread: buttons stop responding and the page can go black.
+grocery_path = Path("LifeRoute/Web/grocery-stores.js")
+grocery = grocery_path.read_text()
+old_observer = '''  const observer = new MutationObserver(() => {
+    decorateTodoCards();
+    decorateGapOptions();
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  decorateTodoCards();
+  decorateGapOptions();
+'''
+new_observer = '''  // Disconnect while decorating so our own DOM edits cannot recursively
+  // trigger this observer and freeze the WebKit JavaScript thread.
+  let observer;
+  const observeDecorations = () => {
+    observer.observe(document.body, { childList: true, subtree: true });
+  };
+  const runDecorations = () => {
+    observer.disconnect();
+    decorateTodoCards();
+    decorateGapOptions();
+    observeDecorations();
+  };
+  observer = new MutationObserver(runDecorations);
+  runDecorations();
+'''
+if new_observer not in grocery:
+    if old_observer not in grocery:
+        raise SystemExit("Could not patch grocery MutationObserver")
+    grocery = grocery.replace(old_observer, new_observer, 1)
+    grocery_path.write_text(grocery)
+
+print("Patched LifeRoute travel modes, grocery render-loop safety, and WebView recovery.")

@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable native route times
+      - name: Enable native route times and To-Dos
         run: |
           set -euo pipefail
           python3 scripts/patch_route_times.py
@@ -23,16 +23,22 @@ jobs:
           from pathlib import Path
           path = Path("LifeRoute/Web/index.html")
           html = path.read_text()
-          tag = '<script src="route-times.js"></script>'
-          if tag not in html:
-              if "</body>" not in html:
-                  raise SystemExit("Could not inject route-times.js: </body> not found")
-              html = html.replace("</body>", f"{tag}\n</body>", 1)
-              path.write_text(html)
-          print("Enabled route-times.js in LifeRoute web interface.")
+          tags = [
+              '<script src="route-times.js"></script>',
+              '<script src="todos.js"></script>',
+          ]
+          if "</body>" not in html:
+              raise SystemExit("Could not inject LifeRoute feature scripts: </body> not found")
+          for tag in tags:
+              if tag not in html:
+                  html = html.replace("</body>", f"{tag}\n</body>", 1)
+          path.write_text(html)
+          print("Enabled route-times.js and todos.js in LifeRoute web interface.")
           PY
           grep -q 'requestRouteTimes' LifeRoute/LifeRouteWebView.swift
           grep -q 'route-times.js' LifeRoute/Web/index.html
+          grep -q 'todos.js' LifeRoute/Web/index.html
+          test -s LifeRoute/Web/todos.js
 
       - name: Generate LifeRoute app icon
         run: |

@@ -57,6 +57,7 @@
     loadPreviewScript("mileage-tracker-web.js");
     loadPreviewScript("resources-hub-web.js");
     loadPreviewScript("nature-settings-web.js");
+    loadPreviewScript("settings-classic-themes-web.js");
 
     // Keep the legacy/native Google badge from overwriting the real browser
     // OAuth status. Watch only the Google status element; never the whole DOM.

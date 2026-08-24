@@ -1,76 +1,108 @@
-// Theme-aware moving light waves for LifeRoute.
-// Slow, restrained bands of light drift behind the glass UI so every theme
-// feels alive and premium without becoming distracting.
+// LifeRoute live metallic wave background.
+// Broad reflective ribbons bend and drift like slow cloth/silk waves, but use
+// polished metallic light/shadow instead of a literal fabric texture.
 (() => {
   const style = document.createElement("style");
   style.id = "lifeRouteLiveThemeStyles";
   style.textContent = `
     :root{
-      --wave-base:#07111f;--wave-deep:#0a2038;--wave-a:rgba(93,166,255,.22);--wave-b:rgba(242,200,109,.15);--wave-c:rgba(78,126,196,.15);--wave-glow:rgba(193,225,255,.12)
+      --metal-base:#06101d;--metal-deep:#0a1d33;
+      --metal-a:#387cc5;--metal-b:#d2ad58;--metal-c:#173f6d;
+      --metal-hi:rgba(226,242,255,.72);--metal-mid:rgba(123,187,255,.34);--metal-shadow:rgba(0,7,18,.72)
     }
-    html[data-theme="obsidian"]{--wave-base:#040506;--wave-deep:#0b0d10;--wave-a:rgba(205,213,225,.10);--wave-b:rgba(232,197,116,.18);--wave-c:rgba(103,112,124,.10);--wave-glow:rgba(255,238,191,.08)}
-    html[data-theme="carbon"]{--wave-base:#07090c;--wave-deep:#11161d;--wave-a:rgba(169,199,234,.14);--wave-b:rgba(210,220,232,.10);--wave-c:rgba(94,113,136,.12);--wave-glow:rgba(220,234,250,.08)}
-    html[data-theme="midnight"]{--wave-base:#040611;--wave-deep:#101735;--wave-a:rgba(117,139,255,.22);--wave-b:rgba(230,199,122,.11);--wave-c:rgba(95,76,176,.16);--wave-glow:rgba(183,194,255,.10)}
-    html[data-theme="navy-noir"]{--wave-base:#020812;--wave-deep:#071a2d;--wave-a:rgba(75,155,241,.20);--wave-b:rgba(216,185,108,.10);--wave-c:rgba(35,86,141,.17);--wave-glow:rgba(135,197,255,.10)}
-    html[data-theme="titanium"]{--wave-base:#090a0c;--wave-deep:#181c21;--wave-a:rgba(196,209,223,.13);--wave-b:rgba(217,193,138,.09);--wave-c:rgba(107,117,128,.12);--wave-glow:rgba(240,244,248,.07)}
-    html[data-theme="ocean"]{--wave-base:#02101a;--wave-deep:#062a3b;--wave-a:rgba(69,194,236,.21);--wave-b:rgba(223,200,129,.09);--wave-c:rgba(27,123,157,.17);--wave-glow:rgba(151,232,255,.10)}
-    html[data-theme="aurora"]{--wave-base:#031113;--wave-deep:#0a2e32;--wave-a:rgba(74,210,216,.20);--wave-b:rgba(192,225,132,.11);--wave-c:rgba(69,147,132,.15);--wave-glow:rgba(171,255,240,.09)}
-    html[data-theme="forest"]{--wave-base:#030e09;--wave-deep:#0b271b;--wave-a:rgba(91,190,151,.18);--wave-b:rgba(220,196,125,.09);--wave-c:rgba(47,111,79,.15);--wave-glow:rgba(180,238,210,.08)}
-    html[data-theme="plum"]{--wave-base:#0b050f;--wave-deep:#25102d;--wave-a:rgba(181,121,207,.19);--wave-b:rgba(229,195,122,.10);--wave-c:rgba(109,63,132,.16);--wave-glow:rgba(235,190,255,.09)}
-    html[data-theme="ember"]{--wave-base:#100503;--wave-deep:#30130c;--wave-a:rgba(218,119,79,.18);--wave-b:rgba(232,191,105,.14);--wave-c:rgba(133,55,34,.15);--wave-glow:rgba(255,194,150,.08)}
-    html[data-theme="slate"]{--wave-base:#10141a;--wave-deep:#232b34;--wave-a:rgba(113,164,218,.14);--wave-b:rgba(228,193,122,.08);--wave-c:rgba(93,106,122,.14);--wave-glow:rgba(206,226,248,.08)}
-    html[data-theme="mono"]{--wave-base:#050607;--wave-deep:#15171a;--wave-a:rgba(255,255,255,.10);--wave-b:rgba(255,255,255,.055);--wave-c:rgba(150,150,150,.09);--wave-glow:rgba(255,255,255,.07)}
-    html[data-theme="daylight"]{--wave-base:#edf4fb;--wave-deep:#f9f6ec;--wave-a:rgba(74,138,203,.15);--wave-b:rgba(199,160,76,.11);--wave-c:rgba(151,182,211,.14);--wave-glow:rgba(255,255,255,.52)}
+    html[data-theme="obsidian"]{--metal-base:#030405;--metal-deep:#0d1014;--metal-a:#555d68;--metal-b:#c9a957;--metal-c:#252a30;--metal-hi:rgba(248,239,210,.62);--metal-mid:rgba(205,215,226,.22);--metal-shadow:rgba(0,0,0,.80)}
+    html[data-theme="carbon"]{--metal-base:#06080b;--metal-deep:#121820;--metal-a:#677b91;--metal-b:#aeb7c2;--metal-c:#2d3947;--metal-hi:rgba(236,245,255,.58);--metal-mid:rgba(170,203,239,.24);--metal-shadow:rgba(0,2,7,.77)}
+    html[data-theme="midnight"]{--metal-base:#030510;--metal-deep:#101832;--metal-a:#596bc6;--metal-b:#c6a95e;--metal-c:#30286f;--metal-hi:rgba(220,225,255,.64);--metal-mid:rgba(132,147,255,.30);--metal-shadow:rgba(0,1,15,.76)}
+    html[data-theme="navy-noir"]{--metal-base:#010711;--metal-deep:#071a2d;--metal-a:#327fc4;--metal-b:#b99b54;--metal-c:#143c66;--metal-hi:rgba(211,236,255,.65);--metal-mid:rgba(95,176,255,.28);--metal-shadow:rgba(0,4,12,.78)}
+    html[data-theme="titanium"]{--metal-base:#08090b;--metal-deep:#181c21;--metal-a:#737d88;--metal-b:#b9aa83;--metal-c:#343a41;--metal-hi:rgba(250,252,255,.60);--metal-mid:rgba(201,215,229,.23);--metal-shadow:rgba(2,3,4,.75)}
+    html[data-theme="ocean"]{--metal-base:#010f18;--metal-deep:#06283a;--metal-a:#2c96bd;--metal-b:#c1ab6b;--metal-c:#12576e;--metal-hi:rgba(205,247,255,.65);--metal-mid:rgba(93,214,250,.29);--metal-shadow:rgba(0,8,13,.76)}
+    html[data-theme="aurora"]{--metal-base:#021012;--metal-deep:#0a292d;--metal-a:#309b9e;--metal-b:#a8b86a;--metal-c:#235f56;--metal-hi:rgba(214,255,247,.61);--metal-mid:rgba(95,216,209,.28);--metal-shadow:rgba(0,9,9,.74)}
+    html[data-theme="forest"]{--metal-base:#020d08;--metal-deep:#0a2419;--metal-a:#3f8268;--metal-b:#b8a460;--metal-c:#24513d;--metal-hi:rgba(220,250,232,.58);--metal-mid:rgba(113,202,164,.25);--metal-shadow:rgba(0,8,5,.76)}
+    html[data-theme="plum"]{--metal-base:#09040d;--metal-deep:#25102d;--metal-a:#87569d;--metal-b:#c2a45d;--metal-c:#523061;--metal-hi:rgba(247,222,255,.62);--metal-mid:rgba(194,133,219,.28);--metal-shadow:rgba(7,1,10,.76)}
+    html[data-theme="ember"]{--metal-base:#0e0402;--metal-deep:#2b110a;--metal-a:#a44d31;--metal-b:#c49d4f;--metal-c:#6a2c1e;--metal-hi:rgba(255,228,207,.61);--metal-mid:rgba(229,128,86,.26);--metal-shadow:rgba(10,2,0,.77)}
+    html[data-theme="slate"]{--metal-base:#0d1116;--metal-deep:#222a33;--metal-a:#58728f;--metal-b:#aa9660;--metal-c:#354353;--metal-hi:rgba(230,241,252,.58);--metal-mid:rgba(132,174,218,.24);--metal-shadow:rgba(3,6,10,.72)}
+    html[data-theme="mono"]{--metal-base:#040506;--metal-deep:#141619;--metal-a:#6e7278;--metal-b:#9b9b9b;--metal-c:#292c31;--metal-hi:rgba(255,255,255,.56);--metal-mid:rgba(210,210,210,.19);--metal-shadow:rgba(0,0,0,.78)}
+    html[data-theme="daylight"]{--metal-base:#e9f0f7;--metal-deep:#f6f1e4;--metal-a:#769cbc;--metal-b:#c0a25a;--metal-c:#b8cad9;--metal-hi:rgba(255,255,255,.92);--metal-mid:rgba(102,148,190,.19);--metal-shadow:rgba(72,91,108,.16)}
 
-    html{background:var(--wave-base)!important}
+    html{background:var(--metal-base)!important}
     body{position:relative;isolation:isolate;background:transparent!important;min-height:100vh}
-    #lifeRouteLightBackdrop{position:fixed;inset:-16vh -14vw;z-index:-3;pointer-events:none;overflow:hidden;background:linear-gradient(160deg,var(--wave-base),var(--wave-deep) 52%,var(--wave-base));transform:translateZ(0)}
-    #lifeRouteLightBackdrop .lightWave{position:absolute;left:-18%;width:136%;height:46%;border-radius:50%;filter:blur(42px);opacity:.72;will-change:transform;transform:translate3d(0,0,0) rotate(-7deg)}
-    #lifeRouteLightBackdrop .waveA{top:4%;background:linear-gradient(100deg,transparent 5%,var(--wave-a) 34%,var(--wave-glow) 50%,var(--wave-a) 66%,transparent 95%);animation:lrWaveA 24s ease-in-out infinite}
-    #lifeRouteLightBackdrop .waveB{top:37%;height:38%;background:linear-gradient(95deg,transparent 7%,var(--wave-c) 30%,var(--wave-b) 50%,var(--wave-c) 70%,transparent 93%);opacity:.54;animation:lrWaveB 31s ease-in-out infinite}
-    #lifeRouteLightBackdrop .waveC{top:68%;height:34%;background:linear-gradient(102deg,transparent 4%,var(--wave-b) 28%,var(--wave-glow) 48%,var(--wave-a) 72%,transparent 96%);opacity:.38;animation:lrWaveC 39s ease-in-out infinite}
-    #lifeRouteLightBackdrop .waveSheen{position:absolute;inset:-10%;background:radial-gradient(ellipse at 30% 18%,var(--wave-glow),transparent 34%),radial-gradient(ellipse at 77% 64%,color-mix(in srgb,var(--wave-a) 60%,transparent),transparent 38%);filter:blur(34px);opacity:.46;animation:lrWaveSheen 46s ease-in-out infinite;will-change:transform}
+    #lifeRouteMetalBackdrop{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:linear-gradient(155deg,var(--metal-base),var(--metal-deep) 48%,var(--metal-base));transform:translateZ(0)}
+    .app{position:relative;z-index:2}
+    .bottom{z-index:8!important}
 
-    @keyframes lrWaveA{
-      0%{transform:translate3d(-7%,-4%,0) rotate(-8deg) scaleX(1.03)}
-      50%{transform:translate3d(8%,8%,0) rotate(-3deg) scaleX(1.12)}
-      100%{transform:translate3d(-7%,-4%,0) rotate(-8deg) scaleX(1.03)}
-    }
-    @keyframes lrWaveB{
-      0%{transform:translate3d(8%,2%,0) rotate(7deg) scaleX(1.08)}
-      50%{transform:translate3d(-7%,-7%,0) rotate(2deg) scaleX(1.16)}
-      100%{transform:translate3d(8%,2%,0) rotate(7deg) scaleX(1.08)}
-    }
-    @keyframes lrWaveC{
-      0%{transform:translate3d(-4%,6%,0) rotate(-5deg) scaleX(1.1)}
-      50%{transform:translate3d(7%,-5%,0) rotate(1deg) scaleX(1.18)}
-      100%{transform:translate3d(-4%,6%,0) rotate(-5deg) scaleX(1.1)}
-    }
-    @keyframes lrWaveSheen{
-      0%{transform:translate3d(-3%,-2%,0) scale(1.02)}
-      50%{transform:translate3d(4%,3%,0) scale(1.08)}
-      100%{transform:translate3d(-3%,-2%,0) scale(1.02)}
-    }
+    #lifeRouteMetalBackdrop .metalWave{position:absolute;left:-28%;width:156%;height:42%;border-radius:44% 56% 48% 52% / 58% 44% 56% 42%;will-change:transform;transform-origin:50% 50%;filter:blur(1px) saturate(112%);backface-visibility:hidden}
+    #lifeRouteMetalBackdrop .metalWave::before{content:"";position:absolute;inset:0;border-radius:inherit;background:
+      linear-gradient(98deg,
+        transparent 3%,
+        var(--metal-shadow) 14%,
+        color-mix(in srgb,var(--metal-c) 86%,transparent) 25%,
+        var(--metal-mid) 37%,
+        var(--metal-hi) 46%,
+        color-mix(in srgb,var(--metal-a) 80%,transparent) 55%,
+        var(--metal-shadow) 67%,
+        color-mix(in srgb,var(--metal-b) 68%,transparent) 80%,
+        transparent 96%);
+      box-shadow:inset 0 24px 70px rgba(255,255,255,.035),inset 0 -32px 80px rgba(0,0,0,.22)}
+    #lifeRouteMetalBackdrop .metalWave::after{content:"";position:absolute;inset:7% -2%;border-radius:inherit;background:linear-gradient(102deg,transparent 11%,rgba(255,255,255,.025) 26%,var(--metal-hi) 45%,rgba(255,255,255,.025) 57%,transparent 84%);opacity:.38;filter:blur(13px);mix-blend-mode:screen}
 
-    .card,.metric,.hero,.todoMetric,.monthMetric,.provider,.notice{background-color:color-mix(in srgb,var(--panel) 87%,transparent)!important}
-    .bottom{background:color-mix(in srgb,var(--bg) 67%,transparent)!important}
+    #lifeRouteMetalBackdrop .waveOne{top:-8%;opacity:.78}
+    #lifeRouteMetalBackdrop .waveTwo{top:26%;height:47%;opacity:.58;filter:blur(3px) saturate(108%)}
+    #lifeRouteMetalBackdrop .waveThree{top:62%;height:39%;opacity:.47;filter:blur(5px) saturate(105%)}
+    #lifeRouteMetalBackdrop .specular{position:absolute;inset:-18%;will-change:transform;background:
+      radial-gradient(ellipse at 24% 22%,var(--metal-hi),transparent 19%),
+      radial-gradient(ellipse at 76% 68%,color-mix(in srgb,var(--metal-b) 42%,transparent),transparent 25%),
+      linear-gradient(112deg,transparent 30%,rgba(255,255,255,.055) 48%,transparent 63%);
+      opacity:.28;filter:blur(28px);mix-blend-mode:screen}
 
-    @media(prefers-reduced-motion:reduce){
-      #lifeRouteLightBackdrop .lightWave,#lifeRouteLightBackdrop .waveSheen{animation:none!important}
-    }
+    .card,.metric,.hero,.todoMetric,.monthMetric,.provider,.notice{background-color:color-mix(in srgb,var(--panel) 84%,transparent)!important}
+    .bottom{background:color-mix(in srgb,var(--bg) 65%,transparent)!important}
   `;
   document.head.appendChild(style);
 
-  const mount = () => {
-    document.getElementById("lifeRouteMarbleBackdrop")?.remove();
-    if (document.getElementById("lifeRouteLightBackdrop")) return;
-    const backdrop = document.createElement("div");
-    backdrop.id = "lifeRouteLightBackdrop";
-    backdrop.setAttribute("aria-hidden", "true");
-    backdrop.innerHTML = '<div class="lightWave waveA"></div><div class="lightWave waveB"></div><div class="lightWave waveC"></div><div class="waveSheen"></div>';
-    document.body.prepend(backdrop);
+  let raf = 0;
+  let startedAt = 0;
+  const animate = timestamp => {
+    if (!startedAt) startedAt = timestamp;
+    const t = (timestamp - startedAt) / 1000;
+    const one = document.querySelector("#lifeRouteMetalBackdrop .waveOne");
+    const two = document.querySelector("#lifeRouteMetalBackdrop .waveTwo");
+    const three = document.querySelector("#lifeRouteMetalBackdrop .waveThree");
+    const shine = document.querySelector("#lifeRouteMetalBackdrop .specular");
+
+    if (one) one.style.transform = `translate3d(${Math.sin(t*.17)*7}%,${Math.cos(t*.12)*4}%,0) rotate(${(-8 + Math.sin(t*.11)*5).toFixed(2)}deg) scaleX(${(1.07 + Math.sin(t*.09)*.07).toFixed(3)}) scaleY(${(1 + Math.cos(t*.13)*.05).toFixed(3)})`;
+    if (two) two.style.transform = `translate3d(${Math.cos(t*.13)*8}%,${Math.sin(t*.15)*5}%,0) rotate(${(6 + Math.cos(t*.10)*6).toFixed(2)}deg) scaleX(${(1.10 + Math.cos(t*.08)*.08).toFixed(3)}) scaleY(${(1 + Math.sin(t*.12)*.06).toFixed(3)})`;
+    if (three) three.style.transform = `translate3d(${Math.sin(t*.11+1.8)*7}%,${Math.cos(t*.14+1.2)*4}%,0) rotate(${(-4 + Math.sin(t*.09+1)*5).toFixed(2)}deg) scaleX(${(1.08 + Math.sin(t*.075)*.09).toFixed(3)}) scaleY(${(1 + Math.cos(t*.11)*.05).toFixed(3)})`;
+    if (shine) shine.style.transform = `translate3d(${Math.sin(t*.07)*5}%,${Math.cos(t*.06)*4}%,0) rotate(${(Math.sin(t*.05)*3).toFixed(2)}deg) scale(${(1.03 + Math.sin(t*.08)*.04).toFixed(3)})`;
+
+    raf = requestAnimationFrame(animate);
   };
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount, { once: true });
+  const mount = () => {
+    document.getElementById("lifeRouteMarbleBackdrop")?.remove();
+    document.getElementById("lifeRouteLightBackdrop")?.remove();
+    let backdrop = document.getElementById("lifeRouteMetalBackdrop");
+    if (!backdrop) {
+      backdrop = document.createElement("div");
+      backdrop.id = "lifeRouteMetalBackdrop";
+      backdrop.setAttribute("aria-hidden", "true");
+      backdrop.innerHTML = '<div class="metalWave waveOne"></div><div class="metalWave waveTwo"></div><div class="metalWave waveThree"></div><div class="specular"></div>';
+      document.body.prepend(backdrop);
+    }
+    if (raf) cancelAnimationFrame(raf);
+    startedAt = 0;
+    raf = requestAnimationFrame(animate);
+  };
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    } else if (!raf) {
+      startedAt = 0;
+      raf = requestAnimationFrame(animate);
+    }
+  });
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount, { once:true });
   else mount();
 })();

@@ -6,7 +6,8 @@
 
     const badge = document.createElement("div");
     badge.id = "webPreviewBadge";
-    badge.innerHTML = "<b>WEB PREVIEW</b><span>Interactive UI preview · iPhone-only calendar, GPS, notifications, and MapKit actions require TestFlight.</span>";
+    const build = document.querySelector('meta[name="liferoute-web-build"]')?.content || "";
+    badge.innerHTML = `<b>WEB PREVIEW${build ? " · " + build : ""}</b><span>Interactive UI preview · iPhone-only calendar, GPS, notifications, and MapKit actions require TestFlight.</span>`;
     badge.style.cssText = [
       "position:sticky","top:0","z-index:99999","display:flex","gap:8px",
       "align-items:center","justify-content:center","flex-wrap:wrap",

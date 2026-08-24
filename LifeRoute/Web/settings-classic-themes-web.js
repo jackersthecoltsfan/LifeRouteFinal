@@ -12,6 +12,7 @@
     const root = document.documentElement;
     root.removeAttribute("data-nature-theme");
     root.removeAttribute("data-scene");
+    root.removeAttribute("data-photo-scene");
     root.style.removeProperty("--scene-sky1");
     root.style.removeProperty("--scene-sky2");
     root.style.removeProperty("--scene-ground");
@@ -43,7 +44,18 @@
     return true;
   };
 
+  const loadPhotorealNature = () => {
+    if (document.getElementById("lifeRoutePhotorealNatureScript") || window.__lifeRoutePhotorealNatureLoaded) return;
+    const script = document.createElement("script");
+    script.id = "lifeRoutePhotorealNatureScript";
+    const build = document.querySelector('meta[name="liferoute-web-build"]')?.content || "";
+    script.src = `photoreal-nature-web.js${build ? "?v=" + encodeURIComponent(build) : ""}`;
+    script.async = true;
+    document.body.appendChild(script);
+  };
+
   const start = () => {
+    loadPhotorealNature();
     let attempts = 0;
     const timer = setInterval(() => {
       attempts += 1;

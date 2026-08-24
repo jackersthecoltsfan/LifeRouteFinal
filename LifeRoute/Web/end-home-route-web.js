@@ -4,6 +4,9 @@
   window.__lifeRouteEndHomeRouteLoaded = true;
 
   const PREF_KEY = "endDayAtHome";
+  const icon = (name, size = 15, cls = "") => typeof window.lifeRouteIcon === "function"
+    ? window.lifeRouteIcon(name, size, cls)
+    : "";
 
   const homeAddress = () => String(window.prefs?.homeAddress || "").trim() ||
     String((window.places || []).find(place => String(place?.type || "").toLowerCase() === "home")?.address || "").trim();
@@ -18,8 +21,15 @@
 
   const provider = () => String(window.prefs?.mapProvider || "apple");
   const openRoute = (origin, destination) => {
+    if (typeof window.lifeRouteLaunchDirections === "function") {
+      window.lifeRouteLaunchDirections(destination, origin);
+      return;
+    }
     let chosen = provider();
     if (chosen === "ask") chosen = confirm("OK = Google Maps\nCancel = Apple Maps") ? "google" : "apple";
+    try {
+      if (typeof window.postNative === "function" && window.postNative({ action:"openRoute", provider:chosen, origin, destination })) return;
+    } catch (_) {}
     const url = chosen === "google"
       ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving`
       : `https://maps.apple.com/?saddr=${encodeURIComponent(origin)}&daddr=${encodeURIComponent(destination)}&dirflg=d`;
@@ -37,7 +47,7 @@
     const style = document.createElement("style");
     style.id = "endHomeRouteStyles";
     style.textContent = `
-      .endHomeOption{margin-top:12px;padding:11px 12px;border-radius:15px;background:color-mix(in srgb,var(--panel2) 78%,transparent);border:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}.endHomeOption .title{font-size:12px}.endHomeOption .meta{font-size:9px;margin-top:2px}.endHomeRouteCard{border-color:color-mix(in srgb,var(--gold) 45%,var(--line))!important}.endHomeRouteCard .route{margin-top:8px}.endHomeLiveRow{border-top:1px solid var(--line);margin-top:7px;padding-top:11px}.endHomeRouteButton{white-space:nowrap}
+      .endHomeOption{margin-top:12px;padding:11px 12px;border-radius:15px;background:color-mix(in srgb,var(--panel2) 78%,transparent);border:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}.endHomeOption .title{font-size:12px}.endHomeOption .meta{font-size:9px;margin-top:2px}.endHomeRouteCard{border-color:color-mix(in srgb,var(--gold) 45%,var(--line))!important}.endHomeRouteCard .route{margin-top:8px}.endHomeLiveRow{border-top:1px solid var(--line);margin-top:7px;padding-top:11px}.endHomeRouteButton{white-space:nowrap}.endHomeRouteText{display:inline-flex;align-items:center;gap:7px}
     `;
     document.head.appendChild(style);
   };
@@ -80,9 +90,10 @@
     const card = document.createElement("div");
     card.id = "endHomeRouteCard";
     card.className = "card endHomeRouteCard";
+    const car = icon("car", 15, "lrInlineIcon");
     card.innerHTML = `
       <div class="row"><div class="grow"><div class="small">After ${window.time12 ? window.time12(last.end) : last.end || "last appointment"}</div><div class="title">Return Home</div><div class="meta"></div></div><span class="badge gold">FINAL LEG</span></div>
-      <div class="route"><span>🚙 ${last.address ? "From " + String(last.title || "last appointment") : "From last appointment"} · exact drive time opens in Maps</span><button type="button" class="secondary endHomeRouteButton">Route home</button></div>`;
+      <div class="route"><span class="endHomeRouteText">${car}<span>${last.address ? "From " + String(last.title || "last appointment") : "From last appointment"} · route opens in your chosen maps app</span></span><button type="button" class="secondary endHomeRouteButton">Route home</button></div>`;
     card.querySelector(".meta").textContent = home;
     card.querySelector(".endHomeRouteButton")?.addEventListener("click", () => {
       if (!last.address) return alert("The last appointment needs a location before LifeRoute can route home from it.");
@@ -100,7 +111,7 @@
     row.innerHTML = `
       <div class="liveDayTime">${window.time12 ? window.time12(last.end) : String(last.end || "")}</div>
       <div class="liveDayRail"><span></span></div>
-      <div class="grow"><div class="small">FINAL ROUTE LEG</div><div class="title">Return Home</div><div class="meta"></div><div class="tiny">Drive from ${String(last.title || "last appointment")} to Home. Exact travel time is calculated when opened in Maps.</div><div class="placeActions"><button type="button" class="secondary endHomeRouteButton">Route home</button></div></div>`;
+      <div class="grow"><div class="small">FINAL ROUTE LEG</div><div class="title">Return Home</div><div class="meta"></div><div class="tiny">Drive from ${String(last.title || "last appointment")} to Home in your chosen navigation app.</div><div class="placeActions"><button type="button" class="secondary endHomeRouteButton">${icon("navigation",14)} Route home</button></div></div>`;
     row.querySelector(".meta").textContent = home;
     row.querySelector(".endHomeRouteButton")?.addEventListener("click", () => {
       if (!last.address) return alert("The last appointment needs a location before LifeRoute can route home from it.");

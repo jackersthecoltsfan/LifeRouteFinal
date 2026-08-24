@@ -9,6 +9,7 @@ python3 scripts/patch_store_routing_resilience.py
 python3 scripts/patch_store_mapitems.py
 python3 scripts/patch_route_reliability_v2.py
 python3 scripts/patch_gap_multistop.py
+python3 scripts/patch_selected_gap_routes.py
 python3 scripts/patch_sleek_icons.py
 python3 scripts/patch_provider_selection.py
 
@@ -26,6 +27,8 @@ tags = [
     '<script src="transport-mode.js"></script>',
     '<script src="sleek-ui.js"></script>',
     '<script src="store-sleek-ui.js"></script>',
+    '<script src="selected-gap-routes.js"></script>',
+    '<script src="live-themes.js"></script>',
 ]
 
 if "</body>" not in html:
@@ -39,9 +42,9 @@ print("LifeRoute feature scripts enabled in safe startup order.")
 PY
 
 # Fast preflight checks before Xcode spends time compiling.
-python3 -m py_compile scripts/patch_route_times.py scripts/patch_location_context.py scripts/patch_transport_mode.py scripts/patch_store_route_guard.py scripts/patch_store_routing_resilience.py scripts/patch_store_mapitems.py scripts/patch_route_reliability_v2.py scripts/patch_gap_multistop.py scripts/patch_sleek_icons.py scripts/patch_provider_selection.py
+python3 -m py_compile scripts/patch_route_times.py scripts/patch_location_context.py scripts/patch_transport_mode.py scripts/patch_store_route_guard.py scripts/patch_store_routing_resilience.py scripts/patch_store_mapitems.py scripts/patch_route_reliability_v2.py scripts/patch_gap_multistop.py scripts/patch_selected_gap_routes.py scripts/patch_sleek_icons.py scripts/patch_provider_selection.py
 plutil -lint LifeRoute/Info.plist
-for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js; do
+for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-themes.js; do
   test -s "LifeRoute/Web/$js"
   node --check "LifeRoute/Web/$js"
   grep -q "<script src=\"$js\"></script>" LifeRoute/Web/index.html
@@ -60,8 +63,12 @@ grep -q 'ownedResults' LifeRoute/Web/route-times.js
 grep -q 'seenBranches' LifeRoute/Web/grocery-stores.js
 grep -q 'destinationMapItemKey' LifeRoute/Web/grocery-stores.js
 grep -q 'routeGapStop' LifeRoute/Web/index.html
-grep -q 'routeGapStop' LifeRoute/Web/todos.js
-grep -q 'routeGapStop' LifeRoute/Web/grocery-stores.js
+grep -q 'chooseLifeRouteGapRoute' LifeRoute/Web/todos.js
+grep -q 'chooseLifeRouteGapRoute' LifeRoute/Web/grocery-stores.js
+grep -q 'outDistanceMeters' LifeRoute/Web/todos.js
+grep -q 'selectedGapRouteStyles' LifeRoute/Web/selected-gap-routes.js
+grep -q 'lifeRouteMarbleBackdrop' LifeRoute/Web/live-themes.js
+grep -q 'lrMarbleDriftA' LifeRoute/Web/live-themes.js
 grep -q 'provider.active:after' LifeRoute/Web/sleek-ui.js
 grep -q 'storeSleekUIStyles' LifeRoute/Web/store-sleek-ui.js
 grep -q 'lifeRouteIcon' LifeRoute/Web/icons.js

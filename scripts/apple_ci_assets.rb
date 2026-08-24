@@ -31,8 +31,18 @@ def jwt
   key = OpenSSL::PKey.read(File.read(KEY_PATH))
   der_signature = key.sign(OpenSSL::Digest::SHA256.new, signing_input)
   sequence = OpenSSL::ASN1.decode(der_signature)
-  r, s = sequence.value.map { |integer| integer.value.to_i }
-  raw_signature = [r, s].map { |value| value.to_s(2).rjust(32, "\0") }.join
+
+  # OpenSSL returns ECDSA signatures in ASN.1 DER form. JWT ES256 requires the
+  # fixed-width 64-byte JOSE form (32-byte R followed by 32-byte S). Converting
+  # the integers with Integer#to_s(2) produces ASCII binary digits, not bytes,
+  # which makes Apple reject the token with HTTP 401. Pack each value from hex
+  # instead so the Authorization bearer token is standards-compliant.
+  raw_signature = sequence.value.map do |integer|
+    hex = integer.value.to_i.to_s(16).rjust(64, '0')
+    raise 'Unexpected ES256 signature component size' if hex.length > 64
+    [hex].pack('H*')
+  end.join
+  raise "Unexpected ES256 signature length: #{raw_signature.bytesize}" unless raw_signature.bytesize == 64
 
   "#{signing_input}.#{b64url(raw_signature)}"
 end

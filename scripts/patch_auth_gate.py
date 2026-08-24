@@ -3,17 +3,11 @@ from pathlib import Path
 path = Path("LifeRoute/LifeRouteWebView.swift")
 text = path.read_text()
 
-case_marker = '''            case "openPlace":
-                let provider = (body["provider"] as? String) ?? "apple"
-                let query = (body["query"] as? String) ?? ""
-                openPlace(provider: provider, query: query)
-            default:
-'''
-case_replacement = '''            case "openPlace":
-                let provider = (body["provider"] as? String) ?? "apple"
-                let query = (body["query"] as? String) ?? ""
-                openPlace(provider: provider, query: query)
-            case "authStatus":
+# Add auth actions immediately after the stable openPlace call. Other build
+# patches may insert additional switch cases before `default`, so do not depend
+# on the exact surrounding switch layout.
+action_anchor = '                openPlace(provider: provider, query: query)\n'
+auth_actions = '''            case "authStatus":
                 emitAuthStatus()
             case "authSetCredentials":
                 let phone = (body["phone"] as? String) ?? ""
@@ -23,13 +17,12 @@ case_replacement = '''            case "openPlace":
                 let phone = (body["phone"] as? String) ?? ""
                 let pin = (body["pin"] as? String) ?? ""
                 verifyAuthCredentials(phone: phone, pin: pin)
-            default:
 '''
 
 if 'case "authStatus":' not in text:
-    if case_marker not in text:
-        raise SystemExit("Could not find LifeRoute bridge switch insertion point")
-    text = text.replace(case_marker, case_replacement, 1)
+    if action_anchor not in text:
+        raise SystemExit("Could not find LifeRoute openPlace bridge action")
+    text = text.replace(action_anchor, action_anchor + auth_actions, 1)
 
 auth_block = r'''
         // MARK: - LifeRoute login / Keychain
@@ -70,8 +63,8 @@ auth_block = r'''
             seed.append(saltData)
             seed.append(Data(pin.utf8))
             var digest = Data(SHA256.hash(data: seed))
-            // A deliberately expensive local derivation plus attempt throttling.
-            // The PIN itself is never stored in Keychain.
+            // Make brute-force attempts meaningfully more expensive while the
+            // 4-digit PIN remains convenient. The PIN itself is never stored.
             for _ in 0..<50_000 {
                 var round = Data()
                 round.append(digest)

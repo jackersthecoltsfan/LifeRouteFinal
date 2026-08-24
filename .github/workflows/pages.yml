@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - 'LifeRoute/Web/**'
+      - 'scripts/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -20,10 +21,14 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Build the Pages preview from the exact same prepared source used by TestFlight.
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Prepare exact current LifeRoute build
+        run: bash scripts/prepare_build.sh
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -33,71 +38,30 @@ jobs:
           set -euo pipefail
           rm -rf dist
           cp -R LifeRoute/Web dist
+          cp scripts/web-preview.js dist/web-preview.js
           touch dist/.nojekyll
 
           python3 - <<'PY'
           from pathlib import Path
-
           path = Path("dist/index.html")
           html = path.read_text()
-
-          # The native iPhone build injects these at build time. Pages needs the
-          # same feature layers explicitly so the browser preview matches TestFlight.
-          tags = [
-              '<script src="route-times.js"></script>',
-              '<script src="smart-context.js"></script>',
-              '<script src="todos.js"></script>',
-              '<script src="grocery-stores.js"></script>',
-              '<script src="transport-mode.js"></script>',
-              '<script src="sleek-ui.js"></script>',
-          ]
-
-          for tag in tags:
-              html = html.replace(tag, "")
-
-          preview = r'''
-          <script>
-          window.addEventListener("DOMContentLoaded", () => {
-            const isNative = !!window.webkit?.messageHandlers?.lifeRoute;
-            if (isNative) return;
-
-            const badge = document.createElement("div");
-            badge.id = "webPreviewBadge";
-            badge.textContent = "WEB PREVIEW · native calendar, GPS, and MapKit actions require the iPhone build";
-            badge.style.cssText = [
-              "position:sticky","top:0","z-index:9999","margin:0 auto 10px",
-              "max-width:880px","padding:8px 12px","border-radius:0 0 12px 12px",
-              "text-align:center","font:800 10px/1.3 system-ui,-apple-system,sans-serif",
-              "letter-spacing:.02em","background:rgba(10,20,36,.92)","color:#f2c86d",
-              "border:1px solid rgba(242,200,109,.20)","border-top:0",
-              "backdrop-filter:blur(18px)"
-            ].join(";");
-            document.body.prepend(badge);
-
-            // Make the preview useful immediately without touching real user data.
-            setTimeout(() => {
-              try {
-                if (Array.isArray(window.events) && window.events.length === 0 && typeof window.loadDemo === "function") {
-                  window.loadDemo();
-                }
-              } catch (_) {}
-            }, 250);
-          });
-          </script>
-          '''
-
-          if "</body>" not in html:
-              raise SystemExit("Could not build Pages preview: </body> not found")
-
-          html = html.replace("</body>", "\n".join(tags) + "\n" + preview + "\n</body>", 1)
+          tag = '<script src="web-preview.js"></script>'
+          if tag not in html:
+              if "</body>" not in html:
+                  raise SystemExit("Could not build Pages preview: </body> not found")
+              html = html.replace("</body>", tag + "\n</body>", 1)
           path.write_text(html)
           PY
 
-          test -s dist/index.html
-          for js in config.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js; do
+          # Pages must expose the same feature surface prepared for TestFlight.
+          for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js rbt-tools.js live-themes.js web-preview.js; do
             test -s "dist/$js"
             node --check "dist/$js"
           done
+          grep -q 'rbt-tools.js' dist/index.html
+          grep -q 'live-themes.js' dist/index.html
+          grep -q 'selected-gap-routes.js' dist/index.html
+          grep -q 'web-preview.js' dist/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

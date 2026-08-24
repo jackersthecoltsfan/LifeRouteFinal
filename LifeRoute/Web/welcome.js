@@ -1,27 +1,5 @@
-// LifeRoute first-visit welcome.
+// LifeRoute welcome screen. For now it appears on every fresh web-app visit.
 (() => {
-  const SEEN_KEY = "liferoute_welcome_seen_v1";
-
-  const shouldForce = () => {
-    try {
-      return new URLSearchParams(location.search).get("welcome") === "1";
-    } catch (_) {
-      return false;
-    }
-  };
-
-  const hasSeen = () => {
-    try {
-      return localStorage.getItem(SEEN_KEY) === "1";
-    } catch (_) {
-      return false;
-    }
-  };
-
-  const markSeen = () => {
-    try { localStorage.setItem(SEEN_KEY, "1"); } catch (_) {}
-  };
-
   const addStyles = () => {
     if (document.getElementById("lifeRouteWelcomeStyles")) return;
     const style = document.createElement("style");
@@ -34,7 +12,7 @@
       .lrWelcomeEyebrow{font-size:9px;font-weight:950;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:2px}.lrWelcomeTitle{font-size:clamp(25px,6vw,34px);line-height:1.03;font-weight:950;letter-spacing:-1.1px}.lrWelcomeIntro{font-size:13px;line-height:1.55;color:var(--muted);margin:4px 0 17px}
       .lrWelcomeGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.lrWelcomeItem{border:1px solid color-mix(in srgb,var(--line) 78%,transparent);border-radius:17px;padding:13px;background:color-mix(in srgb,var(--panel2) 78%,transparent)}.lrWelcomeIcon{font-size:20px;line-height:1;margin-bottom:8px}.lrWelcomeItem b{display:block;font-size:12px;margin-bottom:3px}.lrWelcomeItem span{display:block;font-size:10px;line-height:1.42;color:var(--muted)}
       .lrWelcomeNote{margin:14px 0 16px;padding:10px 12px;border-radius:13px;background:color-mix(in srgb,var(--blue) 8%,var(--panel2));border:1px solid color-mix(in srgb,var(--blue) 22%,var(--line));font-size:9px;line-height:1.45;color:var(--muted)}
-      .lrWelcomeActions{display:grid;grid-template-columns:1fr;gap:8px}.lrWelcomeStart{border:0;border-radius:14px;padding:13px 16px;font-weight:950;font-size:13px;color:#111820;background:linear-gradient(145deg,#f5dc91,#dfb858);box-shadow:0 12px 30px rgba(218,177,80,.18)}.lrWelcomeAgain{border:0;background:transparent;color:var(--muted);font-size:9px;padding:4px 8px}
+      .lrWelcomeActions{display:grid;grid-template-columns:1fr;gap:8px}.lrWelcomeStart{border:0;border-radius:14px;padding:13px 16px;font-weight:950;font-size:13px;color:#111820;background:linear-gradient(145deg,#f5dc91,#dfb858);box-shadow:0 12px 30px rgba(218,177,80,.18)}.lrWelcomeVisitNote{text-align:center;color:var(--muted);font-size:9px;padding:2px 8px 0}
       @media(max-width:520px){.lrWelcomeCard{padding:20px;border-radius:24px}.lrWelcomeGrid{grid-template-columns:1fr}.lrWelcomeItem{display:grid;grid-template-columns:30px 1fr;column-gap:8px;align-items:start}.lrWelcomeIcon{grid-row:1/3;margin:1px 0 0}.lrWelcomeItem b{margin:0 0 2px}}
     `;
     document.head.appendChild(style);
@@ -67,35 +45,25 @@
           <div class="lrWelcomeItem"><div class="lrWelcomeIcon">🧭</div><b>Plan smarter routes</b><span>Compare travel options and build a practical route through the day.</span></div>
           <div class="lrWelcomeItem"><div class="lrWelcomeIcon">▦</div><b>Use visual supports</b><span>Create First / Then boards, visual timers, visual cards, and choice boards.</span></div>
         </div>
-        <div class="lrWelcomeNote">Web preview: the interface and web tools are interactive. Live Apple Calendar, GPS, notifications, and MapKit actions require the iPhone build.</div>
+        <div class="lrWelcomeNote">Web version: Google Calendar and read-only calendar links work here. Direct Apple Calendar, GPS, notifications, and MapKit actions require the iPhone build.</div>
         <div class="lrWelcomeActions">
-          <button class="lrWelcomeStart" type="button" id="lifeRouteWelcomeStart">Start exploring</button>
-          <button class="lrWelcomeAgain" type="button" id="lifeRouteWelcomeAgain">Show this welcome again next visit</button>
+          <button class="lrWelcomeStart" type="button" id="lifeRouteWelcomeStart">Enter LifeRoute</button>
+          <div class="lrWelcomeVisitNote">This welcome screen will appear each time you open LifeRoute for now.</div>
         </div>
       </div>
     `;
     document.body.appendChild(overlay);
 
     overlay.querySelector("#lifeRouteWelcomeStart")?.addEventListener("click", () => {
-      markSeen();
-      overlay.classList.remove("show");
-    });
-
-    overlay.querySelector("#lifeRouteWelcomeAgain")?.addEventListener("click", () => {
-      try { localStorage.removeItem(SEEN_KEY); } catch (_) {}
       overlay.classList.remove("show");
     });
 
     overlay.addEventListener("click", event => {
-      if (event.target === overlay) {
-        markSeen();
-        overlay.classList.remove("show");
-      }
+      if (event.target === overlay) overlay.classList.remove("show");
     });
 
     document.addEventListener("keydown", event => {
       if (event.key === "Escape" && overlay.classList.contains("show")) {
-        markSeen();
         overlay.classList.remove("show");
       }
     });
@@ -109,15 +77,14 @@
   };
 
   const start = () => {
-    if (shouldForce() || !hasSeen()) {
-      setTimeout(showWelcome, 220);
-    }
+    // Intentionally show on every fresh page load/visit during development.
+    setTimeout(showWelcome, 220);
   };
 
   window.LifeRouteWelcome = {
     show: showWelcome,
-    reset: () => { try { localStorage.removeItem(SEEN_KEY); } catch (_) {} },
-    version: "1.0.0"
+    reset: () => {},
+    version: "1.1.0"
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once:true });

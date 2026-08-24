@@ -7,6 +7,7 @@ python3 scripts/patch_transport_mode.py
 python3 scripts/patch_store_route_guard.py
 python3 scripts/patch_store_routing_resilience.py
 python3 scripts/patch_store_mapitems.py
+python3 scripts/patch_gap_multistop.py
 python3 scripts/patch_provider_selection.py
 
 python3 - <<'PY'
@@ -35,7 +36,7 @@ print("LifeRoute feature scripts enabled in safe startup order.")
 PY
 
 # Fast preflight checks before Xcode spends time compiling.
-python3 -m py_compile scripts/patch_route_times.py scripts/patch_location_context.py scripts/patch_transport_mode.py scripts/patch_store_route_guard.py scripts/patch_store_routing_resilience.py scripts/patch_store_mapitems.py scripts/patch_provider_selection.py
+python3 -m py_compile scripts/patch_route_times.py scripts/patch_location_context.py scripts/patch_transport_mode.py scripts/patch_store_route_guard.py scripts/patch_store_routing_resilience.py scripts/patch_store_mapitems.py scripts/patch_gap_multistop.py scripts/patch_provider_selection.py
 plutil -lint LifeRoute/Info.plist
 for js in route-times.js smart-context.js todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js; do
   test -s "LifeRoute/Web/$js"
@@ -50,9 +51,13 @@ grep -q 'routeTransportType' LifeRoute/LifeRouteWebView.swift
 grep -q 'retryResponse' LifeRoute/LifeRouteWebView.swift
 grep -q 'mapItemKey' LifeRoute/LifeRouteWebView.swift
 grep -q 'addressResponse' LifeRoute/LifeRouteWebView.swift
+grep -q 'waypoints' LifeRoute/LifeRouteWebView.swift
 grep -q 'ownedResults' LifeRoute/Web/route-times.js
 grep -q 'seenBranches' LifeRoute/Web/grocery-stores.js
 grep -q 'destinationMapItemKey' LifeRoute/Web/grocery-stores.js
+grep -q 'routeGapStop' LifeRoute/Web/index.html
+grep -q 'routeGapStop' LifeRoute/Web/todos.js
+grep -q 'routeGapStop' LifeRoute/Web/grocery-stores.js
 grep -q 'provider.active:after' LifeRoute/Web/sleek-ui.js
 grep -q 'storeSleekUIStyles' LifeRoute/Web/store-sleek-ui.js
 echo "LifeRoute feature preflight passed."

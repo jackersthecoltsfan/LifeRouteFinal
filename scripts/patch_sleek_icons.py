@@ -87,4 +87,43 @@ stores = replace_once(
 )
 stores_path.write_text(stores)
 
-print("Replaced LifeRoute emoji-style UI glyphs with the sleek SVG icon system.")
+
+# The small blue car shown beside every timeline travel estimate was still an
+# emoji. Replace it with the same thin-line car glyph used by the transport UI.
+routes_path = Path("LifeRoute/Web/route-times.js")
+routes = routes_path.read_text()
+routes = replace_once(
+    routes,
+    '''          travelText = "🚙 Calculating drive time…";
+''',
+    '''          travelText = `${typeof window.lifeRouteIcon === "function" ? window.lifeRouteIcon("car", 14, "lrInlineIcon") : ""}Calculating drive time…`;
+''',
+    "timeline calculating car icon",
+)
+routes = replace_once(
+    routes,
+    '''          travelText = `🚙 ${fmt(event.drive)}${distance}${origin}`;
+''',
+    '''          travelText = `${typeof window.lifeRouteIcon === "function" ? window.lifeRouteIcon("car", 14, "lrInlineIcon") : ""}${fmt(event.drive)}${distance}${origin}`;
+''',
+    "timeline route car icon",
+)
+routes = replace_once(
+    routes,
+    '''          travelText = "🚙 Route time unavailable";
+''',
+    '''          travelText = `${typeof window.lifeRouteIcon === "function" ? window.lifeRouteIcon("car", 14, "lrInlineIcon") : ""}Route time unavailable`;
+''',
+    "timeline unavailable car icon",
+)
+routes = replace_once(
+    routes,
+    '''          travelText = "🚙 Route time pending";
+''',
+    '''          travelText = `${typeof window.lifeRouteIcon === "function" ? window.lifeRouteIcon("car", 14, "lrInlineIcon") : ""}Route time pending`;
+''',
+    "timeline pending car icon",
+)
+routes_path.write_text(routes)
+
+print("Replaced LifeRoute emoji-style UI glyphs, including the timeline car, with the sleek SVG icon system.")

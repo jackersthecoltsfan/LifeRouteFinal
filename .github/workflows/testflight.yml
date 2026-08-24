@@ -6,42 +6,77 @@ on:
 jobs:
   release:
     runs-on: macos-26
-    timeout-minutes: 35
+    timeout-minutes: 40
     env:
       SCHEME: LifeRoute
       PROJECT: LifeRoute.xcodeproj
       BUNDLE_ID: Com.Brandongood.LifeRoute
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable native route times, To-Dos, and sleek UI
+      - name: Prepare LifeRoute features
         run: |
           set -euo pipefail
+
+          # Native MapKit route/store support first, then selectable travel mode.
           python3 scripts/patch_route_times.py
+          python3 scripts/patch_transport_mode.py
+
+          # Keep feature scripts in a deterministic order. To-Dos must initialize
+          # before grocery preferences decorate those To-Do cards.
           python3 - <<'PY'
           from pathlib import Path
+
           path = Path("LifeRoute/Web/index.html")
           html = path.read_text()
           tags = [
               '<script src="route-times.js"></script>',
               '<script src="todos.js"></script>',
+              '<script src="grocery-stores.js"></script>',
+              '<script src="transport-mode.js"></script>',
               '<script src="sleek-ui.js"></script>',
           ]
+
           if "</body>" not in html:
               raise SystemExit("Could not inject LifeRoute feature scripts: </body> not found")
+
           for tag in tags:
-              if tag not in html:
-                  html = html.replace("</body>", f"{tag}\n</body>", 1)
+              html = html.replace(tag, "")
+          html = html.replace("</body>", "\n".join(tags) + "\n</body>", 1)
           path.write_text(html)
-          print("Enabled route-times.js, todos.js, and sleek-ui.js in LifeRoute web interface.")
+          print("LifeRoute feature scripts enabled in safe startup order.")
           PY
+
+          # Fail the build early for malformed scripts/plists or missing feature files.
+          python3 -m py_compile scripts/patch_route_times.py scripts/patch_transport_mode.py
+          plutil -lint LifeRoute/Info.plist
+          for js in route-times.js todos.js grocery-stores.js transport-mode.js sleek-ui.js; do
+            test -s "LifeRoute/Web/$js"
+            node --check "LifeRoute/Web/$js"
+            grep -q "<script src=\"$js\"></script>" LifeRoute/Web/index.html
+          done
           grep -q 'requestRouteTimes' LifeRoute/LifeRouteWebView.swift
-          grep -q 'route-times.js' LifeRoute/Web/index.html
-          grep -q 'todos.js' LifeRoute/Web/index.html
-          grep -q 'sleek-ui.js' LifeRoute/Web/index.html
-          test -s LifeRoute/Web/todos.js
-          test -s LifeRoute/Web/sleek-ui.js
+          grep -q 'searchStoreLocations' LifeRoute/LifeRouteWebView.swift
+          grep -q 'routeTransportType' LifeRoute/LifeRouteWebView.swift
+          echo "Feature preflight passed."
+
+      - name: Compile simulator build
+        run: |
+          set -euo pipefail
+          rm -rf build/PreflightDerivedData
+          xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/PreflightDerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+          test -d "build/PreflightDerivedData/Build/Products/Debug-iphonesimulator/LifeRoute.app"
+          echo "Simulator compile preflight passed."
 
       - name: Generate LifeRoute app icon
         run: |
@@ -130,7 +165,6 @@ jobs:
           WIDTH=$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/ {print $2}')
           HEIGHT=$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/ {print $2}')
           test "$WIDTH" = "1024" && test "$HEIGHT" = "1024" || (echo "Unexpected icon dimensions: ${WIDTH}x${HEIGHT}" && exit 1)
-          file "$ICON"
           echo "Generated fresh 1024x1024 LifeRoute app icon and matching in-app logo."
 
       - name: Validate required Apple secrets
@@ -150,6 +184,7 @@ jobs:
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
         run: |
+          set -euo pipefail
           KEY_PATH="$RUNNER_TEMP/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
           printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$KEY_PATH"
           chmod 600 "$KEY_PATH"
@@ -166,7 +201,7 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
-          set -o pipefail
+          set -euo pipefail
           mkdir -p build
           xcodebuild \
             -project "$PROJECT" \
@@ -208,6 +243,7 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
+          set -euo pipefail
           xcodebuild \
             -exportArchive \
             -archivePath build/LifeRoute.xcarchive \
@@ -223,6 +259,7 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
+          set -euo pipefail
           IPA=$(find build/export -name '*.ipa' -print -quit)
           test -n "$IPA" || (echo "No IPA found" && exit 1)
           xcrun altool \

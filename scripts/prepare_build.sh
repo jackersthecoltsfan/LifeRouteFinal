@@ -58,6 +58,11 @@ for js in icons.js route-times.js smart-context.js todos.js grocery-stores.js tr
   node --check "LifeRoute/Web/$js"
   grep -q "<script src=\"$js\"></script>" LifeRoute/Web/index.html
 done
+# Browser-only welcome code is loaded dynamically by the Pages preview, so validate
+# the file itself here without requiring it to be injected into the native app HTML.
+test -s "LifeRoute/Web/welcome.js"
+node --check "LifeRoute/Web/welcome.js"
+
 grep -q 'requestRouteTimes' LifeRoute/LifeRouteWebView.swift
 grep -q 'searchStoreLocations' LifeRoute/LifeRouteWebView.swift
 grep -q 'requestCurrentLocation' LifeRoute/LifeRouteWebView.swift
@@ -93,7 +98,8 @@ grep -q 'REAL_IMAGE_VISUALS' LifeRoute/Web/visual-tools.js
 grep -q 'LifeRouteVisualResolver' LifeRoute/Web/visual-resolver.js
 grep -q 'commons.wikimedia.org' LifeRoute/Web/visual-resolver.js
 grep -q 'LifeRouteSmartVisuals' LifeRoute/Web/visual-resolver-bridge.js
-grep -q 'Low-confidence public search results' LifeRoute/Web/visual-resolver-bridge.js
+grep -q 'publicPhotoFallback' LifeRoute/Web/visual-resolver-bridge.js
+grep -q 'Wrong is worse than blank' LifeRoute/Web/visual-resolver-bridge.js
 test -s "LifeRoute/Web/assets/visuals/table-work.jpg"
 test -s "LifeRoute/Web/assets/visuals/outside.jpg"
 file "LifeRoute/Web/assets/visuals/table-work.jpg" | grep -q "JPEG image data"

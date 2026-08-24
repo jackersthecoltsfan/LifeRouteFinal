@@ -1,0 +1,1 @@
+The final icon is generated as a 1024x1024 PNG during the TestFlight workflow and copied into the AppIcon asset catalog and in-app logo source.

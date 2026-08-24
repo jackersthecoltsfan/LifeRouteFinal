@@ -1,5 +1,4 @@
 from pathlib import Path
-import patch_day_navigation  # Also applies Day-view Previous / Today / Next controls.
 
 path = Path("LifeRoute/LifeRouteWebView.swift")
 text = path.read_text()
@@ -11,13 +10,13 @@ action_anchor = '                openPlace(provider: provider, query: query)\n'
 auth_actions = '''            case "authStatus":
                 emitAuthStatus()
             case "authSetCredentials":
-                let phone = (body["phone"] as? String) ?? ""
+                let username = (body["username"] as? String) ?? ""
                 let pin = (body["pin"] as? String) ?? ""
-                saveAuthCredentials(phone: phone, pin: pin)
+                saveAuthCredentials(username: username, pin: pin)
             case "authVerifyCredentials":
-                let phone = (body["phone"] as? String) ?? ""
+                let username = (body["username"] as? String) ?? ""
                 let pin = (body["pin"] as? String) ?? ""
-                verifyAuthCredentials(phone: phone, pin: pin)
+                verifyAuthCredentials(username: username, pin: pin)
 '''
 
 if 'case "authStatus":' not in text:
@@ -26,28 +25,22 @@ if 'case "authStatus":' not in text:
     text = text.replace(action_anchor, action_anchor + auth_actions, 1)
 
 auth_block = r'''
-        // MARK: - LifeRoute login / Keychain
+        // MARK: - LifeRoute local login / Keychain
 
         private var authKeychainService: String {
-            "\(Bundle.main.bundleIdentifier ?? "LifeRoute").auth"
+            "\(Bundle.main.bundleIdentifier ?? "LifeRoute").auth.v2"
         }
 
         private var authDefaults: UserDefaults { .standard }
         private let authMaxAttempts = 5
         private let authLockSeconds: TimeInterval = 60
 
-        private func normalizedAuthPhone(_ raw: String) -> String? {
-            let digits = raw.filter(\.isNumber)
-            if digits.count == 10 { return "+1\(digits)" }
-            if (8...15).contains(digits.count) { return "+\(digits)" }
-            return nil
-        }
-
-        private func authPhoneHint(_ phone: String?) -> String {
-            guard let phone else { return "" }
-            let digits = phone.filter(\.isNumber)
-            guard digits.count >= 4 else { return "" }
-            return "••• ••• \(digits.suffix(4))"
+        private func normalizedAuthUsername(_ raw: String) -> String? {
+            let username = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard username.range(of: "^[a-z0-9][a-z0-9._-]{2,23}$", options: .regularExpression) != nil else {
+                return nil
+            }
+            return username
         }
 
         private func randomAuthSalt() -> String {
@@ -64,8 +57,6 @@ auth_block = r'''
             seed.append(saltData)
             seed.append(Data(pin.utf8))
             var digest = Data(SHA256.hash(data: seed))
-            // Make brute-force attempts meaningfully more expensive while the
-            // 4-digit PIN remains convenient. The PIN itself is never stored.
             for _ in 0..<50_000 {
                 var round = Data()
                 round.append(digest)
@@ -104,7 +95,7 @@ auth_block = r'''
         }
 
         private var authConfigured: Bool {
-            readAuthKeychain(account: "phone") != nil &&
+            readAuthKeychain(account: "username") != nil &&
             readAuthKeychain(account: "pinSalt") != nil &&
             readAuthKeychain(account: "pinHash") != nil
         }
@@ -112,33 +103,33 @@ auth_block = r'''
         private func emitAuthStatus() {
             emit(type: "authStatus", payload: [
                 "configured": authConfigured,
-                "phoneHint": authPhoneHint(readAuthKeychain(account: "phone"))
+                "usernameHint": readAuthKeychain(account: "username") ?? ""
             ])
         }
 
-        private func saveAuthCredentials(phone rawPhone: String, pin: String) {
-            guard let phone = normalizedAuthPhone(rawPhone),
+        private func saveAuthCredentials(username rawUsername: String, pin: String) {
+            guard let username = normalizedAuthUsername(rawUsername),
                   pin.range(of: "^[0-9]{4}$", options: .regularExpression) != nil else {
                 emit(type: "authCredentialSaved", payload: [
                     "success": false,
-                    "message": "A valid mobile number and 4-digit PIN are required."
+                    "message": "A valid username and 4-digit PIN are required."
                 ])
                 return
             }
 
             let salt = randomAuthSalt()
             let hash = authHash(pin: pin, salt: salt)
-            saveAuthKeychain(account: "phone", value: phone)
+            saveAuthKeychain(account: "username", value: username)
             saveAuthKeychain(account: "pinSalt", value: salt)
             saveAuthKeychain(account: "pinHash", value: hash)
-            authDefaults.set(0, forKey: "LifeRouteAuthFailedAttempts")
-            authDefaults.removeObject(forKey: "LifeRouteAuthLockUntil")
+            authDefaults.set(0, forKey: "LifeRouteAuthFailedAttemptsV2")
+            authDefaults.removeObject(forKey: "LifeRouteAuthLockUntilV2")
             emit(type: "authCredentialSaved", payload: ["success": true])
         }
 
-        private func verifyAuthCredentials(phone rawPhone: String, pin: String) {
+        private func verifyAuthCredentials(username rawUsername: String, pin: String) {
             let now = Date().timeIntervalSince1970
-            let lockedUntil = authDefaults.double(forKey: "LifeRouteAuthLockUntil")
+            let lockedUntil = authDefaults.double(forKey: "LifeRouteAuthLockUntilV2")
             if lockedUntil > now {
                 emit(type: "authVerifyResult", payload: [
                     "success": false,
@@ -147,9 +138,9 @@ auth_block = r'''
                 return
             }
 
-            guard let phone = normalizedAuthPhone(rawPhone),
+            guard let username = normalizedAuthUsername(rawUsername),
                   pin.range(of: "^[0-9]{4}$", options: .regularExpression) != nil,
-                  let savedPhone = readAuthKeychain(account: "phone"),
+                  let savedUsername = readAuthKeychain(account: "username"),
                   let salt = readAuthKeychain(account: "pinSalt"),
                   let savedHash = readAuthKeychain(account: "pinHash") else {
                 emit(type: "authVerifyResult", payload: [
@@ -159,30 +150,30 @@ auth_block = r'''
                 return
             }
 
-            let success = phone == savedPhone && authHash(pin: pin, salt: salt) == savedHash
+            let success = username == savedUsername && authHash(pin: pin, salt: salt) == savedHash
             if success {
-                authDefaults.set(0, forKey: "LifeRouteAuthFailedAttempts")
-                authDefaults.removeObject(forKey: "LifeRouteAuthLockUntil")
+                authDefaults.set(0, forKey: "LifeRouteAuthFailedAttemptsV2")
+                authDefaults.removeObject(forKey: "LifeRouteAuthLockUntilV2")
                 emit(type: "authVerifyResult", payload: ["success": true])
                 return
             }
 
-            var attempts = authDefaults.integer(forKey: "LifeRouteAuthFailedAttempts") + 1
+            var attempts = authDefaults.integer(forKey: "LifeRouteAuthFailedAttemptsV2") + 1
             if attempts >= authMaxAttempts {
                 attempts = 0
                 let until = now + authLockSeconds
-                authDefaults.set(until, forKey: "LifeRouteAuthLockUntil")
-                authDefaults.set(attempts, forKey: "LifeRouteAuthFailedAttempts")
+                authDefaults.set(until, forKey: "LifeRouteAuthLockUntilV2")
+                authDefaults.set(attempts, forKey: "LifeRouteAuthFailedAttemptsV2")
                 emit(type: "authVerifyResult", payload: [
                     "success": false,
                     "lockedForSeconds": Int(authLockSeconds),
                     "message": "Too many incorrect attempts."
                 ])
             } else {
-                authDefaults.set(attempts, forKey: "LifeRouteAuthFailedAttempts")
+                authDefaults.set(attempts, forKey: "LifeRouteAuthFailedAttemptsV2")
                 emit(type: "authVerifyResult", payload: [
                     "success": false,
-                    "message": "Phone number or PIN is incorrect."
+                    "message": "Username or PIN is incorrect."
                 ])
             }
         }
@@ -190,10 +181,10 @@ auth_block = r'''
 '''
 
 marker = '        // MARK: - Native status / maps\n'
-if '// MARK: - LifeRoute login / Keychain' not in text:
+if '// MARK: - LifeRoute local login / Keychain' not in text:
     if marker not in text:
         raise SystemExit("Could not find native status insertion point")
     text = text.replace(marker, auth_block + marker, 1)
 
 path.write_text(text)
-print("LifeRoute phone/PIN Keychain bridge enabled.")
+print("LifeRoute username/PIN Keychain bridge enabled.")

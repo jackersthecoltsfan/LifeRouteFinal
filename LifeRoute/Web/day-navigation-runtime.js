@@ -1,5 +1,6 @@
 // Stable runtime binding for LifeRoute Day navigation.
-// Avoid inline onclick dependencies so later calendar/render wrappers cannot detach navigation.
+// Core Day modules now load in one deterministic build order, so this file only
+// owns date movement, labels, rerendering, and viewport preservation.
 (() => {
   if (window.__lifeRouteDayNavigationRuntimeLoaded) return;
   window.__lifeRouteDayNavigationRuntimeLoaded = true;
@@ -11,6 +12,17 @@
     return `${y}-${m}-${d}`;
   };
 
+  const selectedKey = () => {
+    const direct = String(window.selectedDate || "").trim();
+    if (direct) return direct;
+    try { return String(selectedDate || "").trim(); } catch (_) { return ""; }
+  };
+
+  const setSelectedKey = value => {
+    try { window.selectedDate = value; } catch (_) {}
+    try { selectedDate = value; } catch (_) {}
+  };
+
   const dateFromKeySafe = value => {
     const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!match) return new Date();
@@ -19,20 +31,15 @@
   };
 
   const restoreScrollPosition = (x, y) => {
-    const restore = () => {
-      try { window.scrollTo(x, y); } catch (_) {}
-    };
+    const restore = () => { try { window.scrollTo(x, y); } catch (_) {} };
     restore();
-    requestAnimationFrame(() => {
-      restore();
-      requestAnimationFrame(restore);
-    });
+    requestAnimationFrame(() => { restore(); requestAnimationFrame(restore); });
     setTimeout(restore, 60);
     setTimeout(restore, 180);
   };
 
   const relativeDayLabel = () => {
-    const selected = dateFromKeySafe(window.selectedDate);
+    const selected = dateFromKeySafe(selectedKey());
     const today = new Date();
     selected.setHours(12, 0, 0, 0);
     today.setHours(12, 0, 0, 0);
@@ -57,31 +64,32 @@
   const refreshDay = () => {
     const scrollX = window.scrollX || window.pageXOffset || 0;
     const scrollY = window.scrollY || window.pageYOffset || 0;
-
     try { localStorage.setItem("liferoute_calendar_view", "today"); } catch (_) {}
+
     if (typeof window.renderAll === "function") window.renderAll();
     else if (typeof window.renderToday === "function") window.renderToday();
     try { window.showView?.("today"); } catch (_) {}
 
     updateCenterLabel();
-    const selected = dateFromKeySafe(window.selectedDate);
+    window.decorateLifeRouteBoundaryStops?.();
+    window.decorateLifeRouteSelectedGaps?.();
+
+    const selected = dateFromKeySafe(selectedKey());
     const label = selected.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
     try { window.setStatus?.(`Day · ${label}`); } catch (_) {}
-
     restoreScrollPosition(scrollX, scrollY);
   };
 
   window.shiftSelectedDay = function shiftSelectedDayRuntime(delta) {
-    const date = dateFromKeySafe(window.selectedDate);
+    const date = dateFromKeySafe(selectedKey());
     date.setDate(date.getDate() + Number(delta || 0));
-    window.selectedDate = keyForDate(date);
+    setSelectedKey(keyForDate(date));
     refreshDay();
   };
 
-  // Kept for compatibility with older markup/helpers, but the center control is
-  // now a context label rather than a navigation action.
+  // Compatibility entry point only. The center control is a context label.
   window.jumpSelectedDayToToday = function jumpSelectedDayToTodayRuntime() {
-    window.selectedDate = keyForDate(new Date());
+    setSelectedKey(keyForDate(new Date()));
     refreshDay();
   };
 
@@ -120,22 +128,8 @@
     return true;
   };
 
-  // These enhancements depend on the core Day/timeline modules that load before
-  // this runtime. Loading them here keeps web and native builds on the same code.
-  const loadCoreEnhancement = name => {
-    if (document.querySelector(`script[data-liferoute-core-enhancement="${name}"]`)) return;
-    const script = document.createElement("script");
-    const build = document.querySelector('meta[name="liferoute-web-build"]')?.content || "";
-    script.src = `${name}${build ? `?v=${encodeURIComponent(build)}` : ""}`;
-    script.async = false;
-    script.dataset.liferouteCoreEnhancement = name;
-    document.body.appendChild(script);
-  };
-
   const start = () => {
     bind();
-    loadCoreEnhancement("boundary-stop-planner.js");
-    loadCoreEnhancement("refined-ui-v2.js");
     let attempts = 0;
     const timer = setInterval(() => {
       attempts += 1;

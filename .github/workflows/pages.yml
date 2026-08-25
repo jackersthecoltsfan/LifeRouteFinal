@@ -80,7 +80,7 @@ jobs:
           for js in \
             global-bridge.js calendar-hub.js auth-gate.js icons.js route-times.js smart-context.js \
             todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js \
-            selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js \
+            selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js visual-timer-v2.js \
             visual-resolver.js visual-tools.js visual-resolver-bridge.js visual-object-focus-v2.js live-themes.js \
             day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js day-navigation-runtime.js \
             nature-settings-web.js settings-classic-themes-web.js photoreal-nature-web.js dynamic-themes-web.js \
@@ -99,7 +99,7 @@ jobs:
           for core in \
             global-bridge.js calendar-hub.js auth-gate.js route-times.js smart-context.js \
             selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js \
-            rbt-tools.js visual-tools.js visual-object-focus-v2.js first-then-back.js \
+            rbt-tools.js visual-timer-v2.js visual-tools.js visual-object-focus-v2.js first-then-back.js \
             photo-source-picker-web.js live-location-v2.js day-route-experience.js \
             boundary-stop-planner.js stop-place-search-v4.js day-navigation-runtime.js \
             nature-settings-web.js settings-classic-themes-web.js photoreal-nature-web.js \
@@ -127,10 +127,26 @@ jobs:
           grep -q 'planLifeRouteGapRoute' dist/saved-place-gap-options.js
           grep -q 'LifeRouteStopPlaceSearchV4' dist/stop-place-search-v4.js
 
-          # First/Then must always have an escape control outside generated board DOM.
+          # First/Then must always have an escape control outside generated board DOM
+          # without observing every class mutation across the entire application.
           grep -q 'lifeRouteFirstThenEscape' dist/first-then-back.js
           grep -q 'stopImmediatePropagation' dist/first-then-back.js
           grep -q 'cancelOpenTimers' dist/first-then-back.js
+          grep -q 'overlayClassObserver.observe(overlay' dist/first-then-back.js
+          grep -q 'overlayContentObserver.observe(overlay' dist/first-then-back.js
+          ! grep -q 'subtree: true, attributes: true' dist/first-then-back.js
+
+          # Visual Timer v2: audible half-second chimes, rising pitch, local Web Audio,
+          # scoped lifecycle, and futuristic presentation must survive final bundling.
+          grep -q 'LifeRouteVisualTimerV2' dist/visual-timer-v2.js
+          grep -q 'CHIME_PERIOD_MS = 500' dist/visual-timer-v2.js
+          grep -q 'START_HZ = 220' dist/visual-timer-v2.js
+          grep -q 'END_HZ = 1320' dist/visual-timer-v2.js
+          grep -q 'webkitAudioContext' dist/visual-timer-v2.js
+          grep -q 'fundamental.type = "sine"' dist/visual-timer-v2.js
+          grep -q 'lrTimerTelemetry' dist/visual-timer-v2.js
+          grep -q 'prefers-reduced-motion:reduce' dist/visual-timer-v2.js
+          grep -q 'document.visibilityState === "hidden"' dist/visual-timer-v2.js
 
           # Web live location must use a continuing browser watch whenever native
           # CoreLocation is unavailable, and the shared module must also know how

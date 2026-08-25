@@ -35,8 +35,6 @@ replace_once(
 ''',
     "classic theme storage exclusivity",
 )
-# Theme modules are already in the canonical core list. Do not inject duplicate
-# async copies before their static tags execute.
 replace_once(
     classic,
     '''  const loadHelper = (id, filename, loadedFlag) => {
@@ -69,7 +67,35 @@ replace_once(
     "classic theme deterministic installation",
 )
 
-# 2) Dynamic themes: explicitly clear fluid/animal state and replace 10-second
+# 2) Scenery themes explicitly clear every other moving theme family.
+nature = Path("LifeRoute/Web/nature-settings-web.js")
+replace_once(
+    nature,
+    '''    const [, , scene, sky1, sky2, land, land2, accent] = theme;
+    const root = document.documentElement;
+    root.dataset.theme = key;
+''',
+    '''    const [, , scene, sky1, sky2, land, land2, accent] = theme;
+    const root = document.documentElement;
+    try { window.LifeRouteDynamicThemes?.clear?.(true); } catch (_) {}
+    try { window.LifeRouteFluidScenes?.clear?.(true); } catch (_) {}
+    try { window.LifeRouteDynamicAnimals?.clear?.(true); } catch (_) {}
+    root.removeAttribute("data-dynamic-theme");
+    root.removeAttribute("data-dynamic-motion");
+    root.removeAttribute("data-fluid-scene");
+    root.removeAttribute("data-animal-theme");
+    root.removeAttribute("data-animal-motion");
+    try {
+      localStorage.removeItem("liferoute_dynamic_theme_v1");
+      localStorage.removeItem("liferoute_fluid_scene_v1");
+      localStorage.removeItem("liferoute_dynamic_animal_v1");
+    } catch (_) {}
+    root.dataset.theme = key;
+''',
+    "scenery theme exclusivity",
+)
+
+# 3) Dynamic themes: explicitly clear fluid/animal state and replace 10-second
 # polling with deterministic install + Settings-click retry.
 dynamic = Path("LifeRoute/Web/dynamic-themes-web.js")
 replace_once(
@@ -113,7 +139,7 @@ replace_once(
     "dynamic theme deterministic installation",
 )
 
-# 3) Fluid themes: explicitly clear animal state and remove polling.
+# 4) Fluid themes: explicitly clear animal state and remove polling.
 fluid = Path("LifeRoute/Web/fluid-scenes-v1.js")
 replace_once(
     fluid,
@@ -155,7 +181,7 @@ replace_once(
     "fluid theme deterministic installation",
 )
 
-# 4) Animal themes: avoid polling and expose a stable clear API used by other
+# 5) Animal themes: avoid polling and expose a stable clear API used by other
 # families. Existing imagery remains lazy-triggered when Settings opens.
 animal = Path("LifeRoute/Web/dynamic-animals-v1.js")
 replace_once(
@@ -180,7 +206,7 @@ replace_once(
     "animal theme deterministic installation",
 )
 
-# 5) Theme catalog normalization only needs to observe the Settings sheet, not
+# 6) Theme catalog normalization only needs to observe the Settings sheet, not
 # every mutation made by calendars, timers, Live Day, or tools elsewhere.
 catalog = Path("LifeRoute/Web/theme-catalog-v3.js")
 replace_once(

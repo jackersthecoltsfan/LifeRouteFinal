@@ -23,6 +23,8 @@
   const activeGeneratedDay = day => !!readObject(GENERATED_STORE)[day];
 
   let state = null;
+  let pendingGapPrompt = false;
+  let promptedGapKey = "";
 
   const ensureSheet = () => {
     let overlay = document.getElementById("lifeRouteStopDurationSheet");
@@ -108,6 +110,8 @@
     refreshGeneratedDay();
   };
 
+  const valueOrBlank = (input, value) => { if (input) input.value = value; };
+
   const open = (kind, key, label = "") => {
     const storeKey = kind === "boundary" ? BOUNDARY_STORE : GAP_STORE;
     const data = readObject(storeKey);
@@ -120,13 +124,10 @@
     const current = Math.max(1, Number(selection.stopMinutes || 5));
     const presets = overlay.querySelector("#lrStopDurationPresets");
     if (presets) presets.innerHTML = PRESETS.map(minutes => `<button type="button" class="lrStopDurationPreset${minutes === current ? " active" : ""}" data-lr-stop-duration-minutes="${minutes}">${minutes} min</button>`).join("");
-    const custom = overlay.querySelector("#lrStopDurationCustomInput");
-    if (custom) valueOrBlank(custom, PRESETS.includes(current) ? "" : String(current));
+    valueOrBlank(overlay.querySelector("#lrStopDurationCustomInput"), PRESETS.includes(current) ? "" : String(current));
     overlay.classList.add("show");
     return true;
   };
-
-  const valueOrBlank = (input, value) => { if (input) input.value = value; };
 
   const decorateCards = () => {
     document.querySelectorAll("#timeline .lrBoundaryGap[data-boundary-mode]").forEach(card => {
@@ -145,18 +146,25 @@
     });
 
     document.querySelectorAll("#timeline .gapRouteSelected").forEach(card => {
-      if (card.querySelector("[data-lr-gap-duration]")) return;
       const key = clean(card.dataset.selectedRouteKey);
       const selection = readObject(GAP_STORE)[key];
       if (!key || !selection) return;
-      const actions = card.querySelector(".selectedGapActions");
-      if (!actions) return;
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "secondary lrPlannedDurationButton";
-      button.dataset.lrGapDuration = key;
-      button.textContent = `${Math.max(1, Number(selection.stopMinutes || 5))} min stop`;
-      actions.insertBefore(button, actions.firstChild);
+      if (!card.querySelector("[data-lr-gap-duration]")) {
+        const actions = card.querySelector(".selectedGapActions");
+        if (actions) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "secondary lrPlannedDurationButton";
+          button.dataset.lrGapDuration = key;
+          button.textContent = `${Math.max(1, Number(selection.stopMinutes || 5))} min stop`;
+          actions.insertBefore(button, actions.firstChild);
+        }
+      }
+      if (pendingGapPrompt && key !== promptedGapKey) {
+        pendingGapPrompt = false;
+        promptedGapKey = key;
+        setTimeout(() => open("gap", key), 35);
+      }
     });
   };
 
@@ -175,6 +183,29 @@
     wrapped.__lrDurationWrapped = true;
     window.lifeRouteSaveBoundaryStop = wrapped;
   };
+
+  const wrapGapPlanner = () => {
+    const original = window.planLifeRouteGapRoute;
+    if (typeof original !== "function" || original.__lrDurationWrapped) return;
+    const wrapped = function() {
+      pendingGapPrompt = true;
+      return original.apply(this, arguments);
+    };
+    wrapped.__lrDurationWrapped = true;
+    window.planLifeRouteGapRoute = wrapped;
+  };
+
+  // Direct Saved Place / To-Do selections are owned by a document-capture handler
+  // in the boundary planner. Observe them one level earlier at window capture so
+  // the duration sheet still opens after that handler saves the stop.
+  window.addEventListener("click", event => {
+    const direct = event.target?.closest?.("[data-boundary-place],[data-boundary-todo]");
+    if (!direct) return;
+    const mode = clean(direct.closest?.(".lrBoundaryGap")?.dataset?.boundaryMode);
+    if (!mode) return;
+    const key = `${currentDay()}|${mode}`;
+    setTimeout(() => open("boundary", key), 45);
+  }, true);
 
   document.addEventListener("click", event => {
     const closeButton = event.target.closest?.("[data-lr-stop-duration-close]");
@@ -203,6 +234,7 @@
     requestAnimationFrame(() => {
       queued = false;
       wrapBoundarySave();
+      wrapGapPlanner();
       decorateCards();
     });
   };

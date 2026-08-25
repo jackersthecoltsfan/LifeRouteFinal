@@ -51,15 +51,7 @@ if 'case "haptic":' not in swift:
     marker = '            case "openRoute":\n'
     haptic_case = '''            case "haptic":
                 let requestedStyle = (body["style"] as? String ?? "light").lowercased()
-                let feedbackStyle: UIImpactFeedbackGenerator.FeedbackStyle
-                switch requestedStyle {
-                case "medium":
-                    feedbackStyle = .medium
-                case "heavy":
-                    feedbackStyle = .heavy
-                default:
-                    feedbackStyle = .light
-                }
+                let feedbackStyle: UIImpactFeedbackGenerator.FeedbackStyle = requestedStyle == "heavy" ? .heavy : (requestedStyle == "medium" ? .medium : .light)
                 let generator = UIImpactFeedbackGenerator(style: feedbackStyle)
                 generator.prepare()
                 generator.impactOccurred()

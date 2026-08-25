@@ -28,11 +28,11 @@ if expected_sha:
 core = [
     "global-bridge.js", "calendar-hub.js", "auth-gate.js", "route-times.js", "smart-context.js",
     "live-location-v2.js", "selected-gap-routes.js", "saved-place-gap-options.js", "live-day.js",
-    "day-controls-v5.js", "rbt-tools.js", "client-picker-sync-v1.js", "toolbar-cleanup-v1.js",
-    "visual-timer-v2.js", "first-then-back.js", "visual-resolver.js", "visual-tools.js",
-    "photo-source-picker-web.js", "visual-object-focus-v2.js", "visual-resolver-bridge.js",
-    "day-route-experience.js", "boundary-stop-planner.js", "stop-place-search-v4.js",
-    "stop-duration-v1.js", "day-navigation-runtime.js", "nature-settings-web.js",
+    "day-controls-v5.js", "rbt-tools.js", "client-picker-sync-v1.js", "client-profiles-v1.js",
+    "client-profile-tools-v1.js", "toolbar-cleanup-v1.js", "visual-timer-v2.js", "first-then-back.js",
+    "visual-resolver.js", "visual-tools.js", "photo-source-picker-web.js", "visual-object-focus-v2.js",
+    "visual-resolver-bridge.js", "day-route-experience.js", "boundary-stop-planner.js",
+    "stop-place-search-v4.js", "stop-duration-v1.js", "day-navigation-runtime.js", "nature-settings-web.js",
     "settings-classic-themes-web.js", "photoreal-nature-web.js", "dynamic-themes-web.js",
     "fluid-scenes-v1.js", "dynamic-animals-v1.js", "theme-catalog-v3.js", "ui-simplify-v4.js",
     "refined-ui-v2.js", "aesthetic-polish-v1.js", "stability-runtime.js",
@@ -63,6 +63,8 @@ for path in sorted(DIST.glob("*.js")):
 # End-to-end feature contracts in the exact deployable artifact.
 markers = {
     "client-picker-sync-v1.js": ["quickNoteClient", "sessionPlanClient", "refreshLifeRouteToolClients"],
+    "client-profiles-v1.js": ["LifeRouteClientProfilesV1", "clientPreferredActivities", "clientCurrentTargets", "clientBehaviorsOfConcern", "liferoute:clients-changed"],
+    "client-profile-tools-v1.js": ["applyLifeRouteClientProfileToTools", "sessionPlanTargets", "sessionPlanReinforcers", "profileAutofill"],
     "toolbar-cleanup-v1.js": ["LifeRouteToolbarCleanupV1", "child.dataset?.view === 'month'"],
     "stop-duration-v1.js": ["LifeRouteStopDurationV1", "stopMinutes"],
     "live-day.js": ["planned stop time", "scheduleDayNotifications"],
@@ -84,6 +86,10 @@ for name, required in markers.items():
 
 # Performance/lifecycle invariants after final bundling.
 require("setInterval(" not in read("client-picker-sync-v1.js"), "client picker has no polling loop")
+require("fetch(" not in read("client-profiles-v1.js"), "rich client profile storage has no network fetch")
+require("https://" not in read("client-profiles-v1.js") and "http://" not in read("client-profiles-v1.js"), "rich client profile storage has no remote endpoint")
+require("fetch(" not in read("client-profile-tools-v1.js"), "client profile tool bridge has no network fetch")
+require("https://" not in read("client-profile-tools-v1.js") and "http://" not in read("client-profile-tools-v1.js"), "client profile tool bridge has no remote endpoint")
 require("observer.observe(document.body" not in read("theme-catalog-v3.js"), "theme catalog is not page-wide")
 require("characterData: true" not in read("ui-simplify-v4.js"), "UI simplifier ignores live text churn")
 require("fetch(" not in read("visual-object-focus-v2.js"), "photo subject focusing stays local")
@@ -105,4 +111,4 @@ if failed:
     for label in failed:
         print("FAIL:", label)
     raise SystemExit(1)
-print("Final browser artifact syntax, shared-runtime parity, core workflows, lifecycle constraints, and privacy/security passed.")
+print("Final browser artifact syntax, shared-runtime parity, client profiles, core workflows, lifecycle constraints, and privacy/security passed.")

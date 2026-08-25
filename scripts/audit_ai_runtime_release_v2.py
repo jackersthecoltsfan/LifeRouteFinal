@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "LifeRoute" / "Web"
@@ -13,6 +12,7 @@ MODULES = {
         "ai-planning-v1.js",
         "image-playground-v1.js",
         "first-then-ai-studio-v1.js",
+        "aba-ai-note-v1.js",
         "visual-object-focus-v2.js",
         "visual-resolver.js",
         "visual-resolver-bridge.js",
@@ -24,7 +24,7 @@ def check(name, condition):
     checks.append((name, bool(condition)))
 
 # Privacy boundary: photos + ABA text stay on-device in the AI layers.
-local_only_modules = ["ai-assistant-v1.js", "ai-planning-v1.js", "image-playground-v1.js", "first-then-ai-studio-v1.js", "visual-object-focus-v2.js"]
+local_only_modules = ["ai-assistant-v1.js", "ai-planning-v1.js", "image-playground-v1.js", "first-then-ai-studio-v1.js", "aba-ai-note-v1.js", "visual-object-focus-v2.js"]
 for name in local_only_modules:
     text = MODULES[name]
     check(f"{name} has no http endpoint", "http://" not in text and "https://" not in text)
@@ -36,6 +36,7 @@ check("Foundation model unavailable path returns fallback", '"model-unavailable"
 check("unsupported OS Foundation model path returns fallback", '"unsupported-os"' in SWIFT)
 check("Image Playground device availability checked", "ImagePlaygroundViewController.isAvailable" in SWIFT)
 check("Vision segmentation availability guarded", "#available(iOS 17.0" in SWIFT and "VNGenerateForegroundInstanceMaskRequest" in SWIFT)
+check("Vision OCR uses local VNRecognizeTextRequest", "VNRecognizeTextRequest" in SWIFT and 'case "recognizeVisualText":' in SWIFT)
 
 # No API keys/cloud model hosts were introduced.
 combined = "\n".join(MODULES.values()) + "\n" + SWIFT
@@ -62,6 +63,12 @@ check("Image Playground request has timeout cleanup", "180000" in studio and "pe
 firstthen = MODULES["first-then-ai-studio-v1.js"]
 check("First Then AI fallback uses one scheduled timer", "let checkTimer = 0" in firstthen and "clearTimeout(checkTimer)" in firstthen)
 check("First Then AI does not add broad MutationObserver", "MutationObserver" not in firstthen)
+aba = MODULES["aba-ai-note-v1.js"]
+check("ABA OCR request has timeout cleanup", "7000" in aba and "pendingOCR.delete(requestId)" in aba)
+check("ABA OCR text is bounded", ".slice(0, 12000)" in aba)
+check("ABA generated note is bounded", ".slice(0, 6000)" in aba)
+check("ABA tool stores no screenshot or generated note in persistent storage", "localStorage.setItem" not in aba)
+check("ABA tool never auto-sends documentation", "send" not in aba.lower())
 
 # AI cannot become authority for exact route or clinical data.
 planning = MODULES["ai-planning-v1.js"]
@@ -70,18 +77,22 @@ check("session fallback remains available", "deterministic fallback used" in pla
 check("route facts come from Live Day hooks", "LifeRouteLiveDayAIHooks" in planning)
 check("AI does not post route actions itself", 'action: "openRoute"' not in planning and 'action: "requestRouteTimes"' not in planning)
 check("AI does not write client profiles", "liferoute_client_profiles" not in planning and "prefs.clients" not in planning)
+check("ABA note prohibits billing invention", "billing facts" in aba and "Review every fact before documentation or billing" in aba)
+check("ABA note marks saved profile data context only", "context only" in aba)
 
 # Shared deterministic startup and no duplicate script injection.
-for module in ["ai-assistant-v1.js", "visual-resolver-ai-v2.js", "ai-planning-v1.js", "image-playground-v1.js", "first-then-ai-studio-v1.js"]:
-    check(f"prepare_build lists {module} once", PREP.count(module) >= 2)  # core list + CORE_JS validation list
+for module in ["ai-assistant-v1.js", "visual-resolver-ai-v2.js", "ai-planning-v1.js", "image-playground-v1.js", "first-then-ai-studio-v1.js", "aba-ai-note-v1.js"]:
+    check(f"prepare_build validates {module} in shared startup", PREP.count(module) >= 2)  # core + CORE_JS validation
 check("AI native patch owned once", PREP.count("patch_ai_everywhere_v2.py") == 1)
+check("ABA OCR native patch owned once", PREP.count("patch_aba_ai_note_v1.py") == 1)
 
 # Native action responses are request-ID scoped, not global shared state.
-for action in ["aiGenerateText", "segmentVisualSubject", "openImagePlayground"]:
+for action in ["aiGenerateText", "segmentVisualSubject", "openImagePlayground", "recognizeVisualText"]:
     check(f"native action exists: {action}", f'case "{action}":' in SWIFT)
 check("Foundation response includes requestId", '"foundationAIResponse"' in SWIFT and '"requestId": requestID' in SWIFT)
 check("cutout response includes requestId", '"visualSubjectCutout"' in SWIFT and '"requestId": requestID' in SWIFT)
 check("Image Playground response includes requestId", '"imagePlaygroundResult"' in SWIFT and '"requestId": requestID' in SWIFT)
+check("OCR response includes requestId", '"visualTextRecognition"' in SWIFT and '"requestId": requestID' in SWIFT)
 
 failed = [name for name, ok in checks if not ok]
 for name, ok in checks:

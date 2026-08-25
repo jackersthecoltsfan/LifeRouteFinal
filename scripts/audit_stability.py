@@ -95,9 +95,9 @@ check("animation:none!important;will-change:auto!important" in stability, "nativ
 check("if (scheduler || !overlay()?.classList.contains(\"show\")) return" in visual_timer, "visual timer scheduler starts only while visible")
 check("document.visibilityState === \"hidden\"" in visual_timer and "stopScheduler" in visual_timer, "visual timer sleeps in background")
 check("bodyObserver.disconnect()" in visual_timer, "visual timer lazy DOM observer disconnects")
-check("overlayClassObserver.observe(overlay" in first_then, "First/Then class observer is overlay-scoped")
-check("overlayContentObserver.observe(overlay" in first_then, "First/Then content observer is overlay-scoped")
-check('observer.observe(document.body, { childList: true, subtree: true, attributes: true' not in first_then, "First/Then avoids document-wide class observation")
+check("overlayClassObserver.observe(overlay" in first_then and 'attributeFilter: ["class"]' in first_then, "First/Then class observer is overlay-scoped")
+check("overlayContentObserver" not in first_then and "childList: true" not in first_then and "subtree: true" not in first_then, "First/Then has no recursive content observer")
+check("bodyObserver" not in first_then, "First/Then has no document-wide mutation observer")
 check("will-change:transform,filter" not in first_then, "First/Then avoids permanent filter compositing hint")
 
 # Shared mobile compositing/overscroll guardrails.

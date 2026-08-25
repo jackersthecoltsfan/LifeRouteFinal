@@ -32,6 +32,9 @@ PATCHES=(
   patch_live_location_consumers_v1.py
   patch_external_service_limits_v1.py
   patch_external_links_hardening_v1.py
+  patch_feature_regressions_v2.py
+  patch_performance_cleanup_v2.py
+  patch_visual_ai_v1.py
 )
 for patch in "${PATCHES[@]}"; do
   python3 "scripts/$patch"
@@ -59,15 +62,19 @@ core = [
     "selected-gap-routes.js",
     "saved-place-gap-options.js",
     "live-day.js",
+    "end-home-route-web.js",
     "day-controls-v5.js",
     "rbt-tools.js",
     "client-picker-sync-v1.js",
     "client-profiles-v1.js",
     "client-profile-tools-v1.js",
+    "mileage-tracker-web.js",
+    "resources-hub-web.js",
     "toolbar-cleanup-v1.js",
     "visual-timer-v2.js",
     "first-then-back.js",
     "visual-resolver.js",
+    "visual-quality-web.js",
     "visual-tools.js",
     "photo-source-picker-web.js",
     "visual-object-focus-v2.js",
@@ -106,8 +113,10 @@ plutil -lint LifeRouteLiveActivity/Info.plist
 CORE_JS=(
   global-bridge.js calendar-hub.js auth-gate.js icons.js route-times.js smart-context.js live-location-v2.js
   todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js
-  selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js client-picker-sync-v1.js client-profiles-v1.js client-profile-tools-v1.js toolbar-cleanup-v1.js visual-timer-v2.js first-then-back.js
-  visual-resolver.js visual-tools.js photo-source-picker-web.js visual-object-focus-v2.js visual-resolver-bridge.js live-themes.js
+  selected-gap-routes.js saved-place-gap-options.js live-day.js end-home-route-web.js day-controls-v5.js
+  rbt-tools.js client-picker-sync-v1.js client-profiles-v1.js client-profile-tools-v1.js
+  mileage-tracker-web.js resources-hub-web.js toolbar-cleanup-v1.js visual-timer-v2.js first-then-back.js
+  visual-resolver.js visual-quality-web.js visual-tools.js photo-source-picker-web.js visual-object-focus-v2.js visual-resolver-bridge.js live-themes.js
   day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js stop-duration-v1.js
   day-navigation-runtime.js nature-settings-web.js settings-classic-themes-web.js
   photoreal-nature-web.js dynamic-themes-web.js fluid-scenes-v1.js dynamic-animals-v1.js
@@ -122,7 +131,6 @@ done
 BROWSER_JS=(
   welcome.js nav-cleanup.js icloud-calendar-web.js google-calendar-web.js
   google-calendar-stability.js google-calendar-persistence-web.js
-  visual-quality-web.js end-home-route-web.js mileage-tracker-web.js resources-hub-web.js
   web-routing-bridge.js web-store-search-fallback.js web-routing-resilience.js
   web-store-late-guard.js web-store-direct-v2.js web-store-panel-persistence.js
 )
@@ -145,6 +153,7 @@ python3 scripts/audit_tools_section.py
 python3 scripts/audit_auth_disabled_v1.py
 python3 scripts/audit_appearance.py
 python3 scripts/audit_stability.py
+python3 scripts/audit_feature_parity_performance_ai.py
 
 # Independent multi-angle release gates.
 python3 scripts/audit_user_journeys.py
@@ -157,7 +166,8 @@ python3 scripts/audit_state_invariants.py
 # Critical native bridge contracts.
 for marker in \
   requestRouteTimes searchStoreLocations requestCurrentLocation startLiveLocation stopLiveLocation CLLocationManagerDelegate \
-  openRoute routeTransportType scheduleDayNotifications startLiveDayActivity endLiveDayActivity \
+  openRoute openExternalURL analyzeVisualSubject VNGenerateObjectnessBasedSaliencyImageRequest routeTransportType \
+  scheduleDayNotifications startLiveDayActivity endLiveDayActivity \
   authSetCredentials authVerifyCredentials; do
   grep -q "$marker" LifeRoute/LifeRouteWebView.swift
 done
@@ -186,6 +196,8 @@ grep -q 'LifeRouteStopPlaceSearchV4' LifeRoute/Web/stop-place-search-v4.js
 grep -q 'LifeRouteStopDurationV1' LifeRoute/Web/stop-duration-v1.js
 grep -q 'planned stop time' LifeRoute/Web/live-day.js
 grep -q 'LifeRouteDayControlsV5' LifeRoute/Web/day-controls-v5.js
+grep -q 'endDayAtHome' LifeRoute/Web/end-home-route-web.js
+grep -q 'data-lr-clear-day' LifeRoute/Web/day-controls-v5.js
 
 # Saved-client field-tool + profile contracts.
 grep -q 'refreshLifeRouteToolClients' LifeRoute/Web/client-picker-sync-v1.js

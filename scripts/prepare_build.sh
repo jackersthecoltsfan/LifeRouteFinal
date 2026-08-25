@@ -41,6 +41,7 @@ PATCHES=(
   patch_interaction_finalize_v2.py
   patch_touch_delight_v2.py
   patch_interaction_performance_v3.py
+  patch_no_programmatic_scroll_v4.py
 )
 for patch in "${PATCHES[@]}"; do
   python3 "scripts/$patch"

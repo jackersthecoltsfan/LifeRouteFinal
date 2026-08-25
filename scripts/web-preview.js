@@ -68,6 +68,7 @@
     loadPreviewScript("web-routing-bridge.js");
     loadPreviewScript("web-store-search-fallback.js");
     loadPreviewScript("web-routing-resilience.js");
+    loadPreviewScript("web-store-late-guard.js");
     loadPreviewScript("welcome.js");
     loadPreviewScript("nav-cleanup.js");
     loadPreviewScript("icloud-calendar-web.js");

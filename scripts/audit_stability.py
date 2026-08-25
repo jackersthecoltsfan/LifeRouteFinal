@@ -8,6 +8,7 @@ WEB = ROOT / "LifeRoute" / "Web"
 SWIFT = ROOT / "LifeRoute" / "LifeRouteWebView.swift"
 INDEX = WEB / "index.html"
 TESTFLIGHT = ROOT / ".github" / "workflows" / "testflight.yml"
+AUTO_TESTFLIGHT = ROOT / ".github" / "workflows" / "auto-testflight.yml"
 PREVIEW = ROOT / "scripts" / "web-preview.js"
 PREPARE = ROOT / "scripts" / "prepare_build.sh"
 PAGES = ROOT / ".github" / "workflows" / "pages.yml"
@@ -41,6 +42,7 @@ day_nav = read(WEB / "day-navigation-runtime.js")
 photo = read(WEB / "photoreal-nature-web.js")
 preview = read(PREVIEW)
 testflight = read(TESTFLIGHT)
+auto_testflight = read(AUTO_TESTFLIGHT)
 prepare = read(PREPARE)
 pages = read(PAGES)
 ios_ci = read(IOS_CI)
@@ -115,10 +117,16 @@ except ValueError:
     check(False, "web routing bridge loads before calendar helpers")
 check("w=1800" in photo and "w=2400" not in photo, "web scenery photos use bounded high-resolution assets")
 
-# Release safety: audits/fixes must never silently trigger another TestFlight run.
-check("workflow_dispatch" in testflight, "TestFlight remains manually dispatched")
-check(not re.search(r"^\s*push\s*:", testflight, flags=re.M), "TestFlight has no push trigger")
-check(not (ROOT / ".github" / "workflows" / "auto-testflight.yml").exists(), "no automatic TestFlight workflow exists")
+# Release safety: TestFlight itself stays manually dispatchable, while a separate
+# guarded dispatcher may start it only after the current main commit passes CI.
+check("workflow_dispatch" in testflight, "TestFlight remains manually dispatchable")
+check(not re.search(r"^\s*push\s*:", testflight, flags=re.M), "TestFlight has no direct push trigger")
+check(AUTO_TESTFLIGHT.is_file(), "automatic TestFlight dispatcher exists")
+check('workflows: ["iOS Build Check"]' in auto_testflight, "automatic TestFlight waits for iOS Build Check")
+check("github.event.workflow_run.conclusion == 'success'" in auto_testflight, "automatic TestFlight requires successful CI")
+check("github.event.workflow_run.head_branch == 'main'" in auto_testflight, "automatic TestFlight only accepts main")
+check("CURRENT_SHA" in auto_testflight and "VALIDATED_SHA" in auto_testflight, "automatic TestFlight rejects stale validated commits")
+check("gh workflow run testflight.yml" in auto_testflight, "automatic dispatcher invokes the audited TestFlight workflow")
 
 print(f"LifeRoute stability audit: {len(passes)} passed, {len(failures)} failed")
 if failures:

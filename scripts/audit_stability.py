@@ -34,6 +34,8 @@ refined = read(WEB / "refined-ui-v2.js")
 live_day = read(WEB / "live-day.js")
 boundary = read(WEB / "boundary-stop-planner.js")
 day_route = read(WEB / "day-route-experience.js")
+day_nav = read(WEB / "day-navigation-runtime.js")
+photo = read(WEB / "photoreal-nature-web.js")
 preview = read(PREVIEW)
 testflight = read(TESTFLIGHT)
 
@@ -60,6 +62,7 @@ check(".bottom,.bottomin,.bottomin button{pointer-events:auto!important}" in sta
 # Find-a-stop controls keep both a direct fallback and delegated capture handler.
 check("data-lr-boundary-open" in day_route and "lifeRouteOpenBoundaryPlanner" in day_route, "Find a stop direct fallback exists")
 check('document.addEventListener("click", handleClick, true)' in boundary, "Find a stop delegated capture handler exists")
+check(".lrBoundaryGap,.lrBoundarySummary,.lrBoundaryOpen,.lrBoundaryGap button{pointer-events:auto!important}" in stability, "Find-a-stop touch targets stay interactive")
 check("Store search unavailable" in boundary and "Search timed out" in boundary, "store lookup never fails silently")
 
 # Performance: native metallic background must not run a permanent 60-FPS DOM
@@ -69,6 +72,8 @@ check("const shouldAnimate = () => !nativeRuntime" in themes, "native background
 check("timestamp - lastFrame < 50" in themes, "web metallic animation is capped near 20 FPS")
 check("queuePolish" in refined and "new MutationObserver(queuePolish)" in refined, "UI mutation polishing is frame-coalesced")
 check("document.hidden || !document.querySelector(\"[data-live-day-countdown]\")" in live_day, "Live Day ticker sleeps when idle")
+check("attempts > 80" not in day_nav and "[100, 300, 800]" in day_nav, "Day navigation avoids long startup polling")
+check("attempts >= 30" not in boundary and "[180, 550, 1400]" in boundary, "Boundary planner avoids long startup polling")
 
 # Shared mobile compositing/overscroll guardrails.
 for marker in [
@@ -81,13 +86,13 @@ for marker in [
 ]:
     check(marker in stability, f"shared runtime guardrail: {marker}")
 
-# Web helper order must remain deterministic; random async execution previously
-# allowed wrappers to replace one another on mobile Safari.
+# Web helper order and mobile asset cost.
 check("script.async = false" in preview, "web helper scripts execute deterministically")
 try:
     check(preview.index('loadPreviewScript("web-routing-bridge.js")') < preview.index('loadPreviewScript("google-calendar-web.js")'), "web routing bridge loads before calendar helpers")
 except ValueError:
     check(False, "web routing bridge loads before calendar helpers")
+check("w=1800" in photo and "w=2400" not in photo, "web scenery photos use bounded high-resolution assets")
 
 # Release safety: audits/fixes must never silently trigger another TestFlight run.
 check("workflow_dispatch" in testflight, "TestFlight remains manually dispatched")

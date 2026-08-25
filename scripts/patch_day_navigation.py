@@ -41,4 +41,36 @@ if saved_place_tag not in html:
     html = html.replace("</body>", saved_place_tag + "\n</body>", 1)
 
 path.write_text(html)
-print("Previous / Today / Next day navigation and Saved Places gap options enabled.")
+
+# The WebView runtime owns the visible button layer, so bridge button presses to
+# native UIKit haptics. Keep this in the deterministic preparation path so the
+# exact source shipped to TestFlight always contains the feedback contract.
+swift_path = Path("LifeRoute/LifeRouteWebView.swift")
+swift = swift_path.read_text()
+if 'case "haptic":' not in swift:
+    marker = '            case "openRoute":\n'
+    haptic_case = '''            case "haptic":
+                let requestedStyle = (body["style"] as? String ?? "light").lowercased()
+                let feedbackStyle: UIImpactFeedbackGenerator.FeedbackStyle
+                switch requestedStyle {
+                case "medium":
+                    feedbackStyle = .medium
+                case "heavy":
+                    feedbackStyle = .heavy
+                default:
+                    feedbackStyle = .light
+                }
+                let generator = UIImpactFeedbackGenerator(style: feedbackStyle)
+                generator.prepare()
+                generator.impactOccurred()
+            case "openRoute":
+'''
+    if marker not in swift:
+        raise SystemExit("Could not add native button haptics: openRoute bridge marker not found")
+    swift = swift.replace(marker, haptic_case, 1)
+    swift_path.write_text(swift)
+
+if 'case "haptic":' not in swift_path.read_text() or "UIImpactFeedbackGenerator" not in swift_path.read_text():
+    raise SystemExit("Native button haptic bridge verification failed")
+
+print("Previous / Today / Next navigation, Saved Places gap options, and native button haptics enabled.")

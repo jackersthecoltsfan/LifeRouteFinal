@@ -22,6 +22,7 @@ PATCHES=(
   patch_day_navigation.py
   patch_auth_gate.py
   patch_stability.py
+  patch_theme_settings.py
 )
 for patch in "${PATCHES[@]}"; do
   python3 "scripts/$patch"
@@ -60,8 +61,14 @@ core = [
     "boundary-stop-planner.js",
     "stop-place-search-v4.js",
     "day-navigation-runtime.js",
-    "ui-simplify-v4.js",
+    "nature-settings-web.js",
+    "settings-classic-themes-web.js",
+    "photoreal-nature-web.js",
+    "dynamic-themes-web.js",
     "fluid-scenes-v1.js",
+    "dynamic-animals-v1.js",
+    "theme-catalog-v3.js",
+    "ui-simplify-v4.js",
     "refined-ui-v2.js",
     "stability-runtime.js",
 ]
@@ -94,8 +101,9 @@ CORE_JS=(
   selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js
   visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js
   day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js
-  day-navigation-runtime.js ui-simplify-v4.js fluid-scenes-v1.js refined-ui-v2.js
-  stability-runtime.js
+  day-navigation-runtime.js nature-settings-web.js settings-classic-themes-web.js
+  photoreal-nature-web.js dynamic-themes-web.js fluid-scenes-v1.js dynamic-animals-v1.js
+  theme-catalog-v3.js ui-simplify-v4.js refined-ui-v2.js stability-runtime.js
 )
 for js in "${CORE_JS[@]}"; do
   test -s "LifeRoute/Web/$js"
@@ -107,9 +115,8 @@ BROWSER_JS=(
   welcome.js nav-cleanup.js icloud-calendar-web.js google-calendar-web.js
   google-calendar-stability.js google-calendar-persistence-web.js first-then-back.js
   visual-quality-web.js photo-source-picker-web.js end-home-route-web.js
-  mileage-tracker-web.js resources-hub-web.js nature-settings-web.js
-  settings-classic-themes-web.js photoreal-nature-web.js dynamic-themes-web.js
-  web-routing-bridge.js web-store-search-fallback.js
+  mileage-tracker-web.js resources-hub-web.js web-routing-bridge.js
+  web-store-search-fallback.js
 )
 for js in "${BROWSER_JS[@]}"; do
   test -s "LifeRoute/Web/$js"
@@ -118,6 +125,7 @@ done
 
 python3 scripts/audit_stop_place_search.py
 python3 scripts/audit_live_day_activity.py
+python3 scripts/audit_theme_catalog.py
 python3 scripts/audit_stability.py
 
 # Critical native bridge contracts.

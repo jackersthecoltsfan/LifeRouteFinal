@@ -75,32 +75,40 @@ jobs:
           PY
 
           # Final artifact validation after cache-busting. The full audit above
-          # validates architecture; these checks confirm the deployed dist still
-          # contains its critical runtime modules.
+          # validates architecture; these checks confirm the exact deployable
+          # browser artifact still contains every critical shared/runtime layer.
           for js in \
             global-bridge.js calendar-hub.js auth-gate.js icons.js route-times.js smart-context.js \
             todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js \
-            selected-gap-routes.js saved-place-gap-options.js live-day.js rbt-tools.js \
-            visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js \
-            day-route-experience.js boundary-stop-planner.js day-navigation-runtime.js refined-ui-v2.js \
-            stability-runtime.js \
+            selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js \
+            visual-resolver.js visual-tools.js visual-resolver-bridge.js visual-object-focus-v2.js live-themes.js \
+            day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js day-navigation-runtime.js \
+            nature-settings-web.js settings-classic-themes-web.js photoreal-nature-web.js dynamic-themes-web.js \
+            fluid-scenes-v1.js dynamic-animals-v1.js theme-catalog-v3.js ui-simplify-v4.js \
+            first-then-back.js photo-source-picker-web.js live-location-v2.js refined-ui-v2.js stability-runtime.js \
             welcome.js nav-cleanup.js icloud-calendar-web.js google-calendar-web.js \
-            google-calendar-stability.js google-calendar-persistence-web.js first-then-back.js \
-            visual-quality-web.js photo-source-picker-web.js end-home-route-web.js \
-            mileage-tracker-web.js resources-hub-web.js nature-settings-web.js \
-            settings-classic-themes-web.js photoreal-nature-web.js dynamic-themes-web.js \
+            google-calendar-stability.js google-calendar-persistence-web.js visual-quality-web.js \
+            end-home-route-web.js mileage-tracker-web.js resources-hub-web.js \
             web-routing-bridge.js web-store-search-fallback.js web-preview.js; do
             test -s "dist/$js"
             node --check "dist/$js"
           done
 
+          # These shared modules must be loaded by index.html itself, so web and
+          # native/TestFlight use the same behavior instead of preview-only fixes.
           for core in \
-            global-bridge.js calendar-hub.js auth-gate.js selected-gap-routes.js \
-            saved-place-gap-options.js day-route-experience.js boundary-stop-planner.js \
-            day-navigation-runtime.js refined-ui-v2.js stability-runtime.js rbt-tools.js visual-tools.js; do
+            global-bridge.js calendar-hub.js auth-gate.js route-times.js smart-context.js \
+            selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js \
+            rbt-tools.js visual-tools.js visual-object-focus-v2.js first-then-back.js \
+            photo-source-picker-web.js live-location-v2.js day-route-experience.js \
+            boundary-stop-planner.js stop-place-search-v4.js day-navigation-runtime.js \
+            nature-settings-web.js settings-classic-themes-web.js photoreal-nature-web.js \
+            dynamic-themes-web.js fluid-scenes-v1.js dynamic-animals-v1.js theme-catalog-v3.js \
+            ui-simplify-v4.js refined-ui-v2.js stability-runtime.js; do
             grep -q "$core?v=$GITHUB_SHA\|$core?v=${GITHUB_SHA:0:8}\|$core" dist/index.html
           done
 
+          # Day / stop planner contracts.
           grep -q 'class="lrDayPager"' dist/index.html
           grep -q 'id="dayPrevButton"' dist/index.html
           grep -q 'id="dayTodayButton"' dist/index.html
@@ -108,7 +116,6 @@ jobs:
           grep -q 'shiftSelectedDayRuntime' dist/day-navigation-runtime.js
           grep -q 'dayNavBound' dist/day-navigation-runtime.js
           ! grep -q 'loadCoreEnhancement' dist/day-navigation-runtime.js
-
           grep -q 'data-lr-boundary-open' dist/day-route-experience.js
           grep -q 'lifeRouteOpenBoundaryPlanner' dist/boundary-stop-planner.js
           grep -q 'liferoute_boundary_stops_v2' dist/boundary-stop-planner.js
@@ -118,12 +125,44 @@ jobs:
           grep -q 'searchStoreLocations' dist/boundary-stop-planner.js
           grep -q 'Saved places' dist/saved-place-gap-options.js
           grep -q 'planLifeRouteGapRoute' dist/saved-place-gap-options.js
+          grep -q 'LifeRouteStopPlaceSearchV4' dist/stop-place-search-v4.js
 
+          # First/Then must always have an escape control outside generated board DOM.
+          grep -q 'lifeRouteFirstThenEscape' dist/first-then-back.js
+          grep -q 'stopImmediatePropagation' dist/first-then-back.js
+          grep -q 'cancelOpenTimers' dist/first-then-back.js
+
+          # Web live location must use a continuing browser watch whenever native
+          # CoreLocation is unavailable, and the shared module must also know how
+          # to request native streaming on iPhone.
+          grep -q 'watchPosition' dist/live-location-v2.js
+          grep -q 'clearWatch' dist/live-location-v2.js
+          grep -q 'startLiveLocation' dist/live-location-v2.js
+          grep -q 'freshnessMs' dist/live-location-v2.js
+
+          # Subject focusing is local-only Canvas processing. A user photo must
+          # never be sent to a remote image-generation endpoint by this module.
+          grep -q 'LifeRouteVisualObjectFocus' dist/visual-object-focus-v2.js
+          grep -q 'subjectCrop' dist/visual-object-focus-v2.js
+          grep -q 'getImageData' dist/visual-object-focus-v2.js
+          grep -q 'toBlob' dist/visual-object-focus-v2.js
+          ! grep -q 'fetch(' dist/visual-object-focus-v2.js
+          ! grep -q 'https://' dist/visual-object-focus-v2.js
+
+          # Living Creatures use photographic/fantasy media + atmospheric motion,
+          # not the removed flat SVG silhouette system.
+          grep -q 'Lunar Wolf' dist/dynamic-animals-v1.js
+          grep -q 'Storm Dragon' dist/dynamic-animals-v1.js
+          grep -q 'lrAnimalScenePhoto' dist/dynamic-animals-v1.js
+          grep -q 'commons.wikimedia.org' dist/dynamic-animals-v1.js
+          grep -q 'prefers-reduced-motion:reduce' dist/dynamic-animals-v1.js
+          ! grep -q 'SHAPES =' dist/dynamic-animals-v1.js
+
+          # Stability + web routing/provider contracts.
           grep -q 'overscroll-behavior-y:none' dist/stability-runtime.js
           grep -q 'lifeRouteStableRefreshCalendars' dist/stability-runtime.js
           grep -q 'lifeRouteStableOptimizeWeek' dist/stability-runtime.js
           grep -q 'data-life-route-runtime="native"' dist/stability-runtime.js
-
           grep -q 'web-routing-bridge.js' dist/web-preview.js
           grep -q 'web-store-search-fallback.js' dist/web-preview.js
           grep -q 'google-calendar-persistence-web.js' dist/web-preview.js
@@ -132,16 +171,22 @@ jobs:
           grep -q 'requestRouteTimes' dist/web-routing-bridge.js
           grep -q 'searchStoreLocations' dist/web-routing-bridge.js
           grep -q 'web-nominatim-fallback' dist/web-store-search-fallback.js
-
           grep -q 'calendar.readonly' dist/google-calendar-web.js
           grep -q 'apps.googleusercontent.com' dist/google-calendar-web.js
           grep -q 'Metallic Wave' dist/settings-classic-themes-web.js
           grep -q 'Scenery' dist/dynamic-themes-web.js
           grep -q 'Dynamic' dist/dynamic-themes-web.js
           grep -q 'Unsplash photography' dist/photoreal-nature-web.js
-          ! grep -qi 'client_secret' dist/*.js
-          ! grep -q 'PREVIEW_CODE' dist/auth-gate.js
-          ! grep -q '246810' dist/auth-gate.js
+
+          # Final deployable-artifact privacy/safety scan. Source audits already
+          # enforce empty defaults; this makes sure build preparation/cache-busting
+          # did not introduce secrets or user-specific fixtures into dist.
+          ! grep -Rqi 'client_secret' dist
+          ! grep -Rqi 'PREVIEW_CODE' dist
+          ! grep -Rqi '246810' dist
+          ! grep -Rqi 'Brandon Good' dist
+          ! grep -Rqi '600 Valley Rd' dist
+          ! grep -Rqi '9611 Cowden St' dist
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

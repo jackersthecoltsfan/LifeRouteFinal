@@ -20,6 +20,7 @@ jobs:
       SCHEME: LifeRoute
       PROJECT: LifeRoute.xcodeproj
       BUNDLE_ID: Com.Brandongood.LifeRoute
+      LIVE_ACTIVITY_BUNDLE_ID: Com.Brandongood.LifeRoute.LiveActivity
 
     steps:
       - name: Checkout
@@ -157,6 +158,13 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: ruby scripts/apple_ci_assets.rb snapshot "$RUNNER_TEMP/apple-signing-baseline.json"
 
+      - name: Verify app and extension bundle IDs
+        run: |
+          set -euo pipefail
+          grep -q "PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};" LifeRoute.xcodeproj/project.pbxproj
+          grep -q "PRODUCT_BUNDLE_IDENTIFIER = ${LIVE_ACTIVITY_BUNDLE_ID};" LifeRoute.xcodeproj/project.pbxproj
+          echo "Host + Live Activity extension bundle IDs are distinct and ready for automatic signing."
+
       - name: Archive LifeRoute
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -165,6 +173,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p build
+          # Do not override PRODUCT_BUNDLE_IDENTIFIER on the command line: the
+          # host app and Live Activity extension each need their own bundle ID.
           xcodebuild \
             -project "$PROJECT" \
             -scheme "$SCHEME" \
@@ -172,7 +182,6 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath build/LifeRoute.xcarchive \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID" \
             CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
             CODE_SIGN_STYLE=Automatic \
             -allowProvisioningUpdates \

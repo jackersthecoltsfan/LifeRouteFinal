@@ -87,7 +87,6 @@ BROWSER_FILES = [
 for name in CORE_FILES + BROWSER_FILES:
     require((WEB / name).is_file() and (WEB / name).stat().st_size > 0, f"Required feature file: {name}")
 
-# Syntax-check every JavaScript and Python source, not just the feature list.
 node = shutil.which("node")
 require(bool(node), "Node.js available for JavaScript syntax audit")
 if node:
@@ -122,18 +121,14 @@ route_bridge = text(WEB / "web-routing-bridge.js")
 store_fallback = text(WEB / "web-store-search-fallback.js")
 refined = text(WEB / "refined-ui-v2.js")
 
-# ---------------------------------------------------------------------------
-# Deterministic startup order
-# ---------------------------------------------------------------------------
+# Deterministic startup order.
 script_refs = re.findall(r'<script[^>]+src=["\']([^"\']+\.js)(?:\?[^"\']*)?["\']', index, flags=re.I)
 counts = Counter(script_refs)
 for ref, count in counts.items():
     require(count == 1, f"No duplicate prepared script tag: {ref}")
-
 for name in CORE_FILES:
     require(name in script_refs, f"Prepared HTML loads core feature: {name}")
     require((WEB / name).is_file(), f"Prepared core script resolves: {name}")
-
 positions = [script_refs.index(name) for name in CORE_FILES if name in script_refs]
 require(len(positions) == len(CORE_FILES) and positions == sorted(positions), "Core feature scripts load in canonical order")
 require(script_refs.index("global-bridge.js") < script_refs.index("calendar-hub.js"), "Global state bridge loads before calendar hub")
@@ -144,17 +139,12 @@ require(script_refs.index("boundary-stop-planner.js") < script_refs.index("day-n
 require(script_refs.index("day-navigation-runtime.js") < script_refs.index("refined-ui-v2.js"), "Refined UI loads after Day behavior")
 require("loadCoreEnhancement" not in day_nav, "Day navigation no longer dynamically reinjects core modules")
 
-# Global lexical state must be bridged for later modules.
 for marker in ['expose("prefs"', 'expose("events"', 'expose("places"', 'expose("nativeState"', 'expose("selectedDate"']:
     require(marker in global_bridge, f"Global bridge exposes state: {marker}")
-
-# Browser-only feature loader inventory catches silent web regressions.
 for loader in BROWSER_FILES:
     require(f'loadPreviewScript("{loader}")' in preview, f"Web preview loads: {loader}")
 
-# ---------------------------------------------------------------------------
-# Authentication / security
-# ---------------------------------------------------------------------------
+# Authentication / security.
 require("username + 4-digit PIN" in auth, "Authentication remains username + 4-digit PIN")
 require("PBKDF2" in auth, "Browser PIN uses PBKDF2 derivation")
 require("liferoute_auth_browser_v2" in auth, "Current local auth storage version present")
@@ -162,9 +152,7 @@ all_code = "\n".join(text(path) for path in sorted(WEB.rglob("*.js"))) + "\n" + 
 require("PREVIEW_CODE" not in all_code and "246810" not in all_code, "Obsolete SMS preview code absent")
 require(not re.search(r"client_secret\s*[:=]", all_code, flags=re.I), "No OAuth client secret embedded in app code")
 
-# ---------------------------------------------------------------------------
-# Day navigation / routing
-# ---------------------------------------------------------------------------
+# Day navigation / routing.
 for marker in ["dayPrevButton", "dayTodayButton", "dayNextButton"]:
     require(marker in index, f"Day navigation control present: {marker}")
 require("restoreScrollPosition" in day_nav, "Day arrows preserve viewport")
@@ -177,21 +165,15 @@ require("BEFORE FIRST" in day_route and "AFTER LAST" in day_route, "Before/after
 require("Stop on the way home" in day_route, "After-last boundary wording is clear")
 require("storeRequests" not in day_route and "loadBoundaryStores" not in day_route, "Old duplicate boundary-store implementation removed")
 
-# ---------------------------------------------------------------------------
-# Mid-day gap planning
-# ---------------------------------------------------------------------------
+# Mid-day gap planning.
 require("liferoute_selected_gap_routes_v2" in selected_gap, "Mid-day selected routes persist")
 require("restoreGapScroll" in selected_gap, "Mid-day chosen routes preserve viewport")
 require("planLifeRouteGapRoute" in selected_gap, "Mid-day gap choices save into Day")
 require("Open route" in selected_gap and "Change" in selected_gap, "Selected mid-day stops remain navigable/editable")
-
-# Saved Places must be a first-class mid-day option.
 for marker in ["Saved places", "planLifeRouteGapRoute", "requestRouteTimes", "lrSavedPlaceGapSection"]:
     require(marker in saved_place_gap, f"Saved Places gap capability: {marker}")
 
-# ---------------------------------------------------------------------------
-# Before-first / after-last planner
-# ---------------------------------------------------------------------------
+# Before-first / after-last planner.
 for marker in [
     "liferoute_boundary_stops_v2",
     "lifeRouteOpenBoundaryPlanner",
@@ -213,32 +195,25 @@ require("placesState()" in boundary and "todosState()" in boundary, "Boundary pl
 require("restoreScroll" in boundary, "Changing a boundary stop preserves viewport")
 require("Store search unavailable" in boundary and "Search timed out" in boundary, "Boundary store search never fails silently")
 
-# ---------------------------------------------------------------------------
-# Web route/store resilience
-# ---------------------------------------------------------------------------
+# Web route/store resilience.
 for marker in ["requestRouteTimes", "searchStoreLocations", "requestCurrentLocation", "OSRM_URL", "NOMINATIM_URL"]:
     require(marker in route_bridge, f"Web routing capability: {marker}")
 require("web-nominatim-fallback" in store_fallback, "Store search has Nominatim fallback")
 require("fallback(requestID)" in store_fallback, "Empty/stalled store search triggers fallback")
 require("6500" in store_fallback, "Store fallback activates after bounded primary wait")
-
-# Native bridge capabilities used by the same UI.
 for marker in [
     "requestRouteTimes", "searchStoreLocations", "requestCurrentLocation", "CLLocationManagerDelegate",
     "openRoute", "routeTransportType", "scheduleDayNotifications", "authSetCredentials", "authVerifyCredentials",
 ]:
     require(marker in swift, f"Native bridge capability: {marker}")
 
-# ---------------------------------------------------------------------------
-# Google Calendar / appearance / resources / RBT tools
-# ---------------------------------------------------------------------------
+# Google Calendar / appearance / resources / tools.
 google = text(WEB / "google-calendar-web.js")
 google_persist = text(WEB / "google-calendar-persistence-web.js")
 require("calendar.readonly" in google, "Google Calendar remains read-only")
 require("apps.googleusercontent.com" in google, "Google web OAuth client ID remains configured")
 require("Restoring Google Calendar" in google_persist, "Google Calendar reconnect restoration retained")
 require("access token or refresh token" in google_persist, "Google persistence avoids local token storage")
-
 require("Metallic Wave" in settings, "Metallic Wave theme family retained")
 require("Scenery" in dynamic, "Scenery theme family retained")
 require("Dynamic" in dynamic, "Dynamic theme family retained")
@@ -248,28 +223,24 @@ require("choiceBoardTool" in visuals and "firstThenFirstMode" in visuals, "RBT v
 require((WEB / "assets" / "visuals" / "table-work.jpg").is_file(), "Table-work visual asset retained")
 require((WEB / "assets" / "visuals" / "outside.jpg").is_file(), "Outside visual asset retained")
 
-# UI refinement must not recreate the floating Back overlap.
+# UI refinement.
 require("position:relative!important" in refined and "Back stays in document flow" in refined, "Back navigation cannot float over Day cards")
 require("#webPreviewBadge span{display:none" in refined, "Mobile web preview banner is compact")
 require("Ranked by fit, route, priority, and due date." in refined, "Gap helper copy is simplified")
-
-# Vector transport icons stay consistent.
 for glyph in ["🚙", "🚗", "🚘"]:
     require(glyph not in index, f"Prepared UI has no legacy transport emoji: {glyph}")
 
-# ---------------------------------------------------------------------------
-# Workflow / release safety
-# ---------------------------------------------------------------------------
+# Workflow / release safety.
 pages = text(PAGES)
 ios_ci = text(IOS_CI)
 testflight = text(TESTFLIGHT)
 require("python3 scripts/audit_liferoute_build.py" in pages, "Pages runs full regression audit")
 require("python3 scripts/audit_liferoute_build.py" in ios_ci, "iOS CI runs full regression audit")
+require("Full LifeRoute regression audit" in testflight and "python3 scripts/audit_liferoute_build.py" in testflight, "Future TestFlight releases are gated by full audit")
 require("workflow_dispatch" in testflight, "TestFlight remains manually dispatched")
 require(not re.search(r"^\s*push\s*:", testflight, flags=re.M), "TestFlight has no automatic push trigger")
 require(not (ROOT / ".github" / "workflows" / "auto-testflight.yml").exists(), "No auto-TestFlight workflow exists")
 
-# Manifest/project essentials.
 try:
     json.loads((WEB / "manifest.webmanifest").read_text(encoding="utf-8"))
     require(True, "Web manifest JSON is valid")

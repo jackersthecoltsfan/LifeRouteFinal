@@ -117,6 +117,7 @@ for js in "${BROWSER_JS[@]}"; do
 done
 
 python3 scripts/audit_stop_place_search.py
+python3 scripts/audit_live_day_activity.py
 python3 scripts/audit_stability.py
 
 # Critical native bridge contracts.

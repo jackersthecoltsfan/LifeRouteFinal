@@ -18,9 +18,15 @@
   });
 
   const dataURLToFile = async (dataURL, name = "ai-visual.jpg") => {
-    const response = await fetch(dataURL);
-    const blob = await response.blob();
-    return new File([blob], name, { type: blob.type || "image/jpeg", lastModified: Date.now() });
+    const raw = String(dataURL || "");
+    const match = raw.match(/^data:([^;,]+)?(;base64)?,(.*)$/s);
+    if (!match) throw new Error("Invalid generated image data");
+    const mime = match[1] || "image/jpeg";
+    const body = match[3] || "";
+    const binary = match[2] ? atob(body) : decodeURIComponent(body);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return new File([bytes], name, { type: mime, lastModified: Date.now() });
   };
 
   const open = async ({ label, file } = {}) => {
@@ -87,7 +93,7 @@
       try {
         const result = await open({ label, file });
         if (!result?.success || !result.dataURL) {
-          if (typeof window.setStatus === "function") window.setStatus(result?.reason === "cancelled" ? "AI image studio closed" : "AI image studio is unavailable right now");
+          if (typeof setStatus === "function") setStatus(result?.reason === "cancelled" ? "AI image studio closed" : "AI image studio is unavailable right now");
           return;
         }
         const generated = await dataURLToFile(result.dataURL, `${label.replace(/[^a-z0-9]+/gi, "-").slice(0, 30) || "visual"}-ai-playground.jpg`);
@@ -96,7 +102,7 @@
         transfer.items.add(generated);
         input.files = transfer.files;
         input.dispatchEvent(new Event("change", { bubbles: true }));
-        if (typeof window.setStatus === "function") window.setStatus("AI image returned · LifeRoute is isolating and styling the subject");
+        if (typeof setStatus === "function") setStatus("AI image returned · LifeRoute is isolating and styling the subject");
       } finally {
         button.disabled = false;
         button.textContent = "AI image studio";

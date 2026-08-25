@@ -29,6 +29,7 @@ PATCHES=(
   patch_location_services_hardening_v1.py
   patch_live_location_consumers_v1.py
   patch_external_service_limits_v1.py
+  patch_external_links_hardening_v1.py
 )
 for patch in "${PATCHES[@]}"; do
   python3 "scripts/$patch"

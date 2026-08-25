@@ -46,14 +46,17 @@ auto = read(AUTO)
 check("lrDayHeroRemoved" in day and "display:none!important" in day, "Day commitments hero is removed")
 check("lrDayCommandStrip" in day, "compact Day command strip exists")
 check("Clear day" in day and "Clear all" in day, "Clear day and Clear all controls exist")
-check("window.confirm" in day, "Clear all retains destructive confirmation")
-clear_day = day[day.find("const clearDay ="):day.find("const clearAll =")]
+clear_day = day[day.find("const clearDay ="):day.find("let clearAllArmedUntil")]
+clear_all = day[day.find("let clearAllArmedUntil"):day.find("const install =")]
 check("window.confirm" not in clear_day, "Clear day works without WKWebView JavaScript confirm UI")
 check('window.events = window.events.filter(event => !(event?.date === day && (!event?.source || event.source === "manual")))' in clear_day, "Clear day preserves provider calendar events by deleting only manual LifeRoute events")
-check("Your LifeRoute sign-in will stay" in day, "Clear all explains sign-in preservation")
 check("event.source === \"manual\"" in day, "Clear day removes only manual events for selected date")
 check("liferoute_selected_gap_routes_v2" in day and "liferoute_boundary_stops_v2" in day, "Clear day removes selected gap and boundary plans")
 check("liferoute:day-cleared" in clear_day and "Cleared ✓" in clear_day, "Clear day visibly confirms completion")
+check("window.confirm" not in clear_all, "Clear all does not depend on WKWebView JavaScript confirm UI")
+check("clearAllArmedUntil" in clear_all and "Tap again to clear all" in clear_all and "4000" in clear_all, "Clear all uses bounded two-tap destructive confirmation")
+check('localStorage.getItem(AUTH_STORE)' in clear_all and 'localStorage.setItem(AUTH_STORE, auth)' in clear_all, "Clear all preserves dormant local auth credential for future restoration")
+check('window.postNative({ action: "authClearCredentials" })' not in clear_all, "Clear all does not destroy native Keychain auth credentials")
 
 # Generate Day -> reminders + Live Activity handoff.
 check("generateLifeRouteDay" in live and "scheduleNotifications(plan)" in live, "Generate Day still schedules leave reminders")
@@ -96,4 +99,4 @@ if failures:
     for failure in failures:
         print(f"FAIL: {failure}")
     raise SystemExit(1)
-print("LifeRoute Day UI, functional Clear Day, reminders, and Live Activity audit passed.")
+print("LifeRoute Day UI, functional Clear Day/Clear All controls, reminders, and Live Activity audit passed.")

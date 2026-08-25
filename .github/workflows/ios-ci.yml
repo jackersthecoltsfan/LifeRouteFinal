@@ -6,12 +6,16 @@ on:
     branches: [main]
     paths:
       - 'LifeRoute/**'
+      - 'LifeRouteShared/**'
+      - 'LifeRouteLiveActivity/**'
       - 'LifeRoute.xcodeproj/**'
       - 'scripts/**'
       - '.github/workflows/**'
   pull_request:
     paths:
       - 'LifeRoute/**'
+      - 'LifeRouteShared/**'
+      - 'LifeRouteLiveActivity/**'
       - 'LifeRoute.xcodeproj/**'
       - 'scripts/**'
       - '.github/workflows/**'

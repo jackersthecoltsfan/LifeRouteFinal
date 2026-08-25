@@ -14,6 +14,8 @@ search=text("LifeRoute/Web/stop-place-search-v4.js")
 store=text("LifeRoute/Web/web-store-direct-v2.js")
 animals=text("LifeRoute/Web/dynamic-animals-v1.js")
 nature=text("LifeRoute/Web/photoreal-nature-web.js")
+resources=text("LifeRoute/Web/resources-hub-web.js")
+config=text("LifeRoute/Web/config.js")
 preview=text("scripts/web-preview.js")
 
 # Native Apple integrations: local frameworks, explicit permission, URL handoff only.
@@ -64,17 +66,44 @@ require("credentials:\"omit\"" in animals or 'credentials: "omit"' in animals, "
 require("LicenseShortName" in animals and "Wikimedia Commons" in animals, "Wikimedia attribution metadata is preserved")
 require("https://unsplash.com/photos/" in nature, "Scenery image source is explicit Unsplash media")
 
+# Resource Hub links are explicit user navigation, never background integrations.
+require("window.open(safeURL" in resources and '"_blank", "noopener,noreferrer"' in resources, "resource links open only after explicit launch action")
+require("/^https?:$/" in resources, "custom resource links are limited to HTTP/HTTPS")
+require("fetch(" not in resources and "XMLHttpRequest" not in resources, "Resource Hub does not call portal APIs or transmit credentials")
+
+# CentralReach remains dormant configuration until an authenticated API is intentionally enabled.
+require('centralReach: {' in config and 'enabled: false' in config, "CentralReach API scaffold is disabled")
+require("partners-api.centralreach.com" in config, "CentralReach scaffold endpoint is explicit and reviewable")
+require("fetch(" not in config, "disabled CentralReach config performs no network request")
+
 # Web/native preview separation.
 require("if (window.webkit?.messageHandlers?.lifeRoute) return" in preview, "browser-preview helpers never install in native WKWebView")
 require("Apple Calendar, notifications, and Apple MapKit remain iPhone features" in preview, "web preview labels native-only capabilities")
 
-# Runtime external-host inventory. Any new hard-coded runtime service must be reviewed here.
-approved_hosts={
-    "accounts.google.com","oauth2.googleapis.com","www.googleapis.com","www.google.com",
-    "console.cloud.google.com","maps.apple.com","photon.komoot.io","nominatim.openstreetmap.org",
-    "router.project-osrm.org","overpass-api.de","overpass.private.coffee","commons.wikimedia.org",
-    "unsplash.com","jackersthecoltsfan.github.io","www.icloud.com","icloud.com","support.apple.com",
+# External-host inventory is classified by execution role. A new host must be
+# deliberately assigned to one of these reviewed categories rather than silently
+# becoming an app dependency.
+runtime_service_hosts={
+    "accounts.google.com","oauth2.googleapis.com","www.googleapis.com",
+    "photon.komoot.io","nominatim.openstreetmap.org","router.project-osrm.org",
+    "overpass-api.de","overpass.private.coffee","commons.wikimedia.org",
 }
+map_handoff_hosts={"maps.apple.com","www.google.com"}
+media_hosts={"unsplash.com","images.unsplash.com","images.pexels.com"}
+setup_attribution_hosts={
+    "console.cloud.google.com","jackersthecoltsfan.github.io","www.icloud.com","icloud.com",
+    "support.apple.com","www.openstreetmap.org",
+}
+resource_navigation_hosts={
+    "my.adp.com","app.bamboohr.com","app.gusto.com","www.paycomonline.net","access.paylocity.com",
+    "www.ukg.com","app.rippling.com","www.workday.com","workforce.intuit.com","www.viventium.com",
+    "members.centralreach.com","webapp.rethinkbehavioralhealth.com","www.theralytics.net","secure.datafinch.com",
+    "www.motivity.net","app.hirasmus.com","alohaaba.com","portal.bacb.com","login.reliaslearning.com",
+    "hhaexchange.com","www.sandata.com","www.office.com","workspace.google.com","app.slack.com","teams.microsoft.com",
+}
+dormant_config_hosts={"partners-api.centralreach.com"}
+approved_hosts=(runtime_service_hosts|map_handoff_hosts|media_hosts|setup_attribution_hosts|resource_navigation_hosts|dormant_config_hosts)
+
 paths=[Path("LifeRoute/LifeRouteWebView.swift"), Path("scripts/web-preview.js")]
 paths += list(Path("LifeRoute/Web").glob("*.js")) + [Path("LifeRoute/Web/index.html")]
 hosts=set()
@@ -84,15 +113,25 @@ for path in paths:
         try:
             host=urlparse(url).hostname
             if host: hosts.add(host.lower())
-        except Exception: pass
+        except Exception:
+            pass
 unknown=sorted(hosts-approved_hosts)
-require(not unknown, "all hard-coded runtime HTTPS hosts are reviewed/allowlisted")
+require(not unknown, "all hard-coded HTTPS hosts are explicitly classified by execution role")
+
+# Guard the classification itself: resource-portal hosts should not leak into
+# scripts that make background fetches. Media/runtime hosts are the only remote
+# services allowed in fetch-capable feature files.
+for portal in resource_navigation_hosts:
+    require(portal not in google+routing+search+store+animals, f"resource portal {portal} is not used by background API code")
 
 failed=[label for ok,label in checks if not ok]
 print(f"LifeRoute external-services audit: {len(checks)-len(failed)} passed, {len(failed)} failed")
-print("Reviewed runtime hosts:", ", ".join(sorted(hosts)))
+print("Runtime API hosts:", ", ".join(sorted(runtime_service_hosts & hosts)))
+print("Media hosts:", ", ".join(sorted(media_hosts & hosts)))
+print("User-navigation hosts:", ", ".join(sorted(resource_navigation_hosts & hosts)))
+print("Dormant config hosts:", ", ".join(sorted(dormant_config_hosts & hosts)))
 if unknown: print("UNREVIEWED HOSTS:", ", ".join(unknown))
 if failed:
     for label in failed: print("FAIL:", label)
     raise SystemExit(1)
-print("Apple native integrations, Google OAuth/API, browser routing/search, media services, privacy boundaries, timeouts, workload caps, and host inventory passed.")
+print("Apple native integrations, Google OAuth/API, browser routing/search, media services, resource-link boundaries, timeouts, workload caps, and host classification passed.")

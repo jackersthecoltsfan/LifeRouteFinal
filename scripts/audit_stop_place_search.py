@@ -87,10 +87,10 @@ for forbidden in [
 ]:
     check(forbidden.lower() not in runtime_text.lower(), f"no user-specific runtime fixture: {forbidden}")
 
-# These four-letter client labels are distinctive enough to reject as baked-in
-# examples while allowing generic words such as LifeRoute itself.
+# Preserve exact mixed-case client labels so generic English words like "life"
+# do not create false positives.
 for forbidden_code in ["JaHe", "LiFe"]:
-    pattern = re.compile(rf"(?<![A-Za-z]){re.escape(forbidden_code)}(?![A-Za-z])", re.I)
+    pattern = re.compile(rf"(?<![A-Za-z]){re.escape(forbidden_code)}(?![A-Za-z])")
     check(not pattern.search(runtime_text), f"no client code baked into runtime: {forbidden_code}")
 
 print(f"LifeRoute stop/place + privacy audit: {len(passes)} passed, {len(failures)} failed")

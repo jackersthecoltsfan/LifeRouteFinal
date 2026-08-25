@@ -39,6 +39,8 @@ def text(path: Path) -> str:
         return ""
 
 
+# Shared product features load once from prepared index.html in both WKWebView
+# and browser preview. Only true browser adapters are injected by web-preview.js.
 CORE_FILES = [
     "global-bridge.js",
     "calendar-hub.js",
@@ -46,6 +48,7 @@ CORE_FILES = [
     "icons.js",
     "route-times.js",
     "smart-context.js",
+    "live-location-v2.js",
     "todos.js",
     "grocery-stores.js",
     "transport-mode.js",
@@ -54,15 +57,39 @@ CORE_FILES = [
     "selected-gap-routes.js",
     "saved-place-gap-options.js",
     "live-day.js",
+    "end-home-route-web.js",
+    "day-controls-v5.js",
     "rbt-tools.js",
+    "client-picker-sync-v1.js",
+    "client-profiles-v1.js",
+    "client-profile-tools-v1.js",
+    "mileage-tracker-web.js",
+    "resources-hub-web.js",
+    "toolbar-cleanup-v1.js",
+    "visual-timer-v2.js",
+    "first-then-back.js",
     "visual-resolver.js",
+    "visual-quality-web.js",
     "visual-tools.js",
+    "photo-source-picker-web.js",
+    "visual-object-focus-v2.js",
     "visual-resolver-bridge.js",
     "live-themes.js",
     "day-route-experience.js",
     "boundary-stop-planner.js",
+    "stop-place-search-v4.js",
+    "stop-duration-v1.js",
     "day-navigation-runtime.js",
+    "nature-settings-web.js",
+    "settings-classic-themes-web.js",
+    "photoreal-nature-web.js",
+    "dynamic-themes-web.js",
+    "fluid-scenes-v1.js",
+    "dynamic-animals-v1.js",
+    "theme-catalog-v3.js",
+    "ui-simplify-v4.js",
     "refined-ui-v2.js",
+    "aesthetic-polish-v1.js",
     "stability-runtime.js",
 ]
 
@@ -73,18 +100,12 @@ BROWSER_FILES = [
     "google-calendar-web.js",
     "google-calendar-stability.js",
     "google-calendar-persistence-web.js",
-    "first-then-back.js",
-    "visual-quality-web.js",
-    "photo-source-picker-web.js",
-    "end-home-route-web.js",
-    "mileage-tracker-web.js",
-    "resources-hub-web.js",
-    "nature-settings-web.js",
-    "settings-classic-themes-web.js",
-    "photoreal-nature-web.js",
-    "dynamic-themes-web.js",
     "web-routing-bridge.js",
     "web-store-search-fallback.js",
+    "web-routing-resilience.js",
+    "web-store-late-guard.js",
+    "web-store-direct-v2.js",
+    "web-store-panel-persistence.js",
 ]
 
 for name in CORE_FILES + BROWSER_FILES:
@@ -141,19 +162,22 @@ if all(name in script_refs for name in CORE_FILES):
     require(script_refs.index("global-bridge.js") < script_refs.index("calendar-hub.js"), "Global state bridge loads before calendar hub")
     require(script_refs.index("todos.js") < script_refs.index("saved-place-gap-options.js"), "To-Dos load before Saved Places gap enhancement")
     require(script_refs.index("selected-gap-routes.js") < script_refs.index("saved-place-gap-options.js"), "Persistent gap routes load before Saved Places gap enhancement")
+    require(script_refs.index("live-day.js") < script_refs.index("end-home-route-web.js") < script_refs.index("day-controls-v5.js"), "End-at-Home loads between Live Day and Day controls")
     require(script_refs.index("day-route-experience.js") < script_refs.index("boundary-stop-planner.js"), "Boundary card shell loads before persistent boundary planner")
     require(script_refs.index("boundary-stop-planner.js") < script_refs.index("day-navigation-runtime.js"), "Boundary planner loads before Day navigation binding")
     require(script_refs.index("day-navigation-runtime.js") < script_refs.index("refined-ui-v2.js"), "Refined UI loads after Day behavior")
-    require(script_refs.index("refined-ui-v2.js") < script_refs.index("stability-runtime.js"), "Stability runtime loads last")
+    require(script_refs.index("refined-ui-v2.js") < script_refs.index("aesthetic-polish-v1.js") < script_refs.index("stability-runtime.js"), "Final appearance and stability layers load last")
 require("loadCoreEnhancement" not in day_nav, "Day navigation no longer dynamically reinjects core modules")
 
 for marker in ['expose("prefs"', 'expose("events"', 'expose("places"', 'expose("nativeState"', 'expose("selectedDate"']:
     require(marker in global_bridge, f"Global bridge exposes state: {marker}")
 for loader in BROWSER_FILES:
-    require(f'loadPreviewScript("{loader}")' in preview, f"Web preview loads: {loader}")
+    require(f'loadPreviewScript("{loader}")' in preview, f"Web preview loads browser adapter: {loader}")
+for loader in CORE_FILES:
+    require(f'loadPreviewScript("{loader}")' not in preview, f"Web preview does not duplicate shared feature: {loader}")
 
 # Authentication / security.
-require("username + 4-digit PIN" in auth, "Authentication remains username + 4-digit PIN")
+require("username + 4-digit PIN" in auth, "Authentication implementation remains recoverable")
 require("PBKDF2" in auth, "Browser PIN uses PBKDF2 derivation")
 require("liferoute_auth_browser_v2" in auth, "Current local auth storage version present")
 all_code = "\n".join(text(path) for path in sorted(WEB.rglob("*.js"))) + "\n" + preview + "\n" + swift
@@ -211,7 +235,8 @@ require("fallback(requestID)" in store_fallback, "Empty/stalled store search tri
 require("6500" in store_fallback, "Store fallback activates after bounded primary wait")
 for marker in [
     "requestRouteTimes", "searchStoreLocations", "requestCurrentLocation", "CLLocationManagerDelegate",
-    "openRoute", "routeTransportType", "scheduleDayNotifications", "authSetCredentials", "authVerifyCredentials",
+    "openRoute", "openExternalURL", "analyzeVisualSubject", "VNGenerateObjectnessBasedSaliencyImageRequest",
+    "routeTransportType", "scheduleDayNotifications", "authSetCredentials", "authVerifyCredentials",
 ]:
     require(marker in swift, f"Native bridge capability: {marker}")
 
@@ -221,6 +246,8 @@ for marker in [
     "lifeRouteStableRefreshCalendars",
     "lifeRouteStableOptimizeWeek",
     'data-life-route-runtime="native"',
+    'html[data-life-route-runtime="native"] .card',
+    "backdrop-filter:none!important",
 ]:
     require(marker in stability, f"Stability runtime capability: {marker}")
 require("stability-runtime.js" in prepare and "patch_stability.py" in prepare, "Prepared build includes stability runtime and patch")

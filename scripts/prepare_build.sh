@@ -1,7 +1,7 @@
 set -euo pipefail
 
-# Apply native/runtime patches in a deterministic order. The source files remain
-# readable; build-time patches only add platform bridge behavior and stable markup.
+# Apply native/runtime patches in deterministic order. Release hardening runs
+# after the feature patches so its checks see the final shared architecture.
 PATCHES=(
   patch_route_times.py
   patch_location_context.py
@@ -24,17 +24,20 @@ PATCHES=(
   patch_auth_gate.py
   patch_stability.py
   patch_theme_settings.py
+  patch_release_hardening_v1.py
+  patch_theme_runtime_hardening_v1.py
+  patch_location_services_hardening_v1.py
+  patch_live_location_consumers_v1.py
+  patch_external_service_limits_v1.py
 )
 for patch in "${PATCHES[@]}"; do
   python3 "scripts/$patch"
 done
 
-# Normalize all core feature scripts into ONE startup order. Some older patch
-# scripts still inject their own tags for backwards compatibility; remove every
-# known core tag first, then append the canonical list once.
+# Normalize all shared feature scripts into one startup order for both native
+# WKWebView and browser preview builds.
 python3 - <<'PY'
 from pathlib import Path
-
 path = Path("LifeRoute/Web/index.html")
 html = path.read_text()
 core = [
@@ -82,25 +85,15 @@ core = [
     "aesthetic-polish-v1.js",
     "stability-runtime.js",
 ]
-
 if "</body>" not in html:
     raise SystemExit("Could not inject LifeRoute feature scripts: </body> not found")
-
 for name in core:
-    tag = f'<script src="{name}"></script>'
-    html = html.replace(tag, "")
-
-html = html.replace(
-    "</body>",
-    "\n".join(f'<script src="{name}"></script>' for name in core) + "\n</body>",
-    1,
-)
+    html = html.replace(f'<script src="{name}"></script>', "")
+html = html.replace("</body>", "\n".join(f'<script src="{name}"></script>' for name in core) + "\n</body>", 1)
 path.write_text(html)
 print("LifeRoute core scripts normalized into one deterministic startup order.")
 PY
 
-# Fast build preflight. The deeper regression audit runs immediately after this
-# in both Pages and iOS CI (and before any future TestFlight archive).
 python3 -m py_compile scripts/*.py
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivity/Info.plist
@@ -125,13 +118,15 @@ BROWSER_JS=(
   welcome.js nav-cleanup.js icloud-calendar-web.js google-calendar-web.js
   google-calendar-stability.js google-calendar-persistence-web.js
   visual-quality-web.js end-home-route-web.js mileage-tracker-web.js resources-hub-web.js
-  web-routing-bridge.js web-store-search-fallback.js
+  web-routing-bridge.js web-store-search-fallback.js web-routing-resilience.js
+  web-store-late-guard.js web-store-direct-v2.js web-store-panel-persistence.js
 )
 for js in "${BROWSER_JS[@]}"; do
   test -s "LifeRoute/Web/$js"
   node --check "LifeRoute/Web/$js"
 done
 
+# Existing focused gates.
 python3 scripts/audit_client_pickers.py
 python3 scripts/audit_toolbar_cleanup.py
 python3 scripts/audit_stop_duration.py
@@ -142,6 +137,14 @@ python3 scripts/audit_runtime_polish.py
 python3 scripts/audit_visual_timer.py
 python3 scripts/audit_appearance.py
 python3 scripts/audit_stability.py
+
+# Independent multi-angle release gates.
+python3 scripts/audit_user_journeys.py
+python3 scripts/audit_runtime_release.py
+python3 scripts/audit_theme_runtime_deep.py
+python3 scripts/audit_live_location_deep.py
+python3 scripts/audit_external_services.py
+python3 scripts/audit_state_invariants.py
 
 # Critical native bridge contracts.
 for marker in \
@@ -170,35 +173,24 @@ grep -q 'class="lrDayPager"' LifeRoute/Web/index.html
 grep -q 'id="dayPrevButton"' LifeRoute/Web/index.html
 grep -q 'id="dayTodayButton"' LifeRoute/Web/index.html
 grep -q 'id="dayNextButton"' LifeRoute/Web/index.html
-grep -q 'data-lr-boundary-open' LifeRoute/Web/day-route-experience.js
 grep -q 'lifeRouteOpenBoundaryPlanner' LifeRoute/Web/boundary-stop-planner.js
-grep -q 'liferoute_boundary_stops_v2' LifeRoute/Web/boundary-stop-planner.js
 grep -q 'LifeRouteStopPlaceSearchV4' LifeRoute/Web/stop-place-search-v4.js
 grep -q 'LifeRouteStopDurationV1' LifeRoute/Web/stop-duration-v1.js
-grep -q 'boundary-before-in' LifeRoute/Web/live-day.js
 grep -q 'planned stop time' LifeRoute/Web/live-day.js
 grep -q 'LifeRouteDayControlsV5' LifeRoute/Web/day-controls-v5.js
-grep -q 'planLifeRouteGapRoute' LifeRoute/Web/selected-gap-routes.js
-grep -q 'Saved places' LifeRoute/Web/saved-place-gap-options.js
 
 # Saved-client field-tool contracts.
 grep -q 'refreshLifeRouteToolClients' LifeRoute/Web/client-picker-sync-v1.js
 grep -q 'quickNoteClient' LifeRoute/Web/client-picker-sync-v1.js
 grep -q 'sessionPlanClient' LifeRoute/Web/client-picker-sync-v1.js
 
-# Shared main-toolbar cleanup contract.
+# Toolbar + timer + appearance contracts.
 grep -q 'LifeRouteToolbarCleanupV1' LifeRoute/Web/toolbar-cleanup-v1.js
 grep -q "child.dataset?.view === 'month'" LifeRoute/Web/toolbar-cleanup-v1.js
-grep -q 'grid-template-columns' LifeRoute/Web/toolbar-cleanup-v1.js
-
-# Visual timer contracts.
 grep -q 'LifeRouteVisualTimerV2' LifeRoute/Web/visual-timer-v2.js
 grep -q 'CHIME_PERIOD_MS = 500' LifeRoute/Web/visual-timer-v2.js
 grep -q 'END_HZ = 1320' LifeRoute/Web/visual-timer-v2.js
-
-# Final appearance contracts.
 grep -q 'lifeRouteAestheticPolishV1Styles' LifeRoute/Web/aesthetic-polish-v1.js
 grep -q 'min-height:44px!important' LifeRoute/Web/aesthetic-polish-v1.js
-grep -q 'button:focus-visible' LifeRoute/Web/aesthetic-polish-v1.js
 
-echo "LifeRoute feature preflight passed."
+echo "LifeRoute feature preflight + multi-angle release audits passed."

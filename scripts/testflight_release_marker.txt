@@ -1,2 +1,3 @@
-LifeRoute TestFlight release requested after clean audit of main.
-Release source: c29ea6220386c1f4c67d1fba0c92245f4bb9cb30
+LifeRoute TestFlight release requested after clean theme/UI audit.
+Release source audited at: 2d734b5600978f05424b10947168f426a7218bf6
+Includes restored native Settings theme catalog, Dynamic Animals, selected-theme checkmarks, and removal of redundant Appearance screen.

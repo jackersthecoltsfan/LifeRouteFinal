@@ -36,6 +36,7 @@ PATCHES=(
   patch_performance_cleanup_v2.py
   patch_visual_ai_v1.py
   patch_ai_everywhere_v2.py
+  patch_aba_ai_note_v1.py
 )
 for patch in "${PATCHES[@]}"; do
   python3 "scripts/$patch"
@@ -85,6 +86,7 @@ core = [
     "visual-resolver-bridge.js",
     "first-then-ai-studio-v1.js",
     "ai-planning-v1.js",
+    "aba-ai-note-v1.js",
     "live-themes.js",
     "day-route-experience.js",
     "boundary-stop-planner.js",
@@ -124,7 +126,7 @@ CORE_JS=(
   mileage-tracker-web.js resources-hub-web.js toolbar-cleanup-v1.js visual-timer-v2.js first-then-back.js
   visual-resolver.js ai-assistant-v1.js visual-resolver-ai-v2.js visual-quality-web.js visual-tools.js
   photo-source-picker-web.js visual-object-focus-v2.js image-playground-v1.js visual-resolver-bridge.js
-  first-then-ai-studio-v1.js ai-planning-v1.js live-themes.js
+  first-then-ai-studio-v1.js ai-planning-v1.js aba-ai-note-v1.js live-themes.js
   day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js stop-duration-v1.js
   day-navigation-runtime.js nature-settings-web.js settings-classic-themes-web.js
   photoreal-nature-web.js dynamic-themes-web.js fluid-scenes-v1.js dynamic-animals-v1.js
@@ -180,6 +182,7 @@ for marker in \
   requestRouteTimes searchStoreLocations requestCurrentLocation startLiveLocation stopLiveLocation CLLocationManagerDelegate \
   openRoute openExternalURL analyzeVisualSubject VNGenerateObjectnessBasedSaliencyImageRequest routeTransportType \
   aiGenerateText LanguageModelSession segmentVisualSubject VNGenerateForegroundInstanceMaskRequest openImagePlayground ImagePlaygroundViewController \
+  recognizeVisualText VNRecognizeTextRequest \
   scheduleDayNotifications startLiveDayActivity endLiveDayActivity \
   authSetCredentials authVerifyCredentials; do
   grep -q "$marker" LifeRoute/LifeRouteWebView.swift
@@ -229,6 +232,7 @@ grep -q 'dayBrief' LifeRoute/Web/ai-assistant-v1.js
 grep -q 'routeBrief' LifeRoute/Web/ai-assistant-v1.js
 grep -q 'LifeRouteImageStudio' LifeRoute/Web/image-playground-v1.js
 grep -q 'LifeRouteAIPlanning' LifeRoute/Web/ai-planning-v1.js
+grep -q 'LifeRouteABAAINote' LifeRoute/Web/aba-ai-note-v1.js
 grep -q 'wikimedia-ai-semantic' LifeRoute/Web/visual-resolver-ai-v2.js
 
 # Toolbar + timer + appearance contracts.

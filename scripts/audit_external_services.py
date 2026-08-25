@@ -9,9 +9,11 @@ def text(path): return Path(path).read_text()
 swift=text("LifeRoute/LifeRouteWebView.swift")
 info=text("LifeRoute/Info.plist")
 google=text("LifeRoute/Web/google-calendar-web.js")
+calendar=text("LifeRoute/Web/calendar-hub.js")
 routing=text("LifeRoute/Web/web-routing-bridge.js")
 search=text("LifeRoute/Web/stop-place-search-v4.js")
 store=text("LifeRoute/Web/web-store-direct-v2.js")
+visual=text("LifeRoute/Web/visual-resolver.js")
 animals=text("LifeRoute/Web/dynamic-animals-v1.js")
 nature=text("LifeRoute/Web/photoreal-nature-web.js")
 resources=text("LifeRoute/Web/resources-hub-web.js")
@@ -49,6 +51,15 @@ require("pages < 8" in google and "slice(0, 40)" in google, "web Google sync bou
 require("include_granted_scopes: true" in google, "Google OAuth requests incremental granted scopes")
 require("client_secret" not in google.lower(), "browser OAuth contains no client secret")
 
+# Read-only arbitrary calendar feeds: URLs may themselves contain secret tokens,
+# so both web and native enforce HTTPS and request deadlines without credentials.
+require("fetchCalendarFeedWithTimeout" in calendar and "AbortController" in calendar, "browser calendar feeds have abort deadline")
+require('credentials: "omit"' in calendar, "browser calendar feeds omit browser credentials")
+require('if (!/^(https:\\/\\/|webcal:\\/\\/)/i.test(url))' in calendar, "saved calendar links are HTTPS/webcal only")
+require('case "fetchReadOnlyCalendarFeed"' in swift and "private func fetchReadOnlyCalendarFeed" in swift, "native calendar-feed bridge exists")
+require('request.timeoutInterval = 25' in swift, "native read-only calendar feed has 25-second deadline")
+require('scheme == "https" else' in swift, "native calendar feeds reject plaintext HTTP")
+
 # Browser routing/search providers: every fetch path has deadlines and explicit fallback behavior.
 for host in ["nominatim.openstreetmap.org","router.project-osrm.org","overpass-api.de","overpass.private.coffee"]:
     require(host in routing, f"browser routing declares {host}")
@@ -57,19 +68,26 @@ require("routingConsent" in routing, "browser route calculations require routing
 for host in ["photon.komoot.io","nominatim.openstreetmap.org"]:
     require(host in search, f"stop search declares {host}")
 require("AbortController" in search and "Promise.allSettled" in search, "stop search has deadlines and independent provider fallback")
-require("AbortController" in store and "timeoutMs" in store, "legacy/direct store helper also has deadlines")
+require("AbortController" in store and "timeoutMs" in store, "direct store search helper has deadlines")
 
-# Theme media services: public media only; no user data payload; bounded lookup for dynamic animals.
+# Public visual/media services. Curated static photos carry no app payload. Generic
+# Wikimedia lookup is allowed only for safe generic terms and has a hard deadline.
+require("commons.wikimedia.org/w/api.php" in visual, "generic visual resolver uses Wikimedia Commons")
+require("safeForPublicLookup" in visual and "if (/\\d/.test(normalized)) return false" in visual, "visual lookup blocks likely private/name-like terms")
+require("fetchWithTimeout" in visual and "AbortController" in visual, "generic visual lookup has deadline")
+require('credentials: "omit"' in visual, "generic Wikimedia lookup omits credentials")
 require("commons.wikimedia.org/w/api.php" in animals, "Living Creatures uses Wikimedia Commons API")
-require("fetchWithTimeout" in animals and "AbortController" in animals, "Wikimedia lookup has deadline")
-require("credentials:\"omit\"" in animals or 'credentials: "omit"' in animals, "Wikimedia requests omit credentials")
+require("fetchWithTimeout" in animals and "AbortController" in animals, "Living Creature Wikimedia lookup has deadline")
+require("credentials:\"omit\"" in animals or 'credentials: "omit"' in animals, "Living Creature requests omit credentials")
 require("LicenseShortName" in animals and "Wikimedia Commons" in animals, "Wikimedia attribution metadata is preserved")
 require("https://unsplash.com/photos/" in nature, "Scenery image source is explicit Unsplash media")
+require("images.unsplash.com" in visual and "images.pexels.com" in visual, "curated visual media hosts are explicit")
 
 # Resource Hub links are explicit user navigation, never background integrations.
 require("window.open(safeURL" in resources and '"_blank", "noopener,noreferrer"' in resources, "resource links open only after explicit launch action")
-require("/^https?:$/" in resources, "custom resource links are limited to HTTP/HTTPS")
+require('url.protocol === "https:"' in resources, "custom resource links are HTTPS-only")
 require("fetch(" not in resources and "XMLHttpRequest" not in resources, "Resource Hub does not call portal APIs or transmit credentials")
+require("does not sign in to these services or store their credentials" in resources, "Resource Hub privacy boundary is visible to user")
 
 # CentralReach remains dormant configuration until an authenticated API is intentionally enabled.
 require('centralReach: {' in config and 'enabled: false' in config, "CentralReach API scaffold is disabled")
@@ -80,9 +98,8 @@ require("fetch(" not in config, "disabled CentralReach config performs no networ
 require("if (window.webkit?.messageHandlers?.lifeRoute) return" in preview, "browser-preview helpers never install in native WKWebView")
 require("Apple Calendar, notifications, and Apple MapKit remain iPhone features" in preview, "web preview labels native-only capabilities")
 
-# External-host inventory is classified by execution role. A new host must be
-# deliberately assigned to one of these reviewed categories rather than silently
-# becoming an app dependency.
+# External-host inventory classified by execution role. Any newly hard-coded host
+# fails this audit until it is deliberately reviewed.
 runtime_service_hosts={
     "accounts.google.com","oauth2.googleapis.com","www.googleapis.com",
     "photon.komoot.io","nominatim.openstreetmap.org","router.project-osrm.org",
@@ -107,22 +124,29 @@ approved_hosts=(runtime_service_hosts|map_handoff_hosts|media_hosts|setup_attrib
 paths=[Path("LifeRoute/LifeRouteWebView.swift"), Path("scripts/web-preview.js")]
 paths += list(Path("LifeRoute/Web").glob("*.js")) + [Path("LifeRoute/Web/index.html")]
 hosts=set()
+host_sources={}
 for path in paths:
     data=path.read_text(errors="ignore")
     for url in re.findall(r'https://[A-Za-z0-9._-]+[^\s\"\'<>`)]*', data):
         try:
             host=urlparse(url).hostname
-            if host: hosts.add(host.lower())
+            if host:
+                host=host.lower()
+                hosts.add(host)
+                host_sources.setdefault(host,set()).add(path.name)
         except Exception:
             pass
 unknown=sorted(hosts-approved_hosts)
 require(not unknown, "all hard-coded HTTPS hosts are explicitly classified by execution role")
 
-# Guard the classification itself: resource-portal hosts should not leak into
-# scripts that make background fetches. Media/runtime hosts are the only remote
-# services allowed in fetch-capable feature files.
-for portal in resource_navigation_hosts:
-    require(portal not in google+routing+search+store+animals, f"resource portal {portal} is not used by background API code")
+# Classification invariants: Resource portals must only be named by the launch
+# hub, static curated CDNs only by visual/scenery modules, and dormant partner API
+# config must not escape config.js.
+for portal in resource_navigation_hosts & hosts:
+    require(host_sources.get(portal,set()) <= {"resources-hub-web.js"}, f"resource portal {portal} is navigation-only")
+for host in {"images.unsplash.com","images.pexels.com"} & hosts:
+    require(host_sources.get(host,set()) <= {"visual-resolver.js"}, f"curated media host {host} is visual-only")
+require(host_sources.get("partners-api.centralreach.com",set()) <= {"config.js"}, "CentralReach partner API remains dormant configuration only")
 
 failed=[label for ok,label in checks if not ok]
 print(f"LifeRoute external-services audit: {len(checks)-len(failed)} passed, {len(failed)} failed")
@@ -134,4 +158,4 @@ if unknown: print("UNREVIEWED HOSTS:", ", ".join(unknown))
 if failed:
     for label in failed: print("FAIL:", label)
     raise SystemExit(1)
-print("Apple native integrations, Google OAuth/API, browser routing/search, media services, resource-link boundaries, timeouts, workload caps, and host classification passed.")
+print("Apple native integrations, Google OAuth/API, secure calendar subscriptions, browser routing/search, visual media, resource-link boundaries, timeouts, workload caps, and host classification passed.")

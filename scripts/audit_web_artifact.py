@@ -70,7 +70,7 @@ markers = {
     "live-day.js": ["planned stop time", "scheduleDayNotifications"],
     "day-controls-v5.js": ["startLiveDayActivity", "const clearDay = () =>", "const clearAll = () =>", "data-lr-clear-day", "data-lr-clear-all"],
     "live-location-v2.js": ["watchPosition", "clearWatch", "startLiveLocation", "freshnessMs"],
-    "first-then-back.js": ["lifeRouteFirstThenEscape", "stopImmediatePropagation", "cancelOpenTimers"],
+    "first-then-back.js": ["lifeRouteFirstThenEscape", "stopImmediatePropagation", "cancelOpenTimers", "overlayClassObserver"],
     "visual-timer-v2.js": ["CHIME_PERIOD_MS = 500", "START_HZ = 220", "END_HZ = 1320", "webkitAudioContext"],
     "visual-object-focus-v2.js": ["LifeRouteVisualObjectFocus", "subjectCrop", "getImageData", "toBlob"],
     "dynamic-animals-v1.js": ["Lunar Wolf", "Storm Dragon", "Wikimedia Commons", "prefers-reduced-motion:reduce"],
@@ -96,6 +96,18 @@ require("fetch(" not in read("visual-object-focus-v2.js"), "photo subject focusi
 require("https://" not in read("visual-object-focus-v2.js"), "photo subject focusing has no remote endpoint")
 require("SHAPES =" not in read("dynamic-animals-v1.js"), "Living Creatures does not restore flat silhouette system")
 
+# Tools crash/lifecycle guarantees in the actual deployable artifact.
+first_then = read("first-then-back.js")
+rbt = read("rbt-tools.js")
+visual = read("visual-tools.js")
+require("overlayContentObserver" not in first_then, "First/Then final artifact has no child-tree observer")
+require("bodyObserver" not in first_then, "First/Then final artifact has no page-wide observer")
+require("childList: true" not in first_then and "subtree: true" not in first_then, "First/Then final artifact cannot recurse on child mutation")
+require('overlayClassObserver.observe(overlay, { attributes: true, attributeFilter: ["class"] })' in first_then, "First/Then final artifact observes class only")
+require('if (timer.interval) clearInterval(timer.interval);\n    timer.interval = 0;\n    scheduleTimerAlert();' in rbt, "Paused visual timer clears base interval")
+require('if (timer.running) pauseTimer();' in rbt, "Closing visual timer pauses and tears down countdown")
+require('if (!overlay?.classList.contains("show")) return;' in visual, "Hidden First/Then visuals do no regeneration work")
+
 # Final artifact privacy/security checks. Detailed personal-fixture checks already
 # run before this step; these protect against build-stage secrets or credentials.
 corpus = "\n".join(path.read_text(errors="ignore") for path in DIST.rglob("*") if path.is_file())
@@ -111,4 +123,4 @@ if failed:
     for label in failed:
         print("FAIL:", label)
     raise SystemExit(1)
-print("Final browser artifact syntax, shared-runtime parity, client profiles, core workflows, lifecycle constraints, and privacy/security passed.")
+print("Final browser artifact syntax, shared-runtime parity, crash-safe Tools, client profiles, core workflows, lifecycle constraints, and privacy/security passed.")

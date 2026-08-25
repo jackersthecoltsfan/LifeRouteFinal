@@ -24,7 +24,8 @@ timer=src("visual-timer-v2.js")
 search=src("stop-place-search-v4.js")
 duration=src("stop-duration-v1.js")
 settings=src("nature-settings-web.js")
-require("firstThenPersistentBack" in first and "stopImmediatePropagation" in first, "First/Then has persistent capture-phase escape")
+require("#lifeRouteFirstThenEscape,#firstThenClose" in first and "stopImmediatePropagation" in first and "}, true);" in first, "First/Then exit routes are capture-phase and cannot be swallowed")
+require("bodyObserver?.disconnect()" in first and "overlayContentObserver.observe(overlay" in first, "First/Then broad observer disconnects after overlay exists")
 require("timerClose" in src("rbt-tools.js") and "stopScheduler" in timer, "Visual Timer has close + scheduler teardown")
 require("data-lr-stop-search-close" in search and "closeSheet" in search, "stop search sheet has explicit close path")
 require("lrStopDurationClose" in duration or "data-lr-stop-duration-close" in duration, "stop-duration sheet has explicit close path")
@@ -39,16 +40,16 @@ for name in ["smart-context.js","live-location-v2.js","route-times.js","live-day
 # 4) Stored state namespaces remain separate, avoiding accidental Clear Day / tool/theme collisions.
 stores={
     "boundary":"liferoute_boundary_stops_v2",
-    "selected":"liferoute_selected_gap_routes_v1",
+    "selected":"liferoute_selected_gap_routes_v2",
     "live":"liferoute_generated_days_v1",
     "tools":"liferoute_field_tools_v1",
     "fluid":"liferoute_fluid_scene_v1",
     "animal":"liferoute_dynamic_animal_v1",
 }
 require(len(set(stores.values()))==len(stores), "major feature stores use unique namespaces")
+corpus="\n".join(p.read_text(errors="ignore") for p in WEB.glob("*.js"))
 for name,key in stores.items():
-    corpus="\n".join(p.read_text(errors="ignore") for p in WEB.glob("*.js"))
-    require(key in corpus, f"{name} store is present")
+    require(key in corpus, f"{name} state store is present")
 
 # 5) Theme state is mutually exclusive by data-attribute contract.
 classic=src("settings-classic-themes-web.js")

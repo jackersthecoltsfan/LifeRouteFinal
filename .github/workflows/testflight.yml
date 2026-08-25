@@ -3,10 +3,6 @@ run-name: LifeRoute → TestFlight #${{ github.run_number }}
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - '.github/testflight-once.txt'
 
 permissions:
   contents: read
@@ -32,11 +28,11 @@ jobs:
       - name: Prepare LifeRoute features
         run: bash scripts/prepare_build.sh
 
-      # Manual releases re-run the full audit. This one-shot push is the exact
-      # already-audited/compiled candidate and only changes this workflow + marker.
       - name: Full LifeRoute regression audit
-        if: github.event_name == 'workflow_dispatch'
         run: python3 scripts/audit_liferoute_build.py
+
+      # The separate iOS Build Check workflow compiles the simulator on every
+      # relevant push. The archive below compiles again for a real device.
 
       - name: Generate LifeRoute app icon
         run: |

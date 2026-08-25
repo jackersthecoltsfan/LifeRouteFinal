@@ -55,4 +55,4 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-# Release trigger: app sources remain identical to audited build a04cbd3f.
+# Release trigger: app sources match audited client-picker/web build 346ceea7.

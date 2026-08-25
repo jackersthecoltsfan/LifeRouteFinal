@@ -16,6 +16,8 @@
     body{min-height:100dvh;touch-action:pan-y;-webkit-tap-highlight-color:transparent}
     button,a,[role="button"]{touch-action:manipulation}
     .bottom,.bottomin,.bottomin button{pointer-events:auto!important}
+    .lrBoundaryGap,.lrBoundarySummary,.lrBoundaryOpen,.lrBoundaryGap button{pointer-events:auto!important}
+    .lrBoundaryOpen,.lrBoundaryGap button{position:relative;z-index:2}
     #lifeRouteMetalBackdrop,#lifeRouteThemeFX,#lifeRouteNatureBackdrop,#lifeRouteDynamicBackdrop{pointer-events:none!important}
     html[data-life-route-runtime="native"] .bottom{backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important}
     html[data-life-route-runtime="native"] .tabs,

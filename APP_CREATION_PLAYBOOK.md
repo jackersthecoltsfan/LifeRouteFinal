@@ -59,6 +59,15 @@ Codex Security is installed/enabled and GitHub is connected. The separate **Code
 ### Figma decision
 Use Figma when the app needs a strong visual identity, multiple new screens, a design system, or user approval before implementation. Skip it for straightforward/native screens and small refinements.
 
+### Fast cosmetic preview rule
+For visual requests involving layout, navigation, screen hierarchy, theme direction, or other cosmetic changes, show a **quick picture/mockup preview before implementation when doing so is lightweight and useful**.
+
+- Prefer a fast image/mockup for changes where seeing the layout is likely to prevent rework.
+- Keep the preview directional and lightweight; it does not need to be a pixel-perfect production design.
+- Skip the preview for tiny cosmetic tweaks, obvious one-line changes, backend/functional work, or whenever generating the preview would materially slow down the iteration without adding useful clarity.
+- If the user approves the preview, proceed directly into implementation without requiring another redundant confirmation unless a genuine technical/product tradeoff appears.
+- Use Figma instead of a throwaway preview when the design is substantial enough to benefit from editable components, multiple screens, or a reusable design system.
+
 ---
 
 ## Phase 2 — One-time setup for a new app
@@ -97,10 +106,11 @@ These are the main steps that still require Brandon because of account, legal, s
 ## Phase 3 — Design and implementation
 
 ### Brandon does
-- For large visual changes: review a Figma design or screenshot when asked and say what he likes/does not like.
+- For large visual changes: review a Figma design, screenshot, or quick cosmetic preview when asked and say what he likes/does not like.
 - For normal feature changes: simply describe the desired behavior.
 
 ### ChatGPT/Codex does
+- For cosmetic/layout changes, use the fast preview rule above when it will save time or reduce ambiguity.
 - Implement the feature.
 - Use Figma ↔ SwiftUI handoff when it materially reduces ambiguity.
 - Use native SwiftUI/iOS patterns where appropriate.
@@ -192,7 +202,7 @@ Do not add extra task-management tools merely because they exist. For a solo/sma
 
 **Brandon:** “Change/add X.”
 
-**ChatGPT/Codex:** design if needed → implement → commit → audit/build automatically → TestFlight automatically → verify upload.
+**ChatGPT/Codex:** quick cosmetic preview if useful → design if needed → implement → commit → audit/build automatically → TestFlight automatically → verify upload.
 
 **Brandon:** install/update in TestFlight → test → report feedback.
 

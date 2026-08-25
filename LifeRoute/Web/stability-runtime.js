@@ -141,21 +141,3 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });
   else start();
 })();
-
-// Load the final information-architecture layer only after the normalized core
-// runtime has finished. This keeps it authoritative over late-added tabs while
-// preserving every underlying feature view for nested navigation.
-(() => {
-  if (window.__lifeRouteInformationArchitectureLoaderInstalled) return;
-  window.__lifeRouteInformationArchitectureLoaderInstalled = true;
-  const load = () => {
-    if (document.querySelector('script[data-lr-information-architecture="v1"]')) return;
-    const script = document.createElement("script");
-    script.src = "information-architecture-v1.js";
-    script.async = false;
-    script.dataset.lrInformationArchitecture = "v1";
-    document.body.appendChild(script);
-  };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", load, { once: true });
-  else load();
-})();

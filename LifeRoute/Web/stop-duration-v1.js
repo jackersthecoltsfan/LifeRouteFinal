@@ -23,7 +23,6 @@
   const activeGeneratedDay = day => !!readObject(GENERATED_STORE)[day];
 
   let state = null;
-  let suppressAutoPrompt = false;
 
   const ensureSheet = () => {
     let overlay = document.getElementById("lifeRouteStopDurationSheet");
@@ -81,13 +80,12 @@
   };
 
   const redraw = kind => {
-    if (kind === "boundary") {
-      try { window.renderToday?.(); } catch (_) {}
-      requestAnimationFrame(() => window.decorateLifeRouteBoundaryStops?.());
-    } else {
-      try { window.renderToday?.(); } catch (_) {}
-      requestAnimationFrame(() => window.decorateLifeRouteSelectedGaps?.());
-    }
+    try { window.renderToday?.(); } catch (_) {}
+    requestAnimationFrame(() => {
+      if (kind === "boundary") window.decorateLifeRouteBoundaryStops?.();
+      else window.decorateLifeRouteSelectedGaps?.();
+      decorateCards();
+    });
     setTimeout(decorateCards, 70);
   };
 
@@ -95,20 +93,22 @@
     if (!state) return;
     const minutes = Math.max(1, Math.min(240, Math.round(Number(value || 0))));
     if (!minutes) return;
-    const storeKey = state.kind === "boundary" ? BOUNDARY_STORE : GAP_STORE;
+    const kind = state.kind;
+    const key = state.key;
+    const storeKey = kind === "boundary" ? BOUNDARY_STORE : GAP_STORE;
     const data = readObject(storeKey);
-    const selection = data[state.key];
+    const selection = data[key];
     if (!selection) { close(); return; }
     selection.stopMinutes = minutes;
     selection.durationUpdatedAt = new Date().toISOString();
-    data[state.key] = selection;
+    data[key] = selection;
     writeObject(storeKey, data);
     close();
-    redraw(state?.kind || "boundary");
+    redraw(kind);
     refreshGeneratedDay();
   };
 
-  const open = (kind, key, label) => {
+  const open = (kind, key, label = "") => {
     const storeKey = kind === "boundary" ? BOUNDARY_STORE : GAP_STORE;
     const data = readObject(storeKey);
     const selection = data[key];
@@ -116,15 +116,17 @@
     state = { kind, key };
     const overlay = ensureSheet();
     const name = overlay.querySelector("#lrStopDurationName");
-    if (name) name.textContent = clean(label || selection.label || selection.name || "Planned stop");
+    if (name) name.textContent = clean(label) || clean(selection.label || selection.name || "Planned stop");
     const current = Math.max(1, Number(selection.stopMinutes || 5));
     const presets = overlay.querySelector("#lrStopDurationPresets");
     if (presets) presets.innerHTML = PRESETS.map(minutes => `<button type="button" class="lrStopDurationPreset${minutes === current ? " active" : ""}" data-lr-stop-duration-minutes="${minutes}">${minutes} min</button>`).join("");
     const custom = overlay.querySelector("#lrStopDurationCustomInput");
-    if (custom) custom.value = PRESETS.includes(current) ? "" : String(current);
+    if (custom) valueOrBlank(custom, PRESETS.includes(current) ? "" : String(current));
     overlay.classList.add("show");
     return true;
   };
+
+  const valueOrBlank = (input, value) => { if (input) input.value = value; };
 
   const decorateCards = () => {
     document.querySelectorAll("#timeline .lrBoundaryGap[data-boundary-mode]").forEach(card => {
@@ -142,7 +144,7 @@
       actions.insertBefore(button, actions.firstChild);
     });
 
-    document.querySelectorAll("#timeline .gapRouteSelected[data-selected-route-key],#timeline .gapRouteSelected").forEach(card => {
+    document.querySelectorAll("#timeline .gapRouteSelected").forEach(card => {
       if (card.querySelector("[data-lr-gap-duration]")) return;
       const key = clean(card.dataset.selectedRouteKey);
       const selection = readObject(GAP_STORE)[key];
@@ -163,7 +165,7 @@
     if (typeof original !== "function" || original.__lrDurationWrapped) return;
     const wrapped = function(mode, stop) {
       const result = original.apply(this, arguments);
-      if (result !== false && !suppressAutoPrompt) {
+      if (result !== false) {
         const key = `${currentDay()}|${clean(mode)}`;
         const label = clean(stop?.name || stop?.label || "Planned stop");
         setTimeout(() => open("boundary", key, label), 30);
@@ -182,9 +184,9 @@
     const customButton = event.target.closest?.("[data-lr-stop-duration-custom]");
     if (customButton) { event.preventDefault(); applyMinutes(document.getElementById("lrStopDurationCustomInput")?.value); return; }
     const boundaryButton = event.target.closest?.("[data-lr-boundary-duration]");
-    if (boundaryButton) { event.preventDefault(); event.stopImmediatePropagation(); open("boundary", boundaryButton.dataset.lrBoundaryDuration, "Planned stop"); return; }
+    if (boundaryButton) { event.preventDefault(); event.stopImmediatePropagation(); open("boundary", boundaryButton.dataset.lrBoundaryDuration); return; }
     const gapButton = event.target.closest?.("[data-lr-gap-duration]");
-    if (gapButton) { event.preventDefault(); event.stopImmediatePropagation(); open("gap", gapButton.dataset.lrGapDuration, "Planned stop"); return; }
+    if (gapButton) { event.preventDefault(); event.stopImmediatePropagation(); open("gap", gapButton.dataset.lrGapDuration); return; }
   }, true);
 
   document.addEventListener("keydown", event => {

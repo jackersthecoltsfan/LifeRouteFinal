@@ -76,6 +76,44 @@ selected = selected_path.read_text()
 
 selected = replace_once(
     selected,
+    '''  const renderNow = () => {
+    if (typeof renderToday === "function") renderToday();
+    requestAnimationFrame(() => window.decorateLifeRouteSelectedGaps?.());
+    setTimeout(() => window.decorateLifeRouteSelectedGaps?.(), 80);
+  };
+''',
+    '''  const restoreGapScroll = (x, y) => {
+    const restore = () => {
+      try { window.scrollTo(x, y); } catch (_) {}
+    };
+    restore();
+    requestAnimationFrame(() => {
+      restore();
+      requestAnimationFrame(restore);
+    });
+    setTimeout(restore, 60);
+    setTimeout(restore, 180);
+  };
+
+  const renderNow = () => {
+    const scrollX = window.scrollX || window.pageXOffset || 0;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    if (typeof renderToday === "function") renderToday();
+    requestAnimationFrame(() => {
+      window.decorateLifeRouteSelectedGaps?.();
+      restoreGapScroll(scrollX, scrollY);
+    });
+    setTimeout(() => {
+      window.decorateLifeRouteSelectedGaps?.();
+      restoreGapScroll(scrollX, scrollY);
+    }, 80);
+  };
+''',
+    "selected gap render preserves scroll position",
+)
+
+selected = replace_once(
+    selected,
     '''    if (typeof setStatus === "function") setStatus(`Route selected · ${selection.label}`);
     if (originMode === "current") requestCurrentLocationMetrics(selection);
     openRouteForSelection(selection);
@@ -83,7 +121,6 @@ selected = replace_once(
     '''    if (typeof setStatus === "function") setStatus(`Saved to Day · ${selection.label}`);
     if (originMode === "current") requestCurrentLocationMetrics(selection);
     try { localStorage.setItem("liferoute_calendar_view", "today"); } catch (_) {}
-    try { window.showView?.("today"); } catch (_) {}
     requestAnimationFrame(() => window.decorateLifeRouteSelectedGaps?.());
 ''',
     "chosen gap stays in Day instead of launching Maps",
@@ -120,4 +157,4 @@ selected = replace_once(
 
 selected_path.write_text(selected)
 
-print("Gap route choices now persist directly in Day with exact outbound/return legs, distance, and safe store-name encoding; navigation opens only on demand.")
+print("Gap route choices now persist directly in Day without moving the viewport; navigation opens only on demand.")

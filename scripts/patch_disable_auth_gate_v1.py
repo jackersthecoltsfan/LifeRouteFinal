@@ -1,4 +1,5 @@
 from pathlib import Path
+import runpy
 
 path = Path("LifeRoute/Web/auth-gate.js")
 text = path.read_text()
@@ -37,3 +38,8 @@ if "const AUTH_GATE_ENABLED = false;" not in text:
 
 path.write_text(text)
 print("LifeRoute login/PIN gate disabled for this release; app opens directly.")
+
+# Keep the narrative-note quality upgrade inside the deterministic build-prep
+# path without duplicating its implementation here.
+runpy.run_path("scripts/patch_aba_note_quality_v2.py", run_name="__main__")
+runpy.run_path("scripts/audit_aba_note_quality_v2.py", run_name="__main__")

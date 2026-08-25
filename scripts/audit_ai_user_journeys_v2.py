@@ -10,6 +10,7 @@ FILES = {
     "planning": (WEB / "ai-planning-v1.js").read_text(),
     "studio": (WEB / "image-playground-v1.js").read_text(),
     "firstthen": (WEB / "first-then-ai-studio-v1.js").read_text(),
+    "aba": (WEB / "aba-ai-note-v1.js").read_text(),
     "focus": (WEB / "visual-object-focus-v2.js").read_text(),
     "tools": (WEB / "visual-tools.js").read_text(),
     "rbt": (WEB / "rbt-tools.js").read_text(),
@@ -41,7 +42,7 @@ check("generated First Then image saved locally", "localStorage.setItem(STORE" i
 
 # First / Then automatic visual search journey.
 check("AI semantic resolver wraps standard resolver", "originalResolve" in FILES["resolver"] and "resolver.resolve = aiResolve" in FILES["resolver"])
-check("AI expands short labels into visual queries", "visualSearchTerms" in FILES["assistant"] and 'task: "visual-search"' not in FILES["assistant"])
+check("AI expands short labels into visual queries", "visualSearchTerms" in FILES["assistant"] and "deterministicVisualTerms" in FILES["assistant"])
 check("semantic resolver searches multiple phrases", "queries" in FILES["resolver"] and ".slice(0, 3)" in FILES["resolver"])
 check("semantic resolver quality scores results", "semanticScore" in FILES["resolver"] and "score(page" in FILES["resolver"])
 check("semantic resolver preserves curated high confidence results", 'primary.source === "curated"' in FILES["resolver"])
@@ -64,15 +65,29 @@ check("AI route brief prohibited from recalculating travel", "Do not calculate o
 check("Generate Day triggers AI brief after deterministic build", "generateLifeRouteDayWithAI" in FILES["planning"] and "setTimeout(refreshDayAI" in FILES["planning"])
 check("day UI states route math remains authoritative", "Fixed route math remains authoritative" in FILES["planning"])
 
-# Notes intelligence journey.
+# Scratch notes intelligence journey.
 check("AI scratch note recap exists", 'button.textContent = "AI recap"' in FILES["planning"])
 check("notes summary forbids diagnosis and inference", "Do not diagnose, infer intent" in FILES["assistant"])
 check("notes recap explicitly not billable documentation", "not a billable clinical note" in FILES["planning"])
 
+# Narrative + screenshot -> ABA note journey.
+check("ABA AI note tool exists in Tools", 'card.id = "abaAINoteTool"' in FILES["aba"])
+check("ABA AI note accepts saved client", "abaAINoteClient" in FILES["aba"] and "profileFor" in FILES["aba"])
+check("ABA AI note accepts screenshot", "abaAINoteScreenshot" in FILES["aba"] and "recognizeScreenshot" in FILES["aba"])
+check("native Vision OCR action exists", 'case "recognizeVisualText":' in SWIFT and "VNRecognizeTextRequest" in SWIFT)
+check("native OCR uses accurate recognition", "recognitionLevel = .accurate" in SWIFT and "usesLanguageCorrection = true" in SWIFT)
+check("OCR response is request scoped", '"visualTextRecognition"' in SWIFT and '"requestId": requestID' in SWIFT)
+check("ABA note prompt forbids invented session facts", "Do not invent frequencies, percentages" in FILES["aba"])
+check("saved client targets are context only", "Saved targets are context only" in FILES["aba"])
+check("ABA note does not claim saved behavior occurred", "Do not state that a saved client target or behavior occurred" in FILES["aba"])
+check("unclear OCR is omitted", "If screenshot OCR is unclear, omit uncertain content" in FILES["aba"])
+check("ABA note is explicitly review-before-use", "Review every fact before documentation or billing" in FILES["aba"])
+check("ABA note has copy action", "navigator.clipboard.writeText" in FILES["aba"])
+
 # Graceful fallback / shared build.
 check("AI assistant has deterministic unsupported-device fallback", 'engine: "deterministic"' in FILES["assistant"])
 check("browser does not require native Foundation Models", "nativeAvailable" in FILES["assistant"])
-for module in ["ai-assistant-v1.js", "visual-resolver-ai-v2.js", "ai-planning-v1.js", "image-playground-v1.js", "first-then-ai-studio-v1.js"]:
+for module in ["ai-assistant-v1.js", "visual-resolver-ai-v2.js", "ai-planning-v1.js", "image-playground-v1.js", "first-then-ai-studio-v1.js", "aba-ai-note-v1.js"]:
     check(f"shared build includes {module}", module in PREP)
 
 failed = [name for name, ok in checks if not ok]

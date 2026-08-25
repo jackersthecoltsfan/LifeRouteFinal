@@ -23,6 +23,7 @@ PATCHES=(
   patch_provider_selection.py
   patch_day_navigation.py
   patch_interaction_hotfix_v1.py
+  patch_touch_delight_v2.py
   patch_auth_gate.py
   patch_disable_auth_gate_v1.py
   patch_stability.py
@@ -249,6 +250,9 @@ grep -q 'END_HZ = 1320' LifeRoute/Web/visual-timer-v2.js
 grep -q '0.26 \* gainScale' LifeRoute/Web/visual-timer-v2.js
 grep -q 'boost:5' LifeRoute/Web/timer-native-audio-v1.js
 grep -q 'playGlassTone(frequency: Double, intensity: Double, boost: Double = 5.0)' LifeRoute/LifeRouteWebView.swift
+grep -q 'lrTouchPressed' LifeRoute/Web/delight-ui-v1.js
+grep -q "action:'haptic'" LifeRoute/Web/delight-ui-v1.js
+! grep -q 'DIRECT SESSION TOOLKIT' LifeRoute/Web/rbt-tools.js
 grep -q 'const AUTH_GATE_ENABLED = false' LifeRoute/Web/auth-gate.js
 grep -q 'lifeRouteAestheticPolishV1Styles' LifeRoute/Web/aesthetic-polish-v1.js
 grep -q 'min-height:44px!important' LifeRoute/Web/aesthetic-polish-v1.js

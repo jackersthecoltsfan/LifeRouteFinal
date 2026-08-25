@@ -40,6 +40,7 @@ PATCHES=(
   patch_day_ui_reliability_v1.py
   patch_interaction_finalize_v2.py
   patch_touch_delight_v2.py
+  patch_interaction_performance_v3.py
 )
 for patch in "${PATCHES[@]}"; do
   python3 "scripts/$patch"
@@ -53,6 +54,7 @@ path = Path("LifeRoute/Web/index.html")
 html = path.read_text()
 core = [
     "global-bridge.js",
+    "interaction-stability-v3.js",
     "calendar-hub.js",
     "auth-gate.js",
     "icons.js",
@@ -125,7 +127,7 @@ plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivity/Info.plist
 
 CORE_JS=(
-  global-bridge.js calendar-hub.js auth-gate.js icons.js route-times.js smart-context.js live-location-v2.js
+  global-bridge.js interaction-stability-v3.js calendar-hub.js auth-gate.js icons.js route-times.js smart-context.js live-location-v2.js
   todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js
   selected-gap-routes.js saved-place-gap-options.js live-day.js end-home-route-web.js day-controls-v5.js
   rbt-tools.js client-picker-sync-v1.js client-profiles-v1.js client-profile-tools-v1.js
@@ -171,6 +173,7 @@ python3 scripts/audit_auth_disabled_v1.py
 python3 scripts/audit_appearance.py
 python3 scripts/audit_stability.py
 python3 scripts/audit_feature_parity_performance_ai.py
+python3 scripts/audit_interaction_performance_v3.py
 
 # New AI-specific independent review angles.
 python3 scripts/audit_ai_user_journeys_v2.py
@@ -252,6 +255,8 @@ grep -q 'boost:5' LifeRoute/Web/timer-native-audio-v1.js
 grep -q 'playGlassTone(frequency: Double, intensity: Double, boost: Double = 5.0)' LifeRoute/LifeRouteWebView.swift
 grep -q 'lrTouchPressed' LifeRoute/Web/delight-ui-v1.js
 grep -q "action:'haptic'" LifeRoute/Web/delight-ui-v1.js
+grep -q 'grid-template-columns:repeat(4,minmax(0,1fr))!important' LifeRoute/Web/delight-ui-v1.js
+grep -q 'window.scrollTo = noProgrammaticScroll' LifeRoute/Web/interaction-stability-v3.js
 ! grep -q 'DIRECT SESSION TOOLKIT' LifeRoute/Web/rbt-tools.js
 grep -q 'const AUTH_GATE_ENABLED = false' LifeRoute/Web/auth-gate.js
 grep -q 'lifeRouteAestheticPolishV1Styles' LifeRoute/Web/aesthetic-polish-v1.js

@@ -6,11 +6,12 @@ WEB = ROOT / "LifeRoute" / "Web"
 
 def replace_once(path: Path, old: str, new: str, label: str) -> None:
     text = path.read_text()
-    if new in text:
+    if old in text:
+        path.write_text(text.replace(old, new, 1))
         return
-    if old not in text:
-        raise SystemExit(f"{label}: expected pattern not found in {path}")
-    path.write_text(text.replace(old, new, 1))
+    if new and new in text:
+        return
+    raise SystemExit(f"{label}: expected pattern not found in {path}")
 
 # These mature helpers no longer need multiple delayed installation attempts.
 replace_once(

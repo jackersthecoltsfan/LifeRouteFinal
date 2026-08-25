@@ -85,7 +85,7 @@ jobs:
             day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js day-navigation-runtime.js \
             nature-settings-web.js settings-classic-themes-web.js photoreal-nature-web.js dynamic-themes-web.js \
             fluid-scenes-v1.js dynamic-animals-v1.js theme-catalog-v3.js ui-simplify-v4.js \
-            first-then-back.js photo-source-picker-web.js live-location-v2.js refined-ui-v2.js stability-runtime.js \
+            first-then-back.js photo-source-picker-web.js live-location-v2.js refined-ui-v2.js aesthetic-polish-v1.js stability-runtime.js \
             welcome.js nav-cleanup.js icloud-calendar-web.js google-calendar-web.js \
             google-calendar-stability.js google-calendar-persistence-web.js visual-quality-web.js \
             end-home-route-web.js mileage-tracker-web.js resources-hub-web.js \
@@ -104,7 +104,7 @@ jobs:
             boundary-stop-planner.js stop-place-search-v4.js day-navigation-runtime.js \
             nature-settings-web.js settings-classic-themes-web.js photoreal-nature-web.js \
             dynamic-themes-web.js fluid-scenes-v1.js dynamic-animals-v1.js theme-catalog-v3.js \
-            ui-simplify-v4.js refined-ui-v2.js stability-runtime.js; do
+            ui-simplify-v4.js refined-ui-v2.js aesthetic-polish-v1.js stability-runtime.js; do
             grep -q "$core?v=$GITHUB_SHA\|$core?v=${GITHUB_SHA:0:8}\|$core" dist/index.html
           done
 
@@ -147,6 +147,15 @@ jobs:
           grep -q 'lrTimerTelemetry' dist/visual-timer-v2.js
           grep -q 'prefers-reduced-motion:reduce' dist/visual-timer-v2.js
           grep -q 'document.visibilityState === "hidden"' dist/visual-timer-v2.js
+
+          # Final appearance layer: polished mobile touch sizing, focus treatment,
+          # overflow safety, reduced-motion behavior, and no live-text observer churn.
+          grep -q 'lifeRouteAestheticPolishV1Styles' dist/aesthetic-polish-v1.js
+          grep -q 'min-height:44px!important' dist/aesthetic-polish-v1.js
+          grep -q 'button:focus-visible' dist/aesthetic-polish-v1.js
+          grep -q 'overflow-x:hidden' dist/aesthetic-polish-v1.js
+          grep -q 'prefers-reduced-motion:reduce' dist/aesthetic-polish-v1.js
+          ! grep -q 'characterData: true' dist/ui-simplify-v4.js
 
           # Web live location must use a continuing browser watch whenever native
           # CoreLocation is unavailable, and the shared module must also know how

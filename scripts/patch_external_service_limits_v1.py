@@ -1,4 +1,5 @@
 from pathlib import Path
+import runpy
 
 
 def replace_once(path: Path, old: str, new: str, label: str):
@@ -59,3 +60,7 @@ replace_once(
 )
 
 print("External service workloads bounded: native Google Calendar uses selected/primary calendars, max 40 calendars, max 8 event pages each.")
+
+# Keep the secure-link/media/calendar hardening in the same deterministic
+# external-services phase of preparation.
+runpy.run_path("scripts/patch_external_links_hardening_v1.py", run_name="__main__")

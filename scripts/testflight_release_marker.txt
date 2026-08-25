@@ -1,3 +1,3 @@
-LifeRoute TestFlight release requested after clean Tools, stability, web artifact, and native Simulator audits.
-Release source audited at: 7601f2c835e5dc3756425006a36794efaedd03f4
-Includes crash-safe First/Then board lifecycle, full Tools-section release gate, visual-timer interval cleanup, hidden First/Then work suppression, and temporary removal of the username/PIN login screen and Login & Security settings row.
+LifeRoute TestFlight release requested after clean feature-parity, Clear Day/Clear All, performance, web artifact, and native Simulator audits.
+Release source audited at: 82cdf4ca1d8d25db2630aed3b37810b8672431b9
+Includes restored End Route at Home, Mileage Tracker, Resources Hub, working native-safe Clear Day and two-tap Clear All, shared feature parity, reduced WKWebView runtime/compositing pressure, and free on-device Apple Vision subject-focus assistance for visual generation with a local fallback.

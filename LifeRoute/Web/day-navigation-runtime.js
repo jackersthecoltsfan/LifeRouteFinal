@@ -120,8 +120,22 @@
     return true;
   };
 
+  // These enhancements depend on the core Day/timeline modules that load before
+  // this runtime. Loading them here keeps web and native builds on the same code.
+  const loadCoreEnhancement = name => {
+    if (document.querySelector(`script[data-liferoute-core-enhancement="${name}"]`)) return;
+    const script = document.createElement("script");
+    const build = document.querySelector('meta[name="liferoute-web-build"]')?.content || "";
+    script.src = `${name}${build ? `?v=${encodeURIComponent(build)}` : ""}`;
+    script.async = false;
+    script.dataset.liferouteCoreEnhancement = name;
+    document.body.appendChild(script);
+  };
+
   const start = () => {
     bind();
+    loadCoreEnhancement("boundary-stop-planner.js");
+    loadCoreEnhancement("refined-ui-v2.js");
     let attempts = 0;
     const timer = setInterval(() => {
       attempts += 1;

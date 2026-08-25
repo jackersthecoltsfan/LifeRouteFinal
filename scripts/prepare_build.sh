@@ -43,6 +43,7 @@ core = [
     "icons.js",
     "route-times.js",
     "smart-context.js",
+    "live-location-v2.js",
     "todos.js",
     "grocery-stores.js",
     "transport-mode.js",
@@ -53,8 +54,11 @@ core = [
     "live-day.js",
     "day-controls-v5.js",
     "rbt-tools.js",
+    "first-then-back.js",
     "visual-resolver.js",
     "visual-tools.js",
+    "photo-source-picker-web.js",
+    "visual-object-focus-v2.js",
     "visual-resolver-bridge.js",
     "live-themes.js",
     "day-route-experience.js",
@@ -96,10 +100,10 @@ plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivity/Info.plist
 
 CORE_JS=(
-  global-bridge.js calendar-hub.js auth-gate.js icons.js route-times.js smart-context.js
+  global-bridge.js calendar-hub.js auth-gate.js icons.js route-times.js smart-context.js live-location-v2.js
   todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js
-  selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js
-  visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js
+  selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js first-then-back.js
+  visual-resolver.js visual-tools.js photo-source-picker-web.js visual-object-focus-v2.js visual-resolver-bridge.js live-themes.js
   day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js
   day-navigation-runtime.js nature-settings-web.js settings-classic-themes-web.js
   photoreal-nature-web.js dynamic-themes-web.js fluid-scenes-v1.js dynamic-animals-v1.js
@@ -113,10 +117,9 @@ done
 
 BROWSER_JS=(
   welcome.js nav-cleanup.js icloud-calendar-web.js google-calendar-web.js
-  google-calendar-stability.js google-calendar-persistence-web.js first-then-back.js
-  visual-quality-web.js photo-source-picker-web.js end-home-route-web.js
-  mileage-tracker-web.js resources-hub-web.js web-routing-bridge.js
-  web-store-search-fallback.js
+  google-calendar-stability.js google-calendar-persistence-web.js
+  visual-quality-web.js end-home-route-web.js mileage-tracker-web.js resources-hub-web.js
+  web-routing-bridge.js web-store-search-fallback.js
 )
 for js in "${BROWSER_JS[@]}"; do
   test -s "LifeRoute/Web/$js"
@@ -126,11 +129,12 @@ done
 python3 scripts/audit_stop_place_search.py
 python3 scripts/audit_live_day_activity.py
 python3 scripts/audit_theme_catalog.py
+python3 scripts/audit_runtime_polish.py
 python3 scripts/audit_stability.py
 
 # Critical native bridge contracts.
 for marker in \
-  requestRouteTimes searchStoreLocations requestCurrentLocation CLLocationManagerDelegate \
+  requestRouteTimes searchStoreLocations requestCurrentLocation startLiveLocation stopLiveLocation CLLocationManagerDelegate \
   openRoute routeTransportType scheduleDayNotifications startLiveDayActivity endLiveDayActivity \
   authSetCredentials authVerifyCredentials; do
   grep -q "$marker" LifeRoute/LifeRouteWebView.swift

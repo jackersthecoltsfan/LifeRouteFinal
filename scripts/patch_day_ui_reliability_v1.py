@@ -189,8 +189,8 @@ SWIFT.write_text(swift_text)
 
 
 # ---------------------------------------------------------------------------
-# 4) Clear day is route-plan scoped. It must not delete manual appointments,
-#    places, clients, To-Dos, preferences, or any other date's routes.
+# 4) Clear Day is finalized earlier in patch_feature_regressions_v2.py. Here we
+#    only add date-scoped in-memory clearing helpers and verify the final contract.
 # ---------------------------------------------------------------------------
 selected = WEB / "selected-gap-routes.js"
 marker = '''  window.clearLifeRouteGapRoute = encodedKey => {'''
@@ -227,39 +227,17 @@ if "window.clearLifeRouteBoundaryStopsForDay" not in boundary.read_text():
         raise SystemExit("boundary day clear marker missing")
     boundary.write_text(text.replace(marker, helper, 1))
 
-controls = WEB / "day-controls-v5.js"
-old_clear = '''  const clearDay = () => {
-    const day = dateKey();
-    if (!day) return;
-    if (!window.confirm("Clear this day's LifeRoute plan? Calendar events from connected providers will stay.")) return;
-
-    try { window.endLifeRouteDay?.(); } catch (_) {}
-    endLiveActivity();
-    clearDateKeys(GENERATED_STORE, day);
-    clearDateKeys(GAP_STORE, day);
-    clearDateKeys(BOUNDARY_STORE, day);
-
-    if (Array.isArray(window.events)) {
-      window.events = window.events.filter(event => !(event?.date === day && (!event?.source || event.source === "manual")));
-    }
-    try { window.persist?.(); } catch (_) {}
-    try { window.renderAll?.(); } catch (_) { try { window.renderToday?.(); } catch (_) {} }
-  };'''
-new_clear = '''  const clearDay = () => {
-    const day = dateKey();
-    if (!day) return;
-    if (!window.confirm("Clear only this day's generated routes and planned stops? Calendar appointments, places, clients, To-Dos, preferences, and other dates will stay.")) return;
-
-    try { window.endLifeRouteDay?.(); } catch (_) {}
-    endLiveActivity();
-    clearDateKeys(GENERATED_STORE, day);
-    if (typeof window.clearLifeRouteGapRoutesForDay === "function") window.clearLifeRouteGapRoutesForDay(day);
-    else clearDateKeys(GAP_STORE, day);
-    if (typeof window.clearLifeRouteBoundaryStopsForDay === "function") window.clearLifeRouteBoundaryStopsForDay(day);
-    else clearDateKeys(BOUNDARY_STORE, day);
-    try { window.renderAll?.(); } catch (_) { try { window.renderToday?.(); } catch (_) {} }
-    try { window.setStatus?.("Cleared this day's routes · appointments and saved data kept"); } catch (_) {}
-  };'''
-replace_once(controls, old_clear, new_clear, "route-scoped Clear day")
+controls_text = (WEB / "day-controls-v5.js").read_text()
+required_clear_markers = [
+    'clearDateKeys(GENERATED_STORE, day)',
+    'clearLifeRouteGapRoutesForDay(day)',
+    'clearLifeRouteBoundaryStopsForDay(day)',
+    'Cleared this day\'s routes · appointments and saved data kept',
+]
+if not all(marker in controls_text for marker in required_clear_markers):
+    raise SystemExit("route-scoped Clear day: finalized contract missing")
+clear_region = controls_text.split("const clearDay = () => {", 1)[1].split("const clearAll = () => {", 1)[0]
+if "window.events = window.events.filter" in clear_region or "window.persist?.()" in clear_region:
+    raise SystemExit("route-scoped Clear day: unrelated event persistence still present")
 
 print("LifeRoute Day/UI reliability patch applied: matched Metallic cards, factual local-time Day AI, zoom lock prevention, and route-scoped Clear day.")

@@ -55,6 +55,7 @@ core = [
     "day-controls-v5.js",
     "rbt-tools.js",
     "client-picker-sync-v1.js",
+    "toolbar-cleanup-v1.js",
     "visual-timer-v2.js",
     "first-then-back.js",
     "visual-resolver.js",
@@ -105,7 +106,7 @@ plutil -lint LifeRouteLiveActivity/Info.plist
 CORE_JS=(
   global-bridge.js calendar-hub.js auth-gate.js icons.js route-times.js smart-context.js live-location-v2.js
   todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js
-  selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js client-picker-sync-v1.js visual-timer-v2.js first-then-back.js
+  selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js client-picker-sync-v1.js toolbar-cleanup-v1.js visual-timer-v2.js first-then-back.js
   visual-resolver.js visual-tools.js photo-source-picker-web.js visual-object-focus-v2.js visual-resolver-bridge.js live-themes.js
   day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js
   day-navigation-runtime.js nature-settings-web.js settings-classic-themes-web.js
@@ -130,6 +131,7 @@ for js in "${BROWSER_JS[@]}"; do
 done
 
 python3 scripts/audit_client_pickers.py
+python3 scripts/audit_toolbar_cleanup.py
 python3 scripts/audit_stop_place_search.py
 python3 scripts/audit_live_day_activity.py
 python3 scripts/audit_theme_catalog.py
@@ -177,6 +179,11 @@ grep -q 'Saved places' LifeRoute/Web/saved-place-gap-options.js
 grep -q 'refreshLifeRouteToolClients' LifeRoute/Web/client-picker-sync-v1.js
 grep -q 'quickNoteClient' LifeRoute/Web/client-picker-sync-v1.js
 grep -q 'sessionPlanClient' LifeRoute/Web/client-picker-sync-v1.js
+
+# Shared main-toolbar cleanup contract.
+grep -q 'LifeRouteToolbarCleanupV1' LifeRoute/Web/toolbar-cleanup-v1.js
+grep -q "child.dataset?.view === 'month'" LifeRoute/Web/toolbar-cleanup-v1.js
+grep -q 'grid-template-columns' LifeRoute/Web/toolbar-cleanup-v1.js
 
 # Visual timer contracts.
 grep -q 'LifeRouteVisualTimerV2' LifeRoute/Web/visual-timer-v2.js

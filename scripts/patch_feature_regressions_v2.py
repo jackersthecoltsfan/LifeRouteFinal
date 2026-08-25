@@ -39,6 +39,16 @@ replace_once(
     "Clear Day visible completion feedback",
 )
 
+# Clear All is destructive, so keep a confirmation step without relying on
+# WKWebView's JavaScript confirm panel. First tap arms for four seconds; the
+# second tap performs the wipe. This works identically on web and iPhone.
+replace_once(
+    day,
+    '  const clearAll = () => {\n    if (!window.confirm("Clear all LifeRoute plans, saved places, clients, To-Dos, calendar links, and preferences on this device? Your LifeRoute sign-in will stay.")) return;\n',
+    '  let clearAllArmedUntil = 0;\n  const clearAll = () => {\n    const now = Date.now();\n    const button = document.querySelector("[data-lr-clear-all]");\n    if (now > clearAllArmedUntil) {\n      clearAllArmedUntil = now + 4000;\n      if (button) {\n        button.dataset.originalLabel = button.dataset.originalLabel || button.textContent || "Clear all";\n        button.textContent = "Tap again to clear all";\n        button.classList.add("lrClearAllArmed");\n      }\n      setTimeout(() => {\n        if (Date.now() <= clearAllArmedUntil) return;\n        if (button) {\n          button.textContent = button.dataset.originalLabel || "Clear all";\n          button.classList.remove("lrClearAllArmed");\n        }\n      }, 4100);\n      return;\n    }\n    clearAllArmedUntil = 0;\n',
+    "Clear All native-safe two-step confirmation",
+)
+
 # Resource links should leave the native app through iOS rather than replacing
 # LifeRoute inside its WKWebView. Browser fallback remains unchanged.
 resources = WEB / "resources-hub-web.js"
@@ -49,4 +59,4 @@ replace_once(
     "Resource native external-link handoff",
 )
 
-print("Feature regressions fixed: Clear Day is native-safe and shared resource links use native handoff.")
+print("Feature regressions fixed: Clear Day works directly, Clear All uses native-safe two-tap confirmation, and Resources use native handoff.")

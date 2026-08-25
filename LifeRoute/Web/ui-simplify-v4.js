@@ -44,16 +44,18 @@
 
     const sourceLine = hero.querySelector("#activeSources,.sourceLine");
     if (sourceLine) {
+      let sawWebRouting = false;
       sourceLine.querySelectorAll(".chip").forEach(chip => {
         const text = String(chip.textContent || "").trim();
         if (/Google Calendar/i.test(text)) chip.textContent = text.replace(/Google Calendar/i, "Google");
         else if (/Calendar Links/i.test(text)) chip.textContent = text.replace(/Calendar Links/i, "Links");
         else if (/Web routing/i.test(text)) {
+          sawWebRouting = true;
           chip.title = text;
           chip.textContent = "Web routing";
         }
       });
-      if (!hero.querySelector(".lrRoutingCredit") && /web/i.test(document.documentElement.dataset.webPreview || "")) {
+      if (sawWebRouting && !hero.querySelector(".lrRoutingCredit")) {
         const credit = document.createElement("div");
         credit.className = "lrRoutingCredit";
         credit.textContent = "© OpenStreetMap contributors · OSRM";

@@ -1,11 +1,12 @@
 // Connect saved Client Profiles to field tools without changing the underlying
-// note/plan storage model. Choosing a client can prefill saved targets and
-// preferred activities while still leaving the RBT free to edit the session.
+// note/plan storage model. Choosing a client preloads that client's saved
+// targets and preferred activities while still allowing session-specific edits.
 (() => {
   if (window.__lifeRouteClientProfileToolsV1Loaded) return;
   window.__lifeRouteClientProfileToolsV1Loaded = true;
 
   const STORE = "liferoute_v3";
+  let selectedCode = "";
   const clean = value => String(value ?? "").trim();
   const pair = value => {
     const letters = clean(value).replace(/[^a-z]/gi, "").slice(0, 2);
@@ -57,25 +58,28 @@
     host.innerHTML = `<div class="sessionPlanProfileLabel">CLIENT PROFILE</div><div class="sessionPlanProfileStats"><span>${targets.length} target${targets.length === 1 ? "" : "s"}</span><span>${preferred.length} preferred activit${preferred.length === 1 ? "y" : "ies"}</span><span>${behaviors.length} behavior${behaviors.length === 1 ? "" : "s"}</span></div>`;
   };
 
-  const mayAutofill = field => !clean(field?.value) || field?.dataset?.profileAutofill === "1";
-  const setAutofill = (field, value) => {
-    if (!field || !mayAutofill(field)) return;
+  const mayAutofill = (field, force) => force || !clean(field?.value) || field?.dataset?.profileAutofill === "1";
+  const setAutofill = (field, value, force = false) => {
+    if (!field || !mayAutofill(field, force)) return;
     field.value = value;
     field.dataset.profileAutofill = value ? "1" : "0";
   };
 
-  const applyProfile = code => {
-    const profile = profileFor(code);
+  const applyProfile = (code, { force = false } = {}) => {
+    const normalizedCode = clean(code);
+    const profile = profileFor(normalizedCode);
     const targets = document.getElementById("sessionPlanTargets");
     const reinforcers = document.getElementById("sessionPlanReinforcers");
     renderContext(profile);
     if (!profile) {
-      if (targets?.dataset.profileAutofill === "1") { targets.value = ""; targets.dataset.profileAutofill = "0"; }
-      if (reinforcers?.dataset.profileAutofill === "1") { reinforcers.value = ""; reinforcers.dataset.profileAutofill = "0"; }
+      if (force || targets?.dataset.profileAutofill === "1") { if (targets) targets.value = ""; if (targets) targets.dataset.profileAutofill = "0"; }
+      if (force || reinforcers?.dataset.profileAutofill === "1") { if (reinforcers) reinforcers.value = ""; if (reinforcers) reinforcers.dataset.profileAutofill = "0"; }
+      selectedCode = normalizedCode;
       return;
     }
-    setAutofill(targets, listFrom(profile.currentTargets || profile.targets).join("; "));
-    setAutofill(reinforcers, listFrom(profile.preferredActivities || profile.reinforcers).join("; "));
+    setAutofill(targets, listFrom(profile.currentTargets || profile.targets).join("; "), force);
+    setAutofill(reinforcers, listFrom(profile.preferredActivities || profile.reinforcers).join("; "), force);
+    selectedCode = normalizedCode;
   };
 
   const installStyles = () => {
@@ -92,7 +96,10 @@
     const select = document.getElementById("sessionPlanClient");
     if (!select || select.dataset.clientProfileToolsV1 === "1") return false;
     select.dataset.clientProfileToolsV1 = "1";
-    select.addEventListener("change", () => applyProfile(select.value));
+    select.addEventListener("change", () => {
+      const nextCode = clean(select.value);
+      applyProfile(nextCode, { force: nextCode !== selectedCode });
+    });
 
     ["sessionPlanTargets", "sessionPlanReinforcers"].forEach(id => {
       const field = document.getElementById(id);
@@ -101,11 +108,14 @@
       });
     });
 
-    applyProfile(select.value);
+    applyProfile(select.value, { force: true });
     return true;
   };
 
-  window.applyLifeRouteClientProfileToTools = code => applyProfile(code ?? document.getElementById("sessionPlanClient")?.value ?? "");
+  window.applyLifeRouteClientProfileToTools = code => applyProfile(
+    code ?? document.getElementById("sessionPlanClient")?.value ?? "",
+    { force: false }
+  );
 
   const start = () => {
     installStyles();
@@ -113,10 +123,10 @@
     [60, 180, 480, 1000].forEach(delay => setTimeout(bind, delay));
     window.addEventListener("liferoute:clients-changed", () => {
       window.refreshLifeRouteToolClients?.();
-      setTimeout(() => applyProfile(document.getElementById("sessionPlanClient")?.value || ""), 30);
+      setTimeout(() => applyProfile(document.getElementById("sessionPlanClient")?.value || "", { force: false }), 30);
     });
     window.addEventListener("storage", event => {
-      if (event.key === STORE) setTimeout(() => applyProfile(document.getElementById("sessionPlanClient")?.value || ""), 30);
+      if (event.key === STORE) setTimeout(() => applyProfile(document.getElementById("sessionPlanClient")?.value || "", { force: false }), 30);
     });
   };
 

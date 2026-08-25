@@ -90,7 +90,7 @@
   };
 
   const syncThemeMarks = () => {
-    document.querySelectorAll("#lifeRouteSettingsOverlay .lrSettingsSection").forEach(section => {
+    document.querySelectorAll("#lifeRouteCoreThemeSection,#lifeRouteMetallicWaveThemeSection").forEach(section => {
       const select = section.querySelector("select");
       const head = section.querySelector(".lrSettingsSectionHead b");
       if (!select || !head) return;

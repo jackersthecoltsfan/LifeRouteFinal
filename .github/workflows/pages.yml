@@ -30,6 +30,9 @@ jobs:
       - name: Prepare exact current LifeRoute build
         run: bash scripts/prepare_build.sh
 
+      - name: Full LifeRoute regression audit
+        run: python3 scripts/audit_liferoute_build.py
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
@@ -72,14 +75,14 @@ jobs:
           path.write_text(html)
           PY
 
-          # Validate every feature that is expected to ship in the current web
-          # experience, including dynamically loaded settings/theme helpers.
+          # Validate every feature expected to ship in the current web experience.
           for js in \
             auth-gate.js icons.js route-times.js smart-context.js todos.js grocery-stores.js \
             transport-mode.js sleek-ui.js store-sleek-ui.js selected-gap-routes.js live-day.js \
             rbt-tools.js visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js \
-            day-route-experience.js day-navigation-runtime.js welcome.js nav-cleanup.js icloud-calendar-web.js \
-            google-calendar-web.js google-calendar-stability.js first-then-back.js \
+            day-route-experience.js day-navigation-runtime.js boundary-stop-planner.js refined-ui-v2.js \
+            welcome.js nav-cleanup.js icloud-calendar-web.js google-calendar-web.js \
+            google-calendar-stability.js google-calendar-persistence-web.js first-then-back.js \
             visual-quality-web.js photo-source-picker-web.js end-home-route-web.js \
             mileage-tracker-web.js resources-hub-web.js nature-settings-web.js \
             settings-classic-themes-web.js photoreal-nature-web.js dynamic-themes-web.js \
@@ -104,14 +107,22 @@ jobs:
 
           grep -q 'shiftSelectedDayRuntime' dist/day-navigation-runtime.js
           grep -q 'dayNavBound' dist/day-navigation-runtime.js
+          grep -q 'boundary-stop-planner.js' dist/day-navigation-runtime.js
+          grep -q 'refined-ui-v2.js' dist/day-navigation-runtime.js
+          grep -q 'liferoute_boundary_stops_v1' dist/boundary-stop-planner.js
+          grep -q 'data-boundary-place' dist/boundary-stop-planner.js
+          grep -q 'searchStoreLocations' dist/boundary-stop-planner.js
           grep -q 'web-routing-bridge.js' dist/web-preview.js
           grep -q 'web-store-search-fallback.js' dist/web-preview.js
           grep -q 'welcome.js' dist/web-preview.js
+          grep -q 'google-calendar-persistence-web.js' dist/web-preview.js
           grep -q 'end-home-route-web.js' dist/web-preview.js
           grep -q 'mileage-tracker-web.js' dist/web-preview.js
           grep -q 'resources-hub-web.js' dist/web-preview.js
           grep -q 'nature-settings-web.js' dist/web-preview.js
           grep -q 'settings-classic-themes-web.js' dist/web-preview.js
+          grep -q 'photoreal-nature-web.js' dist/web-preview.js
+          grep -q 'dynamic-themes-web.js' dist/web-preview.js
 
           grep -q 'requestRouteTimes' dist/web-routing-bridge.js
           grep -q 'searchStoreLocations' dist/web-routing-bridge.js
@@ -130,6 +141,7 @@ jobs:
           grep -q 'Unsplash photography' dist/photoreal-nature-web.js
           ! grep -qi 'client_secret' dist/*.js
           ! grep -q 'PREVIEW_CODE' dist/auth-gate.js
+          ! grep -q '246810' dist/auth-gate.js
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

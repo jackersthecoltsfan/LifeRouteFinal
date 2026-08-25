@@ -1,89 +1,96 @@
-// Reliable launch + persistent exit control for the full-screen First / Then board.
+// Reliable First / Then launch + escape control that survives smart visual regeneration.
 (() => {
   if (window.__lifeRouteFirstThenBackLoaded) return;
   window.__lifeRouteFirstThenBackLoaded = true;
 
   const STYLE_ID = "lifeRouteFirstThenBackStyles";
+  let openRequested = false;
+  let openTimers = [];
 
   const installStyles = () => {
     if (document.getElementById(STYLE_ID)) return;
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
-      #firstThenOverlay.show{
-        display:block!important;
-        pointer-events:auto!important;
-        visibility:visible!important;
-        opacity:1!important;
+      #firstThenOverlay.show{display:block!important;pointer-events:auto!important;visibility:visible!important;opacity:1!important}
+      #firstThenOverlay:not(.show){pointer-events:none!important}
+      #lifeRouteFirstThenEscape{
+        position:fixed;left:max(14px,env(safe-area-inset-left));top:calc(14px + env(safe-area-inset-top));z-index:40050;
+        display:none;align-items:center;justify-content:center;gap:7px;min-width:92px;min-height:44px;padding:10px 15px;
+        border-radius:999px;border:1px solid color-mix(in srgb,var(--gold) 35%,var(--line));
+        background:color-mix(in srgb,var(--panel) 94%,black);color:var(--text);box-shadow:0 12px 34px rgba(0,0,0,.34);
+        backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);font-size:13px;font-weight:900;pointer-events:auto;
       }
-      #firstThenOverlay #firstThenClose.firstThenOverlayBack{
-        position:fixed!important;
-        left:max(14px,env(safe-area-inset-left))!important;
-        top:calc(14px + env(safe-area-inset-top))!important;
-        z-index:12500!important;
-        display:inline-flex!important;
-        align-items:center!important;
-        justify-content:center!important;
-        gap:7px!important;
-        min-width:92px!important;
-        min-height:44px!important;
-        padding:10px 15px!important;
-        border-radius:999px!important;
-        border:1px solid color-mix(in srgb,var(--gold) 35%,var(--line))!important;
-        background:color-mix(in srgb,var(--panel) 92%,black)!important;
-        color:var(--text)!important;
-        box-shadow:0 12px 34px rgba(0,0,0,.34)!important;
-        backdrop-filter:blur(18px)!important;
-        -webkit-backdrop-filter:blur(18px)!important;
-        font-size:13px!important;
-        font-weight:900!important;
-        letter-spacing:0!important;
-        opacity:1!important;
-        visibility:visible!important;
-        pointer-events:auto!important;
-      }
-      #firstThenOverlay #firstThenClose.firstThenOverlayBack:active{transform:scale(.96)}
-      html[data-web-preview="true"] #firstThenOverlay #firstThenClose.firstThenOverlayBack{
-        top:calc(116px + env(safe-area-inset-top))!important;
-      }
-      @media(max-width:680px){
-        #firstThenOverlay #firstThenClose.firstThenOverlayBack{
-          min-width:88px!important;
-          min-height:42px!important;
-          padding:9px 13px!important;
-          font-size:12px!important;
-        }
-      }
+      #lifeRouteFirstThenEscape.show{display:inline-flex!important}
+      #lifeRouteFirstThenEscape:active{transform:scale(.96)}
+      #firstThenOverlay #firstThenClose{visibility:hidden!important;pointer-events:none!important}
+      html[data-web-preview="true"] #lifeRouteFirstThenEscape{top:calc(116px + env(safe-area-inset-top))}
+      .firstThenVisualImage{animation:lrFirstThenLivingVisual 7s ease-in-out infinite alternate;transform-origin:center center;will-change:transform,filter}
+      @keyframes lrFirstThenLivingVisual{from{transform:scale(1.005) translate3d(-.3%,.2%,0);filter:saturate(1.02)}to{transform:scale(1.035) translate3d(.45%,-.35%,0);filter:saturate(1.08)}}
+      @media(prefers-reduced-motion:reduce){.firstThenVisualImage{animation:none!important}}
+      @media(max-width:680px){#lifeRouteFirstThenEscape{min-width:88px;min-height:42px;padding:9px 13px;font-size:12px}}
     `;
     document.head.appendChild(style);
+  };
+
+  const escapeButton = () => {
+    let button = document.getElementById("lifeRouteFirstThenEscape");
+    if (button) return button;
+    button = document.createElement("button");
+    button.id = "lifeRouteFirstThenEscape";
+    button.type = "button";
+    button.className = "secondary";
+    button.textContent = "← Back";
+    button.setAttribute("aria-label", "Close First Then board");
+    document.body.appendChild(button);
+    return button;
+  };
+
+  const cancelOpenTimers = () => {
+    openTimers.forEach(timer => clearTimeout(timer));
+    openTimers = [];
+  };
+
+  const syncEscape = () => {
+    const overlay = document.getElementById("firstThenOverlay");
+    const button = escapeButton();
+    const shown = !!overlay?.classList.contains("show");
+    button.classList.toggle("show", shown);
+    button.setAttribute("aria-hidden", shown ? "false" : "true");
+    if (overlay) overlay.setAttribute("aria-hidden", shown ? "false" : "true");
+  };
+
+  const closeBoard = () => {
+    openRequested = false;
+    cancelOpenTimers();
+    const overlay = document.getElementById("firstThenOverlay");
+    if (overlay) {
+      overlay.classList.remove("show");
+      overlay.style.pointerEvents = "none";
+      overlay.style.visibility = "hidden";
+      overlay.style.opacity = "0";
+      overlay.setAttribute("aria-hidden", "true");
+    }
+    syncEscape();
+    const first = document.getElementById("firstThenFirst");
+    if (first && typeof first.focus === "function") setTimeout(() => first.focus({ preventScroll: true }), 0);
   };
 
   const decorate = () => {
     installStyles();
     const overlay = document.getElementById("firstThenOverlay");
-    const button = document.getElementById("firstThenClose");
-    if (!overlay || !button) return false;
-
-    if (!button.classList.contains("firstThenOverlayBack")) {
-      button.classList.add("firstThenOverlayBack");
+    if (!overlay) return false;
+    const internal = document.getElementById("firstThenClose");
+    if (internal) {
+      internal.textContent = "Back";
+      internal.setAttribute("aria-label", "Close First Then board");
     }
-    if (button.textContent !== "← Back") button.textContent = "← Back";
-    if (button.getAttribute("aria-label") !== "Back to First Then setup") {
-      button.setAttribute("aria-label", "Back to First Then setup");
-    }
-    if (button.getAttribute("title") !== "Back") button.setAttribute("title", "Back");
-
-    if (button.dataset.lifeRouteBackBound !== "1") {
-      button.dataset.lifeRouteBackBound = "1";
-      button.addEventListener("click", () => {
-        overlay.classList.remove("show");
-        overlay.style.pointerEvents = "none";
-      });
-    }
+    syncEscape();
     return true;
   };
 
   const forceOpen = () => {
+    if (!openRequested) return false;
     const overlay = document.getElementById("firstThenOverlay");
     if (!overlay) return false;
     overlay.classList.add("show");
@@ -91,31 +98,48 @@
     overlay.style.pointerEvents = "auto";
     overlay.style.visibility = "visible";
     overlay.style.opacity = "1";
+    overlay.setAttribute("aria-hidden", "false");
     document.documentElement.style.removeProperty("pointer-events");
     document.body.style.removeProperty("pointer-events");
-    decorate();
+    syncEscape();
     return true;
   };
 
-  // Let the original First / Then handler populate and create the overlay first,
-  // then guarantee that Safari actually paints it as a full-screen interactive view.
+  // Capture the launch before other renderers mutate the board. A single delayed
+  // reconciliation is enough; multiple old retries could reopen a board after a user closed it.
   document.addEventListener("click", event => {
     if (!event.target.closest?.("#showFirstThen")) return;
-    [0, 30, 120].forEach(delay => setTimeout(forceOpen, delay));
-  }, false);
+    openRequested = true;
+    cancelOpenTimers();
+    openTimers.push(setTimeout(forceOpen, 0));
+    openTimers.push(setTimeout(forceOpen, 90));
+  }, true);
+
+  // Own every exit route in capture phase so generated visual handlers cannot swallow it.
+  document.addEventListener("click", event => {
+    if (!event.target.closest?.("#lifeRouteFirstThenEscape,#firstThenClose")) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    closeBoard();
+  }, true);
+
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Escape" || !document.getElementById("firstThenOverlay")?.classList.contains("show")) return;
+    event.preventDefault();
+    closeBoard();
+  }, true);
 
   const start = () => {
     installStyles();
+    escapeButton().addEventListener("click", closeBoard);
     decorate();
-
-    // Observe only for creation of the overlay. Disconnect permanently once it
-    // exists so decorating the Back button cannot create a mutation loop.
-    if (!document.getElementById("firstThenOverlay")) {
-      const observer = new MutationObserver(() => {
-        if (decorate()) observer.disconnect();
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
-    }
+    const observer = new MutationObserver(() => {
+      decorate();
+      syncEscape();
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+    window.addEventListener("pagehide", closeBoard);
+    window.LifeRouteFirstThen = { close: closeBoard, open: () => { openRequested = true; forceOpen(); } };
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });

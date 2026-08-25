@@ -19,12 +19,19 @@
     .lrBoundaryGap,.lrBoundarySummary,.lrBoundaryOpen,.lrBoundaryGap button{pointer-events:auto!important}
     .lrBoundaryOpen,.lrBoundaryGap button{position:relative;z-index:2}
     #lifeRouteMetalBackdrop,#lifeRouteThemeFX,#lifeRouteNatureBackdrop,#lifeRouteDynamicBackdrop{pointer-events:none!important}
-    html[data-life-route-runtime="native"] .bottom{backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important}
+
+    /* Native WKWebView gets the same visual identity with less compositing work. */
+    html[data-life-route-runtime="native"] .bottom{backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important}
     html[data-life-route-runtime="native"] .tabs,
     html[data-life-route-runtime="native"] .calendarHubNav,
-    html[data-life-route-runtime="native"] .liveDayPanel{backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important}
+    html[data-life-route-runtime="native"] .liveDayPanel{backdrop-filter:blur(6px)!important;-webkit-backdrop-filter:blur(6px)!important}
     html[data-life-route-runtime="native"] #lifeRouteMetalBackdrop .metalWave,
     html[data-life-route-runtime="native"] #lifeRouteMetalBackdrop .specular{will-change:auto!important}
+    html[data-life-route-runtime="native"] #lifeRouteThemeFX .fxOrb,
+    html[data-life-route-runtime="native"] #lifeRouteThemeFX .fxBeam{animation:none!important;will-change:auto!important}
+    html[data-life-route-runtime="native"] #lifeRouteThemeFX .fxOrb{filter:blur(42px)!important;opacity:.10!important}
+    html[data-life-route-runtime="native"] #lifeRouteThemeFX .fxBeam{filter:blur(18px)!important;opacity:.07!important}
+
     @media(max-width:700px) and (pointer:coarse){
       html[data-life-route-runtime="web"] .dynC{display:none!important}
       html[data-life-route-runtime="web"] .dynLayer{filter:blur(24px)!important;will-change:auto!important}

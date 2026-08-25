@@ -38,15 +38,14 @@ replace_once(
     "mobile top-right action gap",
 )
 
-# Final timer mix comes after older AI/privacy timer patches. Keep their silent-mode
-# activation, then make the actual glass tone much stronger and longer.
+# Final timer mix comes after older AI/privacy timer patches. Preserve the audited
+# ~5x Web Audio gain (0.25 vs the original 0.052), then make the tone longer and
+# reinforce it with the native boosted mix below.
 visual_timer = WEB / "visual-timer-v2.js"
 timer_text = visual_timer.read_text()
-if "0.26 * gainScale" not in timer_text:
-    if "0.25 * gainScale" in timer_text:
-        timer_text = timer_text.replace("0.25 * gainScale", "0.26 * gainScale", 1)
-    elif "0.052 * gainScale" in timer_text:
-        timer_text = timer_text.replace("0.052 * gainScale", "0.26 * gainScale", 1)
+if "0.25 * gainScale" not in timer_text:
+    if "0.052 * gainScale" in timer_text:
+        timer_text = timer_text.replace("0.052 * gainScale", "0.25 * gainScale", 1)
     else:
         raise SystemExit("Visual Timer final gain marker missing")
 if "now + 0.24" not in timer_text:

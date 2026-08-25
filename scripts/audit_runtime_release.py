@@ -23,6 +23,8 @@ first_then = text("LifeRoute/Web/first-then-back.js")
 search = text("LifeRoute/Web/stop-place-search-v4.js")
 fluid = text("LifeRoute/Web/fluid-scenes-v1.js")
 animals = text("LifeRoute/Web/dynamic-animals-v1.js")
+dynamic = text("LifeRoute/Web/dynamic-themes-web.js")
+catalog = text("LifeRoute/Web/theme-catalog-v3.js")
 aesthetic = text("LifeRoute/Web/aesthetic-polish-v1.js")
 ui_simplify = text("LifeRoute/Web/ui-simplify-v4.js")
 testflight = text(".github/workflows/testflight.yml")
@@ -44,20 +46,24 @@ require('setInterval(' not in duration, "stop-duration UI has no permanent polli
 require('setInterval(' not in clients, "client sync has no permanent polling interval")
 require('setInterval(' not in toolbar, "toolbar cleanup has no permanent polling interval")
 require('setInterval(' not in location, "live location uses platform watcher rather than polling loop")
+require('setInterval(' not in fluid, "Fluid Motion has no JS polling loop")
+require('setInterval(' not in animals, "Living Creatures has no JS polling loop")
+require('setInterval(' not in dynamic, "Dynamic themes have no JS polling loop")
+require('observer.observe(document.body' not in catalog, "theme catalog does not watch whole document")
+require('observer.observe(sheet' in catalog, "theme catalog observer is Settings-sheet scoped")
 
 # B) Location and network lifecycle: watchers and requests always have stop/timeout paths.
-require('navigator.geolocation.watchPosition' in location, "browser location uses native geolocation watcher")
+require('navigator.geolocation.watchPosition' in location, "browser location uses continuous geolocation watcher")
 require('navigator.geolocation.clearWatch' in location, "browser location watcher is explicitly released")
 require('stopWebFallback()' in location and 'stopLiveLocation' in location, "web/native location stop paths exist")
 require('new AbortController()' in search and 'setTimeout(() => controller.abort()' in search, "stop search network calls have hard timeout")
 require('Promise.allSettled' in search, "parallel stop providers fail independently")
 
-# C) Animation pressure: cinematic themes are CSS-driven and honor accessibility motion settings.
+# C) Animation pressure and accessibility.
 require('prefers-reduced-motion:reduce' in fluid, "Fluid Motion honors reduced-motion preference")
 require('prefers-reduced-motion:reduce' in animals, "Living Creatures honors reduced-motion preference")
+require('prefers-reduced-motion:reduce' in dynamic, "Dynamic themes honor reduced-motion preference")
 require('prefers-reduced-motion:reduce' in aesthetic, "global aesthetic polish honors reduced-motion preference")
-require('setInterval(' not in fluid, "Fluid Motion has no JS polling animation loop")
-require('setInterval(' not in animals, "Living Creatures has no JS polling animation loop")
 require('characterData: true' not in ui_simplify, "UI simplifier ignores live text-character churn")
 
 # D) Canonical core startup is deterministic and not duplicated in the prepared HTML.
@@ -66,11 +72,12 @@ require(len(script_tags) == len(set(script_tags)), "prepared HTML contains no du
 for required in (
     'client-picker-sync-v1.js', 'toolbar-cleanup-v1.js', 'live-location-v2.js',
     'visual-timer-v2.js', 'first-then-back.js', 'stop-place-search-v4.js',
-    'stop-duration-v1.js', 'live-day.js', 'day-controls-v5.js', 'stability-runtime.js'
+    'stop-duration-v1.js', 'live-day.js', 'day-controls-v5.js',
+    'nature-settings-web.js', 'settings-classic-themes-web.js', 'dynamic-themes-web.js',
+    'fluid-scenes-v1.js', 'dynamic-animals-v1.js', 'theme-catalog-v3.js', 'stability-runtime.js'
 ):
     require(script_tags.count(required) == 1, f"{required} loads exactly once in shared runtime")
 
-# Dependency ordering: route selection before Live Day, boundary planner before duration wrapper.
 def idx(name):
     try: return script_tags.index(name)
     except ValueError: return -1
@@ -78,6 +85,8 @@ require(0 <= idx('selected-gap-routes.js') < idx('live-day.js'), "selected route
 require(0 <= idx('boundary-stop-planner.js') < idx('stop-duration-v1.js'), "boundary planner loads before duration wrapper")
 require(0 <= idx('stop-place-search-v4.js') < idx('stop-duration-v1.js'), "search engine loads before duration interaction layer")
 require(0 <= idx('live-day.js') < idx('day-controls-v5.js'), "Live Day core loads before control/Live Activity wrapper")
+require(0 <= idx('nature-settings-web.js') < idx('theme-catalog-v3.js'), "Settings shell loads before theme catalog normalization")
+require('loadHelper(' not in text('LifeRoute/Web/settings-classic-themes-web.js'), "classic themes do not inject duplicate theme scripts")
 
 # E) Release pipeline must rebuild/audit before a signed archive and upload.
 prepare_pos = testflight.find('bash scripts/prepare_build.sh')
@@ -90,7 +99,7 @@ require('concurrency:' in testflight and 'group: liferoute-testflight' in testfl
 require('cancel-in-progress: false' in testflight, "an active TestFlight upload cannot be cancelled by a duplicate request")
 require('CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}"' in testflight, "each TestFlight run gets a unique build number")
 require('Clean temporary Apple signing assets' in testflight and 'if: always()' in testflight, "temporary signing assets are cleaned even after failure")
-require('"[no-testflight]"' in auto_release and 'skipping TestFlight dispatch' in auto_release.lower(), "protected audit commits cannot auto-upload")
+require('"[no-testflight]"' in auto_release and 'skipping testflight dispatch' in auto_release.lower(), "protected audit commits cannot auto-upload")
 
 # F) Repository safety/privacy: no user fixtures, private keys, or signing payloads are distributable source.
 for forbidden in (
@@ -114,10 +123,12 @@ private_extensions = {'.p8', '.p12', '.mobileprovision', '.cer'}
 private_files = [str(path) for path in root.rglob('*') if path.is_file() and path.suffix.lower() in private_extensions and '.git' not in path.parts]
 require(not private_files, "repository contains no committed private signing credential files")
 
-# G) Build-time hardening itself is guaranteed to run before audits.
+# G) Build-time hardening and independent audits must be permanent gates.
 require('patch_release_hardening_v1.py' in prepare, "release-hardening patch is part of deterministic preparation")
+require('patch_theme_runtime_hardening_v1.py' in prepare, "theme-runtime hardening is part of deterministic preparation")
 require('audit_user_journeys.py' in prepare, "user-journey audit is part of build preparation")
 require('audit_runtime_release.py' in prepare, "runtime/release audit is part of build preparation")
+require('audit_theme_runtime_deep.py' in prepare, "deep theme audit is part of build preparation")
 
 failed = [label for ok, label in checks if not ok]
 print(f"LifeRoute runtime/release audit: {len(checks) - len(failed)} passed, {len(failed)} failed")

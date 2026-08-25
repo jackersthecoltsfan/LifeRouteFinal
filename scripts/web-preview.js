@@ -72,6 +72,7 @@
     loadPreviewScript("icloud-calendar-web.js");
     loadPreviewScript("google-calendar-web.js");
     loadPreviewScript("google-calendar-stability.js");
+    loadPreviewScript("google-calendar-persistence-web.js");
     loadPreviewScript("first-then-back.js");
     loadPreviewScript("visual-quality-web.js");
     loadPreviewScript("photo-source-picker-web.js");
@@ -80,6 +81,8 @@
     loadPreviewScript("resources-hub-web.js");
     loadPreviewScript("nature-settings-web.js");
     loadPreviewScript("settings-classic-themes-web.js");
+    loadPreviewScript("photoreal-nature-web.js");
+    loadPreviewScript("dynamic-themes-web.js");
 
     // If Google is unusually slow to load, make the first tap visibly prepare
     // sign-in rather than appearing dead. The normal Google handler remains in

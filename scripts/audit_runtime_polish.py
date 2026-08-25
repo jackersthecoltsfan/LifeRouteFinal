@@ -43,8 +43,8 @@ check("web location has watch fallback", "watchPosition" in LOCATION_JS and "cle
 check("location freshness tracked", "locationUpdatedAt" in LOCATION_JS and "freshnessMs" in LOCATION_JS)
 check("location helper has no network dependency", "fetch(" not in LOCATION_JS and "http://" not in LOCATION_JS and "https://" not in LOCATION_JS)
 
-# User photo preprocessing stays local. Native iPhone uses Apple Vision saliency
-# first; browser and Vision failure use the existing deterministic heuristic.
+# User photo preprocessing stays local. Native iPhone uses Apple Vision subject analysis
+# and foreground-instance segmentation; browser and Vision failure use the deterministic heuristic.
 check("visual focus is local only", "fetch(" not in VISUAL and "XMLHttpRequest" not in VISUAL and "http://" not in VISUAL and "https://" not in VISUAL)
 check("visual focus has local saliency fallback", "heuristicSubjectCrop" in VISUAL and "getImageData" in VISUAL and "threshold" in VISUAL and "saturation" in VISUAL)
 check("visual focus uses edge energy", "const dx" in VISUAL and "const dy" in VISUAL)
@@ -53,7 +53,7 @@ check("visual focus uses Apple Vision when native", "requestVisionCrop" in VISUA
 check("visual focus AI has bounded fallback", "visionPending" in VISUAL and "1500" in VISUAL and "return heuristicSubjectCrop(image)" in VISUAL)
 check("visual focus AI is on-device", '"apple-vision-saliency"' in SWIFT and "URLSession" not in SWIFT[SWIFT.find("private func analyzeVisualSubject"):SWIFT.find("private func emit(type:")])
 check("visual focus de-emphasizes background", 'blur(28px) saturate(.62)' in VISUAL and 'rgba(255,255,255,.56)' in VISUAL)
-check("visual focus keeps sharp subject layer", 'saturate(1.13) contrast(1.08)' in VISUAL)
+check("visual focus keeps a clear subject layer", ("requestVisionCutout" in VISUAL and "apple-vision-foreground-mask" in VISUAL) or 'saturate(1.13) contrast(1.08)' in VISUAL)
 check("visual focus creates normalized 1024 image", "canvas.width = 1024" in VISUAL and "canvas.height = 1024" in VISUAL)
 check("visual focus returns local JPEG File", 'canvas.toBlob(resolve, "image/jpeg"' in VISUAL and "new File([blob]" in VISUAL)
 check("visual focus safely re-dispatches input", "new DataTransfer()" in VISUAL and 'input.dispatchEvent(new Event("change"' in VISUAL)

@@ -63,12 +63,13 @@
     };
 
     // Browser-preview-only helpers. All are cache-busted to the deployed SHA.
-    // Load route intelligence first so later user actions use the browser bridge
-    // instead of the old native-only postNative behavior.
+    // The direct v2 store engine loads last in the routing stack so Search stores
+    // uses Photon first and only falls back to the older Overpass/Nominatim path.
     loadPreviewScript("web-routing-bridge.js");
     loadPreviewScript("web-store-search-fallback.js");
     loadPreviewScript("web-routing-resilience.js");
     loadPreviewScript("web-store-late-guard.js");
+    loadPreviewScript("web-store-direct-v2.js");
     loadPreviewScript("welcome.js");
     loadPreviewScript("nav-cleanup.js");
     loadPreviewScript("icloud-calendar-web.js");

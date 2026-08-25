@@ -46,6 +46,7 @@ for marker in [
     "webView.scrollView.alwaysBounceVertical = false",
     "webView.scrollView.alwaysBounceHorizontal = false",
     "webView.scrollView.delaysContentTouches = false",
+    "webView.scrollView.isDirectionalLockEnabled = true",
     "webView.scrollView.contentInset = .zero",
     "lifeRouteNativeRuntimeBootstrap",
 ]:

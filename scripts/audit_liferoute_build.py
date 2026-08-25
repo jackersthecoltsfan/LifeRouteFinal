@@ -14,7 +14,9 @@ SCRIPTS = ROOT / "scripts"
 INDEX = WEB / "index.html"
 WEB_PREVIEW = SCRIPTS / "web-preview.js"
 SWIFT = ROOT / "LifeRoute" / "LifeRouteWebView.swift"
+PREPARE = SCRIPTS / "prepare_build.sh"
 TESTFLIGHT = ROOT / ".github" / "workflows" / "testflight.yml"
+AUTO_TESTFLIGHT = ROOT / ".github" / "workflows" / "auto-testflight.yml"
 PAGES = ROOT / ".github" / "workflows" / "pages.yml"
 IOS_CI = ROOT / ".github" / "workflows" / "ios-ci.yml"
 
@@ -61,6 +63,7 @@ CORE_FILES = [
     "boundary-stop-planner.js",
     "day-navigation-runtime.js",
     "refined-ui-v2.js",
+    "stability-runtime.js",
 ]
 
 BROWSER_FILES = [
@@ -105,6 +108,7 @@ for path in sorted(SCRIPTS.glob("*.py")):
 index = text(INDEX)
 preview = text(WEB_PREVIEW)
 swift = text(SWIFT)
+prepare = text(PREPARE)
 auth = text(WEB / "auth-gate.js")
 global_bridge = text(WEB / "global-bridge.js")
 day_route = text(WEB / "day-route-experience.js")
@@ -120,6 +124,7 @@ visuals = text(WEB / "visual-tools.js")
 route_bridge = text(WEB / "web-routing-bridge.js")
 store_fallback = text(WEB / "web-store-search-fallback.js")
 refined = text(WEB / "refined-ui-v2.js")
+stability = text(WEB / "stability-runtime.js")
 
 # Deterministic startup order.
 script_refs = re.findall(r'<script[^>]+src=["\']([^"\']+\.js)(?:\?[^"\']*)?["\']', index, flags=re.I)
@@ -129,14 +134,17 @@ for ref, count in counts.items():
 for name in CORE_FILES:
     require(name in script_refs, f"Prepared HTML loads core feature: {name}")
     require((WEB / name).is_file(), f"Prepared core script resolves: {name}")
-positions = [script_refs.index(name) for name in CORE_FILES if name in script_refs]
-require(len(positions) == len(CORE_FILES) and positions == sorted(positions), "Core feature scripts load in canonical order")
-require(script_refs.index("global-bridge.js") < script_refs.index("calendar-hub.js"), "Global state bridge loads before calendar hub")
-require(script_refs.index("todos.js") < script_refs.index("saved-place-gap-options.js"), "To-Dos load before Saved Places gap enhancement")
-require(script_refs.index("selected-gap-routes.js") < script_refs.index("saved-place-gap-options.js"), "Persistent gap routes load before Saved Places gap enhancement")
-require(script_refs.index("day-route-experience.js") < script_refs.index("boundary-stop-planner.js"), "Boundary card shell loads before persistent boundary planner")
-require(script_refs.index("boundary-stop-planner.js") < script_refs.index("day-navigation-runtime.js"), "Boundary planner loads before Day navigation binding")
-require(script_refs.index("day-navigation-runtime.js") < script_refs.index("refined-ui-v2.js"), "Refined UI loads after Day behavior")
+
+if all(name in script_refs for name in CORE_FILES):
+    positions = [script_refs.index(name) for name in CORE_FILES]
+    require(positions == sorted(positions), "Core feature scripts load in canonical order")
+    require(script_refs.index("global-bridge.js") < script_refs.index("calendar-hub.js"), "Global state bridge loads before calendar hub")
+    require(script_refs.index("todos.js") < script_refs.index("saved-place-gap-options.js"), "To-Dos load before Saved Places gap enhancement")
+    require(script_refs.index("selected-gap-routes.js") < script_refs.index("saved-place-gap-options.js"), "Persistent gap routes load before Saved Places gap enhancement")
+    require(script_refs.index("day-route-experience.js") < script_refs.index("boundary-stop-planner.js"), "Boundary card shell loads before persistent boundary planner")
+    require(script_refs.index("boundary-stop-planner.js") < script_refs.index("day-navigation-runtime.js"), "Boundary planner loads before Day navigation binding")
+    require(script_refs.index("day-navigation-runtime.js") < script_refs.index("refined-ui-v2.js"), "Refined UI loads after Day behavior")
+    require(script_refs.index("refined-ui-v2.js") < script_refs.index("stability-runtime.js"), "Stability runtime loads last")
 require("loadCoreEnhancement" not in day_nav, "Day navigation no longer dynamically reinjects core modules")
 
 for marker in ['expose("prefs"', 'expose("events"', 'expose("places"', 'expose("nativeState"', 'expose("selectedDate"']:
@@ -207,6 +215,16 @@ for marker in [
 ]:
     require(marker in swift, f"Native bridge capability: {marker}")
 
+# Stability / performance guardrails.
+for marker in [
+    "overscroll-behavior-y:none",
+    "lifeRouteStableRefreshCalendars",
+    "lifeRouteStableOptimizeWeek",
+    'data-life-route-runtime="native"',
+]:
+    require(marker in stability, f"Stability runtime capability: {marker}")
+require("stability-runtime.js" in prepare and "patch_stability.py" in prepare, "Prepared build includes stability runtime and patch")
+
 # Google Calendar / appearance / resources / tools.
 google = text(WEB / "google-calendar-web.js")
 google_persist = text(WEB / "google-calendar-persistence-web.js")
@@ -234,18 +252,31 @@ for glyph in ["🚙", "🚗", "🚘"]:
 pages = text(PAGES)
 ios_ci = text(IOS_CI)
 testflight = text(TESTFLIGHT)
+auto_testflight = text(AUTO_TESTFLIGHT)
+
 require("python3 scripts/audit_liferoute_build.py" in pages, "Pages runs full regression audit")
 require("python3 scripts/audit_liferoute_build.py" in ios_ci, "iOS CI runs full regression audit")
-require("Full LifeRoute regression audit" in testflight and "python3 scripts/audit_liferoute_build.py" in testflight, "Future TestFlight releases are gated by full audit")
-require("workflow_dispatch" in testflight, "TestFlight remains manually dispatched")
-require(not re.search(r"^\s*push\s*:", testflight, flags=re.M), "TestFlight has no automatic push trigger")
-require(not (ROOT / ".github" / "workflows" / "auto-testflight.yml").exists(), "No auto-TestFlight workflow exists")
+require("Full LifeRoute regression audit" in testflight and "python3 scripts/audit_liferoute_build.py" in testflight, "TestFlight releases are gated by full audit")
+require("workflow_dispatch" in testflight, "TestFlight remains manually dispatchable")
+require(not re.search(r"^\s*push\s*:", testflight, flags=re.M), "TestFlight has no direct automatic push trigger")
+
+# Automatic release dispatcher: only a successful, current main CI build may
+# trigger the manually-dispatchable TestFlight workflow. This keeps the release
+# path automatic without bypassing the full regression audit.
+require(AUTO_TESTFLIGHT.is_file(), "Automatic TestFlight dispatcher exists")
+require('workflows: ["iOS Build Check"]' in auto_testflight, "Auto-TestFlight waits for iOS Build Check")
+require("github.event.workflow_run.conclusion == 'success'" in auto_testflight, "Auto-TestFlight requires successful CI")
+require("github.event.workflow_run.head_branch == 'main'" in auto_testflight, "Auto-TestFlight only releases main")
+require("CURRENT_SHA" in auto_testflight and "VALIDATED_SHA" in auto_testflight, "Auto-TestFlight rejects stale validated commits")
+require("gh workflow run testflight.yml" in auto_testflight, "Auto-TestFlight dispatches the audited TestFlight workflow")
+require("actions: write" in auto_testflight and "contents: read" in auto_testflight, "Auto-TestFlight has minimal required permissions")
 
 try:
     json.loads((WEB / "manifest.webmanifest").read_text(encoding="utf-8"))
     require(True, "Web manifest JSON is valid")
 except Exception as exc:
     errors.append(f"Web manifest JSON is valid ({exc})")
+
 require((ROOT / "LifeRoute.xcodeproj" / "project.pbxproj").is_file(), "Xcode project exists")
 require((ROOT / "LifeRoute" / "Info.plist").is_file(), "Info.plist exists")
 

@@ -58,20 +58,26 @@ check("session plan enforces exact total minutes", "total !== minutes" in FILES[
 check("session planner exposes deterministic fallback", "buildFallbackPlan" in FILES["rbt"] and "sessionBypass" in FILES["planning"])
 check("session AI saves through existing planner state", "hooks.savePlan(planState)" in FILES["planning"])
 
-# Day / route planning journey. The AI must consume deterministic facts, return a
-# small structured payload, and never recalculate the route/calendar math.
+# Day / route planning journey. AI receives localized display strings only and
+# is not allowed to suggest unsupplied stops or recalculate route facts.
 check("Live Day exposes exact computed plan to AI", "LifeRouteLiveDayAIHooks" in FILES["live"] and "buildDay" in FILES["live"])
 check(
-    "AI day brief treats appointment and route facts as immutable",
-    "immutable facts" in FILES["assistant"]
-    and "never change or recalculate them" in FILES["assistant"]
-    and '"dayBrief"' in FILES["assistant"]
-    and '"gapSuggestion"' in FILES["assistant"],
+    "AI day brief is factual and non-inventive",
+    "factual schedule summary" in FILES["assistant"]
+    and "Never infer, invent, recommend, or add meals, breaks, cafes, errands" in FILES["assistant"]
+    and '"dayBrief"' in FILES["assistant"],
 )
 check(
-    "AI route brief prohibited from recalculating travel",
-    "Never calculate or alter travel times" in FILES["assistant"]
-    and '"routeInsight"' in FILES["assistant"],
+    "AI day receives localized clock strings",
+    "startTime: friendlyTime(block.start)" in FILES["planning"]
+    and "endTime: friendlyTime(block.end)" in FILES["planning"]
+    and "leaveTime: block.leaveAt ? friendlyTime(block.leaveAt)" in FILES["planning"],
+)
+check(
+    "Day route insight remains deterministic",
+    "const deterministicRoute = nextAction" in FILES["planning"]
+    and "scrubDisplayText(deterministicRoute)" in FILES["planning"]
+    and "window.LifeRouteAI?.routeBrief?.(routeFacts)" not in FILES["planning"],
 )
 check("Generate Day triggers AI brief after deterministic build", "generateLifeRouteDayWithAI" in FILES["planning"] and "setTimeout(refreshDayAI" in FILES["planning"])
 check("day UI states route math remains authoritative", "Fixed route math remains authoritative" in FILES["planning"])

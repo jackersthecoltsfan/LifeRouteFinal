@@ -17,8 +17,9 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
     raise SystemExit(f"{label}: expected source pattern not found in {path}")
 
 
-# Clear Day must work in WKWebView without depending on a JavaScript confirm
-# panel. Use the shared selected-date bridge and make the action immediate.
+# Clear Day must work in WKWebView and must be scoped strictly to the selected
+# day's generated route plan. Calendar appointments, manual events, places,
+# clients, To-Dos, preferences, and every other date remain untouched.
 day = WEB / "day-controls-v5.js"
 replace_once(
     day,
@@ -26,18 +27,39 @@ replace_once(
     '  const dateKey = () => clean(window.selectedDate || (typeof selectedDate !== "undefined" ? selectedDate : ""));',
     "Clear Day selected-date bridge",
 )
-replace_once(
-    day,
-    '    if (!window.confirm("Clear this day\'s LifeRoute plan? Calendar events from connected providers will stay.")) return;\n\n',
-    '',
-    "Clear Day native-safe confirmation removal",
-)
-replace_once(
-    day,
-    '    try { window.persist?.(); } catch (_) {}\n    try { window.renderAll?.(); } catch (_) { try { window.renderToday?.(); } catch (_) {} }\n  };',
-    '    try { window.persist?.(); } catch (_) {}\n    try { window.renderAll?.(); } catch (_) { try { window.renderToday?.(); } catch (_) {} }\n    const button = document.querySelector("[data-lr-clear-day]");\n    if (button) {\n      const previous = button.textContent;\n      button.textContent = "Cleared ✓";\n      button.disabled = true;\n      setTimeout(() => { button.textContent = previous || "Clear day"; button.disabled = false; }, 900);\n    }\n    document.dispatchEvent(new CustomEvent("liferoute:day-cleared", { detail: { dateKey: day } }));\n  };',
-    "Clear Day visible completion feedback",
-)
+old_clear = '''  const clearDay = () => {
+    const day = dateKey();
+    if (!day) return;
+    if (!window.confirm("Clear this day's LifeRoute plan? Calendar events from connected providers will stay.")) return;
+
+    try { window.endLifeRouteDay?.(); } catch (_) {}
+    endLiveActivity();
+    clearDateKeys(GENERATED_STORE, day);
+    clearDateKeys(GAP_STORE, day);
+    clearDateKeys(BOUNDARY_STORE, day);
+
+    if (Array.isArray(window.events)) {
+      window.events = window.events.filter(event => !(event?.date === day && (!event?.source || event.source === "manual")));
+    }
+    try { window.persist?.(); } catch (_) {}
+    try { window.renderAll?.(); } catch (_) { try { window.renderToday?.(); } catch (_) {} }
+  };'''
+new_clear = '''  const clearDay = () => {
+    const day = dateKey();
+    if (!day) return;
+    if (!window.confirm("Clear only this day's generated routes and planned stops? Calendar appointments, places, clients, To-Dos, preferences, and other dates will stay.")) return;
+
+    try { window.endLifeRouteDay?.(); } catch (_) {}
+    endLiveActivity();
+    clearDateKeys(GENERATED_STORE, day);
+    if (typeof window.clearLifeRouteGapRoutesForDay === "function") window.clearLifeRouteGapRoutesForDay(day);
+    else clearDateKeys(GAP_STORE, day);
+    if (typeof window.clearLifeRouteBoundaryStopsForDay === "function") window.clearLifeRouteBoundaryStopsForDay(day);
+    else clearDateKeys(BOUNDARY_STORE, day);
+    try { window.renderAll?.(); } catch (_) { try { window.renderToday?.(); } catch (_) {} }
+    try { window.setStatus?.("Cleared this day's routes · appointments and saved data kept"); } catch (_) {}
+  };'''
+replace_once(day, old_clear, new_clear, "Clear Day route-only scope")
 
 # Clear All is destructive, so keep a confirmation step without relying on
 # WKWebView's JavaScript confirm panel. First tap arms for four seconds; the
@@ -59,4 +81,4 @@ replace_once(
     "Resource native external-link handoff",
 )
 
-print("Feature regressions fixed: Clear Day works directly, Clear All uses native-safe two-tap confirmation, and Resources use native handoff.")
+print("Feature regressions fixed: Clear Day is route-scoped, Clear All uses native-safe two-tap confirmation, and Resources use native handoff.")

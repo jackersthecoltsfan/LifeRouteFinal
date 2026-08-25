@@ -49,10 +49,14 @@ check("Clear day" in day and "Clear all" in day, "Clear day and Clear all contro
 clear_day = day[day.find("const clearDay ="):day.find("let clearAllArmedUntil")]
 clear_all = day[day.find("let clearAllArmedUntil"):day.find("const install =")]
 check("window.confirm" not in clear_day, "Clear day works without WKWebView JavaScript confirm UI")
-check('window.events = window.events.filter(event => !(event?.date === day && (!event?.source || event.source === "manual")))' in clear_day, "Clear day preserves provider calendar events by deleting only manual LifeRoute events")
-check("event.source === \"manual\"" in day, "Clear day removes only manual events for selected date")
-check("liferoute_selected_gap_routes_v2" in day and "liferoute_boundary_stops_v2" in day, "Clear day removes selected gap and boundary plans")
+check("window.events = window.events.filter" not in clear_day, "Clear day never deletes calendar/manual appointments")
+check("window.persist?.()" not in clear_day, "Clear day does not persist unrelated event mutations")
+check("clearDateKeys(GENERATED_STORE, day)" in clear_day, "Clear day removes selected day's generated state")
+check("clearLifeRouteGapRoutesForDay(day)" in clear_day, "Clear day clears selected day's gap routes through in-memory owner")
+check("clearLifeRouteBoundaryStopsForDay(day)" in clear_day, "Clear day clears selected day's boundary stops through in-memory owner")
+check("liferoute_selected_gap_routes_v2" in day and "liferoute_boundary_stops_v2" in day, "Clear day owns only selected gap and boundary plan stores")
 check("liferoute:day-cleared" in clear_day and "Cleared ✓" in clear_day, "Clear day visibly confirms completion")
+check("appointments and saved data kept" in clear_day, "Clear day status explicitly states preserved data")
 check("window.confirm" not in clear_all, "Clear all does not depend on WKWebView JavaScript confirm UI")
 check("clearAllArmedUntil" in clear_all and "Tap again to clear all" in clear_all and "4000" in clear_all, "Clear all uses bounded two-tap destructive confirmation")
 check('localStorage.getItem(AUTH_STORE)' in clear_all and 'localStorage.setItem(AUTH_STORE, auth)' in clear_all, "Clear all preserves dormant local auth credential for future restoration")
@@ -99,4 +103,4 @@ if failures:
     for failure in failures:
         print(f"FAIL: {failure}")
     raise SystemExit(1)
-print("LifeRoute Day UI, functional Clear Day/Clear All controls, reminders, and Live Activity audit passed.")
+print("LifeRoute Day UI, route-scoped Clear Day/Clear All controls, reminders, and Live Activity audit passed.")

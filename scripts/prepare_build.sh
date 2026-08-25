@@ -56,7 +56,10 @@ core = [
     "live-themes.js",
     "day-route-experience.js",
     "boundary-stop-planner.js",
+    "stop-place-search-v4.js",
     "day-navigation-runtime.js",
+    "ui-simplify-v4.js",
+    "fluid-scenes-v1.js",
     "refined-ui-v2.js",
     "stability-runtime.js",
 ]
@@ -87,7 +90,8 @@ CORE_JS=(
   todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js
   selected-gap-routes.js saved-place-gap-options.js live-day.js rbt-tools.js
   visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js
-  day-route-experience.js boundary-stop-planner.js day-navigation-runtime.js refined-ui-v2.js
+  day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js
+  day-navigation-runtime.js ui-simplify-v4.js fluid-scenes-v1.js refined-ui-v2.js
   stability-runtime.js
 )
 for js in "${CORE_JS[@]}"; do
@@ -109,6 +113,7 @@ for js in "${BROWSER_JS[@]}"; do
   node --check "LifeRoute/Web/$js"
 done
 
+python3 scripts/audit_stop_place_search.py
 python3 scripts/audit_stability.py
 
 # Critical native bridge contracts.
@@ -132,6 +137,7 @@ grep -q 'id="dayNextButton"' LifeRoute/Web/index.html
 grep -q 'data-lr-boundary-open' LifeRoute/Web/day-route-experience.js
 grep -q 'lifeRouteOpenBoundaryPlanner' LifeRoute/Web/boundary-stop-planner.js
 grep -q 'liferoute_boundary_stops_v2' LifeRoute/Web/boundary-stop-planner.js
+grep -q 'LifeRouteStopPlaceSearchV4' LifeRoute/Web/stop-place-search-v4.js
 grep -q 'planLifeRouteGapRoute' LifeRoute/Web/selected-gap-routes.js
 grep -q 'Saved places' LifeRoute/Web/saved-place-gap-options.js
 

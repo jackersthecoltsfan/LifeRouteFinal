@@ -1,31 +1,58 @@
 # LifeRoute feature plan
 
-## Implemented without external API credentials
+## Implemented now
 
-- Multi-source calendar selector for Apple Calendar, Google Calendar, and CentralReach.
-- Apple Calendar native EventKit permission/read bridge.
-- Apple Maps route and place handoff.
-- Google Maps route and place handoff.
-- User-selectable map provider or ask-each-time behavior.
-- Saved places and frequent/membership-place flag.
-- Gap suggestions based on saved place visit length.
-- Manual appointments and weekly gap analysis.
-- Customizable visual themes centered on a bold blue/gold design.
-- GitHub Actions iOS build validation.
-- Manual GitHub Actions TestFlight deployment workflow.
+### Calendar and schedule
+- Apple Calendar read-only sync through EventKit.
+- Google Calendar read-only OAuth sync in the iPhone app, with reconnect persistence in Keychain.
+- Browser Google Calendar support for the web preview.
+- Combined Day, Week, and Month views with selectable calendar sources.
+- Manual appointments alongside provider events.
 
-## Prepared but waiting for credentials/API access
+### Routing and location
+- Apple Maps and Google Maps route/place handoff.
+- Current-location access for live commute starts.
+- Apple MapKit travel-time and distance calculation in the native app.
+- Browser route-time support for the web preview.
+- Driving/transit-aware route behavior where supported.
+- Before-first, between-event, and after-last stop planning.
+- Persistent selected gap routes with explicit Open route / Change actions.
+- Home and client/location anchors for route-origin choices.
 
-- Google Calendar OAuth sign-in and event sync.
-- CentralReach OAuth client-credentials/API-key authentication and read-only schedule sync.
-- Live route time/distance calculations for validating gap suggestions.
-- Supported Google Maps saved-place/list import flow.
+### Places, errands, and shopping
+- Saved Places and frequent/membership-place flags.
+- To-Dos that can participate in route planning.
+- Store-chain preferences for shopping tasks.
+- Nearby branch search in the iPhone app with Apple MapKit.
+- Web-preview store-search fallback.
+- Branch comparison using route time, distance, stop duration, and available gap time.
 
-## Later product improvements
+### Experience and tools
+- Previous / Today / Next Day navigation with viewport preservation.
+- Live Day leave reminders and native notification support.
+- Username + 4-digit PIN authentication with native Keychain support and PBKDF2 browser storage.
+- RBT tools, visual-support tools, mileage/resources surfaces, and photo-based visual support inputs.
+- Customizable classic, metallic, scenery, dynamic, light, and dark theme families.
+- Sleek SVG-based interface icons instead of legacy transport emoji.
+- Native/WebView stability guards for scrolling, touch delivery, and animation performance.
+
+### Build and release
+- Shared deterministic build preparation for web preview, iOS CI, and TestFlight.
+- Full regression and stability audits before release builds.
+- iOS Simulator compile validation on relevant `main` changes.
+- Guarded automatic TestFlight dispatch only after the current `main` commit passes iOS CI.
+- TestFlight remains manually dispatchable as well.
+
+## Waiting on external access or a supported provider path
+
+- CentralReach production schedule sync: code remains read-only/scaffolded until organization-approved partner credentials and authentication are available.
+- Automatic Google Maps saved-list import: requires a supported Google data/API/export path; manual Saved Places remain available now.
+
+## Good next product improvements
 
 - Deduplicate matching events across multiple calendar sources.
-- User-selectable calendars within Apple/Google sources.
-- Privacy-preserving offline cache for provider events if needed.
-- Smarter gap scoring by route detour, opening hours, visit duration, preference, and membership value.
-- Notification/leave-by reminders.
-- Home/work anchors and route optimization across multiple stops.
+- Let users select individual calendars within Apple and Google sources.
+- Add opening-hours awareness to errands/store/place scoring.
+- Improve route ranking with richer preference history and configurable detour tolerance.
+- Add clearer offline/error-state diagnostics for provider outages.
+- Expand automated interaction/UI tests beyond the current structural, syntax, regression, and compile gates.

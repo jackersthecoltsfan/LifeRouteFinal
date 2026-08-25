@@ -86,6 +86,44 @@ if desired not in refined:
     refined = refined.replace(prepared_old, desired, 1)
     refined_path.write_text(refined)
 
+# Native WKWebView: preserve the premium identity but stop compositing a blurred
+# layer behind every card. This is one of the highest-cost effects on long
+# scrolling Day/Tools screens. Navigation glass remains intentionally intact.
+stability_path = WEB / "stability-runtime.js"
+stability = stability_path.read_text()
+native_perf_marker = 'html[data-life-route-runtime="native"] .lrNativePerfSolid'
+if native_perf_marker not in stability:
+    needle = '    /* Native WKWebView gets the same visual identity with less compositing work. */\n'
+    rules = '''    /* Native WKWebView gets the same visual identity with less compositing work. */
+    html[data-life-route-runtime="native"] body{background-attachment:scroll!important}
+    html[data-life-route-runtime="native"] .card,
+    html[data-life-route-runtime="native"] .metric,
+    html[data-life-route-runtime="native"] .todoMetric,
+    html[data-life-route-runtime="native"] .monthMetric,
+    html[data-life-route-runtime="native"] .hero{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+    html[data-life-route-runtime="native"] .lrNativePerfSolid{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+'''
+    if needle not in stability:
+        raise SystemExit("Native compositing cleanup: stability style marker not found")
+    stability = stability.replace(needle, rules, 1)
+
+old_start = '''  const start = () => {
+    bindBottomActions();
+    const bar = document.querySelector(".bottomin");
+    if (bar) new MutationObserver(bindBottomActions).observe(bar, { childList: true, subtree: true });
+    [100, 350, 900, 1800].forEach(delay => setTimeout(bindBottomActions, delay));
+  };'''
+new_start = '''  const start = () => {
+    bindBottomActions();
+    const bar = document.querySelector(".bottomin");
+    if (bar) new MutationObserver(bindBottomActions).observe(bar, { childList: true, subtree: true });
+  };'''
+if new_start not in stability:
+    if old_start not in stability:
+        raise SystemExit("Bottom action startup cleanup: expected stability start block not found")
+    stability = stability.replace(old_start, new_start, 1)
+stability_path.write_text(stability)
+
 # Browser preview should not dynamically reload modules that are already in the
 # shared core. Load guards prevent correctness bugs, but the duplicate requests
 # still add startup/network work.
@@ -100,4 +138,4 @@ for name in [
     text = text.replace(f'    loadPreviewScript("{name}");\n', "")
 preview.write_text(text)
 
-print("Runtime performance cleanup applied: startup retries removed, observers scoped, duplicate preview loads removed.")
+print("Runtime performance cleanup applied: startup retries removed, observers scoped, native card compositing reduced, duplicate preview loads removed.")

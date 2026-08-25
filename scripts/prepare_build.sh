@@ -75,6 +75,7 @@ core = [
     "theme-catalog-v3.js",
     "ui-simplify-v4.js",
     "refined-ui-v2.js",
+    "aesthetic-polish-v1.js",
     "stability-runtime.js",
 ]
 
@@ -108,7 +109,7 @@ CORE_JS=(
   day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js
   day-navigation-runtime.js nature-settings-web.js settings-classic-themes-web.js
   photoreal-nature-web.js dynamic-themes-web.js fluid-scenes-v1.js dynamic-animals-v1.js
-  theme-catalog-v3.js ui-simplify-v4.js refined-ui-v2.js stability-runtime.js
+  theme-catalog-v3.js ui-simplify-v4.js refined-ui-v2.js aesthetic-polish-v1.js stability-runtime.js
 )
 for js in "${CORE_JS[@]}"; do
   test -s "LifeRoute/Web/$js"
@@ -132,6 +133,7 @@ python3 scripts/audit_live_day_activity.py
 python3 scripts/audit_theme_catalog.py
 python3 scripts/audit_runtime_polish.py
 python3 scripts/audit_visual_timer.py
+python3 scripts/audit_appearance.py
 python3 scripts/audit_stability.py
 
 # Critical native bridge contracts.
@@ -173,5 +175,10 @@ grep -q 'Saved places' LifeRoute/Web/saved-place-gap-options.js
 grep -q 'LifeRouteVisualTimerV2' LifeRoute/Web/visual-timer-v2.js
 grep -q 'CHIME_PERIOD_MS = 500' LifeRoute/Web/visual-timer-v2.js
 grep -q 'END_HZ = 1320' LifeRoute/Web/visual-timer-v2.js
+
+# Final appearance contracts.
+grep -q 'lifeRouteAestheticPolishV1Styles' LifeRoute/Web/aesthetic-polish-v1.js
+grep -q 'min-height:44px!important' LifeRoute/Web/aesthetic-polish-v1.js
+grep -q 'button:focus-visible' LifeRoute/Web/aesthetic-polish-v1.js
 
 echo "LifeRoute feature preflight passed."

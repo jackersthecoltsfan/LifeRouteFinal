@@ -9,6 +9,9 @@ SWIFT = ROOT / "LifeRoute" / "LifeRouteWebView.swift"
 INDEX = WEB / "index.html"
 TESTFLIGHT = ROOT / ".github" / "workflows" / "testflight.yml"
 PREVIEW = ROOT / "scripts" / "web-preview.js"
+PREPARE = ROOT / "scripts" / "prepare_build.sh"
+PAGES = ROOT / ".github" / "workflows" / "pages.yml"
+IOS_CI = ROOT / ".github" / "workflows" / "ios-ci.yml"
 
 failures: list[str] = []
 passes: list[str] = []
@@ -38,6 +41,9 @@ day_nav = read(WEB / "day-navigation-runtime.js")
 photo = read(WEB / "photoreal-nature-web.js")
 preview = read(PREVIEW)
 testflight = read(TESTFLIGHT)
+prepare = read(PREPARE)
+pages = read(PAGES)
+ios_ci = read(IOS_CI)
 
 # Native scroll/touch correctness: prevent the exact rubber-band state that can
 # expose a transparent WKWebView background above the real UI.
@@ -48,6 +54,7 @@ for marker in [
     "webView.scrollView.delaysContentTouches = false",
     "webView.scrollView.isDirectionalLockEnabled = true",
     "webView.scrollView.contentInset = .zero",
+    "webView.scrollView.scrollIndicatorInsets = .zero",
     "lifeRouteNativeRuntimeBootstrap",
 ]:
     check(marker in swift, f"native stability: {marker}")
@@ -64,17 +71,21 @@ check(".bottom,.bottomin,.bottomin button{pointer-events:auto!important}" in sta
 check("data-lr-boundary-open" in day_route and "lifeRouteOpenBoundaryPlanner" in day_route, "Find a stop direct fallback exists")
 check('document.addEventListener("click", handleClick, true)' in boundary, "Find a stop delegated capture handler exists")
 check(".lrBoundaryGap,.lrBoundarySummary,.lrBoundaryOpen,.lrBoundaryGap button{pointer-events:auto!important}" in stability, "Find-a-stop touch targets stay interactive")
+check(".lrBoundaryOpen,.lrBoundaryGap button{position:relative;z-index:2}" in stability, "Find-a-stop targets sit above decorative layers")
 check("Store search unavailable" in boundary and "Search timed out" in boundary, "store lookup never fails silently")
+check("routeReadyPlaces" in boundary and "routeReadyTodos" in boundary, "boundary planner has both Saved Places and errands")
 
 # Performance: native metallic background must not run a permanent 60-FPS DOM
 # mutation loop; global presentation polishing is frame-coalesced.
 check("__lifeRouteThemePerformanceV2" in themes, "metallic background uses performance-v2 loop")
-check("const shouldAnimate = () => !nativeRuntime" in themes, "native background animation is static")
+check("const shouldAnimate = () => !nativeRuntime" in themes, "native metallic background animation is static")
 check("timestamp - lastFrame < 50" in themes, "web metallic animation is capped near 20 FPS")
 check("queuePolish" in refined and "new MutationObserver(queuePolish)" in refined, "UI mutation polishing is frame-coalesced")
 check("document.hidden || !document.querySelector(\"[data-live-day-countdown]\")" in live_day, "Live Day ticker sleeps when idle")
 check("attempts > 80" not in day_nav and "[100, 300, 800]" in day_nav, "Day navigation avoids long startup polling")
 check("attempts >= 30" not in boundary and "[180, 550, 1400]" in boundary, "Boundary planner avoids long startup polling")
+check('html[data-life-route-runtime="native"] #lifeRouteThemeFX .fxOrb' in stability, "native legacy theme FX have explicit performance rules")
+check("animation:none!important;will-change:auto!important" in stability, "native legacy theme FX do not animate continuously")
 
 # Shared mobile compositing/overscroll guardrails.
 for marker in [
@@ -86,6 +97,15 @@ for marker in [
     'html[data-life-route-runtime="web"] .dynC{display:none!important}',
 ]:
     check(marker in stability, f"shared runtime guardrail: {marker}")
+
+# Core build wiring: stability fixes are only useful if both release surfaces
+# actually include them after build preparation.
+check('"stability-runtime.js"' in prepare, "prepared iPhone/web core includes stability runtime")
+check("patch_stability.py" in prepare, "prepared build applies native stability patch")
+check("python3 scripts/audit_stability.py" in prepare, "prepare build runs stability audit")
+check("python3 scripts/audit_liferoute_build.py" in ios_ci, "iOS CI runs full regression audit")
+check("python3 scripts/audit_liferoute_build.py" in pages, "Pages runs full regression audit")
+check("stability-runtime.js" in pages, "Pages artifact validates stability runtime")
 
 # Web helper order and mobile asset cost.
 check("script.async = false" in preview, "web helper scripts execute deterministically")

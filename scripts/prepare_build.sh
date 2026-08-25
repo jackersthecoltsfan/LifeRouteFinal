@@ -16,6 +16,7 @@ PATCHES=(
   patch_selected_gap_routes.py
   patch_live_activity.py
   patch_live_day.py
+  patch_boundary_stop_timing.py
   patch_rbt_tools.py
   patch_sleek_icons.py
   patch_provider_selection.py
@@ -67,6 +68,7 @@ core = [
     "day-route-experience.js",
     "boundary-stop-planner.js",
     "stop-place-search-v4.js",
+    "stop-duration-v1.js",
     "day-navigation-runtime.js",
     "nature-settings-web.js",
     "settings-classic-themes-web.js",
@@ -108,7 +110,7 @@ CORE_JS=(
   todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js
   selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js client-picker-sync-v1.js toolbar-cleanup-v1.js visual-timer-v2.js first-then-back.js
   visual-resolver.js visual-tools.js photo-source-picker-web.js visual-object-focus-v2.js visual-resolver-bridge.js live-themes.js
-  day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js
+  day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js stop-duration-v1.js
   day-navigation-runtime.js nature-settings-web.js settings-classic-themes-web.js
   photoreal-nature-web.js dynamic-themes-web.js fluid-scenes-v1.js dynamic-animals-v1.js
   theme-catalog-v3.js ui-simplify-v4.js refined-ui-v2.js aesthetic-polish-v1.js stability-runtime.js
@@ -132,6 +134,7 @@ done
 
 python3 scripts/audit_client_pickers.py
 python3 scripts/audit_toolbar_cleanup.py
+python3 scripts/audit_stop_duration.py
 python3 scripts/audit_stop_place_search.py
 python3 scripts/audit_live_day_activity.py
 python3 scripts/audit_theme_catalog.py
@@ -171,6 +174,9 @@ grep -q 'data-lr-boundary-open' LifeRoute/Web/day-route-experience.js
 grep -q 'lifeRouteOpenBoundaryPlanner' LifeRoute/Web/boundary-stop-planner.js
 grep -q 'liferoute_boundary_stops_v2' LifeRoute/Web/boundary-stop-planner.js
 grep -q 'LifeRouteStopPlaceSearchV4' LifeRoute/Web/stop-place-search-v4.js
+grep -q 'LifeRouteStopDurationV1' LifeRoute/Web/stop-duration-v1.js
+grep -q 'boundary-before-in' LifeRoute/Web/live-day.js
+grep -q 'planned stop time' LifeRoute/Web/live-day.js
 grep -q 'LifeRouteDayControlsV5' LifeRoute/Web/day-controls-v5.js
 grep -q 'planLifeRouteGapRoute' LifeRoute/Web/selected-gap-routes.js
 grep -q 'Saved places' LifeRoute/Web/saved-place-gap-options.js

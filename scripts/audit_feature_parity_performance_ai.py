@@ -24,6 +24,7 @@ quality = read(WEB / "visual-quality-web.js")
 visual = read(WEB / "visual-object-focus-v2.js")
 ui = read(WEB / "ui-simplify-v4.js")
 refined = read(WEB / "refined-ui-v2.js")
+stability = read(WEB / "stability-runtime.js")
 preview = read(ROOT / "scripts" / "web-preview.js")
 swift = read(SWIFT)
 
@@ -67,6 +68,9 @@ require('observer.observe(document.body' not in ui, "UI simplifier no longer wat
 require('observer.observe(document.body' not in refined, "Refined UI no longer watches entire document")
 require('document.getElementById("today")' in ui, "UI simplifier is scoped to Today")
 require('document.getElementById("today")' in refined and 'requestAnimationFrame' in refined, "Refined UI is Today-scoped and frame-coalesced")
+require('html[data-life-route-runtime="native"] .card' in stability and 'backdrop-filter:none!important' in stability, "native cards avoid per-card backdrop compositing")
+require('html[data-life-route-runtime="native"] body{background-attachment:scroll!important}' in stability, "native background avoids fixed attachment compositing")
+require('[100, 350, 900, 1800]' not in stability, "bottom toolbar has no redundant startup retry fanout")
 for name in shared:
     require(f'loadPreviewScript("{name}")' not in preview, f"web preview does not dynamically reload shared {name}")
 require('loadPreviewScript("first-then-back.js")' not in preview, "web preview does not duplicate-load First/Then")
@@ -100,4 +104,4 @@ if failed:
     for label in failed:
         print("FAIL:", label)
     raise SystemExit(1)
-print("Feature parity, Clear Day, native performance cleanup, and free on-device Apple Vision photo AI passed.")
+print("Feature parity, Clear Day, native compositing/performance cleanup, and free on-device Apple Vision photo AI passed.")

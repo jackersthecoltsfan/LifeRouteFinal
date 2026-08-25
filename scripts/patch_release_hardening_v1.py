@@ -89,4 +89,18 @@ replace_once(
     "gap prompt snapshot",
 )
 
-print("Release hardening applied: truthful browser bridge, scoped Live Day observer, commit-aware stop-duration prompt.")
+# Blank or invalid custom duration input must not silently turn into a 1-minute
+# stop. Only finite positive values are accepted, then clamped to 1–240 minutes.
+replace_once(
+    duration,
+    '''    const minutes = Math.max(1, Math.min(240, Math.round(Number(value || 0))));
+    if (!minutes) return;
+''',
+    '''    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric < 1) return;
+    const minutes = Math.max(1, Math.min(240, Math.round(numeric)));
+''',
+    "stop duration custom input validation",
+)
+
+print("Release hardening applied: truthful browser bridge, scoped Live Day observer, commit-aware stop-duration prompt, validated custom duration.")

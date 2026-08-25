@@ -1,0 +1,48 @@
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+WEB = ROOT / "LifeRoute" / "Web"
+
+
+def replace_once(path: Path, old: str, new: str, label: str) -> None:
+    text = path.read_text()
+    if new in text:
+        return
+    if old not in text:
+        raise SystemExit(f"{label}: expected source pattern not found in {path}")
+    path.write_text(text.replace(old, new, 1))
+
+
+# Clear Day must work in WKWebView without depending on a JavaScript confirm
+# panel. Use the shared selected-date bridge and make the action immediate.
+day = WEB / "day-controls-v5.js"
+replace_once(
+    day,
+    '  const dateKey = () => clean(window.selectedDate);',
+    '  const dateKey = () => clean(window.selectedDate || (typeof selectedDate !== "undefined" ? selectedDate : ""));',
+    "Clear Day selected-date bridge",
+)
+replace_once(
+    day,
+    '    if (!window.confirm("Clear this day\'s LifeRoute plan? Calendar events from connected providers will stay.")) return;\n\n',
+    '',
+    "Clear Day native-safe confirmation removal",
+)
+replace_once(
+    day,
+    '    try { window.persist?.(); } catch (_) {}\n    try { window.renderAll?.(); } catch (_) { try { window.renderToday?.(); } catch (_) {} }\n  };',
+    '    try { window.persist?.(); } catch (_) {}\n    try { window.renderAll?.(); } catch (_) { try { window.renderToday?.(); } catch (_) {} }\n    const button = document.querySelector("[data-lr-clear-day]");\n    if (button) {\n      const previous = button.textContent;\n      button.textContent = "Cleared ✓";\n      button.disabled = true;\n      setTimeout(() => { button.textContent = previous || "Clear day"; button.disabled = false; }, 900);\n    }\n    document.dispatchEvent(new CustomEvent("liferoute:day-cleared", { detail: { dateKey: day } }));\n  };',
+    "Clear Day visible completion feedback",
+)
+
+# Resource links should leave the native app through iOS rather than replacing
+# LifeRoute inside its WKWebView. Browser fallback remains unchanged.
+resources = WEB / "resources-hub-web.js"
+replace_once(
+    resources,
+    '  const launch = url => {\n    const safeURL = normalizeURL(url);\n    if (!safeURL) return;\n    const opened = window.open(safeURL, "_blank", "noopener,noreferrer");\n    if (!opened) window.location.href = safeURL;\n  };',
+    '  const launch = url => {\n    const safeURL = normalizeURL(url);\n    if (!safeURL) return;\n    try {\n      if (typeof window.postNative === "function" && window.postNative({ action: "openExternalURL", url: safeURL })) return;\n    } catch (_) {}\n    const opened = window.open(safeURL, "_blank", "noopener,noreferrer");\n    if (!opened) window.location.href = safeURL;\n  };',
+    "Resource native external-link handoff",
+)
+
+print("Feature regressions fixed: Clear Day is native-safe and shared resource links use native handoff.")

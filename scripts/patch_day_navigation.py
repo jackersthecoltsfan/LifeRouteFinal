@@ -30,5 +30,15 @@ if '.lrDayPager{' not in html:
         raise SystemExit("Could not add day pager styles")
     html = html.replace(style_marker, style + style_marker, 1)
 
+# Saved Places are a first-class option in ordinary between-appointment gaps.
+# Load this lightweight timeline enhancement in both the web preview and native
+# WKWebView. It retries until the To-Do gap engine is mounted, so it is safe to
+# place before the final deterministic feature-script block.
+saved_place_tag = '<script src="saved-place-gap-options.js"></script>'
+if saved_place_tag not in html:
+    if "</body>" not in html:
+        raise SystemExit("Could not enable Saved Places gap options: </body> not found")
+    html = html.replace("</body>", saved_place_tag + "\n</body>", 1)
+
 path.write_text(html)
-print("Previous / Today / Next day navigation markup enabled for stable runtime binding.")
+print("Previous / Today / Next day navigation and Saved Places gap options enabled.")

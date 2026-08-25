@@ -74,7 +74,7 @@ check("document.hidden || !document.querySelector(\"[data-live-day-countdown]\")
 for marker in [
     "overscroll-behavior-x:none",
     "overscroll-behavior-y:none",
-    'data.lifeRouteRuntime = isNative ? "native" : "web"',
+    'root.dataset.lifeRouteRuntime = isNative ? "native" : "web"',
     'html[data-life-route-runtime="native"] .bottom',
     '@media(max-width:700px) and (pointer:coarse)',
     'html[data-life-route-runtime="web"] .dynC{display:none!important}',
@@ -84,7 +84,10 @@ for marker in [
 # Web helper order must remain deterministic; random async execution previously
 # allowed wrappers to replace one another on mobile Safari.
 check("script.async = false" in preview, "web helper scripts execute deterministically")
-check(preview.index('loadPreviewScript("web-routing-bridge.js")') < preview.index('loadPreviewScript("google-calendar-web.js")'), "web routing bridge loads before calendar helpers")
+try:
+    check(preview.index('loadPreviewScript("web-routing-bridge.js")') < preview.index('loadPreviewScript("google-calendar-web.js")'), "web routing bridge loads before calendar helpers")
+except ValueError:
+    check(False, "web routing bridge loads before calendar helpers")
 
 # Release safety: audits/fixes must never silently trigger another TestFlight run.
 check("workflow_dispatch" in testflight, "TestFlight remains manually dispatched")

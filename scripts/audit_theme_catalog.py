@@ -55,12 +55,16 @@ check("20 premium dynamic themes retained", FILES["dynamic"].count('],["') >= 18
 for key in ["mercury-flow","cobalt-plasma","aurora-ink","gold-current","violet-melt","emerald-tide","solar-fluid","arctic-glass"]:
     check(f"fluid theme {key}", f'["{key}",' in FILES["fluid"])
 
-# New Dynamic Animals: exactly the requested 10 named entries, including Wolf + Dragon.
-animal_keys = ["moon-wolf","storm-dragon","golden-eagle","shadow-panther","ember-fox","night-owl","cosmic-whale","silver-stag","midnight-horse","aurora-raven"]
+# Living Creatures: exactly 10 subject-led scenes including wolf + dragon.
+animal_keys = ["lunar-wolf","storm-dragon","celestial-eagle","obsidian-panther","ember-fox","starfall-owl","astral-whale","silver-stag","night-stallion","aurora-raven"]
 for key in animal_keys:
-    check(f"animal theme {key}", f'["{key}",' in FILES["animals"] and f'"{key}":' in FILES["animals"])
-check("Dynamic Animals section says 10", 'Dynamic Animals' in FILES["animals"] and '10 living motion scenes' in FILES["animals"])
-check("animal themes use local SVG silhouettes", '<svg' in FILES["animals"] and 'https://' not in FILES["animals"])
+    check(f"living creature theme {key}", f'key:"{key}"' in FILES["animals"])
+check("Living Creatures section says 10", 'Living Creatures' in FILES["animals"] and '10 realistic fantastical dynamic scenes' in FILES["animals"])
+check("living scenes use real media resolver", 'commons.wikimedia.org/w/api.php' in FILES["animals"] and 'lrAnimalScenePhoto' in FILES["animals"])
+check("living scenes reject logo/sculpture junk", all(term in FILES["animals"] for term in ['"logo"','"statue"','"sculpture"','"taxidermy"']))
+check("dragon prefers fantasy artwork", 'fantasy:true' in FILES["animals"] and 'fantasy dragon digital art illustration' in FILES["animals"])
+check("animal silhouettes removed", '<svg' not in FILES["animals"] and 'SHAPES' not in FILES["animals"])
+check("animal media has attribution surface", 'Wikimedia Commons' in FILES["animals"] and 'LicenseShortName' in FILES["animals"])
 check("animal animation honors reduced motion", 'prefers-reduced-motion:reduce' in FILES["animals"])
 check("animal state clears other theme families", all(token in FILES["animals"] for token in ['data-nature-theme','data-dynamic-theme','data-fluid-scene']))
 
@@ -75,4 +79,4 @@ if failed:
     for name in failed:
         print(f"FAIL: {name}")
     raise SystemExit(1)
-print("LifeRoute Settings catalog, restored themes, Dynamic Animals, checkmarks, and Appearance cleanup passed.")
+print("LifeRoute Settings catalog, restored themes, realistic Living Creatures, checkmarks, and Appearance cleanup passed.")

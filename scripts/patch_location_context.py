@@ -27,31 +27,39 @@ replace_once(
 
 replace_once(
     "        private let eventStore = EKEventStore()\n        private let isoFormatter = ISO8601DateFormatter()\n",
-    "        private let eventStore = EKEventStore()\n        private let isoFormatter = ISO8601DateFormatter()\n        private let locationManager = CLLocationManager()\n        private var requestLocationAfterAuthorization = false\n",
+    "        private let eventStore = EKEventStore()\n        private let isoFormatter = ISO8601DateFormatter()\n        private let locationManager = CLLocationManager()\n        private var requestLocationAfterAuthorization = false\n        private var streamLocationAfterAuthorization = false\n        private var liveLocationStreaming = false\n",
     "location manager storage",
 )
 
 replace_once(
     '            case "requestNativeStatus":\n                emitNativeStatus()\n',
-    '            case "requestNativeStatus":\n                emitNativeStatus()\n            case "requestCurrentLocation":\n                requestCurrentLocation()\n',
-    "current location bridge action",
+    '            case "requestNativeStatus":\n                emitNativeStatus()\n            case "requestCurrentLocation":\n                requestCurrentLocation()\n            case "startLiveLocation":\n                startLiveLocation()\n            case "stopLiveLocation":\n                stopLiveLocation()\n',
+    "current location bridge actions",
 )
 
 location_code = r'''
         // MARK: - Current location
 
-        private func requestCurrentLocation() {
+        private func configureLocationManager(live: Bool) {
             locationManager.delegate = self
-            locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+            locationManager.desiredAccuracy = live ? kCLLocationAccuracyNearestTenMeters : kCLLocationAccuracyHundredMeters
+            locationManager.distanceFilter = live ? 50 : kCLDistanceFilterNone
+            locationManager.activityType = .automotiveNavigation
+            locationManager.pausesLocationUpdatesAutomatically = true
+        }
+
+        private func requestCurrentLocation() {
+            configureLocationManager(live: false)
 
             switch locationManager.authorizationStatus {
             case .notDetermined:
                 requestLocationAfterAuthorization = true
+                streamLocationAfterAuthorization = false
                 emit(type: "currentLocationStatus", payload: ["status": "requesting"])
                 locationManager.requestWhenInUseAuthorization()
             case .authorizedAlways, .authorizedWhenInUse:
                 requestLocationAfterAuthorization = false
-                emit(type: "currentLocationStatus", payload: ["status": "locating"])
+                emit(type: "currentLocationStatus", payload: ["status": liveLocationStreaming ? "live" : "locating"])
                 locationManager.requestLocation()
             case .denied:
                 requestLocationAfterAuthorization = false
@@ -71,19 +79,66 @@ location_code = r'''
             }
         }
 
+        private func startLiveLocation() {
+            configureLocationManager(live: true)
+            switch locationManager.authorizationStatus {
+            case .notDetermined:
+                streamLocationAfterAuthorization = true
+                requestLocationAfterAuthorization = false
+                emit(type: "currentLocationStatus", payload: ["status": "requesting-live"])
+                locationManager.requestWhenInUseAuthorization()
+            case .authorizedAlways, .authorizedWhenInUse:
+                streamLocationAfterAuthorization = false
+                liveLocationStreaming = true
+                locationManager.startUpdatingLocation()
+                emit(type: "currentLocationStatus", payload: ["status": "live"])
+            case .denied:
+                liveLocationStreaming = false
+                emit(type: "currentLocationStatus", payload: [
+                    "status": "denied",
+                    "message": "Location access is off. Enable While Using the App in iPhone Settings to use live location."
+                ])
+            case .restricted:
+                liveLocationStreaming = false
+                emit(type: "currentLocationStatus", payload: ["status": "restricted"])
+            @unknown default:
+                liveLocationStreaming = false
+                emit(type: "currentLocationStatus", payload: ["status": "unknown"])
+            }
+        }
+
+        private func stopLiveLocation() {
+            streamLocationAfterAuthorization = false
+            liveLocationStreaming = false
+            locationManager.stopUpdatingLocation()
+            emit(type: "currentLocationStatus", payload: ["status": "paused"])
+        }
+
         func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
             switch manager.authorizationStatus {
             case .authorizedAlways, .authorizedWhenInUse:
-                emit(type: "currentLocationStatus", payload: ["status": "authorized"])
-                if requestLocationAfterAuthorization {
-                    requestLocationAfterAuthorization = false
-                    manager.requestLocation()
+                if streamLocationAfterAuthorization {
+                    streamLocationAfterAuthorization = false
+                    liveLocationStreaming = true
+                    configureLocationManager(live: true)
+                    manager.startUpdatingLocation()
+                    emit(type: "currentLocationStatus", payload: ["status": "live"])
+                } else {
+                    emit(type: "currentLocationStatus", payload: ["status": "authorized"])
+                    if requestLocationAfterAuthorization {
+                        requestLocationAfterAuthorization = false
+                        manager.requestLocation()
+                    }
                 }
             case .denied:
                 requestLocationAfterAuthorization = false
+                streamLocationAfterAuthorization = false
+                liveLocationStreaming = false
                 emit(type: "currentLocationStatus", payload: ["status": "denied"])
             case .restricted:
                 requestLocationAfterAuthorization = false
+                streamLocationAfterAuthorization = false
+                liveLocationStreaming = false
                 emit(type: "currentLocationStatus", payload: ["status": "restricted"])
             case .notDetermined:
                 emit(type: "currentLocationStatus", payload: ["status": "not-determined"])
@@ -95,15 +150,20 @@ location_code = r'''
         func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
             guard let location = locations.last else { return }
             emit(type: "currentLocation", payload: [
-                "status": "ready",
+                "status": liveLocationStreaming ? "live" : "ready",
                 "latitude": location.coordinate.latitude,
                 "longitude": location.coordinate.longitude,
                 "accuracyMeters": max(0, location.horizontalAccuracy),
-                "timestamp": isoFormatter.string(from: location.timestamp)
+                "timestamp": isoFormatter.string(from: location.timestamp),
+                "streaming": liveLocationStreaming
             ])
         }
 
         func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+            if let clError = error as? CLError, clError.code == .locationUnknown {
+                emit(type: "currentLocationStatus", payload: ["status": liveLocationStreaming ? "live" : "locating"])
+                return
+            }
             emit(type: "currentLocationStatus", payload: [
                 "status": "error",
                 "message": error.localizedDescription
@@ -119,4 +179,4 @@ if location_code not in text:
     text = text.replace(marker, location_code + marker, 1)
 
 path.write_text(text)
-print("Current-location bridge enabled.")
+print("Foreground live-location bridge enabled.")

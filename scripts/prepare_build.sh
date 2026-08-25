@@ -20,6 +20,7 @@ PATCHES=(
   patch_provider_selection.py
   patch_day_navigation.py
   patch_auth_gate.py
+  patch_stability.py
 )
 for patch in "${PATCHES[@]}"; do
   python3 "scripts/$patch"
@@ -57,6 +58,7 @@ core = [
     "boundary-stop-planner.js",
     "day-navigation-runtime.js",
     "refined-ui-v2.js",
+    "stability-runtime.js",
 ]
 
 if "</body>" not in html:
@@ -86,6 +88,7 @@ CORE_JS=(
   selected-gap-routes.js saved-place-gap-options.js live-day.js rbt-tools.js
   visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js
   day-route-experience.js boundary-stop-planner.js day-navigation-runtime.js refined-ui-v2.js
+  stability-runtime.js
 )
 for js in "${CORE_JS[@]}"; do
   test -s "LifeRoute/Web/$js"
@@ -112,6 +115,12 @@ for marker in \
   openRoute routeTransportType scheduleDayNotifications authSetCredentials authVerifyCredentials; do
   grep -q "$marker" LifeRoute/LifeRouteWebView.swift
 done
+
+# Native stability contracts.
+grep -q 'webView.scrollView.bounces = false' LifeRoute/LifeRouteWebView.swift
+grep -q 'lifeRouteNativeRuntimeBootstrap' LifeRoute/LifeRouteWebView.swift
+grep -q 'function refreshCalendars()' LifeRoute/Web/index.html
+grep -q '__lifeRouteThemePerformanceV2' LifeRoute/Web/live-themes.js
 
 # Critical Day/gap contracts.
 grep -q 'class="lrDayPager"' LifeRoute/Web/index.html

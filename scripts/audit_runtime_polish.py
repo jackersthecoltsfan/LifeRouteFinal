@@ -8,6 +8,7 @@ LOCATION_JS = (ROOT / "live-location-v2.js").read_text()
 LOCATION_PATCH = Path("scripts/patch_location_context.py").read_text()
 VISUAL = (ROOT / "visual-object-focus-v2.js").read_text()
 ANIMALS = (ROOT / "dynamic-animals-v1.js").read_text()
+SWIFT = Path("LifeRoute/LifeRouteWebView.swift").read_text()
 
 checks = []
 def check(name, condition):
@@ -42,11 +43,15 @@ check("web location has watch fallback", "watchPosition" in LOCATION_JS and "cle
 check("location freshness tracked", "locationUpdatedAt" in LOCATION_JS and "freshnessMs" in LOCATION_JS)
 check("location helper has no network dependency", "fetch(" not in LOCATION_JS and "http://" not in LOCATION_JS and "https://" not in LOCATION_JS)
 
-# User photo preprocessing is local, subject-forward, and feeds a replacement File to visual-tools.
+# User photo preprocessing stays local. Native iPhone uses Apple Vision saliency
+# first; browser and Vision failure use the existing deterministic heuristic.
 check("visual focus is local only", "fetch(" not in VISUAL and "XMLHttpRequest" not in VISUAL and "http://" not in VISUAL and "https://" not in VISUAL)
-check("visual focus computes saliency", "subjectCrop" in VISUAL and "getImageData" in VISUAL and "threshold" in VISUAL and "saturation" in VISUAL)
+check("visual focus has local saliency fallback", "heuristicSubjectCrop" in VISUAL and "getImageData" in VISUAL and "threshold" in VISUAL and "saturation" in VISUAL)
 check("visual focus uses edge energy", "const dx" in VISUAL and "const dy" in VISUAL)
 check("visual focus recenters crop", "focusX" in VISUAL and "focusY" in VISUAL and "crop.left" in VISUAL and "crop.top" in VISUAL)
+check("visual focus uses Apple Vision when native", "requestVisionCrop" in VISUAL and 'action: "analyzeVisualSubject"' in VISUAL and "VNGenerateObjectnessBasedSaliencyImageRequest" in SWIFT)
+check("visual focus AI has bounded fallback", "visionPending" in VISUAL and "1500" in VISUAL and "return heuristicSubjectCrop(image)" in VISUAL)
+check("visual focus AI is on-device", '"apple-vision-saliency"' in SWIFT and "URLSession" not in SWIFT[SWIFT.find("private func analyzeVisualSubject"):SWIFT.find("private func emit(type:")])
 check("visual focus de-emphasizes background", 'blur(28px) saturate(.62)' in VISUAL and 'rgba(255,255,255,.56)' in VISUAL)
 check("visual focus keeps sharp subject layer", 'saturate(1.13) contrast(1.08)' in VISUAL)
 check("visual focus creates normalized 1024 image", "canvas.width = 1024" in VISUAL and "canvas.height = 1024" in VISUAL)
@@ -73,4 +78,4 @@ if failed:
     for name in failed:
         print(f"FAIL: {name}")
     raise SystemExit(1)
-print("LifeRoute First/Then, live-location, subject-focus visual generation, and living-scene audits passed.")
+print("LifeRoute First/Then, live-location, AI-assisted subject-focus visual generation, and living-scene audits passed.")

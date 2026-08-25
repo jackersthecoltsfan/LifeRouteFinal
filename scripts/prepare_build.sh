@@ -14,8 +14,8 @@ PATCHES=(
   patch_gap_multistop.py
   patch_route_origin_choice.py
   patch_selected_gap_routes.py
-  patch_live_day.py
   patch_live_activity.py
+  patch_live_day.py
   patch_rbt_tools.py
   patch_sleek_icons.py
   patch_provider_selection.py

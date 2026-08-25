@@ -58,10 +58,21 @@ check("session plan enforces exact total minutes", "total !== minutes" in FILES[
 check("session planner exposes deterministic fallback", "buildFallbackPlan" in FILES["rbt"] and "sessionBypass" in FILES["planning"])
 check("session AI saves through existing planner state", "hooks.savePlan(planState)" in FILES["planning"])
 
-# Day / route planning journey.
+# Day / route planning journey. The AI must consume deterministic facts, return a
+# small structured payload, and never recalculate the route/calendar math.
 check("Live Day exposes exact computed plan to AI", "LifeRouteLiveDayAIHooks" in FILES["live"] and "buildDay" in FILES["live"])
-check("AI day brief treats appointment and route facts as immutable", "immutable" in FILES["assistant"] and "never change or contradict" in FILES["assistant"])
-check("AI route brief prohibited from recalculating travel", "Do not calculate or alter travel times" in FILES["assistant"])
+check(
+    "AI day brief treats appointment and route facts as immutable",
+    "immutable facts" in FILES["assistant"]
+    and "never change or recalculate them" in FILES["assistant"]
+    and '"dayBrief"' in FILES["assistant"]
+    and '"gapSuggestion"' in FILES["assistant"],
+)
+check(
+    "AI route brief prohibited from recalculating travel",
+    "Never calculate or alter travel times" in FILES["assistant"]
+    and '"routeInsight"' in FILES["assistant"],
+)
 check("Generate Day triggers AI brief after deterministic build", "generateLifeRouteDayWithAI" in FILES["planning"] and "setTimeout(refreshDayAI" in FILES["planning"])
 check("day UI states route math remains authoritative", "Fixed route math remains authoritative" in FILES["planning"])
 

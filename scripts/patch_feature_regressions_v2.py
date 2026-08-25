@@ -6,9 +6,6 @@ WEB = ROOT / "LifeRoute" / "Web"
 
 def replace_once(path: Path, old: str, new: str, label: str) -> None:
     text = path.read_text()
-    # Prefer replacing the old contract whenever it still exists. Only treat the
-    # patch as already applied when the old contract is gone and the new one is
-    # present. This matters for empty/common replacement strings.
     if old in text:
         path.write_text(text.replace(old, new, 1))
         return
@@ -17,9 +14,8 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
     raise SystemExit(f"{label}: expected source pattern not found in {path}")
 
 
-# Clear Day must work in WKWebView and must be scoped strictly to the selected
-# day's generated route plan. Calendar appointments, manual events, places,
-# clients, To-Dos, preferences, and every other date remain untouched.
+# Clear Day is a one-tap, selected-date-only route reset. It must never delete
+# appointments/manual events, places, clients, To-Dos, preferences, or other dates.
 day = WEB / "day-controls-v5.js"
 replace_once(
     day,
@@ -47,7 +43,6 @@ old_clear = '''  const clearDay = () => {
 new_clear = '''  const clearDay = () => {
     const day = dateKey();
     if (!day) return;
-    if (!window.confirm("Clear only this day's generated routes and planned stops? Calendar appointments, places, clients, To-Dos, preferences, and other dates will stay.")) return;
 
     try { window.endLifeRouteDay?.(); } catch (_) {}
     endLiveActivity();
@@ -57,13 +52,21 @@ new_clear = '''  const clearDay = () => {
     if (typeof window.clearLifeRouteBoundaryStopsForDay === "function") window.clearLifeRouteBoundaryStopsForDay(day);
     else clearDateKeys(BOUNDARY_STORE, day);
     try { window.renderAll?.(); } catch (_) { try { window.renderToday?.(); } catch (_) {} }
+    const button = document.querySelector("[data-lr-clear-day]");
+    if (button) {
+      const previous = button.textContent;
+      button.textContent = "Cleared ✓";
+      button.disabled = true;
+      setTimeout(() => { button.textContent = previous || "Clear day"; button.disabled = false; }, 900);
+    }
     try { window.setStatus?.("Cleared this day's routes · appointments and saved data kept"); } catch (_) {}
+    document.dispatchEvent(new CustomEvent("liferoute:day-cleared", { detail: { dateKey: day } }));
   };'''
 replace_once(day, old_clear, new_clear, "Clear Day route-only scope")
 
 # Clear All is destructive, so keep a confirmation step without relying on
 # WKWebView's JavaScript confirm panel. First tap arms for four seconds; the
-# second tap performs the wipe. This works identically on web and iPhone.
+# second tap performs the wipe.
 replace_once(
     day,
     '  const clearAll = () => {\n    if (!window.confirm("Clear all LifeRoute plans, saved places, clients, To-Dos, calendar links, and preferences on this device? Your LifeRoute sign-in will stay.")) return;\n',
@@ -81,4 +84,4 @@ replace_once(
     "Resource native external-link handoff",
 )
 
-print("Feature regressions fixed: Clear Day is route-scoped, Clear All uses native-safe two-tap confirmation, and Resources use native handoff.")
+print("Feature regressions fixed: Clear Day is one-tap and route-scoped, Clear All uses native-safe two-tap confirmation, and Resources use native handoff.")

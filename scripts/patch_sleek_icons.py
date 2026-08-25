@@ -126,4 +126,18 @@ routes = replace_once(
 )
 routes_path.write_text(routes)
 
+
+# The legacy inline Day renderer still contained a fallback car emoji even
+# though route-times replaces that visual once the runtime helpers load. Remove
+# the glyph from the prepared HTML too so there is no flash/regression path.
+index_path = Path("LifeRoute/Web/index.html")
+index = index_path.read_text()
+index = replace_once(
+    index,
+    '''<div class="route"><span>🚙 ${e.drive||"—"}m est. + ${e.buffer||0}m buffer</span><button class="secondary" onclick="routeTo('${encodeURIComponent(e.address)}')">Route</button></div>''',
+    '''<div class="route"><span>Travel · ${e.drive||"—"}m est. + ${e.buffer||0}m buffer</span><button class="secondary" onclick="routeTo('${encodeURIComponent(e.address)}')">Route</button></div>''',
+    "legacy inline timeline car glyph",
+)
+index_path.write_text(index)
+
 print("Replaced LifeRoute emoji-style UI glyphs, including the timeline car, with the sleek SVG icon system.")

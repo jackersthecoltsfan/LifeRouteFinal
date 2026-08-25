@@ -11,7 +11,6 @@ if 'class="lrDayPager"' not in html:
         raise SystemExit("Could not add day pager: Today section marker not found")
     html = html.replace(old_section, new_section, 1)
 else:
-    # Upgrade an older inline-handler pager to the stable runtime-bound markup.
     import re
     html = re.sub(
         r'<div class="lrDayPager" aria-label="Day navigation">.*?</div><div id="timeline"></div>',
@@ -30,10 +29,6 @@ if '.lrDayPager{' not in html:
         raise SystemExit("Could not add day pager styles")
     html = html.replace(style_marker, style + style_marker, 1)
 
-# Saved Places are a first-class option in ordinary between-appointment gaps.
-# Load this lightweight timeline enhancement in both the web preview and native
-# WKWebView. It retries until the To-Do gap engine is mounted, so it is safe to
-# place before the final deterministic feature-script block.
 saved_place_tag = '<script src="saved-place-gap-options.js"></script>'
 if saved_place_tag not in html:
     if "</body>" not in html:
@@ -42,27 +37,120 @@ if saved_place_tag not in html:
 
 path.write_text(html)
 
-# The WebView runtime owns the visible button layer, so bridge button presses to
-# native UIKit haptics. Keep this in the deterministic preparation path so the
-# exact source shipped to TestFlight always contains the feedback contract.
+# Native tactile feedback and timer audio. Timer tones use AVAudioSession.playback
+# so the Visual Timer remains audible when the iPhone silent switch is enabled.
 swift_path = Path("LifeRoute/LifeRouteWebView.swift")
 swift = swift_path.read_text()
-if 'case "haptic":' not in swift:
-    marker = '            case "openRoute":\n'
-    haptic_case = '''            case "haptic":
+
+if "import AVFoundation" not in swift:
+    if "import UIKit\n" not in swift:
+        raise SystemExit("Could not add AVFoundation import: UIKit import marker not found")
+    swift = swift.replace("import UIKit\n", "import UIKit\nimport AVFoundation\n", 1)
+
+old_haptic = '''            case "haptic":
                 let requestedStyle = (body["style"] as? String ?? "light").lowercased()
                 let feedbackStyle: UIImpactFeedbackGenerator.FeedbackStyle = requestedStyle == "heavy" ? .heavy : (requestedStyle == "medium" ? .medium : .light)
                 let generator = UIImpactFeedbackGenerator(style: feedbackStyle)
                 generator.prepare()
                 generator.impactOccurred()
-            case "openRoute":
 '''
+new_haptic = '''            case "haptic":
+                let requestedStyle = (body["style"] as? String ?? "medium").lowercased()
+                if requestedStyle == "success" {
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.prepare()
+                    generator.notificationOccurred(.success)
+                } else if requestedStyle == "selection" {
+                    let generator = UISelectionFeedbackGenerator()
+                    generator.prepare()
+                    generator.selectionChanged()
+                } else {
+                    let feedbackStyle: UIImpactFeedbackGenerator.FeedbackStyle
+                    switch requestedStyle {
+                    case "heavy": feedbackStyle = .heavy
+                    case "rigid": feedbackStyle = .rigid
+                    case "soft": feedbackStyle = .soft
+                    case "light": feedbackStyle = .light
+                    default: feedbackStyle = .medium
+                    }
+                    let generator = UIImpactFeedbackGenerator(style: feedbackStyle)
+                    generator.prepare()
+                    generator.impactOccurred(intensity: requestedStyle == "heavy" ? 1.0 : 0.88)
+                }
+'''
+if old_haptic in swift:
+    swift = swift.replace(old_haptic, new_haptic, 1)
+elif 'case "haptic":' not in swift:
+    marker = '            case "openRoute":\n'
     if marker not in swift:
         raise SystemExit("Could not add native button haptics: openRoute bridge marker not found")
-    swift = swift.replace(marker, haptic_case, 1)
-    swift_path.write_text(swift)
+    swift = swift.replace(marker, new_haptic + marker, 1)
 
-if 'case "haptic":' not in swift_path.read_text() or "UIImpactFeedbackGenerator" not in swift_path.read_text():
-    raise SystemExit("Native button haptic bridge verification failed")
+if "private let lifeRouteTimerAudio" not in swift:
+    marker = "        private let eventStore = EKEventStore()\n"
+    if marker not in swift:
+        raise SystemExit("Could not add timer audio engine: coordinator property marker not found")
+    swift = swift.replace(marker, marker + "        private let lifeRouteTimerAudio = LifeRouteTimerAudio()\n", 1)
 
-print("Previous / Today / Next navigation, Saved Places gap options, and native button haptics enabled.")
+if 'case "playTimerTone":' not in swift:
+    marker = '            case "openRoute":\n'
+    audio_case = '''            case "playTimerTone":
+                let frequency = (body["frequency"] as? NSNumber)?.doubleValue ?? 720.0
+                let intensity = (body["intensity"] as? NSNumber)?.doubleValue ?? 0.95
+                lifeRouteTimerAudio.playGlassTone(frequency: frequency, intensity: intensity)
+'''
+    if marker not in swift:
+        raise SystemExit("Could not add native timer sound: openRoute bridge marker not found")
+    swift = swift.replace(marker, audio_case + marker, 1)
+
+if "final class LifeRouteTimerAudio" not in swift:
+    swift += '''
+
+private final class LifeRouteTimerAudio {
+    private let engine = AVAudioEngine()
+    private let player = AVAudioPlayerNode()
+    private let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
+
+    init() {
+        engine.attach(player)
+        engine.connect(player, to: engine.mainMixerNode, format: format)
+    }
+
+    func playGlassTone(frequency: Double, intensity: Double) {
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        try? session.setActive(true)
+        if !engine.isRunning { try? engine.start() }
+
+        let safeFrequency = max(110.0, min(2_600.0, frequency))
+        let safeIntensity = max(0.2, min(1.0, intensity))
+        let duration = 0.17
+        let frames = AVAudioFrameCount(format.sampleRate * duration)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames),
+              let channel = buffer.floatChannelData?[0] else { return }
+        buffer.frameLength = frames
+
+        for frame in 0..<Int(frames) {
+            let t = Double(frame) / format.sampleRate
+            let attack = min(1.0, t / 0.008)
+            let decay = exp(-7.2 * t / duration)
+            let fundamental = sin(2.0 * Double.pi * safeFrequency * t)
+            let shimmer = 0.28 * sin(2.0 * Double.pi * safeFrequency * 2.01 * t)
+            let sparkle = 0.10 * sin(2.0 * Double.pi * safeFrequency * 3.98 * t)
+            let value = (fundamental + shimmer + sparkle) * attack * decay * (0.72 * safeIntensity)
+            channel[frame] = Float(max(-0.98, min(0.98, value)))
+        }
+
+        player.scheduleBuffer(buffer, completionHandler: nil)
+        if !player.isPlaying { player.play() }
+    }
+}
+'''
+
+swift_path.write_text(swift)
+verified = swift_path.read_text()
+for marker in ['case "haptic":', "UIImpactFeedbackGenerator", 'case "playTimerTone":', "AVAudioSession", "LifeRouteTimerAudio"]:
+    if marker not in verified:
+        raise SystemExit(f"Native interaction bridge verification failed: missing {marker}")
+
+print("Day navigation, Saved Places gap options, strong haptics, and silent-mode timer audio enabled.")

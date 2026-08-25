@@ -35,6 +35,7 @@ PATCHES=(
   patch_feature_regressions_v2.py
   patch_performance_cleanup_v2.py
   patch_visual_ai_v1.py
+  patch_ai_everywhere_v2.py
 )
 for patch in "${PATCHES[@]}"; do
   python3 "scripts/$patch"
@@ -74,11 +75,16 @@ core = [
     "visual-timer-v2.js",
     "first-then-back.js",
     "visual-resolver.js",
+    "ai-assistant-v1.js",
+    "visual-resolver-ai-v2.js",
     "visual-quality-web.js",
     "visual-tools.js",
     "photo-source-picker-web.js",
     "visual-object-focus-v2.js",
+    "image-playground-v1.js",
     "visual-resolver-bridge.js",
+    "first-then-ai-studio-v1.js",
+    "ai-planning-v1.js",
     "live-themes.js",
     "day-route-experience.js",
     "boundary-stop-planner.js",
@@ -116,7 +122,9 @@ CORE_JS=(
   selected-gap-routes.js saved-place-gap-options.js live-day.js end-home-route-web.js day-controls-v5.js
   rbt-tools.js client-picker-sync-v1.js client-profiles-v1.js client-profile-tools-v1.js
   mileage-tracker-web.js resources-hub-web.js toolbar-cleanup-v1.js visual-timer-v2.js first-then-back.js
-  visual-resolver.js visual-quality-web.js visual-tools.js photo-source-picker-web.js visual-object-focus-v2.js visual-resolver-bridge.js live-themes.js
+  visual-resolver.js ai-assistant-v1.js visual-resolver-ai-v2.js visual-quality-web.js visual-tools.js
+  photo-source-picker-web.js visual-object-focus-v2.js image-playground-v1.js visual-resolver-bridge.js
+  first-then-ai-studio-v1.js ai-planning-v1.js live-themes.js
   day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js stop-duration-v1.js
   day-navigation-runtime.js nature-settings-web.js settings-classic-themes-web.js
   photoreal-nature-web.js dynamic-themes-web.js fluid-scenes-v1.js dynamic-animals-v1.js
@@ -155,6 +163,10 @@ python3 scripts/audit_appearance.py
 python3 scripts/audit_stability.py
 python3 scripts/audit_feature_parity_performance_ai.py
 
+# New AI-specific independent review angles.
+python3 scripts/audit_ai_user_journeys_v2.py
+python3 scripts/audit_ai_runtime_release_v2.py
+
 # Independent multi-angle release gates.
 python3 scripts/audit_user_journeys.py
 python3 scripts/audit_runtime_release.py
@@ -167,6 +179,7 @@ python3 scripts/audit_state_invariants.py
 for marker in \
   requestRouteTimes searchStoreLocations requestCurrentLocation startLiveLocation stopLiveLocation CLLocationManagerDelegate \
   openRoute openExternalURL analyzeVisualSubject VNGenerateObjectnessBasedSaliencyImageRequest routeTransportType \
+  aiGenerateText LanguageModelSession segmentVisualSubject VNGenerateForegroundInstanceMaskRequest openImagePlayground ImagePlaygroundViewController \
   scheduleDayNotifications startLiveDayActivity endLiveDayActivity \
   authSetCredentials authVerifyCredentials; do
   grep -q "$marker" LifeRoute/LifeRouteWebView.swift
@@ -208,6 +221,16 @@ grep -q 'clientPreferredActivities' LifeRoute/Web/client-profiles-v1.js
 grep -q 'clientCurrentTargets' LifeRoute/Web/client-profiles-v1.js
 grep -q 'applyLifeRouteClientProfileToTools' LifeRoute/Web/client-profile-tools-v1.js
 
+# AI intelligence contracts.
+grep -q 'LifeRouteAI' LifeRoute/Web/ai-assistant-v1.js
+grep -q 'visualSearchTerms' LifeRoute/Web/ai-assistant-v1.js
+grep -q 'sessionPlan' LifeRoute/Web/ai-assistant-v1.js
+grep -q 'dayBrief' LifeRoute/Web/ai-assistant-v1.js
+grep -q 'routeBrief' LifeRoute/Web/ai-assistant-v1.js
+grep -q 'LifeRouteImageStudio' LifeRoute/Web/image-playground-v1.js
+grep -q 'LifeRouteAIPlanning' LifeRoute/Web/ai-planning-v1.js
+grep -q 'wikimedia-ai-semantic' LifeRoute/Web/visual-resolver-ai-v2.js
+
 # Toolbar + timer + appearance contracts.
 grep -q 'LifeRouteToolbarCleanupV1' LifeRoute/Web/toolbar-cleanup-v1.js
 grep -q "child.dataset?.view === 'month'" LifeRoute/Web/toolbar-cleanup-v1.js
@@ -218,4 +241,4 @@ grep -q 'const AUTH_GATE_ENABLED = false' LifeRoute/Web/auth-gate.js
 grep -q 'lifeRouteAestheticPolishV1Styles' LifeRoute/Web/aesthetic-polish-v1.js
 grep -q 'min-height:44px!important' LifeRoute/Web/aesthetic-polish-v1.js
 
-echo "LifeRoute feature preflight + multi-angle release audits passed."
+echo "LifeRoute feature preflight + AI multi-angle release audits passed."

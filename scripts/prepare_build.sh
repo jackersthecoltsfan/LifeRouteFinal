@@ -23,6 +23,7 @@ PATCHES=(
   patch_provider_selection.py
   patch_day_navigation.py
   patch_auth_gate.py
+  patch_disable_auth_gate_v1.py
   patch_stability.py
   patch_theme_settings.py
   patch_release_hardening_v1.py
@@ -141,6 +142,7 @@ python3 scripts/audit_theme_catalog.py
 python3 scripts/audit_runtime_polish.py
 python3 scripts/audit_visual_timer.py
 python3 scripts/audit_tools_section.py
+python3 scripts/audit_auth_disabled_v1.py
 python3 scripts/audit_appearance.py
 python3 scripts/audit_stability.py
 
@@ -200,6 +202,7 @@ grep -q "child.dataset?.view === 'month'" LifeRoute/Web/toolbar-cleanup-v1.js
 grep -q 'LifeRouteVisualTimerV2' LifeRoute/Web/visual-timer-v2.js
 grep -q 'CHIME_PERIOD_MS = 500' LifeRoute/Web/visual-timer-v2.js
 grep -q 'END_HZ = 1320' LifeRoute/Web/visual-timer-v2.js
+grep -q 'const AUTH_GATE_ENABLED = false' LifeRoute/Web/auth-gate.js
 grep -q 'lifeRouteAestheticPolishV1Styles' LifeRoute/Web/aesthetic-polish-v1.js
 grep -q 'min-height:44px!important' LifeRoute/Web/aesthetic-polish-v1.js
 

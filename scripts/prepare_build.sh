@@ -22,6 +22,7 @@ PATCHES=(
   patch_sleek_icons.py
   patch_provider_selection.py
   patch_day_navigation.py
+  patch_interaction_hotfix_v1.py
   patch_auth_gate.py
   patch_disable_auth_gate_v1.py
   patch_stability.py
@@ -75,6 +76,8 @@ core = [
     "resources-hub-web.js",
     "toolbar-cleanup-v1.js",
     "visual-timer-v2.js",
+    "delight-ui-v1.js",
+    "timer-native-audio-v1.js",
     "first-then-back.js",
     "visual-resolver.js",
     "ai-assistant-v1.js",
@@ -105,6 +108,7 @@ core = [
     "refined-ui-v2.js",
     "aesthetic-polish-v1.js",
     "stability-runtime.js",
+    "delight-tail-v1.js",
 ]
 if "</body>" not in html:
     raise SystemExit("Could not inject LifeRoute feature scripts: </body> not found")
@@ -124,14 +128,15 @@ CORE_JS=(
   todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js
   selected-gap-routes.js saved-place-gap-options.js live-day.js end-home-route-web.js day-controls-v5.js
   rbt-tools.js client-picker-sync-v1.js client-profiles-v1.js client-profile-tools-v1.js
-  mileage-tracker-web.js resources-hub-web.js toolbar-cleanup-v1.js visual-timer-v2.js first-then-back.js
+  mileage-tracker-web.js resources-hub-web.js toolbar-cleanup-v1.js visual-timer-v2.js
+  delight-ui-v1.js timer-native-audio-v1.js first-then-back.js
   visual-resolver.js ai-assistant-v1.js visual-resolver-ai-v2.js visual-quality-web.js visual-tools.js
   photo-source-picker-web.js visual-object-focus-v2.js image-playground-v1.js visual-resolver-bridge.js
   first-then-ai-studio-v1.js ai-planning-v1.js aba-ai-note-v1.js live-themes.js
   day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js stop-duration-v1.js
   day-navigation-runtime.js nature-settings-web.js settings-classic-themes-web.js
   photoreal-nature-web.js dynamic-themes-web.js fluid-scenes-v1.js dynamic-animals-v1.js
-  theme-catalog-v3.js ui-simplify-v4.js refined-ui-v2.js aesthetic-polish-v1.js stability-runtime.js
+  theme-catalog-v3.js ui-simplify-v4.js refined-ui-v2.js aesthetic-polish-v1.js stability-runtime.js delight-tail-v1.js
 )
 for js in "${CORE_JS[@]}"; do
   test -s "LifeRoute/Web/$js"
@@ -237,9 +242,13 @@ grep -q 'wikimedia-ai-semantic' LifeRoute/Web/visual-resolver-ai-v2.js
 # Toolbar + timer + appearance contracts.
 grep -q 'LifeRouteToolbarCleanupV1' LifeRoute/Web/toolbar-cleanup-v1.js
 grep -q "child.dataset?.view === 'month'" LifeRoute/Web/toolbar-cleanup-v1.js
+grep -q "Preserve the user's scroll position" LifeRoute/Web/toolbar-cleanup-v1.js
 grep -q 'LifeRouteVisualTimerV2' LifeRoute/Web/visual-timer-v2.js
 grep -q 'CHIME_PERIOD_MS = 500' LifeRoute/Web/visual-timer-v2.js
 grep -q 'END_HZ = 1320' LifeRoute/Web/visual-timer-v2.js
+grep -q '0.26 \* gainScale' LifeRoute/Web/visual-timer-v2.js
+grep -q 'boost:5' LifeRoute/Web/timer-native-audio-v1.js
+grep -q 'playGlassTone(frequency: Double, intensity: Double, boost: Double = 5.0)' LifeRoute/LifeRouteWebView.swift
 grep -q 'const AUTH_GATE_ENABLED = false' LifeRoute/Web/auth-gate.js
 grep -q 'lifeRouteAestheticPolishV1Styles' LifeRoute/Web/aesthetic-polish-v1.js
 grep -q 'min-height:44px!important' LifeRoute/Web/aesthetic-polish-v1.js

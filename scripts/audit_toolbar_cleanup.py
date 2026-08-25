@@ -19,12 +19,30 @@ checks = {
     "observer limited to child list": "{ childList: true }" in script,
     "no subtree-wide toolbar observer": "subtree: true" not in script,
     "prepared index loads shared cleanup": '<script src="toolbar-cleanup-v1.js"></script>' in index,
+    "top nav includes Schedule": "label: 'Schedule'" in script,
+    "top nav includes Session Tools": "label: 'Session Tools'" in script,
+    "top nav includes Resources": "label: 'Resources'" in script,
+    "top nav includes Setup": "label: 'Setup'" in script,
+    "session tools uses puzzle icon": "lrPuzzleIcon" in script and "🧩" in script,
+    "session tools includes Visual Timer": "label: 'Visual Timer'" in script,
+    "session tools includes Visuals Generator": "label: 'Visuals Generator'" in script,
+    "session tools includes Documentation Tools": "label: 'Documentation Tools'" in script,
+    "setup includes Saved Places": "Saved Places" in script and 'data-lr-setup-pane="places"' in script,
+    "setup includes Clients": 'data-lr-setup-pane="clients"' in script,
+    "setup includes Personal Tasks": "Personal Tasks" in script and 'data-lr-setup-pane="tasks"' in script,
+    "setup includes Connections": "Connections" in script and 'data-lr-setup-pane="connections"' in script,
+    "connections own calendars and navigation": "Calendar inputs|Use these sources|Navigation" in script,
+    "saved places include Home": "Home: ['⌂'" in script,
+    "saved places include Relaxation": "Relaxation: ['♧'" in script,
+    "saved places include Errand": "Errand: ['🛒'" in script,
+    "saved places include Other": "Other: ['＋'" in script,
+    "gear receives planning preferences": "lifeRoutePlanningSettingsV2" in script and "Ideal maximum open gap" in script,
 }
 
 failed = [name for name, ok in checks.items() if not ok]
-print(f"LifeRoute toolbar cleanup audit: {len(checks) - len(failed)} passed, {len(failed)} failed")
+print(f"LifeRoute navigation architecture audit: {len(checks) - len(failed)} passed, {len(failed)} failed")
 if failed:
     for name in failed:
         print(f"FAIL: {name}")
     raise SystemExit(1)
-print("LifeRoute main-toolbar Month de-duplication audit passed.")
+print("LifeRoute top navigation, Session Tools, Setup hierarchy, and Saved Places categories passed.")

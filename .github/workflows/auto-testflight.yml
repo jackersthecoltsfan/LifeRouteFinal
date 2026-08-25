@@ -39,6 +39,10 @@ jobs:
             echo "Web-only commit validated; skipping TestFlight dispatch."
             exit 0
           fi
+          if [[ "$COMMIT_MESSAGE" == *"[no-testflight]"* ]]; then
+            echo "No-TestFlight commit validated; skipping TestFlight dispatch."
+            exit 0
+          fi
 
           echo "iOS Build Check passed for $VALIDATED_SHA. Starting TestFlight automatically."
           gh workflow run testflight.yml --repo "$GITHUB_REPOSITORY" --ref main

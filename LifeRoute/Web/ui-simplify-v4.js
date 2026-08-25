@@ -121,9 +121,12 @@
   document.addEventListener("change", event => {
     if (event.target?.matches?.("select")) setTimeout(polish, 0);
   }, true);
+
+  // Structural changes need repolishing; changing countdown text or other live
+  // labels does not. Avoid waking an app-wide appearance pass for every timer tick.
   const observer = new MutationObserver(polish);
   const start = () => {
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    observer.observe(document.body, { childList: true, subtree: true });
     polish();
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });

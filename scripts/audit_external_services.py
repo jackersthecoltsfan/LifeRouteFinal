@@ -154,6 +154,7 @@ for portal in resource_navigation_hosts & hosts:
     require(host_sources.get(portal,set()) <= {"resources-hub-web.js"}, f"resource portal {portal} is navigation-only")
 for host in {"images.unsplash.com","images.pexels.com"} & hosts:
     sources=host_sources.get(host,set())
+    print(f"Media provenance {host}: {', '.join(sorted(sources))}")
     require(all(name.startswith("visual-") or name == "photoreal-nature-web.js" for name in sources), f"curated media host {host} is visual-only")
 require(host_sources.get("partners-api.centralreach.com",set()) <= {"config.js"}, "CentralReach partner API remains dormant configuration only")
 

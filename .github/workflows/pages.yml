@@ -40,6 +40,8 @@ jobs:
       - name: Build browser preview
         run: python3 scripts/build_web_preview.py
 
+      # The dedicated post-bundle gate validates stability-runtime.js,
+      # visual-timer-v2.js, shared/native parity, browser helpers, and privacy.
       - name: Audit final browser artifact
         run: python3 scripts/audit_web_artifact.py
 

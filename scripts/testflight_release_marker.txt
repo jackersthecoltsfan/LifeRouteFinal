@@ -1,3 +1,6 @@
-LifeRoute TestFlight release requested after clean feature-parity, Clear Day/Clear All, performance, web artifact, and native Simulator audits.
-Release source audited at: 82cdf4ca1d8d25db2630aed3b37810b8672431b9
-Includes restored End Route at Home, Mileage Tracker, Resources Hub, working native-safe Clear Day and two-tap Clear All, shared feature parity, reduced WKWebView runtime/compositing pressure, and free on-device Apple Vision subject-focus assistance for visual generation with a local fallback.
+LifeRoute Apple-native AI TestFlight release requested after successful iOS build and web-preview validation.
+Release source: a2c819c7eed58bef93ab3526d64ad36dd89960aa
+
+This test build intentionally uses Apple-native intelligence only. The AI layer includes Apple Foundation Models for on-device language and planning tasks, Apple Vision for screenshot OCR and visual analysis, and Apple Image Playground where supported. No OpenAI, Anthropic, Gemini, or other cloud language-model provider is included in this test build.
+
+Deterministic LifeRoute systems remain authoritative for calendar events, route/travel calculations, stop duration, departure timing, reminders, and other exact app data. The purpose of this release is to test Apple Intelligence availability, response quality, device performance, ABA note drafting from supplied facts, screenshot OCR, planning assistance, and graceful local fallback behavior before considering an optional cloud-AI provider.

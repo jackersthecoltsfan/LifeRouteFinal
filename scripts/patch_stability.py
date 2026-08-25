@@ -9,6 +9,9 @@ INDEX = ROOT / "LifeRoute" / "Web" / "index.html"
 THEMES = ROOT / "LifeRoute" / "Web" / "live-themes.js"
 REFINED = ROOT / "LifeRoute" / "Web" / "refined-ui-v2.js"
 LIVE_DAY = ROOT / "LifeRoute" / "Web" / "live-day.js"
+DAY_NAV = ROOT / "LifeRoute" / "Web" / "day-navigation-runtime.js"
+BOUNDARY = ROOT / "LifeRoute" / "Web" / "boundary-stop-planner.js"
+PHOTO = ROOT / "LifeRoute" / "Web" / "photoreal-nature-web.js"
 
 
 def write(path: Path, value: str) -> None:
@@ -206,5 +209,56 @@ new = '''  ticker = setInterval(() => {
 if old in live_day:
     live_day = live_day.replace(old, new, 1)
 write(LIVE_DAY, live_day)
+
+
+# Deterministic core loading means Day controls and boundary planner no longer
+# need to poll the DOM dozens of times after launch. Use a few bounded fallbacks.
+day_nav = DAY_NAV.read_text(encoding="utf-8")
+old = '''  const start = () => {
+    bind();
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts += 1;
+      if (bind() || attempts > 80) clearInterval(timer);
+    }, 100);
+  };'''
+new = '''  const start = () => {
+    if (bind()) return;
+    [100, 300, 800].forEach(delay => setTimeout(bind, delay));
+  };'''
+if old in day_nav:
+    day_nav = day_nav.replace(old, new, 1)
+write(DAY_NAV, day_nav)
+
+boundary = BOUNDARY.read_text(encoding="utf-8")
+old = '''  const start = () => {
+    installEventHook();
+    decorateBoundaryCards();
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts += 1;
+      installEventHook();
+      decorateBoundaryCards();
+      if (attempts >= 30) clearInterval(timer);
+    }, 350);
+  };'''
+new = '''  const start = () => {
+    installEventHook();
+    decorateBoundaryCards();
+    [180, 550, 1400].forEach(delay => setTimeout(() => {
+      installEventHook();
+      decorateBoundaryCards();
+    }, delay));
+  };'''
+if old in boundary:
+    boundary = boundary.replace(old, new, 1)
+write(BOUNDARY, boundary)
+
+
+# Browser scenery remains high-resolution but avoids downloading oversized 2400px
+# photos on phones where they add latency and memory pressure without visible gain.
+photo = PHOTO.read_text(encoding="utf-8")
+photo = photo.replace('download?force=true&w=2400', 'download?force=true&w=1800')
+write(PHOTO, photo)
 
 print("LifeRoute native/web stability patch applied.")

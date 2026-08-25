@@ -33,5 +33,12 @@ jobs:
             echo "Skipping older validated commit $VALIDATED_SHA; main is now $CURRENT_SHA."
             exit 0
           fi
+
+          COMMIT_MESSAGE=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${VALIDATED_SHA}" --jq '.commit.message')
+          if [[ "$COMMIT_MESSAGE" == *"[web-only]"* ]]; then
+            echo "Web-only commit validated; skipping TestFlight dispatch."
+            exit 0
+          fi
+
           echo "iOS Build Check passed for $VALIDATED_SHA. Starting TestFlight automatically."
           gh workflow run testflight.yml --repo "$GITHUB_REPOSITORY" --ref main

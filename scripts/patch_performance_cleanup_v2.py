@@ -47,13 +47,44 @@ replace_once(
     "UI simplifier observer scope",
 )
 
-# Refined UI text polishing only touches Today plus static bottom controls.
-replace_once(
-    WEB / "refined-ui-v2.js",
-    '  const start = () => {\n    polish();\n    const observer = new MutationObserver(polish);\n    observer.observe(document.body, { childList: true, subtree: true });\n    [120, 420, 1000, 2200].forEach(delay => setTimeout(polish, delay));\n  };',
-    '  let polishQueued = false;\n  const queuePolish = () => {\n    if (polishQueued) return;\n    polishQueued = true;\n    requestAnimationFrame(() => { polishQueued = false; polish(); });\n  };\n  const start = () => {\n    polish();\n    const today = document.getElementById("today");\n    if (today) new MutationObserver(queuePolish).observe(today, { childList: true, subtree: true });\n  };',
-    "Refined UI observer scope",
-)
+# patch_stability.py already frame-coalesces refined-ui before this patch runs.
+# Tighten its remaining page-wide observer and remove the delayed retry fanout.
+refined_path = WEB / "refined-ui-v2.js"
+refined = refined_path.read_text()
+prepared_old = '''  const start = () => {
+    let polishQueued = false;
+    const queuePolish = () => {
+      if (polishQueued) return;
+      polishQueued = true;
+      requestAnimationFrame(() => {
+        polishQueued = false;
+        polish();
+      });
+    };
+    polish();
+    const observer = new MutationObserver(queuePolish);
+    observer.observe(document.body, { childList: true, subtree: true });
+    [150, 500, 1200, 2400].forEach(delay => setTimeout(queuePolish, delay));
+  };'''
+desired = '''  const start = () => {
+    let polishQueued = false;
+    const queuePolish = () => {
+      if (polishQueued) return;
+      polishQueued = true;
+      requestAnimationFrame(() => {
+        polishQueued = false;
+        polish();
+      });
+    };
+    polish();
+    const today = document.getElementById("today");
+    if (today) new MutationObserver(queuePolish).observe(today, { childList: true, subtree: true });
+  };'''
+if desired not in refined:
+    if prepared_old not in refined:
+        raise SystemExit(f"Refined UI observer scope: expected post-stability pattern not found in {refined_path}")
+    refined = refined.replace(prepared_old, desired, 1)
+    refined_path.write_text(refined)
 
 # Browser preview should not dynamically reload modules that are already in the
 # shared core. Load guards prevent correctness bugs, but the duplicate requests

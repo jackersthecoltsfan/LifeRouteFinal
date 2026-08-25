@@ -14,6 +14,7 @@ routing=text("LifeRoute/Web/web-routing-bridge.js")
 search=text("LifeRoute/Web/stop-place-search-v4.js")
 store=text("LifeRoute/Web/web-store-direct-v2.js")
 visual=text("LifeRoute/Web/visual-resolver.js")
+visual_bridge=text("LifeRoute/Web/visual-resolver-bridge.js")
 animals=text("LifeRoute/Web/dynamic-animals-v1.js")
 nature=text("LifeRoute/Web/photoreal-nature-web.js")
 resources=text("LifeRoute/Web/resources-hub-web.js")
@@ -76,6 +77,9 @@ require("commons.wikimedia.org/w/api.php" in visual, "generic visual resolver us
 require("safeForPublicLookup" in visual and "if (/\\d/.test(normalized)) return false" in visual, "visual lookup blocks likely private/name-like terms")
 require("fetchWithTimeout" in visual and "AbortController" in visual, "generic visual lookup has deadline")
 require('credentials: "omit"' in visual, "generic Wikimedia lookup omits credentials")
+require("fetchWithTimeout" in visual_bridge and "AbortController" in visual_bridge, "First/Then fallback visual lookup has deadline")
+require('credentials: "omit"' in visual_bridge, "First/Then Wikimedia fallback omits credentials")
+require("bodyObserver.observe(document.body" not in visual_bridge, "First/Then resolver has no page-wide wiring observer")
 require("commons.wikimedia.org/w/api.php" in animals, "Living Creatures uses Wikimedia Commons API")
 require("fetchWithTimeout" in animals and "AbortController" in animals, "Living Creature Wikimedia lookup has deadline")
 require("credentials:\"omit\"" in animals or 'credentials: "omit"' in animals, "Living Creature requests omit credentials")
@@ -97,6 +101,15 @@ require("fetch(" not in config, "disabled CentralReach config performs no networ
 # Web/native preview separation.
 require("if (window.webkit?.messageHandlers?.lifeRoute) return" in preview, "browser-preview helpers never install in native WKWebView")
 require("Apple Calendar, notifications, and Apple MapKit remain iPhone features" in preview, "web preview labels native-only capabilities")
+
+# Fresh-angle rule: any JS module issuing a direct fetch must own an AbortController.
+# This catches future network paths that were not manually added above.
+direct_fetch_files=[]
+for path in sorted(Path("LifeRoute/Web").glob("*.js")):
+    data=path.read_text(errors="ignore")
+    if re.search(r'\bfetch\s*\(', data):
+        direct_fetch_files.append(path.name)
+        require("AbortController" in data, f"direct fetch in {path.name} has an AbortController deadline")
 
 # External-host inventory classified by execution role. Any newly hard-coded host
 # fails this audit until it is deliberately reviewed.
@@ -123,33 +136,30 @@ approved_hosts=(runtime_service_hosts|map_handoff_hosts|media_hosts|setup_attrib
 
 paths=[Path("LifeRoute/LifeRouteWebView.swift"), Path("scripts/web-preview.js")]
 paths += list(Path("LifeRoute/Web").glob("*.js")) + [Path("LifeRoute/Web/index.html")]
-hosts=set()
-host_sources={}
+hosts=set(); host_sources={}
 for path in paths:
     data=path.read_text(errors="ignore")
     for url in re.findall(r'https://[A-Za-z0-9._-]+[^\s\"\'<>`)]*', data):
         try:
             host=urlparse(url).hostname
             if host:
-                host=host.lower()
-                hosts.add(host)
-                host_sources.setdefault(host,set()).add(path.name)
-        except Exception:
-            pass
+                host=host.lower(); hosts.add(host); host_sources.setdefault(host,set()).add(path.name)
+        except Exception: pass
 unknown=sorted(hosts-approved_hosts)
 require(not unknown, "all hard-coded HTTPS hosts are explicitly classified by execution role")
 
-# Classification invariants: Resource portals must only be named by the launch
-# hub, static curated CDNs only by visual/scenery modules, and dormant partner API
-# config must not escape config.js.
+# Classification invariants: portals are launch-hub only; static media hosts are
+# confined to visual/scenery modules; dormant CentralReach API stays config-only.
 for portal in resource_navigation_hosts & hosts:
     require(host_sources.get(portal,set()) <= {"resources-hub-web.js"}, f"resource portal {portal} is navigation-only")
 for host in {"images.unsplash.com","images.pexels.com"} & hosts:
-    require(host_sources.get(host,set()) <= {"visual-resolver.js"}, f"curated media host {host} is visual-only")
+    sources=host_sources.get(host,set())
+    require(all(name.startswith("visual-") or name == "photoreal-nature-web.js" for name in sources), f"curated media host {host} is visual-only")
 require(host_sources.get("partners-api.centralreach.com",set()) <= {"config.js"}, "CentralReach partner API remains dormant configuration only")
 
 failed=[label for ok,label in checks if not ok]
 print(f"LifeRoute external-services audit: {len(checks)-len(failed)} passed, {len(failed)} failed")
+print("Direct-fetch modules:", ", ".join(direct_fetch_files))
 print("Runtime API hosts:", ", ".join(sorted(runtime_service_hosts & hosts)))
 print("Media hosts:", ", ".join(sorted(media_hosts & hosts)))
 print("User-navigation hosts:", ", ".join(sorted(resource_navigation_hosts & hosts)))
@@ -158,4 +168,4 @@ if unknown: print("UNREVIEWED HOSTS:", ", ".join(unknown))
 if failed:
     for label in failed: print("FAIL:", label)
     raise SystemExit(1)
-print("Apple native integrations, Google OAuth/API, secure calendar subscriptions, browser routing/search, visual media, resource-link boundaries, timeouts, workload caps, and host classification passed.")
+print("Apple native integrations, Google OAuth/API, secure calendar subscriptions, browser routing/search, all direct fetch paths, visual media, resource-link boundaries, timeouts, workload caps, and host classification passed.")

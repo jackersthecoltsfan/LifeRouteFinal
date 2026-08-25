@@ -74,9 +74,13 @@ for marker in [
 ]:
     check(marker in polish, f"final aesthetic guardrail: {marker}")
 
-# Smoothness: appearance polish must not wake on live text/countdown changes.
+# Smoothness: appearance work stays structural, but is scoped to the UI it owns
+# instead of traversing every Tools/Resources/overlay change in the application.
 check("characterData: true" not in simplify, "appearance observer ignores live text-only mutations")
-check('observer.observe(document.body, { childList: true, subtree: true })' in simplify, "appearance observer is structural-only")
+check('observer.observe(document.body' not in simplify, "appearance simplifier does not watch entire document")
+check('document.getElementById("today")' in simplify and 'document.getElementById("lifeRouteSettingsOverlay")' in simplify, "appearance simplifier watches Today and Settings only")
+check('observer.observe(document.body' not in refined, "refined UI does not watch entire document")
+check('document.getElementById("today")' in refined and "requestAnimationFrame" in refined, "refined UI is Today-scoped and frame-coalesced")
 
 # Shared build wiring. Web and native/TestFlight must receive the same final appearance layer.
 check('"aesthetic-polish-v1.js"' in prepare, "prepared build includes final aesthetic polish")
@@ -91,4 +95,4 @@ if failures:
     for failure in failures:
         print(f"FAIL: {failure}")
     raise SystemExit(1)
-print("LifeRoute appearance, mobile ergonomics, and aesthetic consistency audit passed.")
+print("LifeRoute appearance, mobile ergonomics, scoped presentation work, and aesthetic consistency audit passed.")

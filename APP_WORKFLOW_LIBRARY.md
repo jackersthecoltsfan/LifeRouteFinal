@@ -2,14 +2,14 @@
 
 The reusable iOS build/release system is stored in `ReusableAppWorkflow/`.
 
-For any future iOS app, start with:
+For the full idea → TestFlight process, start with:
 
-- `ReusableAppWorkflow/README.md`
-- `ReusableAppWorkflow/bootstrap-ios-workflows.sh`
-- the reusable CI/TestFlight templates
-- the Apple signing cleanup helper
-- `ReusableAppWorkflow/BUILD_REPAIR_AUTOMATION.md`
+- `APP_CREATION_PLAYBOOK.md` — canonical streamlined workflow and manual-vs-automatic responsibilities.
+- `TESTFLIGHT_SETUP.md` — LifeRoute's current automatic GitHub → TestFlight release behavior.
+- `ReusableAppWorkflow/README.md` — reusable architecture for future iOS apps.
+- `ReusableAppWorkflow/bootstrap-ios-workflows.sh` — installs the reusable CI/TestFlight workflow pack into a new app repository.
+- `ReusableAppWorkflow/BUILD_REPAIR_AUTOMATION.md` — two-attempt self-healing policy for failed builds.
 
-This is the canonical workflow pack created from the LifeRoute project. Reuse it rather than rebuilding the process from scratch.
+The goal is to reuse this system rather than rebuilding CI, signing, TestFlight delivery, or failure-repair logic from scratch for each new app.
 
 No Apple private keys or secret values are stored here.

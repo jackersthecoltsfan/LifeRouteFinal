@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "LifeRoute" / "Web"
@@ -54,22 +53,28 @@ for marker in [
     'Element.prototype.scrollIntoView = noProgrammaticScroll',
     "history.scrollRestoration = 'manual'",
     'preventScroll: true',
+    'window.__lifeRouteNoScroll = noProgrammaticScroll',
+    'Element.prototype.__lifeRouteNoScrollIntoView = noProgrammaticScroll',
 ]:
     require(marker in stability, f'No-auto-scroll guard missing marker: {marker}')
 
-# Report remaining programmatic-scroll call sites. These are inert because the guard
-# is installed first, but the list identifies legacy code worth deleting later.
+# Final prepared runtime should contain no direct legacy viewport-moving calls at all.
 scroll_sites = []
 for path in sorted(WEB.glob('*.js')):
     if path.name == 'interaction-stability-v3.js':
         continue
     text = path.read_text()
     hits = []
-    for token in ('scrollIntoView(', 'window.scrollTo(', 'window.scrollBy('):
+    for token in (
+        'scrollIntoView(', 'scrollIntoView?.(', 'scrollIntoViewIfNeeded(',
+        'window.scrollTo(', 'window.scrollTo?.(', 'window.scrollBy(', 'window.scrollBy?.('
+    ):
         if token in text:
             hits.append(token[:-1])
     if hits:
         scroll_sites.append(f"{path.name}: {', '.join(hits)}")
+require(not scroll_sites,
+        'Legacy programmatic-scroll calls remain: ' + '; '.join(scroll_sites))
 
 # Static workload inventory for regression tracking.
 combined = '\n'.join(path.read_text() for path in WEB.glob('*.js'))
@@ -84,7 +89,7 @@ notes.append(f'setInterval references: {interval_count}')
 notes.append(f'requestAnimationFrame references: {raf_count}')
 notes.append(f'will-change references: {will_change_count}')
 notes.append(f'backdrop-filter references: {backdrop_count}')
-notes.append('Remaining blocked programmatic-scroll sites: ' + (('; '.join(scroll_sites)) if scroll_sites else 'none'))
+notes.append('Legacy programmatic-scroll sites: none')
 
 # The new delight layer must not restore permanent transform layers to every control.
 require('will-change:transform;transition:transform .125s' not in delight,

@@ -7,6 +7,7 @@ TIMER = ROOT / "LifeRoute" / "Web" / "visual-timer-v2.js"
 RBT = ROOT / "LifeRoute" / "Web" / "rbt-tools.js"
 PREPARE = ROOT / "scripts" / "prepare_build.sh"
 PAGES = ROOT / ".github" / "workflows" / "pages.yml"
+WEB_ARTIFACT = ROOT / "scripts" / "audit_web_artifact.py"
 
 failures: list[str] = []
 passes: list[str] = []
@@ -28,6 +29,7 @@ timer = read(TIMER)
 rbt = read(RBT)
 prepare = read(PREPARE)
 pages = read(PAGES)
+web_artifact = read(WEB_ARTIFACT)
 first_then = read(ROOT / "LifeRoute" / "Web" / "first-then-back.js")
 
 # Core timer remains deadline-based so app switching does not make the visual time drift.
@@ -73,9 +75,10 @@ check('observer.observe(document.body, { childList: true, subtree: true, attribu
 check("overlayClassObserver.observe(overlay" in first_then, "First/Then class observer is scoped to overlay")
 check("overlayContentObserver.observe(overlay" in first_then, "First/Then visual regeneration observer is scoped to overlay")
 
-# Both native/TestFlight preparation and web Pages must carry the same timer module.
+# Both native/TestFlight preparation and web Pages carry and verify the same timer module.
 check('"visual-timer-v2.js"' in prepare, "prepared shared runtime includes visual timer v2")
-check("visual-timer-v2.js" in pages, "Pages final artifact validates visual timer v2")
+check('"visual-timer-v2.js"' in web_artifact and "CHIME_PERIOD_MS = 500" in web_artifact, "final web artifact audit validates timer v2 sound contract")
+check("python3 scripts/audit_web_artifact.py" in pages, "Pages runs dedicated final browser artifact audit")
 check("python3 scripts/audit_visual_timer.py" in prepare, "prepare build runs focused timer audit")
 
 print(f"LifeRoute visual timer audit: {len(passes)} passed, {len(failures)} failed")
@@ -83,4 +86,4 @@ if failures:
     for failure in failures:
         print(f"FAIL: {failure}")
     raise SystemExit(1)
-print("LifeRoute visual timer sound, design, lifecycle, and performance audit passed.")
+print("LifeRoute visual timer sound, design, lifecycle, performance, and final-artifact audit passed.")

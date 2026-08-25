@@ -1,0 +1,2 @@
+One-shot TestFlight release trigger for stabilized LifeRoute candidate ded18e36.
+Do not retry automatically.

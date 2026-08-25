@@ -22,8 +22,6 @@ PATCHES=(
   patch_sleek_icons.py
   patch_provider_selection.py
   patch_day_navigation.py
-  patch_interaction_hotfix_v1.py
-  patch_touch_delight_v2.py
   patch_auth_gate.py
   patch_disable_auth_gate_v1.py
   patch_stability.py
@@ -40,6 +38,8 @@ PATCHES=(
   patch_ai_everywhere_v2.py
   patch_aba_ai_note_v1.py
   patch_day_ui_reliability_v1.py
+  patch_interaction_finalize_v2.py
+  patch_touch_delight_v2.py
 )
 for patch in "${PATCHES[@]}"; do
   python3 "scripts/$patch"

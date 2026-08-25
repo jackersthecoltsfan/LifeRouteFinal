@@ -34,11 +34,11 @@ Use for code-heavy implementation, Simulator launch/debugging, screenshots/logs,
 ### Codex TestFlight Release — installed
 Use as a reusable release pattern for iOS build-number management, archive/export/upload, App Store Connect API authentication, TestFlight metadata, and verification.
 
-### Sentry — optional, not currently installed
-Recommended once TestFlight testing becomes broader or the app is nearing public release. It can reduce manual debugging by surfacing real crashes/errors from testers instead of relying only on screenshots and descriptions.
+### Sentry — installed/enabled
+Use once the app is instrumented with the Sentry SDK. The ChatGPT plugin alone does not add crash reporting to the app; after instrumentation, Sentry can reduce manual debugging by surfacing real crashes/runtime errors from TestFlight testers.
 
-### Codex Security — optional, not currently installed
-Useful as an extra pre-release security review for apps that begin handling accounts, sensitive data, payments, or more external services. It is not required for every small LifeRoute iteration.
+### Codex Security — installed, access connection incomplete
+Codex Security is installed/enabled and GitHub is connected. The separate **Codex Security Access** connection currently returns an error. This does not block implementation, CI, signing, TestFlight upload, or installation. Treat security scanning as an optional pre-release layer until that access connection works.
 
 ---
 
@@ -66,7 +66,7 @@ Use Figma when the app needs a strong visual identity, multiple new screens, a d
 These are the main steps that still require Brandon because of account, legal, security, or permission boundaries.
 
 ### Brandon does
-1. **Create the new GitHub repository** if a repository does not already exist. The current GitHub connector can work extensively inside repositories but does not expose normal repository creation as part of this workflow.
+1. **Create the new GitHub repository** if a repository does not already exist.
 2. **Create/confirm the app in Apple Developer / App Store Connect**:
    - choose/confirm the app name,
    - create the primary bundle identifier,
@@ -132,7 +132,7 @@ For release-eligible changes on `main`, the intended chain is automatic:
 The assistant/build process manages these when needed:
 
 - `[no-testflight]` — run validation but do not create a TestFlight build.
-- `[web-only]` — preview/web-only change; do not create a TestFlight build.
+- `[web-only]` — preview/documentation/web-only change; do not create a TestFlight build.
 - No tag — a passing current `main` commit is eligible for automatic TestFlight promotion.
 
 Brandon should not have to decide or type these tags during normal development.
@@ -141,7 +141,7 @@ Brandon should not have to decide or type these tags during normal development.
 
 ## Phase 5 — Automatic failure handling
 
-The LifeRoute pattern includes a condition-watch repair policy:
+The `LifeRoute Build Repair` condition-watch automation is **enabled**.
 
 1. Healthy or legitimately in-progress builds stay quiet.
 2. On failure, inspect the actual failing job/step/logs.
@@ -149,6 +149,8 @@ The LifeRoute pattern includes a condition-watch repair policy:
 4. If the replacement chain still fails, make one more evidence-based repair: `auto-repair 2/2`.
 5. If it still fails after attempt 2, stop changing code and escalate the exact error plus both attempted fixes.
 6. If a repair succeeds and reaches TestFlight, report that success briefly.
+
+The monitor currently checks hourly, which is the fastest supported automation cadence.
 
 This removes the manual step of Brandon noticing a red GitHub build, copying the error, and asking ChatGPT to debug it in ordinary cases.
 
@@ -165,6 +167,7 @@ This removes the manual step of Brandon noticing a red GitHub build, copying the
 ### ChatGPT/Codex does
 - Trace the issue to code/workflow/runtime behavior.
 - Use Simulator debugging and logs when appropriate.
+- Use Sentry evidence after Sentry is instrumented in the app.
 - Patch the problem.
 - Let the automated CI → TestFlight chain repeat.
 
@@ -174,11 +177,11 @@ This real-device testing step remains intentionally human because feel, usefulne
 
 ## Optional next-level improvements
 
-### Add Sentry when testing expands
-Use Sentry when manual bug reports become a bottleneck. It can surface crashes/errors directly and make tester feedback much more actionable.
+### Wire Sentry into the app
+The plugin is installed. Add the Sentry SDK/configuration when TestFlight debugging would benefit from automatic crash/runtime evidence.
 
-### Add Codex Security before broader/public distribution
-Use for additional codebase/security review, especially after introducing authentication, sensitive data, backend services, or payments.
+### Retry Codex Security Access later
+Do not block the project on the current connection error. Once access works, use Codex Security for additional codebase/security review, especially after introducing authentication, sensitive data, backend services, or payments.
 
 ### Keep project management lightweight
 Do not add extra task-management tools merely because they exist. For a solo/small project, the master ChatGPT project, GitHub repository/issues, and this playbook are usually enough. Add Notion/Linear/ClickUp only when coordination overhead actually appears.
@@ -216,4 +219,4 @@ Repeat.
 
 Start the next project chat with:
 
-> Continue LifeRoute from the repository. Treat `APP_CREATION_PLAYBOOK.md`, `TESTFLIGHT_SETUP.md`, and `ReusableAppWorkflow/` as the canonical workflow sources. Use the streamlined workflow: I describe product changes, you handle implementation/audits/GitHub/release automation, and I handle only the manual steps the playbook assigns to me.
+> Continue LifeRoute from the repository. Treat `APP_CREATION_PLAYBOOK.md`, `TESTFLIGHT_SETUP.md`, and `ReusableAppWorkflow/` as the canonical workflow sources. Use the streamlined workflow: I describe product changes, you handle implementation/audits/GitHub/release automation, and I handle only the manual steps the playbook assigns to me. Plugin state: GitHub and Figma are connected; Sentry is installed; Codex Security is installed but its separate Codex Security Access connection is currently failing and should be treated as optional.

@@ -1,4 +1,7 @@
 // Reliable First / Then launch + escape control that survives smart visual regeneration.
+// The escape control lives outside the generated board. Never observe/rewrite the
+// board child tree: smart visual insertion can otherwise create a self-triggering
+// MutationObserver loop in WKWebView.
 (() => {
   if (window.__lifeRouteFirstThenBackLoaded) return;
   window.__lifeRouteFirstThenBackLoaded = true;
@@ -7,8 +10,7 @@
   let openRequested = false;
   let openTimers = [];
   let overlayClassObserver = null;
-  let overlayContentObserver = null;
-  let bodyObserver = null;
+  let observedOverlay = null;
 
   const installStyles = () => {
     if (document.getElementById(STYLE_ID)) return;
@@ -31,7 +33,7 @@
       .firstThenVisualImage{animation:lrFirstThenLivingVisual 7s ease-in-out infinite alternate;transform-origin:center center;will-change:transform}
       @keyframes lrFirstThenLivingVisual{from{transform:scale(1.005) translate3d(-.3%,.2%,0)}to{transform:scale(1.035) translate3d(.45%,-.35%,0)}}
       @media(prefers-reduced-motion:reduce){.firstThenVisualImage{animation:none!important}}
-      @media(max-width:680px){#lifeRouteFirstThenEscape{min-width:88px;min-height:42px;padding:9px 13px;font-size:12px}}
+      @media(max-width:680px){#lifeRouteFirstThenEscape{min-width:88px;min-height:44px;padding:9px 13px;font-size:12px}}
     `;
     document.head.appendChild(style);
   };
@@ -45,6 +47,7 @@
     button.className = "secondary";
     button.textContent = "← Back";
     button.setAttribute("aria-label", "Close First Then board");
+    button.setAttribute("aria-hidden", "true");
     document.body.appendChild(button);
     return button;
   };
@@ -60,7 +63,24 @@
     const shown = !!overlay?.classList.contains("show");
     button.classList.toggle("show", shown);
     button.setAttribute("aria-hidden", shown ? "false" : "true");
-    if (overlay) overlay.setAttribute("aria-hidden", shown ? "false" : "true");
+    if (overlay && overlay.getAttribute("aria-hidden") !== (shown ? "false" : "true")) {
+      overlay.setAttribute("aria-hidden", shown ? "false" : "true");
+    }
+  };
+
+  const bindOverlay = overlay => {
+    if (!overlay) return false;
+    if (observedOverlay === overlay && overlayClassObserver) return true;
+    overlayClassObserver?.disconnect();
+    observedOverlay = overlay;
+    overlayClassObserver = new MutationObserver(syncEscape);
+    overlayClassObserver.observe(overlay, { attributes: true, attributeFilter: ["class"] });
+    const internal = overlay.querySelector("#firstThenClose");
+    if (internal && internal.getAttribute("aria-label") !== "Close First Then board") {
+      internal.setAttribute("aria-label", "Close First Then board");
+    }
+    syncEscape();
+    return true;
   };
 
   const closeBoard = () => {
@@ -76,48 +96,18 @@
     }
     syncEscape();
     const first = document.getElementById("firstThenFirst");
-    if (first && typeof first.focus === "function") setTimeout(() => first.focus({ preventScroll: true }), 0);
-  };
-
-  const decorate = () => {
-    installStyles();
-    const overlay = document.getElementById("firstThenOverlay");
-    if (!overlay) return false;
-    const internal = overlay.querySelector("#firstThenClose");
-    if (internal) {
-      internal.textContent = "Back";
-      internal.setAttribute("aria-label", "Close First Then board");
+    if (first && typeof first.focus === "function") {
+      setTimeout(() => {
+        try { first.focus({ preventScroll: true }); } catch (_) {}
+      }, 0);
     }
-    syncEscape();
-    return true;
-  };
-
-  const watchOverlay = () => {
-    const overlay = document.getElementById("firstThenOverlay");
-    if (!overlay) return false;
-    if (overlayClassObserver || overlayContentObserver) return true;
-
-    // Only the overlay's own class controls open/closed state. Watching the entire
-    // document for class mutations created needless work during Day/theme rerenders.
-    overlayClassObserver = new MutationObserver(syncEscape);
-    overlayClassObserver.observe(overlay, { attributes: true, attributeFilter: ["class"] });
-
-    // Smart visual generation may replace children, so watch only this overlay's
-    // child tree and repair its internal semantics without observing unrelated UI.
-    overlayContentObserver = new MutationObserver(() => decorate());
-    overlayContentObserver.observe(overlay, { childList: true, subtree: true });
-
-    bodyObserver?.disconnect();
-    bodyObserver = null;
-    decorate();
-    return true;
   };
 
   const forceOpen = () => {
     if (!openRequested) return false;
     const overlay = document.getElementById("firstThenOverlay");
     if (!overlay) return false;
-    watchOverlay();
+    bindOverlay(overlay);
     overlay.classList.add("show");
     overlay.style.removeProperty("display");
     overlay.style.pointerEvents = "auto";
@@ -130,12 +120,18 @@
     return true;
   };
 
-  document.addEventListener("click", event => {
-    if (!event.target.closest?.("#showFirstThen")) return;
+  const requestOpen = () => {
     openRequested = true;
     cancelOpenTimers();
+    // The base tool creates the overlay in its normal click handler. These bounded
+    // retries attach only after that handler has had a chance to run.
     openTimers.push(setTimeout(forceOpen, 0));
-    openTimers.push(setTimeout(forceOpen, 90));
+    openTimers.push(setTimeout(forceOpen, 120));
+  };
+
+  document.addEventListener("click", event => {
+    if (!event.target.closest?.("#showFirstThen")) return;
+    requestOpen();
   }, true);
 
   // Own every exit route in capture phase so generated visual handlers cannot swallow it.
@@ -155,14 +151,9 @@
   const start = () => {
     installStyles();
     escapeButton();
-    if (!watchOverlay()) {
-      // Overlay is created lazily. Observe only node insertion until it exists,
-      // then disconnect this broad observer permanently.
-      bodyObserver = new MutationObserver(() => watchOverlay());
-      bodyObserver.observe(document.body, { childList: true, subtree: true });
-    }
+    bindOverlay(document.getElementById("firstThenOverlay"));
     window.addEventListener("pagehide", closeBoard);
-    window.LifeRouteFirstThen = { close: closeBoard, open: () => { openRequested = true; forceOpen(); } };
+    window.LifeRouteFirstThen = { close: closeBoard, open: requestOpen };
   };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true });

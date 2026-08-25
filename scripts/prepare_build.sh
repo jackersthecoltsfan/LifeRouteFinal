@@ -18,6 +18,7 @@ PATCHES=(
   patch_live_day.py
   patch_boundary_stop_timing.py
   patch_rbt_tools.py
+  patch_tools_stability_v1.py
   patch_sleek_icons.py
   patch_provider_selection.py
   patch_day_navigation.py
@@ -139,6 +140,7 @@ python3 scripts/audit_live_day_activity.py
 python3 scripts/audit_theme_catalog.py
 python3 scripts/audit_runtime_polish.py
 python3 scripts/audit_visual_timer.py
+python3 scripts/audit_tools_section.py
 python3 scripts/audit_appearance.py
 python3 scripts/audit_stability.py
 

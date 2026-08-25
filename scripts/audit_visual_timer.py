@@ -70,10 +70,12 @@ for marker in [
 ]:
     check(marker in timer, f"futuristic timer UI: {marker}")
 
-# First/Then smoothness cleanup: no document-wide class observer.
+# First/Then crash/smoothness cleanup: the external Back control only needs to
+# observe the overlay's open/closed class. Watching generated child content can
+# self-trigger when visual generation inserts/replaces images in WKWebView.
 check('observer.observe(document.body, { childList: true, subtree: true, attributes: true' not in first_then, "First/Then no longer observes every document class mutation")
-check("overlayClassObserver.observe(overlay" in first_then, "First/Then class observer is scoped to overlay")
-check("overlayContentObserver.observe(overlay" in first_then, "First/Then visual regeneration observer is scoped to overlay")
+check("overlayClassObserver.observe(overlay" in first_then and 'attributeFilter: ["class"]' in first_then, "First/Then class observer is scoped to overlay")
+check("overlayContentObserver" not in first_then and "childList: true" not in first_then and "subtree: true" not in first_then, "First/Then has no recursive visual-content observer")
 
 # Both native/TestFlight preparation and web Pages carry and verify the same timer module.
 check('"visual-timer-v2.js"' in prepare, "prepared shared runtime includes visual timer v2")

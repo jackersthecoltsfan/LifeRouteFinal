@@ -46,15 +46,19 @@ require('endDayAtHome' in end_home and 'Route home' in end_home, "End-at-Home pr
 require('window.prefs?.endDayAtHome' in read(WEB / "day-controls-v5.js"), "Live Activity includes End-at-Home state")
 require('cleanup' in quality and 'shower' in quality, "strict visual-quality profiles remain")
 
-# 2) Clear Day must act in native WKWebView without JS alert/confirm UI.
+# 2) Clear Day must act in native WKWebView without JS alert/confirm UI and
+# must clear only the selected date's route-plan state.
 require('window.selectedDate || (typeof selectedDate !== "undefined" ? selectedDate : "")' in day, "Clear Day resolves selected date robustly")
 clear_day_segment = day[day.find("const clearDay ="):day.find("const clearAll =")]
 require("window.confirm" not in clear_day_segment, "Clear Day no longer depends on native JavaScript confirm")
 require('window.endLifeRouteDay?.()' in clear_day_segment, "Clear Day ends active Live Day state")
-for store in ["GENERATED_STORE", "GAP_STORE", "BOUNDARY_STORE"]:
-    require(f'clearDateKeys({store}, day)' in clear_day_segment, f"Clear Day clears {store}")
-require('window.events = window.events.filter' in clear_day_segment, "Clear Day removes manual LifeRoute appointments for selected day")
+require('clearDateKeys(GENERATED_STORE, day)' in clear_day_segment, "Clear Day clears generated state for selected day")
+require('clearLifeRouteGapRoutesForDay(day)' in clear_day_segment, "Clear Day clears selected-day gap routes through owning module")
+require('clearLifeRouteBoundaryStopsForDay(day)' in clear_day_segment, "Clear Day clears selected-day boundary stops through owning module")
+require('window.events = window.events.filter' not in clear_day_segment, "Clear Day preserves all calendar/manual appointments")
+require('window.persist?.()' not in clear_day_segment, "Clear Day does not persist unrelated event mutations")
 require('liferoute:day-cleared' in clear_day_segment and 'Cleared ✓' in clear_day_segment, "Clear Day gives visible completion feedback")
+require('appointments and saved data kept' in clear_day_segment, "Clear Day status explicitly confirms preserved data")
 
 # 3) Native speed: remove obsolete startup retries/polling and broad UI observers.
 for data, label in [
@@ -104,4 +108,4 @@ if failed:
     for label in failed:
         print("FAIL:", label)
     raise SystemExit(1)
-print("Feature parity, Clear Day, native compositing/performance cleanup, and free on-device Apple Vision photo AI passed.")
+print("Feature parity, route-scoped Clear Day, native compositing/performance cleanup, and free on-device Apple Vision photo AI passed.")

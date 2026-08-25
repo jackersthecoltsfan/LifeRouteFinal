@@ -36,6 +36,9 @@ jobs:
       - name: Prepare the same features used by TestFlight
         run: bash scripts/prepare_build.sh
 
+      - name: Full LifeRoute regression audit
+        run: python3 scripts/audit_liferoute_build.py
+
       - name: Build LifeRoute for iOS Simulator
         run: |
           set -euo pipefail

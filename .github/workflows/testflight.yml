@@ -28,9 +28,11 @@ jobs:
       - name: Prepare LifeRoute features
         run: bash scripts/prepare_build.sh
 
-      # The separate iOS Build Check workflow already compiles the simulator on every
-      # relevant push. The archive below compiles the app again for a real device, so
-      # doing another simulator compile here only slowed manual TestFlight releases.
+      - name: Full LifeRoute regression audit
+        run: python3 scripts/audit_liferoute_build.py
+
+      # The separate iOS Build Check workflow compiles the simulator on every
+      # relevant push. The archive below compiles again for a real device.
 
       - name: Generate LifeRoute app icon
         run: |

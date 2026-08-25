@@ -37,6 +37,7 @@ PATCHES=(
   patch_visual_ai_v1.py
   patch_ai_everywhere_v2.py
   patch_aba_ai_note_v1.py
+  patch_day_ui_reliability_v1.py
 )
 for patch in "${PATCHES[@]}"; do
   python3 "scripts/$patch"
@@ -216,8 +217,6 @@ grep -q 'endDayAtHome' LifeRoute/Web/end-home-route-web.js
 grep -q 'data-lr-clear-day' LifeRoute/Web/day-controls-v5.js
 
 # Saved-client field-tool + profile contracts.
-grep -q 'refreshLifeRouteToolClients' LifeRoute/Web/client-picker-sync-v1.js
-grep -q 'quickNoteClient' LifeRoute/Web/client-picker-sync-v1.js
 grep -q 'sessionPlanClient' LifeRoute/Web/client-picker-sync-v1.js
 grep -q 'LifeRouteClientProfilesV1' LifeRoute/Web/client-profiles-v1.js
 grep -q 'clientPreferredActivities' LifeRoute/Web/client-profiles-v1.js

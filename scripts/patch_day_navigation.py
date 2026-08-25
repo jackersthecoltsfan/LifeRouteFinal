@@ -29,11 +29,20 @@ if '.lrDayPager{' not in html:
         raise SystemExit("Could not add day pager styles")
     html = html.replace(style_marker, style + style_marker, 1)
 
-saved_place_tag = '<script src="saved-place-gap-options.js"></script>'
-if saved_place_tag not in html:
-    if "</body>" not in html:
-        raise SystemExit("Could not enable Saved Places gap options: </body> not found")
-    html = html.replace("</body>", saved_place_tag + "\n</body>", 1)
+# These shared enhancement scripts intentionally self-delay/reconcile until the
+# rest of the deterministic runtime is available. This keeps them compatible
+# with both the checked-in web preview and the prepared native bundle.
+for script_name in [
+    "saved-place-gap-options.js",
+    "delight-ui-v1.js",
+    "timer-native-audio-v1.js",
+    "delight-tail-v1.js",
+]:
+    tag = f'<script src="{script_name}"></script>'
+    if tag not in html:
+        if "</body>" not in html:
+            raise SystemExit(f"Could not enable {script_name}: </body> not found")
+        html = html.replace("</body>", tag + "\n</body>", 1)
 
 path.write_text(html)
 
@@ -153,4 +162,4 @@ for marker in ['case "haptic":', "UIImpactFeedbackGenerator", 'case "playTimerTo
     if marker not in verified:
         raise SystemExit(f"Native interaction bridge verification failed: missing {marker}")
 
-print("Day navigation, Saved Places gap options, strong haptics, and silent-mode timer audio enabled.")
+print("Day navigation, contextual delight UI, strong haptics, and silent-mode timer audio enabled.")

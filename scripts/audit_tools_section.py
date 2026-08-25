@@ -82,15 +82,16 @@ for marker in ['clientPreferredActivities', 'clientCurrentTargets', 'clientBehav
     require(marker in profiles, f"Client profile preserves {marker}")
 require('fetch(' not in profiles, "Client profile storage makes no network request")
 
-# Visual maker and choice board.
-require('id="visualIconTool"' in visual and 'id="visualCameraInput"' in visual, "Visual icon maker exists")
+# Visual maker and choice board. These cards are created as DOM elements, so
+# verify both the element owner ID assignment and its concrete controls.
+require('iconTool.id = "visualIconTool"' in visual and 'id="visualCameraInput"' in visual, "Visual icon maker exists")
 require('MAX_ICONS = 18' in visual, "Visual library is bounded")
 require('URL.revokeObjectURL' in visual, "Visual maker releases temporary object URLs")
 require('LifeRouteVisualObjectFocus' in object_focus, "Uploaded-photo subject focusing is available")
 require('getImageData' in object_focus and 'toBlob' in object_focus, "Photo focusing uses local canvas processing")
 require('fetch(' not in object_focus and 'https://' not in object_focus, "Photo subject extraction stays local")
 require('visualCameraInput' in photo_picker, "Camera/photo source picker targets visual maker")
-require('id="choiceBoardTool"' in visual and 'id="showChoiceBoard"' in visual, "Choice-board creator exists")
+require('boardTool.id = "choiceBoardTool"' in visual and 'id="showChoiceBoard"' in visual, "Choice-board creator exists")
 require('id="closeChoiceBoard"' in visual and 'overlay.classList.remove("show")' in visual, "Choice board has working close path")
 require('state.boardSelection.length' in visual, "Choice board selection is tracked")
 

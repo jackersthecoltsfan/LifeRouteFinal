@@ -109,6 +109,8 @@ for js in "${BROWSER_JS[@]}"; do
   node --check "LifeRoute/Web/$js"
 done
 
+python3 scripts/audit_stability.py
+
 # Critical native bridge contracts.
 for marker in \
   requestRouteTimes searchStoreLocations requestCurrentLocation CLLocationManagerDelegate \

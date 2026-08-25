@@ -15,6 +15,7 @@ PATCHES=(
   patch_route_origin_choice.py
   patch_selected_gap_routes.py
   patch_live_day.py
+  patch_live_activity.py
   patch_rbt_tools.py
   patch_sleek_icons.py
   patch_provider_selection.py
@@ -49,6 +50,7 @@ core = [
     "selected-gap-routes.js",
     "saved-place-gap-options.js",
     "live-day.js",
+    "day-controls-v5.js",
     "rbt-tools.js",
     "visual-resolver.js",
     "visual-tools.js",
@@ -84,11 +86,12 @@ PY
 # in both Pages and iOS CI (and before any future TestFlight archive).
 python3 -m py_compile scripts/*.py
 plutil -lint LifeRoute/Info.plist
+plutil -lint LifeRouteLiveActivity/Info.plist
 
 CORE_JS=(
   global-bridge.js calendar-hub.js auth-gate.js icons.js route-times.js smart-context.js
   todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js
-  selected-gap-routes.js saved-place-gap-options.js live-day.js rbt-tools.js
+  selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js
   visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js
   day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js
   day-navigation-runtime.js ui-simplify-v4.js fluid-scenes-v1.js refined-ui-v2.js
@@ -119,9 +122,18 @@ python3 scripts/audit_stability.py
 # Critical native bridge contracts.
 for marker in \
   requestRouteTimes searchStoreLocations requestCurrentLocation CLLocationManagerDelegate \
-  openRoute routeTransportType scheduleDayNotifications authSetCredentials authVerifyCredentials; do
+  openRoute routeTransportType scheduleDayNotifications startLiveDayActivity endLiveDayActivity \
+  authSetCredentials authVerifyCredentials; do
   grep -q "$marker" LifeRoute/LifeRouteWebView.swift
 done
+
+# Live Activity target contracts.
+grep -q 'LifeRouteLiveActivity.appex' LifeRoute.xcodeproj/project.pbxproj
+grep -q 'LifeRouteActivityAttributes.swift in Sources' LifeRoute.xcodeproj/project.pbxproj
+grep -q 'NSSupportsLiveActivities' LifeRoute/Info.plist
+test -s LifeRoute/LiveActivityManager.swift
+test -s LifeRouteShared/LifeRouteActivityAttributes.swift
+test -s LifeRouteLiveActivity/LifeRouteLiveActivityWidget.swift
 
 # Native stability contracts.
 grep -q 'webView.scrollView.bounces = false' LifeRoute/LifeRouteWebView.swift
@@ -138,6 +150,7 @@ grep -q 'data-lr-boundary-open' LifeRoute/Web/day-route-experience.js
 grep -q 'lifeRouteOpenBoundaryPlanner' LifeRoute/Web/boundary-stop-planner.js
 grep -q 'liferoute_boundary_stops_v2' LifeRoute/Web/boundary-stop-planner.js
 grep -q 'LifeRouteStopPlaceSearchV4' LifeRoute/Web/stop-place-search-v4.js
+grep -q 'LifeRouteDayControlsV5' LifeRoute/Web/day-controls-v5.js
 grep -q 'planLifeRouteGapRoute' LifeRoute/Web/selected-gap-routes.js
 grep -q 'Saved places' LifeRoute/Web/saved-place-gap-options.js
 

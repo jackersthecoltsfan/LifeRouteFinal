@@ -247,7 +247,7 @@ grep -q "Preserve the user's scroll position" LifeRoute/Web/toolbar-cleanup-v1.j
 grep -q 'LifeRouteVisualTimerV2' LifeRoute/Web/visual-timer-v2.js
 grep -q 'CHIME_PERIOD_MS = 500' LifeRoute/Web/visual-timer-v2.js
 grep -q 'END_HZ = 1320' LifeRoute/Web/visual-timer-v2.js
-grep -q '0.26 \* gainScale' LifeRoute/Web/visual-timer-v2.js
+grep -q '0.25 \* gainScale' LifeRoute/Web/visual-timer-v2.js
 grep -q 'boost:5' LifeRoute/Web/timer-native-audio-v1.js
 grep -q 'playGlassTone(frequency: Double, intensity: Double, boost: Double = 5.0)' LifeRoute/LifeRouteWebView.swift
 grep -q 'lrTouchPressed' LifeRoute/Web/delight-ui-v1.js

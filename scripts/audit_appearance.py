@@ -51,7 +51,7 @@ check("lrEndHomeCompact" in day, "End at Home control uses compact treatment")
 # Theme selection should be legible and selected state obvious.
 check('content:"✓"' in simplify, "selected theme cards show a checkmark")
 check("lrThemeSelectedMark" in simplify, "theme select sections show selected mark")
-check("Dynamic Animals" in themes or "Living Creatures" in themes, "living-creature theme family is catalogued")
+check("lifeRouteDynamicAnimalSection" in themes, "living-creature theme family is catalogued in Settings")
 check("prefers-reduced-motion:reduce" in animals, "living creature scenes respect reduced motion")
 check("prefers-reduced-motion:reduce" in fluid, "fluid scenes respect reduced motion")
 

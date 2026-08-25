@@ -9,6 +9,7 @@
   try { history.scrollRestoration = 'manual'; } catch (_) {}
 
   const noProgrammaticScroll = () => undefined;
+  window.__lifeRouteNoScroll = noProgrammaticScroll;
   try {
     window.scroll = noProgrammaticScroll;
     window.scrollTo = noProgrammaticScroll;
@@ -16,6 +17,7 @@
   } catch (_) {}
 
   try {
+    Element.prototype.__lifeRouteNoScrollIntoView = noProgrammaticScroll;
     if (Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = noProgrammaticScroll;
     if (Element.prototype.scrollIntoViewIfNeeded) Element.prototype.scrollIntoViewIfNeeded = noProgrammaticScroll;
   } catch (_) {}

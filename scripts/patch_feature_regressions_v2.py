@@ -6,11 +6,15 @@ WEB = ROOT / "LifeRoute" / "Web"
 
 def replace_once(path: Path, old: str, new: str, label: str) -> None:
     text = path.read_text()
-    if new in text:
+    # Prefer replacing the old contract whenever it still exists. Only treat the
+    # patch as already applied when the old contract is gone and the new one is
+    # present. This matters for empty/common replacement strings.
+    if old in text:
+        path.write_text(text.replace(old, new, 1))
         return
-    if old not in text:
-        raise SystemExit(f"{label}: expected source pattern not found in {path}")
-    path.write_text(text.replace(old, new, 1))
+    if new and new in text:
+        return
+    raise SystemExit(f"{label}: expected source pattern not found in {path}")
 
 
 # Clear Day must work in WKWebView without depending on a JavaScript confirm

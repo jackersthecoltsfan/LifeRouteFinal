@@ -6,6 +6,9 @@
   const STYLE_ID = "lifeRouteFirstThenBackStyles";
   let openRequested = false;
   let openTimers = [];
+  let overlayClassObserver = null;
+  let overlayContentObserver = null;
+  let bodyObserver = null;
 
   const installStyles = () => {
     if (document.getElementById(STYLE_ID)) return;
@@ -25,8 +28,8 @@
       #lifeRouteFirstThenEscape:active{transform:scale(.96)}
       #firstThenOverlay #firstThenClose{visibility:hidden!important;pointer-events:none!important}
       html[data-web-preview="true"] #lifeRouteFirstThenEscape{top:calc(116px + env(safe-area-inset-top))}
-      .firstThenVisualImage{animation:lrFirstThenLivingVisual 7s ease-in-out infinite alternate;transform-origin:center center;will-change:transform,filter}
-      @keyframes lrFirstThenLivingVisual{from{transform:scale(1.005) translate3d(-.3%,.2%,0);filter:saturate(1.02)}to{transform:scale(1.035) translate3d(.45%,-.35%,0);filter:saturate(1.08)}}
+      .firstThenVisualImage{animation:lrFirstThenLivingVisual 7s ease-in-out infinite alternate;transform-origin:center center;will-change:transform}
+      @keyframes lrFirstThenLivingVisual{from{transform:scale(1.005) translate3d(-.3%,.2%,0)}to{transform:scale(1.035) translate3d(.45%,-.35%,0)}}
       @media(prefers-reduced-motion:reduce){.firstThenVisualImage{animation:none!important}}
       @media(max-width:680px){#lifeRouteFirstThenEscape{min-width:88px;min-height:42px;padding:9px 13px;font-size:12px}}
     `;
@@ -80,7 +83,7 @@
     installStyles();
     const overlay = document.getElementById("firstThenOverlay");
     if (!overlay) return false;
-    const internal = document.getElementById("firstThenClose");
+    const internal = overlay.querySelector("#firstThenClose");
     if (internal) {
       internal.textContent = "Back";
       internal.setAttribute("aria-label", "Close First Then board");
@@ -89,10 +92,32 @@
     return true;
   };
 
+  const watchOverlay = () => {
+    const overlay = document.getElementById("firstThenOverlay");
+    if (!overlay) return false;
+    if (overlayClassObserver || overlayContentObserver) return true;
+
+    // Only the overlay's own class controls open/closed state. Watching the entire
+    // document for class mutations created needless work during Day/theme rerenders.
+    overlayClassObserver = new MutationObserver(syncEscape);
+    overlayClassObserver.observe(overlay, { attributes: true, attributeFilter: ["class"] });
+
+    // Smart visual generation may replace children, so watch only this overlay's
+    // child tree and repair its internal semantics without observing unrelated UI.
+    overlayContentObserver = new MutationObserver(() => decorate());
+    overlayContentObserver.observe(overlay, { childList: true, subtree: true });
+
+    bodyObserver?.disconnect();
+    bodyObserver = null;
+    decorate();
+    return true;
+  };
+
   const forceOpen = () => {
     if (!openRequested) return false;
     const overlay = document.getElementById("firstThenOverlay");
     if (!overlay) return false;
+    watchOverlay();
     overlay.classList.add("show");
     overlay.style.removeProperty("display");
     overlay.style.pointerEvents = "auto";
@@ -105,8 +130,6 @@
     return true;
   };
 
-  // Capture the launch before other renderers mutate the board. A single delayed
-  // reconciliation is enough; multiple old retries could reopen a board after a user closed it.
   document.addEventListener("click", event => {
     if (!event.target.closest?.("#showFirstThen")) return;
     openRequested = true;
@@ -131,13 +154,13 @@
 
   const start = () => {
     installStyles();
-    escapeButton().addEventListener("click", closeBoard);
-    decorate();
-    const observer = new MutationObserver(() => {
-      decorate();
-      syncEscape();
-    });
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+    escapeButton();
+    if (!watchOverlay()) {
+      // Overlay is created lazily. Observe only node insertion until it exists,
+      // then disconnect this broad observer permanently.
+      bodyObserver = new MutationObserver(() => watchOverlay());
+      bodyObserver.observe(document.body, { childList: true, subtree: true });
+    }
     window.addEventListener("pagehide", closeBoard);
     window.LifeRouteFirstThen = { close: closeBoard, open: () => { openRequested = true; forceOpen(); } };
   };

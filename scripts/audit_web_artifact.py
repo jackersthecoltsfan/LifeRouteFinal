@@ -63,10 +63,10 @@ for path in sorted(DIST.glob("*.js")):
 # End-to-end feature contracts in the exact deployable artifact.
 markers = {
     "client-picker-sync-v1.js": ["quickNoteClient", "sessionPlanClient", "refreshLifeRouteToolClients"],
-    "toolbar-cleanup-v1.js": ["LifeRouteToolbarCleanupV1", "data?.view === 'month'"],
+    "toolbar-cleanup-v1.js": ["LifeRouteToolbarCleanupV1", "child.dataset?.view === 'month'"],
     "stop-duration-v1.js": ["LifeRouteStopDurationV1", "stopMinutes"],
     "live-day.js": ["planned stop time", "scheduleDayNotifications"],
-    "day-controls-v5.js": ["startLiveDayActivity", "clearLifeRouteDay", "clearLifeRouteAll"],
+    "day-controls-v5.js": ["startLiveDayActivity", "const clearDay = () =>", "const clearAll = () =>", "data-lr-clear-day", "data-lr-clear-all"],
     "live-location-v2.js": ["watchPosition", "clearWatch", "startLiveLocation", "freshnessMs"],
     "first-then-back.js": ["lifeRouteFirstThenEscape", "stopImmediatePropagation", "cancelOpenTimers"],
     "visual-timer-v2.js": ["CHIME_PERIOD_MS = 500", "START_HZ = 220", "END_HZ = 1320", "webkitAudioContext"],

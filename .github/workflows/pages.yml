@@ -80,7 +80,7 @@ jobs:
           for js in \
             global-bridge.js calendar-hub.js auth-gate.js icons.js route-times.js smart-context.js \
             todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js \
-            selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js visual-timer-v2.js \
+            selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js rbt-tools.js client-picker-sync-v1.js visual-timer-v2.js \
             visual-resolver.js visual-tools.js visual-resolver-bridge.js visual-object-focus-v2.js live-themes.js \
             day-route-experience.js boundary-stop-planner.js stop-place-search-v4.js day-navigation-runtime.js \
             nature-settings-web.js settings-classic-themes-web.js photoreal-nature-web.js dynamic-themes-web.js \
@@ -99,7 +99,7 @@ jobs:
           for core in \
             global-bridge.js calendar-hub.js auth-gate.js route-times.js smart-context.js \
             selected-gap-routes.js saved-place-gap-options.js live-day.js day-controls-v5.js \
-            rbt-tools.js visual-timer-v2.js visual-tools.js visual-object-focus-v2.js first-then-back.js \
+            rbt-tools.js client-picker-sync-v1.js visual-timer-v2.js visual-tools.js visual-object-focus-v2.js first-then-back.js \
             photo-source-picker-web.js live-location-v2.js day-route-experience.js \
             boundary-stop-planner.js stop-place-search-v4.js day-navigation-runtime.js \
             nature-settings-web.js settings-classic-themes-web.js photoreal-nature-web.js \
@@ -107,6 +107,15 @@ jobs:
             ui-simplify-v4.js refined-ui-v2.js aesthetic-polish-v1.js stability-runtime.js; do
             grep -q "$core?v=$GITHUB_SHA\|$core?v=${GITHUB_SHA:0:8}\|$core" dist/index.html
           done
+
+          # Saved-client tool picker contracts: both field tools use the same
+          # locally stored Setup clients, and synchronization stays scoped.
+          grep -q 'refreshLifeRouteToolClients' dist/client-picker-sync-v1.js
+          grep -q 'quickNoteClient' dist/client-picker-sync-v1.js
+          grep -q 'sessionPlanClient' dist/client-picker-sync-v1.js
+          grep -q 'saved?.prefs?.clients' dist/client-picker-sync-v1.js
+          ! grep -q 'setInterval(' dist/client-picker-sync-v1.js
+          ! grep -q 'observer.observe(document.body' dist/client-picker-sync-v1.js
 
           # Day / stop planner contracts.
           grep -q 'class="lrDayPager"' dist/index.html

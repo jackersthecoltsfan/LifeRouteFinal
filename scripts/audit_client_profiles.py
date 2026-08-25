@@ -40,12 +40,25 @@ check("profile changes dispatch shared event", 'CustomEvent("liferoute:clients-c
 check("profile screen edits existing clients", "data-edit-client" in PROFILES and "fillEditor" in PROFILES)
 check("profile remove requires confirmation", "window.confirm" in PROFILES and "data-remove-client" in PROFILES)
 
-# Privacy/local-first: rich client fields must not gain a network path.
+# Privacy/local-first: rich client fields must not gain a network path. The UI must
+# warn that local storage alone is not a HIPAA guarantee and that direct PHI should
+# not be entered. Service location remains the only profile value handed to route
+# reconciliation, while all rich profile fields stay local to session tools.
 check("profile module uses production local state store", 'const STORE = "liferoute_v3"' in PROFILES)
 check("profile module has no fetch", "fetch(" not in PROFILES)
 check("profile module has no remote URL", "https://" not in PROFILES and "http://" not in PROFILES)
-check("profile privacy copy explains local storage", "profile data stays in LifeRoute’s local device storage" in PROFILES)
-check("address-only route/calendar boundary is explicit", "four-letter code and service location" in PROFILES)
+check(
+    "profile privacy copy warns against PHI and explains local-storage limitation",
+    "Do not enter PHI or direct identifiers" in PROFILES
+    and "Local storage does not by itself guarantee HIPAA compliance" in PROFILES,
+)
+check(
+    "service-location route boundary remains explicit",
+    "Service location" in PROFILES
+    and "address: clean(client?.address)" in PROFILES
+    and "applyLifeRouteClientLocations" in PROFILES
+    and "fetch(" not in PROFILES,
+)
 
 # Session plan builder consumes the same client profile safely.
 check("tool bridge reads saved profile module", "LifeRouteClientProfilesV1" in TOOLS)

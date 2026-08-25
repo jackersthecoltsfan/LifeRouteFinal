@@ -83,6 +83,7 @@ jobs:
             selected-gap-routes.js saved-place-gap-options.js live-day.js rbt-tools.js \
             visual-resolver.js visual-tools.js visual-resolver-bridge.js live-themes.js \
             day-route-experience.js boundary-stop-planner.js day-navigation-runtime.js refined-ui-v2.js \
+            stability-runtime.js \
             welcome.js nav-cleanup.js icloud-calendar-web.js google-calendar-web.js \
             google-calendar-stability.js google-calendar-persistence-web.js first-then-back.js \
             visual-quality-web.js photo-source-picker-web.js end-home-route-web.js \
@@ -96,7 +97,7 @@ jobs:
           for core in \
             global-bridge.js calendar-hub.js auth-gate.js selected-gap-routes.js \
             saved-place-gap-options.js day-route-experience.js boundary-stop-planner.js \
-            day-navigation-runtime.js refined-ui-v2.js rbt-tools.js visual-tools.js; do
+            day-navigation-runtime.js refined-ui-v2.js stability-runtime.js rbt-tools.js visual-tools.js; do
             grep -q "$core?v=$GITHUB_SHA\|$core?v=${GITHUB_SHA:0:8}\|$core" dist/index.html
           done
 
@@ -117,6 +118,11 @@ jobs:
           grep -q 'searchStoreLocations' dist/boundary-stop-planner.js
           grep -q 'Saved places' dist/saved-place-gap-options.js
           grep -q 'planLifeRouteGapRoute' dist/saved-place-gap-options.js
+
+          grep -q 'overscroll-behavior-y:none' dist/stability-runtime.js
+          grep -q 'lifeRouteStableRefreshCalendars' dist/stability-runtime.js
+          grep -q 'lifeRouteStableOptimizeWeek' dist/stability-runtime.js
+          grep -q 'data-life-route-runtime="native"' dist/stability-runtime.js
 
           grep -q 'web-routing-bridge.js' dist/web-preview.js
           grep -q 'web-store-search-fallback.js' dist/web-preview.js

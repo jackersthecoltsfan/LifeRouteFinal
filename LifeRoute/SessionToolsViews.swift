@@ -49,7 +49,7 @@ struct SessionToolsNativeView: View {
             }
 
             Section {
-                Text("Visual supports are client-specific and session-only until the persistence checkpoint.")
+                Text("Visual supports are client-specific and saved locally on this iPhone.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -66,6 +66,12 @@ struct SessionToolsNativeView: View {
             case .sessionPlan:
                 SessionPlanOrganizerView(toolsState: toolsState, clientState: clientState)
             }
+        }
+        .onAppear {
+            visualState.retainClientCodes(Set(clientState.clients.map(\.code)))
+        }
+        .onReceive(clientState.$clients) { clients in
+            visualState.retainClientCodes(Set(clients.map(\.code)))
         }
     }
 }
@@ -240,7 +246,7 @@ struct ClientVisualSupportCenter: View {
                 }
 
                 Section {
-                    Text("Visual supports are client-specific and session-only until the persistence checkpoint.")
+                    Text("Visual supports for \(selectedClientCode) are saved locally in protected LifeRoute app data on this iPhone.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -283,7 +289,7 @@ struct ClientVisualIconLibraryView: View {
                     .textInputAutocapitalization(.words)
                 Button("Save icon to \(clientCode)") { saveIcon() }
                 if let message { Text(message).foregroundStyle(.secondary) }
-                Text("A photo is optional at this checkpoint; a text-only visual card can also be saved. Selected photos stay inside the native app state and are not uploaded.")
+                Text("A photo is optional; a text-only visual card can also be saved. Selected photos are stored locally in LifeRoute’s protected app data and are not uploaded.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 
@@ -328,7 +334,7 @@ struct ClientVisualIconLibraryView: View {
             label = ""
             selectedPhotoItem = nil
             photoData = nil
-            message = "Icon saved to \(clientCode)’s visual library for this app session."
+            message = "Icon saved to \(clientCode)’s visual library on this iPhone."
         } catch { message = error.localizedDescription }
     }
 }

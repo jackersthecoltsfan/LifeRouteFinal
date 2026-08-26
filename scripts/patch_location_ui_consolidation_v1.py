@@ -56,34 +56,8 @@ if new_location not in text:
         raise SystemExit("Could not consolidate live-location button handler")
     text = text.replace(old_location, new_location, 1)
 
-startup_prompts = [
-'''    // Ask for When-In-Use location once the native interface has settled. iOS itself
-    // controls the permission prompt and will not repeatedly re-prompt after a choice.
-    setTimeout(() => {
-      if (!nativeState.currentLocation && nativeState.locationStatus !== "denied") {
-        window.requestLifeRouteLocation();
-      }
-    }, 850);
-''',
-'''    // Ask for When-In-Use location once the native interface has settled. iOS itself
-    // controls the permission prompt and will not repeatedly re-prompt after a choice.
-    setTimeout(() => {
-      if (!freshLiveLocation() && nativeState.locationStatus !== "denied") {
-        window.requestLifeRouteLocation();
-      }
-    }, 850);
-'''
-]
-replacement = '''    // Location permission is user-initiated from the Home & location control.
-    // Previously enabled live location resumes through live-location-v2.js while visible.
-'''
-if replacement not in text:
-    for startup_prompt in startup_prompts:
-        if startup_prompt in text:
-            text = text.replace(startup_prompt, replacement, 1)
-            break
-    else:
-        raise SystemExit("Could not remove automatic startup location prompt")
-
+# The startup location block is intentionally left intact here so the later
+# location-services hardening pass can still inspect its freshness contract.
+# That safety pass then removes the automatic prompt in favor of user initiation.
 path.write_text(text)
 print("Home save and live-location UI now route through one canonical state/lifecycle facade.")

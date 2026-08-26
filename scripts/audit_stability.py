@@ -120,7 +120,9 @@ check("python3 scripts/audit_stability.py" in prepare, "prepare build runs stabi
 check("python3 scripts/audit_visual_timer.py" in prepare, "prepare build runs visual timer audit")
 check("python3 scripts/audit_liferoute_build.py" in ios_ci, "iOS CI runs full regression audit")
 check("python3 scripts/audit_liferoute_build.py" in pages, "Pages runs full regression audit")
-check("stability-runtime.js" in pages and "visual-timer-v2.js" in pages, "Pages artifact validates stability and timer runtimes")
+check("python3 scripts/audit_stability.py" in pages, "Pages reruns stability audit before artifact build")
+check("python3 scripts/audit_web_artifact.py" in pages, "Pages validates the final browser artifact")
+check("bash scripts/prepare_build.sh" in pages, "Pages artifact comes from the audited prepared runtime")
 
 # Web helper order and mobile asset cost.
 check("script.async = false" in preview, "web helper scripts execute deterministically")
@@ -130,18 +132,17 @@ except ValueError:
     check(False, "web routing bridge loads before calendar helpers")
 check("w=1800" in photo and "w=2400" not in photo, "web scenery photos use bounded high-resolution assets")
 
-# Release safety: TestFlight itself stays manually dispatchable, while a separate
-# guarded dispatcher may start it only after the current main commit passes CI.
-check("workflow_dispatch" in testflight, "TestFlight remains manually dispatchable")
-check(not re.search(r"^\s*push\s*:", testflight, flags=re.M), "TestFlight has no direct push trigger")
-check(AUTO_TESTFLIGHT.is_file(), "automatic TestFlight dispatcher exists")
-check('workflows: ["iOS Build Check"]' in auto_testflight, "automatic TestFlight waits for iOS Build Check")
-check("github.event.workflow_run.conclusion == 'success'" in auto_testflight, "automatic TestFlight requires successful CI")
-check("github.event.workflow_run.head_branch == 'main'" in auto_testflight, "automatic TestFlight only accepts main")
-check("CURRENT_SHA" in auto_testflight and "VALIDATED_SHA" in auto_testflight, "automatic TestFlight rejects stale validated commits")
-check('COMMIT_MESSAGE" == *"[web-only]"*' in auto_testflight or "[web-only]" in auto_testflight, "automatic TestFlight honors web-only release guard")
-check('COMMIT_MESSAGE" == *"[no-testflight]"*' in auto_testflight or "[no-testflight]" in auto_testflight, "automatic TestFlight honors no-TestFlight release guard")
-check("gh workflow run testflight.yml" in auto_testflight, "automatic dispatcher invokes the audited TestFlight workflow")
+# Release safety: TestFlight is now strictly manual-only. Automatic validation
+# can run on every main commit, but neither workflow may dispatch a release.
+automatic_triggers = ["workflow_run:", "repository_dispatch:", "schedule:", "push:", "pull_request:"]
+check("workflow_dispatch:" in testflight, "TestFlight remains explicitly dispatchable")
+check(all(trigger not in testflight for trigger in automatic_triggers), "TestFlight has no automatic trigger")
+check(AUTO_TESTFLIGHT.is_file(), "manual-only TestFlight policy guard exists")
+check("workflow_dispatch:" in auto_testflight, "TestFlight policy guard is manual-only")
+check(all(trigger not in auto_testflight for trigger in automatic_triggers), "TestFlight policy guard has no automatic trigger")
+check("gh workflow" not in auto_testflight.lower(), "TestFlight policy guard cannot invoke GitHub workflow dispatch")
+check("/dispatches" not in auto_testflight.lower(), "TestFlight policy guard cannot invoke REST workflow dispatch")
+check("actions: write" not in auto_testflight, "TestFlight policy guard has no Actions write permission")
 
 print(f"LifeRoute stability audit: {len(passes)} passed, {len(failures)} failed")
 if failures:

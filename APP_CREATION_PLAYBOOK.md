@@ -1,232 +1,200 @@
-# App Creation → TestFlight Playbook
+# LifeRoute App Creation → TestFlight Playbook
 
-This is the canonical streamlined workflow for building future iOS apps using the LifeRoute system as the reusable base.
+This is the canonical streamlined workflow for LifeRoute and the reusable app workflow derived from it.
 
-## Goal
+## Operating model
 
-For normal app development, Brandon should mainly do three things:
+The product owner should normally do only three things:
 
-1. Describe what he wants built or changed.
-2. Test the resulting build on his iPhone through TestFlight.
-3. Report what works, what feels wrong, or what should change next.
+1. Describe what should change in normal language.
+2. Explicitly authorize a TestFlight release when a validated version is ready to test.
+3. Test the resulting build on the iPhone and report feedback.
 
-CI, regression auditing, simulator compilation, build numbering, Apple signing, IPA export, TestFlight upload, and first-line build-failure repair should be automated wherever possible.
+ChatGPT/Codex handles implementation, repository edits, deterministic preparation, audits, GitHub workflow inspection, build-failure diagnosis, and release verification wherever the connected tools allow it.
 
----
+Do not make the product owner manually copy source files, read routine CI logs, increment build numbers, or redo signing setup during normal iterations.
 
-## Recommended tool roles
+## Canonical sources
 
-### ChatGPT project/master chat
-Use for product thinking, feature decisions, requirements, prioritization, release decisions, and maintaining the project narrative. A clean chat can resume by reading this playbook and the repository.
+Before substantial work, read the applicable sources in this order:
 
-### GitHub — installed/connected
-Source of truth for code and workflow state. ChatGPT/Codex can inspect code, make targeted repository edits, inspect CI/TestFlight jobs and logs, and verify release results.
+1. `LIFEROUTE_HANDOFF.md` — current live project state and next action.
+2. `AGENTS.md` — repository development/security rules.
+3. `APP_CREATION_PLAYBOOK.md` — this operating model.
+4. `TESTFLIGHT_SETUP.md` — exact release authorization/signing behavior.
+5. `GITHUB_ACTIONS_RUNBOOK.md` — Actions outage, queue, cancellation, and recovery rules.
+6. relevant material in `ReusableAppWorkflow/`.
 
-### Figma — installed/connected
-Use for significant UI/UX work when a visual design pass will prevent back-and-forth. The iOS workflow can move in either direction: Figma → SwiftUI implementation or SwiftUI → Figma documentation/design refinement. Skip Figma for tiny UI changes that are faster to implement directly.
+The GitHub repository is the source of truth for code and workflow configuration. Live GitHub run state must be re-read rather than assumed from an old chat handoff.
 
-### SwiftUI Expert — installed
-Use during SwiftUI implementation/review for current APIs, state management, view composition, accessibility, and performance guidance.
+## Product/design workflow
 
-### Build iOS Apps — installed; best used in Codex
-Use for code-heavy implementation, Simulator launch/debugging, screenshots/logs, SwiftUI refactors, performance investigation, App Intents, and other native iOS work.
+### Small or obvious change
 
-### Codex TestFlight Release — installed
-Use as a reusable release pattern for iOS build-number management, archive/export/upload, App Store Connect API authentication, TestFlight metadata, and verification.
+Implement directly using the established architecture and design system, add/update appropriate deterministic checks, and validate.
 
-### Sentry — installed/enabled
-Use once the app is instrumented with the Sentry SDK. The ChatGPT plugin alone does not add crash reporting to the app; after instrumentation, Sentry can reduce manual debugging by surfacing real crashes/runtime errors from TestFlight testers.
+### Significant visual/navigation change
 
-### Codex Security — installed, access connection incomplete
-Codex Security is installed/enabled and GitHub is connected. The separate **Codex Security Access** connection currently returns an error. This does not block implementation, CI, signing, TestFlight upload, or installation. Treat security scanning as an optional pre-release layer until that access connection works.
+Use a quick mockup or Figma pass when seeing the direction first is likely to prevent rework. Once the product owner approves the direction, proceed without redundant confirmation unless a consequential new tradeoff appears.
 
----
+LifeRoute should remain premium, sleek, intelligent, streamlined, professional, and futuristic, with a dark-blue/gold core identity and customizable themes. Preserve accessibility, touch ergonomics, performance, and clarity.
 
-## Phase 1 — Idea and product definition
+## Engineering workflow
 
-### Brandon does
-- Describe the app idea in normal language.
-- State the main problem it should solve.
-- Call out any must-have features, strong visual preferences, privacy constraints, or integrations he already knows he wants.
-- Make product choices only when there are genuine tradeoffs that cannot be safely inferred.
+1. Read the handoff and applicable canonical docs.
+2. Inspect the existing end-to-end behavior before editing.
+3. Preserve unrelated changes and existing working architecture.
+4. Implement the smallest maintainable change that satisfies the product request.
+5. Update authoritative patch/generated inputs together when `prepare_build.sh` owns generation.
+6. Add/update focused deterministic audits or tests.
+7. Commit to GitHub.
+8. Inspect the resulting validation rather than assuming success.
 
-### ChatGPT/Codex does
-- Turn the idea into a compact product brief.
-- Identify the MVP, later features, required Apple capabilities, external APIs, privacy implications, and likely costs.
-- Reuse proven LifeRoute architecture/workflows rather than rebuilding CI/release infrastructure from scratch.
-- Avoid unnecessary questions; choose sensible defaults when the decision is reversible.
+Prefer native SwiftUI/current Apple APIs where practical, while preserving the established WKWebView/native-bridge architecture until functionality is deliberately migrated.
 
-### Figma decision
-Use Figma when the app needs a strong visual identity, multiple new screens, a design system, or user approval before implementation. Skip it for straightforward/native screens and small refinements.
+## Deterministic build ownership
 
-### Fast cosmetic preview rule
-For visual requests involving layout, navigation, screen hierarchy, theme direction, or other cosmetic changes, show a **quick picture/mockup preview before implementation when doing so is lightweight and useful**.
+`scripts/prepare_build.sh` is the shared source-preparation/preflight owner for native CI, Pages, and TestFlight.
 
-- Prefer a fast image/mockup for changes where seeing the layout is likely to prevent rework.
-- Keep the preview directional and lightweight; it does not need to be a pixel-perfect production design.
-- Skip the preview for tiny cosmetic tweaks, obvious one-line changes, backend/functional work, or whenever generating the preview would materially slow down the iteration without adding useful clarity.
-- If the user approves the preview, proceed directly into implementation without requiring another redundant confirmation unless a genuine technical/product tradeoff appears.
-- Use Figma instead of a throwaway preview when the design is substantial enough to benefit from editable components, multiple screens, or a reusable design system.
+It must remain:
 
----
+- deterministic and safe to rerun;
+- representative of the code actually shipped;
+- responsible for ordered patch application, syntax/contracts, and the deep shared audits it already owns.
 
-## Phase 2 — One-time setup for a new app
+Do not immediately rerun the same deep audits in every workflow. Workflow-specific independent checks should focus on what that workflow uniquely produces, such as the simulator compile or final browser artifact.
 
-These are the main steps that still require Brandon because of account, legal, security, or permission boundaries.
+## Validation architecture
 
-### Brandon does
-1. **Create the new GitHub repository** if a repository does not already exist.
-2. **Create/confirm the app in Apple Developer / App Store Connect**:
-   - choose/confirm the app name,
-   - create the primary bundle identifier,
-   - create extra identifiers for extensions such as Live Activities/widgets when needed,
-   - create the App Store Connect app record.
-3. **Add the four Apple GitHub Actions secrets to the new repository**:
-   - `APPLE_TEAM_ID`
-   - `APP_STORE_CONNECT_KEY_ID`
-   - `APP_STORE_CONNECT_ISSUER_ID`
-   - `APP_STORE_CONNECT_PRIVATE_KEY`
-4. Handle any Apple legal agreements, developer-program renewal/payment, two-factor authentication, or account-verification prompts that Apple requires.
-5. Install/open TestFlight on the iPhone and accept any tester invitation/Apple prompt if needed.
+### iOS Build Check
 
-### Important reuse
-- The App Store Connect API key can generally be reused for future apps when its permissions cover those apps; a new `.p8` key should not be created for every release.
-- Routine releases should not require downloading `.p8`/`.p12` files again.
-- Routine releases should not require PC-side certificate work.
+Runs for changes that can affect the native/shared app, preparation/build scripts, or the iOS CI definition itself.
 
-### ChatGPT/Codex does
-- Bootstrap the reusable LifeRoute workflow pack for the new repository.
-- Configure the project/scheme/bundle IDs in the workflow templates.
-- Build the app skeleton and features.
-- Create/maintain `scripts/prepare_build.sh` and project-specific audits.
-- Set up CI, automatic TestFlight handoff, signing cleanup, and release artifacts.
+It should:
 
----
+- prepare the exact shared source;
+- run the full regression audit;
+- compile the iOS Simulator build;
+- cancel superseded validation for the same workflow/ref;
+- avoid triggering merely because an unrelated workflow file changed.
 
-## Phase 3 — Design and implementation
+### Publish Web Preview
 
-### Brandon does
-- For large visual changes: review a Figma design, screenshot, or quick cosmetic preview when asked and say what he likes/does not like.
-- For normal feature changes: simply describe the desired behavior.
+Runs for changes that affect the browser/WebView runtime, relevant preparation scripts, or the Pages workflow itself.
 
-### ChatGPT/Codex does
-- For cosmetic/layout changes, use the fast preview rule above when it will save time or reduce ambiguity.
-- Implement the feature.
-- Use Figma ↔ SwiftUI handoff when it materially reduces ambiguity.
-- Use native SwiftUI/iOS patterns where appropriate.
-- Add/update tests and deterministic audit checks for critical behavior.
-- Commit changes to GitHub.
+It should:
 
-Brandon should not need to manually copy generated source files between ChatGPT, GitHub, Xcode, and TestFlight during the normal workflow.
+- prepare the exact shared source;
+- run full regression plus independent web-specific checks;
+- build and audit the final browser artifact;
+- deploy GitHub Pages;
+- avoid duplicating deep audits already run by `prepare_build.sh`.
 
----
+### Release Policy Check
 
-## Phase 4 — Automatic validation and release
+Use a small Ubuntu workflow for release-policy/workflow-architecture changes. It owns release-isolation and workflow-efficiency audits so policy documentation or workflow edits do not unnecessarily consume a macOS runner.
 
-For release-eligible changes on `main`, the intended chain is automatic:
+## GitHub Actions health preflight
 
-1. GitHub checks out the source.
-2. `scripts/prepare_build.sh` creates the exact prepared app used by release builds.
-3. Full regression audits run.
-4. The app builds for the iOS Simulator with signing disabled.
-5. Only the latest successfully validated `main` commit is eligible for automatic promotion.
-6. The TestFlight workflow prepares and audits the release again.
-7. Apple credentials and bundle IDs are validated.
-8. Xcode archives the real-device Release build.
-9. The signed IPA is exported.
-10. The IPA uploads to App Store Connect/TestFlight.
-11. A short-lived IPA artifact is saved for debugging/recovery.
-12. Temporary Apple signing assets created by the ephemeral runner are cleaned up.
+Before attempting to repair a queue problem, follow `GITHUB_ACTIONS_RUNBOOK.md`.
 
-### Release-control tags
-The assistant/build process manages these when needed:
+In particular:
 
-- `[no-testflight]` — run validation but do not create a TestFlight build.
-- `[web-only]` — preview/documentation/web-only change; do not create a TestFlight build.
-- No tag — a passing current `main` commit is eligible for automatic TestFlight promotion.
+- check the official GitHub Status page before making queue-repair commits;
+- during a GitHub Actions incident, stop generating replacement runs and keep diagnostics/hardening work off `main`;
+- normal cancel is attempted once, then force-cancel once only when GitHub is operational and the run meets the zombie criteria;
+- after service recovery, allow backlog to settle and create only one fresh current-main validation per required workflow.
 
-Brandon should not have to decide or type these tags during normal development.
+A queued run with no jobs is a scheduler/provider-state problem, not an Xcode or application failure.
 
----
+## TestFlight release model
 
-## Phase 5 — Automatic failure handling
+LifeRoute uses **explicit-confirmation-only TestFlight release**.
 
-The `LifeRoute Build Repair` condition-watch automation is **enabled**.
+Passing CI does not upload an app. A normal push never uploads an app. A request to continue, launch, build, preview, or fix the app does not imply release authorization.
 
-1. Healthy or legitimately in-progress builds stay quiet.
-2. On failure, inspect the actual failing job/step/logs.
-3. Make one targeted repair: `auto-repair 1/2`.
-4. If the replacement chain still fails, make one more evidence-based repair: `auto-repair 2/2`.
-5. If it still fails after attempt 2, stop changing code and escalate the exact error plus both attempted fixes.
-6. If a repair succeeds and reaches TestFlight, report that success briefly.
+`testflight.yml` is the only workflow allowed to contain Apple signing/export/upload machinery and remains `workflow_dispatch` only.
 
-The monitor currently checks hourly, which is the fastest supported automation cadence.
+### Direct manual release
 
-This removes the manual step of Brandon noticing a red GitHub build, copying the error, and asking ChatGPT to debug it in ordinary cases.
+The product owner may use GitHub's **Run workflow** control for `Send to TestFlight` after explicitly deciding to release.
 
----
+### Assistant-initiated release
 
-## Phase 6 — TestFlight testing
+When the product owner explicitly authorizes a release, ChatGPT/Codex may use the guarded owner-authorized release-request bridge.
 
-### Brandon does
-1. Open TestFlight when the new build becomes available.
-2. Tap **Update** / **Install**.
-3. Use the app normally on the real iPhone.
-4. Tell ChatGPT what is broken, confusing, ugly, slow, or missing; screenshots are useful for visual problems.
+Before creating that request, ChatGPT/Codex must:
 
-### ChatGPT/Codex does
-- Trace the issue to code/workflow/runtime behavior.
-- Use Simulator debugging and logs when appropriate.
-- Use Sentry evidence after Sentry is instrumented in the app.
-- Patch the problem.
-- Let the automated CI → TestFlight chain repeat.
+1. re-read current `main`;
+2. confirm the required iOS validation is already completed successfully and release-equivalent;
+3. confirm the web preview is already completed successfully when the release request requires it;
+4. verify GitHub Actions is not in a current outage/degraded state;
+5. then create the exact guarded release request.
 
-This real-device testing step remains intentionally human because feel, usefulness, permissions, device behavior, and UX quality cannot be fully replaced by CI.
+The release bridge must fail fast when validation is absent; it should not occupy a runner for long periods polling CI.
 
----
+After dispatch, verify the resulting `Send to TestFlight` run and the exact **Upload to TestFlight** step. Keep the release request open until success/failure has been verified.
 
-## Optional next-level improvements
+## TestFlight signing rules
 
-### Wire Sentry into the app
-The plugin is installed. Add the Sentry SDK/configuration when TestFlight debugging would benefit from automatic crash/runtime evidence.
+Repository Actions secrets remain the source for:
 
-### Retry Codex Security Access later
-Do not block the project on the current connection error. Once access works, use Codex Security for additional codebase/security review, especially after introducing authentication, sensitive data, backend services, or payments.
+- `APPLE_TEAM_ID`
+- `APP_STORE_CONNECT_KEY_ID`
+- `APP_STORE_CONNECT_ISSUER_ID`
+- `APP_STORE_CONNECT_PRIVATE_KEY`
 
-### Keep project management lightweight
-Do not add extra task-management tools merely because they exist. For a solo/small project, the master ChatGPT project, GitHub repository/issues, and this playbook are usually enough. Add Notion/Linear/ClickUp only when coordination overhead actually appears.
+Never commit private keys/certificates. Routine releases should not require downloading `.p8`/`.p12` files again or using a PC/Mac for certificate work.
 
----
+The TestFlight workflow serializes release jobs so two ephemeral Macs do not create signing assets at the same time. Temporary signing assets created by the runner should be cleaned up according to `TESTFLIGHT_SETUP.md`.
 
-## The shortest possible normal LifeRoute loop
+## Failure handling
 
-**Brandon:** “Change/add X.”
+For a genuine workflow/app failure:
 
-**ChatGPT/Codex:** quick cosmetic preview if useful → design if needed → implement → commit → audit/build automatically → TestFlight automatically → verify upload.
+1. identify the exact failed run/job/step;
+2. inspect its logs;
+3. distinguish source defect, audit defect, workflow defect, external dependency, Apple signing issue, and provider outage;
+4. make one evidence-based targeted fix;
+5. validate the replacement run;
+6. avoid speculative commit loops.
 
-**Brandon:** install/update in TestFlight → test → report feedback.
+If the provider itself is degraded, do not treat it as a code-repair cycle.
+
+## Conversation continuity
+
+`LIFEROUTE_HANDOFF.md` is the durable cross-thread state file.
+
+ChatGPT should refresh it after major milestones, release changes, substantial workflow changes, or concluded troubleshooting incidents. It should proactively recommend a clean LifeRoute thread when context-pressure signals described in that file appear, before continuity actually degrades.
+
+The user should not need to paste a long handoff. The new thread opening prompt is:
+
+> Continue LifeRoute from the repository and the current handoff.
+
+The new thread must read the handoff and live repository state before asking the user to repeat prior decisions.
+
+## Manual steps reserved for the product owner
+
+Only require the product owner when an external/legal/security/user-experience boundary genuinely requires it, such as:
+
+- Apple Developer/App Store Connect account creation, legal agreements, renewal/payment, or 2FA prompts;
+- initial creation of app/bundle records or repository secrets when tools cannot do so safely;
+- explicit TestFlight release authorization;
+- installing/testing the build on the physical iPhone;
+- product/UX decisions that cannot be safely inferred.
+
+Do not assign PC-side work merely because it is traditional; prefer GitHub/connected-tool automation when safe.
+
+## Short normal loop
+
+**Product owner:** describe change.
+
+**ChatGPT/Codex:** inspect → implement → audit/build → report validated state.
+
+**Product owner:** explicitly authorize TestFlight when desired.
+
+**ChatGPT/Codex:** guarded dispatch → verify upload.
+
+**Product owner:** test on iPhone → report feedback.
 
 Repeat.
-
----
-
-## What Brandon should NOT have to do each iteration
-
-- Re-explain the GitHub/TestFlight architecture.
-- Manually upload source files to GitHub.
-- Open Xcode just to produce a build.
-- Download fresh signing keys/certificates.
-- Create a new certificate for each update.
-- Increment build numbers manually.
-- Run the iOS CI workflow manually.
-- Trigger TestFlight manually after CI passes.
-- Read build logs before the automatic repair layer has had a chance to handle the failure.
-- Recreate prior design/workflow decisions from memory.
-
----
-
-## Clean-chat handoff
-
-Start the next project chat with:
-
-> Continue LifeRoute from the repository. Treat `APP_CREATION_PLAYBOOK.md`, `TESTFLIGHT_SETUP.md`, and `ReusableAppWorkflow/` as the canonical workflow sources. Use the streamlined workflow: I describe product changes, you handle implementation/audits/GitHub/release automation, and I handle only the manual steps the playbook assigns to me. Plugin state: GitHub and Figma are connected; Sentry is installed; Codex Security is installed but its separate Codex Security Access connection is currently failing and should be treated as optional.

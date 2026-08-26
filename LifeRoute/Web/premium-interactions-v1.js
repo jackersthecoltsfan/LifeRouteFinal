@@ -37,16 +37,23 @@
     .lrPremiumSavedFlash{animation:lrPremiumSavedFlash .34s var(--lr-premium-ease) both}@keyframes lrPremiumSavedFlash{0%{opacity:.82}45%{opacity:1}100%{opacity:1}}
     .calendarHubNav button{transition:transform .14s var(--lr-premium-ease),background-color .16s ease,color .16s ease,box-shadow .16s ease}
     .calendarHubNav button:active{transform:scale(.97)}
+    .tabs .tab,.tabs button,[data-lr-top-nav="true"]{transform:translate3d(0,0,0);transition:transform .14s var(--lr-premium-spring),background-color .16s ease,color .16s ease,border-color .16s ease,box-shadow .16s ease,opacity .16s ease;will-change:transform}
+    .tabs .tab:active,.tabs button:active,[data-lr-top-nav="true"]:active{transform:translate3d(0,1px,0) scale(.965)}
+    .tabs .tab.active,.tabs button.active,[data-lr-top-nav="true"].active{transform:translate3d(0,-1px,0) scale(1.015)}
+    .tabs .tab.lrPremiumNavRelease,.tabs button.lrPremiumNavRelease,[data-lr-top-nav="true"].lrPremiumNavRelease{animation:lrPremiumNavRelease .24s var(--lr-premium-spring) both}
+    @keyframes lrPremiumNavRelease{0%{transform:scale(.965)}62%{transform:scale(1.035)}100%{transform:scale(1)}}
     @media(max-width:680px){
       #lifeRouteThemeFX .fxOrb,#lifeRouteThemeFX .fxBeam{animation:none!important;filter:none!important;opacity:.055!important}
       .calendarHubNav,.lrBackButton{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+      .tabs .tab,.tabs button,[data-lr-top-nav="true"]{will-change:auto}
     }
-    @media(prefers-reduced-motion:reduce){.lrPremiumIconRelease svg,.lrPremiumIconRelease .lrDelightFallbackIcon,.lrPremiumIconSpin svg,.lrPremiumIconSpin .lrDelightFallbackIcon,.lrPremiumIconPulse svg,.lrPremiumIconPulse .lrDelightFallbackIcon,.lrPremiumIconAdvance svg,.lrPremiumIconAdvance .lrDelightFallbackIcon,.view.active.lrPremiumViewEnter,.lrSetupPane.active.lrPremiumViewEnter,dialog[open],.sheet.show,.modal.show,[role="dialog"]:not([hidden]),.lrPremiumSavedFlash{animation:none!important}.lrPremiumIconTap svg,.lrPremiumIconTap .lrDelightFallbackIcon{transform:none!important}}
+    @media(prefers-reduced-motion:reduce){.lrPremiumIconRelease svg,.lrPremiumIconRelease .lrDelightFallbackIcon,.lrPremiumIconSpin svg,.lrPremiumIconSpin .lrDelightFallbackIcon,.lrPremiumIconPulse svg,.lrPremiumIconPulse .lrDelightFallbackIcon,.lrPremiumIconAdvance svg,.lrPremiumIconAdvance .lrDelightFallbackIcon,.view.active.lrPremiumViewEnter,.lrSetupPane.active.lrPremiumViewEnter,dialog[open],.sheet.show,.modal.show,[role="dialog"]:not([hidden]),.lrPremiumSavedFlash,.lrPremiumNavRelease{animation:none!important}.lrPremiumIconTap svg,.lrPremiumIconTap .lrDelightFallbackIcon{transform:none!important}.tabs .tab,.tabs button,[data-lr-top-nav="true"]{transition:none!important;transform:none!important}}
   `;
   document.head.appendChild(style);
 
   const buttonSelector = 'button,[role="button"]';
   const surfaceSelector = '.card[onclick],.hero[onclick],.metric[onclick],.gapOption[onclick],.storeOption[onclick],.lrHubCard[onclick],[data-lr-interactive-surface="true"]';
+  const topNavSelector = '.tabs .tab,.tabs button,[data-lr-top-nav="true"]';
   const classify = control => {
     const text = `${control?.getAttribute?.('aria-label')||''} ${control?.title||''} ${control?.textContent||''} ${control?.className||''}`.toLowerCase();
     if (/refresh|reload|sync|settings|gear/.test(text)) return 'lrPremiumIconSpin';
@@ -63,6 +70,14 @@
     requestAnimationFrame(() => {
       control.classList.add(motion);
       window.setTimeout(() => clear(control), 380);
+    });
+  };
+  const settleTopNav = control => {
+    if (!control?.matches?.(topNavSelector) || reduceMotion()) return;
+    control.classList.remove('lrPremiumNavRelease');
+    requestAnimationFrame(() => {
+      control.classList.add('lrPremiumNavRelease');
+      window.setTimeout(() => control.classList.remove('lrPremiumNavRelease'), 280);
     });
   };
 
@@ -89,6 +104,8 @@
   document.addEventListener('pointerup', event => {
     const control = event.target?.closest?.(buttonSelector);
     if (control?.classList.contains('lrPremiumIconTap')) settle(control);
+    const topNav = event.target?.closest?.(topNavSelector);
+    if (topNav) settleTopNav(topNav);
     event.target?.closest?.(surfaceSelector)?.classList.remove('lrPremiumSurfaceDown');
   }, true);
   document.addEventListener('pointercancel', event => {

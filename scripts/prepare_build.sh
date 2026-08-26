@@ -13,7 +13,8 @@ python3 -m py_compile \
   scripts/audit_v0_5_0_session_tools_core.py \
   scripts/audit_v0_5_0_calendar_providers.py \
   scripts/audit_v0_5_0_client_visual_supports.py \
-  scripts/audit_v0_5_0_client_visual_persistence.py
+  scripts/audit_v0_5_0_client_visual_persistence.py \
+  scripts/audit_v0_5_0_routing_calendar_persistence.py
 plutil -lint LifeRoute/Info.plist
 
 python3 scripts/audit_v0_5_0_functional_shell.py
@@ -25,5 +26,6 @@ python3 scripts/audit_v0_5_0_session_tools_core.py
 python3 scripts/audit_v0_5_0_calendar_providers.py
 python3 scripts/audit_v0_5_0_client_visual_supports.py
 python3 scripts/audit_v0_5_0_client_visual_persistence.py
+python3 scripts/audit_v0_5_0_routing_calendar_persistence.py
 
 echo "LifeRoute v0.5.0 functional-core preparation passed. Legacy WebView runtime remains quarantined."

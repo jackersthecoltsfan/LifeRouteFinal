@@ -285,18 +285,19 @@ require("python3 scripts/audit_liferoute_build.py" in pages, "Pages runs full re
 require("python3 scripts/audit_liferoute_build.py" in ios_ci, "iOS CI runs full regression audit")
 require("Full LifeRoute regression audit" in testflight and "python3 scripts/audit_liferoute_build.py" in testflight, "TestFlight releases are gated by full audit")
 require("workflow_dispatch" in testflight, "TestFlight remains manually dispatchable")
-require(not re.search(r"^\s*push\s*:", testflight, flags=re.M), "TestFlight has no direct automatic push trigger")
+automatic_triggers = ["workflow_run:", "repository_dispatch:", "schedule:", "push:", "pull_request:"]
+require(all(trigger not in testflight for trigger in automatic_triggers), "TestFlight has no automatic trigger")
 
-# Automatic release dispatcher: only a successful, current main CI build may
-# trigger the manually-dispatchable TestFlight workflow. This keeps the release
-# path automatic without bypassing the full regression audit.
-require(AUTO_TESTFLIGHT.is_file(), "Automatic TestFlight dispatcher exists")
-require('workflows: ["iOS Build Check"]' in auto_testflight, "Auto-TestFlight waits for iOS Build Check")
-require("github.event.workflow_run.conclusion == 'success'" in auto_testflight, "Auto-TestFlight requires successful CI")
-require("github.event.workflow_run.head_branch == 'main'" in auto_testflight, "Auto-TestFlight only releases main")
-require("CURRENT_SHA" in auto_testflight and "VALIDATED_SHA" in auto_testflight, "Auto-TestFlight rejects stale validated commits")
-require("gh workflow run testflight.yml" in auto_testflight, "Auto-TestFlight dispatches the audited TestFlight workflow")
-require("actions: write" in auto_testflight and "contents: read" in auto_testflight, "Auto-TestFlight has minimal required permissions")
+# Manual-only release policy: validation and Pages may run automatically, but
+# neither this guard workflow nor the dedicated TestFlight workflow may upload
+# or dispatch without an explicit workflow_dispatch initiated after user consent.
+require(AUTO_TESTFLIGHT.is_file(), "TestFlight policy guard exists")
+require("workflow_dispatch:" in auto_testflight, "TestFlight policy guard is manual-only")
+require(all(trigger not in auto_testflight for trigger in automatic_triggers), "TestFlight policy guard has no automatic trigger")
+require("gh workflow" not in auto_testflight.lower(), "TestFlight policy guard contains no GitHub CLI dispatch")
+require("/dispatches" not in auto_testflight.lower(), "TestFlight policy guard contains no REST workflow dispatch")
+require("actions: write" not in auto_testflight, "TestFlight policy guard has no Actions write permission")
+require("contents: read" in auto_testflight, "TestFlight policy guard keeps read-only repository permission")
 
 try:
     json.loads((WEB / "manifest.webmanifest").read_text(encoding="utf-8"))

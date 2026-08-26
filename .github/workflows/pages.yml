@@ -21,9 +21,10 @@ concurrency:
 
 jobs:
   build:
-    # Pages is built from the exact same prepared source used by iOS/TestFlight.
+    # Pages is built from the exact same prepared source used by the native app,
+    # but publishing the web build never dispatches TestFlight.
     runs-on: macos-26
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -31,8 +32,28 @@ jobs:
       - name: Prepare exact current LifeRoute build
         run: bash scripts/prepare_build.sh
 
-      - name: Full LifeRoute regression audit
+      - name: Audit 1 · Full LifeRoute regression
         run: python3 scripts/audit_liferoute_build.py
+
+      - name: Audit 2 · Touch playground syntax + contracts
+        run: |
+          node --check LifeRoute/Web/touch-playground-v1.js
+          python3 scripts/audit_touch_playground_v1.py
+
+      - name: Audit 3 · Interaction and performance pressure
+        run: python3 scripts/audit_interaction_performance_v3.py
+
+      - name: Audit 4 · Runtime stability
+        run: python3 scripts/audit_stability.py
+
+      - name: Audit 5 · Release lifecycle and pressure
+        run: python3 scripts/audit_runtime_release.py
+
+      - name: Audit 6 · State invariants
+        run: python3 scripts/audit_state_invariants.py
+
+      - name: Audit 7 · End-to-end user journeys
+        run: python3 scripts/audit_user_journeys.py
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -40,13 +61,15 @@ jobs:
       - name: Build browser preview
         run: python3 scripts/build_web_preview.py
 
-      # The dedicated post-bundle gate validates stability-runtime.js,
-      # visual-timer-v2.js, shared/native parity, browser helpers, and privacy.
-      - name: Audit final browser artifact
+      - name: Audit 8 · Final browser artifact
         run: python3 scripts/audit_web_artifact.py
 
-      # A unique attempt name prevents a manual workflow rerun from leaving two
-      # artifacts called "github-pages" in one run, which deploy-pages refuses.
+      - name: Report browser artifact budget
+        run: |
+          echo "### LifeRoute web artifact" >> "$GITHUB_STEP_SUMMARY"
+          du -sh dist | tee -a "$GITHUB_STEP_SUMMARY"
+          find dist -type f | wc -l | awk '{print "Files: "$1}' | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
@@ -65,5 +88,3 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
-
-# Release promotion marker: app code matches audited 2c155f43.

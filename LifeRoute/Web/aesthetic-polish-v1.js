@@ -48,5 +48,30 @@
   ['pointerup','pointercancel','pointerleave'].forEach(type=>document.addEventListener(type,event=>releaseControl(enabledTarget(event.target)),true));
   document.addEventListener('click',event=>{const control=enabledTarget(event.target);if(!control)return;pressControl(control);releaseControl(control);},true);
 
+  const EXPERIENCE_LAYERS = [
+    ['lifeRouteInteractionLiquidV4Script','interaction-liquid-v4.js','__lifeRouteInteractionLiquidV4Loaded'],
+    ['lifeRouteThemeExperienceV4Script','theme-experience-v4.js','__lifeRouteThemeExperienceV4Loaded'],
+    ['lifeRouteUniversalAutocompleteV2Script','universal-autocomplete-v2.js','__lifeRouteUniversalAutocompleteV2Loaded'],
+    ['lifeRouteVisualScheduleV1Script','visual-schedule-v1.js','__lifeRouteVisualScheduleV1Loaded'],
+    ['lifeRouteWelcomeTourV2Script','welcome.js','__lifeRouteWelcomeTourV2Loaded']
+  ];
+  const loadExperienceLayer = index => {
+    if (index >= EXPERIENCE_LAYERS.length || !document.body) return;
+    const [id,filename,flag] = EXPERIENCE_LAYERS[index];
+    const existing = document.getElementById(id) || [...document.scripts].find(script=>String(script.getAttribute('src')||'').split('?')[0].endsWith(filename));
+    if (window[flag] || existing) { loadExperienceLayer(index+1); return; }
+    const script = document.createElement('script');
+    script.id = id;
+    const build = document.querySelector('meta[name="liferoute-web-build"]')?.content || '';
+    script.src = `${filename}${build ? '?v='+encodeURIComponent(build) : ''}`;
+    script.async = false;
+    script.onload = () => loadExperienceLayer(index+1);
+    script.onerror = () => loadExperienceLayer(index+1);
+    document.body.appendChild(script);
+  };
+  const startExperienceLayers = () => loadExperienceLayer(0);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',startExperienceLayers,{once:true});
+  else startExperienceLayers();
+
   window.LifeRouteInteractionPolish = {durationMs:INTERACTION_MS,haptic:emitNativeHaptic};
 })();

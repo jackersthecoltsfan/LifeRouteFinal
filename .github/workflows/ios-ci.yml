@@ -39,6 +39,8 @@ jobs:
         run: bash scripts/prepare_build.sh
       - name: Audit checkpoint 03F client visual supports
         run: python3 scripts/audit_v0_5_0_client_visual_supports.py
+      - name: Audit checkpoint 04A client visual persistence
+        run: python3 scripts/audit_v0_5_0_client_visual_persistence.py
       - name: Build LifeRoute for iOS Simulator
         run: |
           set -euo pipefail

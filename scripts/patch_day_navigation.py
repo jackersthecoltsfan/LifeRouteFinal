@@ -44,6 +44,15 @@ for script_name in [
             raise SystemExit(f"Could not enable {script_name}: </body> not found")
         html = html.replace("</body>", tag + "\n</body>", 1)
 
+# This lightweight tactile layer is deliberately deferred. prepare_build later
+# normalizes the core scripts, so deferring guarantees the playground binds only
+# after the full UI runtime is parsed without adding startup polling.
+touch_tag = '<script defer src="touch-playground-v1.js"></script>'
+if touch_tag not in html:
+    if "</body>" not in html:
+        raise SystemExit("Could not enable touch-playground-v1.js: </body> not found")
+    html = html.replace("</body>", touch_tag + "\n</body>", 1)
+
 path.write_text(html)
 
 # Native tactile feedback and timer audio. Timer tones use AVAudioSession.playback
@@ -162,4 +171,4 @@ for marker in ['case "haptic":', "UIImpactFeedbackGenerator", 'case "playTimerTo
     if marker not in verified:
         raise SystemExit(f"Native interaction bridge verification failed: missing {marker}")
 
-print("Day navigation, contextual delight UI, strong haptics, and silent-mode timer audio enabled.")
+print("Day navigation, contextual delight UI, strong haptics, silent-mode timer audio, and deferred tactile playground enabled.")

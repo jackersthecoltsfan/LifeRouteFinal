@@ -77,26 +77,42 @@ if new_save not in text:
 
 path.write_text(text)
 
-# Cross-platform PIN-entry reliability. Some browser/WKWebView combinations can
-# swallow keystrokes in dynamically inserted password fields. Keep the PIN masked
-# with WebKit text security while using a numeric telephone field that reliably
-# accepts touch-keyboard input in both Safari/browser preview and WKWebView.
+# Cross-platform PIN-entry reliability. WKWebView can be unreliable with dynamically
+# inserted password/tel controls. Use a normal text control with a numeric keyboard,
+# mask it with WebKit text security, and sanitize all input to four digits.
 web_path = Path("LifeRoute/Web/auth-gate.js")
 web = web_path.read_text()
-web = web.replace(
+for old in [
     'class="lrAuthPin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="4"',
-    'class="lrAuthPin" type="tel" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="4"'
-)
-web = web.replace(
     'class="lrAuthPin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="4"',
-    'class="lrAuthPin" type="tel" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="4"'
-)
+    'class="lrAuthPin" type="tel" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="4"',
+]:
+    web = web.replace(old, 'class="lrAuthPin" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="4"')
+
 old_pin_css = '.lrAuthPin{letter-spacing:.42em;text-align:center;font-size:24px!important;padding-left:calc(13px + .42em)!important}'
-new_pin_css = '.lrAuthPin{letter-spacing:.42em;text-align:center;font-size:24px!important;padding-left:calc(13px + .42em)!important;-webkit-text-security:disc;caret-color:#fff;pointer-events:auto!important;touch-action:manipulation;-webkit-user-select:text!important;user-select:text!important}'
+new_pin_css = '.lrAuthPin{letter-spacing:.42em;text-align:center;font-size:24px!important;padding-left:calc(13px + .42em)!important;-webkit-text-security:disc;caret-color:#fff;pointer-events:auto!important;touch-action:manipulation;-webkit-user-select:text!important;user-select:text!important;-webkit-appearance:none!important;appearance:none!important}'
 if old_pin_css in web:
     web = web.replace(old_pin_css, new_pin_css, 1)
 elif new_pin_css not in web:
-    raise SystemExit("Could not harden LifeRoute PIN input CSS")
+    prior = '.lrAuthPin{letter-spacing:.42em;text-align:center;font-size:24px!important;padding-left:calc(13px + .42em)!important;-webkit-text-security:disc;caret-color:#fff;pointer-events:auto!important;touch-action:manipulation;-webkit-user-select:text!important;user-select:text!important}'
+    if prior in web:
+        web = web.replace(prior, new_pin_css, 1)
+    else:
+        raise SystemExit("Could not harden LifeRoute PIN input CSS")
+
+anchor = '  const setBusy = busy => document.querySelectorAll("#lifeRouteAuthGate button").forEach(button => button.disabled = !!busy);\n'
+helper = '''  const setBusy = busy => document.querySelectorAll("#lifeRouteAuthGate button").forEach(button => button.disabled = !!busy);\n\n  const hardenPinInputs = root => {\n    (root || document).querySelectorAll?.("#lifeRouteAuthGate .lrAuthPin").forEach(input => {\n      if (input.dataset.lrPinReady === "1") return;\n      input.dataset.lrPinReady = "1";\n      input.type = "text";\n      input.inputMode = "numeric";\n      input.setAttribute("pattern", "[0-9]*");\n      input.setAttribute("autocomplete", "off");\n      input.setAttribute("autocorrect", "off");\n      input.setAttribute("autocapitalize", "off");\n      input.setAttribute("spellcheck", "false");\n      input.maxLength = 4;\n      const clean = () => {\n        const next = String(input.value || "").replace(/\\D/g, "").slice(0, 4);\n        if (input.value !== next) input.value = next;\n      };\n      input.addEventListener("input", clean);\n      input.addEventListener("change", clean);\n      input.addEventListener("paste", () => setTimeout(clean, 0));\n      input.addEventListener("pointerdown", () => setTimeout(() => { try { input.focus({preventScroll:true}); } catch (_) { input.focus(); } }, 0));\n      input.addEventListener("touchend", () => setTimeout(() => { try { input.focus({preventScroll:true}); } catch (_) { input.focus(); } }, 0), {passive:true});\n    });\n  };\n'''
+if 'const hardenPinInputs = root =>' not in web:
+    if anchor not in web:
+        raise SystemExit("Could not install PIN input hardening helper")
+    web = web.replace(anchor, helper, 1)
+
+for marker in [
+    '    document.getElementById("lrAuthCreate").onclick = createLogin;\n',
+    '    document.getElementById("lrAuthLoginPin")?.addEventListener("keydown", event => { if (event.key === "Enter") unlock(); });\n',
+]:
+    if marker in web:
+        web = web.replace(marker, marker + '    hardenPinInputs(document.getElementById("lifeRouteAuthGate"));\n', 1)
 
 web_path.write_text(web)
-print("Local login now verifies every Keychain write, rolls back partial saves, and uses reliable masked numeric PIN inputs.")
+print("Local login now verifies every Keychain write and uses hardened masked text PIN inputs with explicit focus/input handling.")

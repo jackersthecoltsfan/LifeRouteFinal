@@ -31,6 +31,17 @@ for path in sorted(WEB.glob("*.js")):
         path.write_text(text)
         changed.append(path.name)
 
+# Inline runtime code in index.html follows the same rule. This closes the old
+# optimizeWeek() loophole where a direct scrollIntoView call survived JS-only scans.
+index_path = WEB / "index.html"
+index = index_path.read_text()
+original_index = index
+for old, new in replacements:
+    index = index.replace(old, new)
+if index != original_index:
+    index_path.write_text(index)
+    changed.append("index.html")
+
 # Final hard gate: prepared runtime files may not contain direct programmatic
 # viewport-scrolling calls. The guard file itself owns the disabled native methods.
 forbidden = (
@@ -51,6 +62,10 @@ for path in sorted(WEB.glob("*.js")):
     for token in forbidden:
         if token in text:
             violations.append(f"{path.name}: {token}")
+index = index_path.read_text()
+for token in forbidden:
+    if token in index:
+        violations.append(f"index.html: {token}")
 
 if violations:
     raise SystemExit("Programmatic scrolling survived final preparation: " + "; ".join(violations))
@@ -163,7 +178,6 @@ for marker in ('alreadyOrdered', "observe(tabs, { childList: true })"):
 if 'attributes: true' in nav_text:
     raise SystemExit('Top navigation still observes style/class attributes')
 
-index_path = WEB / "index.html"
 index = index_path.read_text()
 nav_tag = '<script src="top-nav-four-v1.js"></script>'
 if nav_tag not in index:

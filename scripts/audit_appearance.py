@@ -76,6 +76,8 @@ check("offsetWidth" not in premium and "getBoundingClientRect" not in premium, "
 check("filter:blur(2px)" not in premium and "filter:brightness" not in premium, "premium tap and navigation motion avoids expensive animated filters")
 check("syncCalendarSelection" in premium and "aria-selected" in premium, "Day Week Month selected state updates immediately")
 check("#lifeRouteThemeFX .fxOrb" in premium and "animation:none!important" in premium, "mobile theme effects are reduced to protect frame rate")
+check("topNavSelector" in premium and "lrPremiumNavRelease" in premium, "top navigation has lightweight press and spring-release motion")
+check("will-change:auto" in premium, "mobile top navigation does not pin compositor layers")
 
 # Categorized theme accordions.
 for marker in [

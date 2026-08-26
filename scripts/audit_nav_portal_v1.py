@@ -29,7 +29,8 @@ check("portal uses at most one RAF", portal.count("requestAnimationFrame(") <= 1
 check("portal has no recursive RAF", not re.search(r"function\s+(\w+)[^{]*\{[^}]*requestAnimationFrame\(\1\)", portal, re.S))
 check("portal has no blur workload", "filter:blur(" not in portal and "backdrop-filter" not in portal)
 check("portal has no network work", not re.search(r"\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource", portal))
-check("portal has no programmatic scrolling", all(token not in portal for token in ["scrollIntoView(", "scrollTo(", "scrollBy("])) )
+programmatic_scroll_tokens = ["scrollIntoView(", "scrollTo(", "scrollBy("]
+check("portal has no programmatic scrolling", all(token not in portal for token in programmatic_scroll_tokens))
 check("portal respects reduced motion", "prefers-reduced-motion:reduce" in portal and "animation:none!important" in portal)
 check("portal targets navigation only", ".tabs .tab,.lrContextTab,.lrPlaceCategory,.lrDayPager button" in portal)
 check("portal is loaded deferred", 'defer src="nav-portal-v1.js"' in index)

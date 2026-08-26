@@ -16,7 +16,7 @@ text = text.replace(
 )
 text = text.replace(
     '    .lrTouchPressed{transition:transform .055s cubic-bezier(.18,.92,.22,1),filter .055s ease,box-shadow .075s ease!important}\n',
-    '',
+    '    button:active,[role="button"]:active{transition:transform .055s cubic-bezier(.18,.92,.22,1),filter .055s ease,box-shadow .075s ease!important}\n',
     1,
 )
 
@@ -77,6 +77,7 @@ for required in [
     "haptic(control);",
     "playSound(classifySound(control));",
     'button:active,[role="button"]:active{',
+    'transition:transform .055s',
 ]:
     if required not in verified:
         raise SystemExit(f"global interaction reliability failed: missing {required}")

@@ -1,1 +1,21 @@
-placeholder
+name: Release Placeholder Policy
+run-name: Release placeholder is inert
+
+# This file intentionally performs no release. It remains a valid manual-only
+# workflow so an old placeholder cannot create failed push checks or evolve into
+# an accidental release path without being caught by the release-isolation audit.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Confirm inert release placeholder
+        run: |
+          echo "This workflow is intentionally inert."
+          echo "LifeRoute TestFlight releases use testflight.yml only after explicit user command."

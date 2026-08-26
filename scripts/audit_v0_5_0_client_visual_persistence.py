@@ -45,7 +45,7 @@ require("data.write(to: fileURL, options: [.atomic])" in store, "Native state wr
 require("native-state-v1-corrupt-" in store and "moveItem(at: url, to: backupURL)" in store, "Malformed state is preserved before safe-default recovery")
 for forbidden in ["WebKit", "WKWebView", "localStorage", "UserDefaults", "@AppStorage"]:
     require(forbidden not in store, f"Persistence does not reactivate legacy/browser storage: {forbidden}")
-require("LifeRouteCalendarEvent" not in store and "CalendarProviderCore" not in store, "Provider/calendar event caches are excluded from 04A user-data persistence")
+require("CalendarProviderCore" not in store and "providerState" not in store, "Provider connection/cache objects remain excluded from native user-data persistence")
 
 require("clients: [LifeRouteClientProfile]" in store, "Client profiles are part of the native snapshot")
 require("imageData: Data?" in store, "Client visual photo data is included in the protected native snapshot")

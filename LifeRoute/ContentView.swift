@@ -200,6 +200,9 @@ private struct ScheduleCoreView: View {
                 }
                 Button("Add appointment") { addAppointment() }
                 if let formMessage { Text(formMessage).foregroundStyle(.secondary) }
+                Text("Manual LifeRoute appointments are saved locally. Apple and Google events remain provider-refreshed data and are not copied into LifeRoute’s local data file.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("Stack test") {
                 NavigationLink("Open Schedule detail", value: AppRoute.scheduleDetails)
@@ -211,7 +214,7 @@ private struct ScheduleCoreView: View {
     private func addAppointment() {
         do {
             try calendarState.addManualEvent(title: draftTitle, date: draftDate, startTime: draftStart, endTime: draftEnd, location: draftLocation, isAllDay: draftAllDay)
-            formMessage = "Appointment added for this app session."
+            formMessage = "Appointment saved locally on this iPhone."
             draftTitle = ""
             draftLocation = ""
         } catch { formMessage = error.localizedDescription }
@@ -308,7 +311,7 @@ private struct SetupCoreView: View {
             Section("Home") {
                 TextField("Home address", text: $homeDraft).textContentType(.fullStreetAddress)
                 Button("Use this home address") {
-                    do { try routingState.setHomeAddress(homeDraft); placeMessage = "Home address saved for this app session." }
+                    do { try routingState.setHomeAddress(homeDraft); placeMessage = "Home address saved locally on this iPhone." }
                     catch { placeMessage = error.localizedDescription }
                 }
                 if !routingState.homeAddress.isEmpty { Text(routingState.homeAddress).foregroundStyle(.secondary) }
@@ -336,7 +339,9 @@ private struct SetupCoreView: View {
                     }
                 }
                 if let placeMessage { Text(placeMessage).foregroundStyle(.secondary) }
-                Text("Home and saved places are session-only until the persistence checkpoint.").font(.caption).foregroundStyle(.secondary)
+                Text("Home and saved places are stored locally in protected LifeRoute app data. Current GPS coordinates and route estimates are not persisted.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("Form and state test") {
                 TextField("Name", text: $displayName).textContentType(.name)
@@ -351,13 +356,17 @@ private struct SetupCoreView: View {
                 NavigationLink("Open Setup detail", value: AppRoute.setupDetails)
                 Button("Reset Setup navigation path") { router.resetPath(for: .setup) }
             }
-        }.navigationTitle("Setup")
+        }
+        .navigationTitle("Setup")
+        .onAppear {
+            if homeDraft.isEmpty { homeDraft = routingState.homeAddress }
+        }
     }
 
     private func addPlace() {
         do {
             try routingState.addSavedPlace(name: placeName, address: placeAddress, kind: placeKind, minimumVisitMinutes: placeMinutes, useInGapSuggestions: placeSuggestions)
-            placeMessage = "Saved place added for this app session."
+            placeMessage = "Saved place stored locally on this iPhone."
             placeName = ""
             placeAddress = ""
         } catch { placeMessage = error.localizedDescription }

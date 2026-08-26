@@ -6,30 +6,20 @@ on:
     branches: [main]
     paths:
       - 'LifeRoute/**'
-      - 'LifeRouteShared/**'
-      - 'LifeRouteLiveActivity/**'
       - 'LifeRoute.xcodeproj/**'
       - 'scripts/**'
-      - '!scripts/audit_release_isolation.py'
-      - '!scripts/audit_workflow_efficiency.py'
       - '.github/workflows/ios-ci.yml'
   pull_request:
     paths:
       - 'LifeRoute/**'
-      - 'LifeRouteShared/**'
-      - 'LifeRouteLiveActivity/**'
       - 'LifeRoute.xcodeproj/**'
       - 'scripts/**'
-      - '!scripts/audit_release_isolation.py'
-      - '!scripts/audit_workflow_efficiency.py'
       - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Keep only the newest validation for the same workflow/ref. Using the workflow
-# name in the key prevents an unrelated workflow from sharing this group.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -42,11 +32,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Prepare the same features used by TestFlight
+      - name: Prepare v0.5.0 functional core
         run: bash scripts/prepare_build.sh
 
-      - name: Full LifeRoute regression audit
-        run: python3 scripts/audit_liferoute_build.py
+      - name: Audit v0.5.0 functional shell
+        run: python3 scripts/audit_v0_5_0_functional_shell.py
 
       - name: Build LifeRoute for iOS Simulator
         run: |

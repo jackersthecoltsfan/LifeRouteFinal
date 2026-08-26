@@ -79,9 +79,10 @@ if new_save not in text:
 path.write_text(text)
 
 # Keep the native security implementation hardened, then bypass the legacy web
-# gate before any of its startup/UI work executes. The separate patch is
-# intentionally single-purpose and is invoked here so the existing deterministic
-# prepare_build ordering remains unchanged.
+# gate before any of its startup/UI work executes. The separate patches are
+# invoked here so the existing deterministic prepare_build ordering stays stable.
 runpy.run_path("scripts/patch_disable_auth_gate_v1.py", run_name="__main__")
+runpy.run_path("scripts/patch_welcome_freeze_v040.py", run_name="__main__")
+runpy.run_path("scripts/audit_welcome_freeze_v040.py", run_name="__main__")
 
-print("Native auth Keychain reliability preserved; v0.4.0 web login startup bypass applied.")
+print("Native auth reliability preserved; v0.4.0 direct startup, welcome freeze fix, and Apple version contract applied.")

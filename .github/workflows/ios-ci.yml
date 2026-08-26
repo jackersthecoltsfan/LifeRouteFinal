@@ -8,12 +8,16 @@ on:
       - 'LifeRoute/**'
       - 'LifeRoute.xcodeproj/**'
       - 'scripts/**'
+      - '!scripts/audit_release_isolation.py'
+      - '!scripts/audit_workflow_efficiency.py'
       - '.github/workflows/ios-ci.yml'
   pull_request:
     paths:
       - 'LifeRoute/**'
       - 'LifeRoute.xcodeproj/**'
       - 'scripts/**'
+      - '!scripts/audit_release_isolation.py'
+      - '!scripts/audit_workflow_efficiency.py'
       - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
 
@@ -35,8 +39,8 @@ jobs:
       - name: Prepare v0.5.0 functional core
         run: bash scripts/prepare_build.sh
 
-      - name: Audit v0.5.0 functional shell
-        run: python3 scripts/audit_v0_5_0_functional_shell.py
+      - name: Audit checkpoint 02 native navigation
+        run: python3 scripts/audit_v0_5_0_core_navigation.py
 
       - name: Build LifeRoute for iOS Simulator
         run: |

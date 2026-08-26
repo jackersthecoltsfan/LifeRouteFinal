@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTENT = ROOT / "LifeRoute" / "ContentView.swift"
+NAVIGATION = ROOT / "LifeRoute" / "AppNavigation.swift"
 PROJECT = ROOT / "LifeRoute.xcodeproj" / "project.pbxproj"
 PREPARE = ROOT / "scripts" / "prepare_build.sh"
 
@@ -28,26 +29,36 @@ def read(path: Path) -> str:
 
 
 content = read(CONTENT)
+navigation = read(NAVIGATION)
 project = read(PROJECT)
 prepare = read(PREPARE)
 
-# Native-only functional-shell contract.
+# Native-only functional-shell contract. Labels may live in the centralized
+# AppSection model; this audit verifies behavior/ownership rather than forcing
+# view-local string duplication.
 require("TabView(selection:" in content, "One explicit native TabView owns top-level navigation")
-for label in ["Today", "Schedule", "Tools", "Resources", "Setup"]:
-    require(f'Label("{label}"' in content, f"Native top-level destination exists: {label}")
+for case_name, label in [
+    ("today", "Today"),
+    ("schedule", "Schedule"),
+    ("tools", "Tools"),
+    ("resources", "Resources"),
+    ("setup", "Setup"),
+]:
+    require(f"case .{case_name}: return \"{label}\"" in navigation, f"Native top-level destination exists: {label}")
 require("NavigationStack" in content, "Navigation uses native NavigationStack")
 require("Button(" in content, "Functional shell contains semantic native Button controls")
 require("TextField(" in content, "Functional shell contains a semantic native TextField")
 require("Toggle(" in content, "Functional shell contains semantic native state controls")
 require("LifeRouteWebView()" not in content, "Functional shell does not instantiate legacy WKWebView")
 require("WKWebView" not in content and "JavaScript" not in content, "Functional shell has no WebView/JavaScript dependency")
-require("PIN" in content and "No PIN or password gate" in content, "Setup explicitly documents direct-launch/no-PIN behavior")
+require("No PIN or password gate" in content, "Setup explicitly documents direct-launch/no-PIN behavior")
 
-# Active Xcode target must compile only the native shell and assets at this checkpoint.
+# Active Xcode target must compile only the reviewed native core and assets.
 require("LifeRouteWebView.swift in Sources" not in project, "Legacy LifeRouteWebView is quarantined from Sources")
 require("Web in Resources" not in project, "Legacy Web runtime is quarantined from Resources")
 require("LifeRouteApp.swift in Sources" in project, "Native app entry remains in Sources")
 require("ContentView.swift in Sources" in project, "Native functional shell remains in Sources")
+require("AppNavigation.swift in Sources" in project, "Central native navigation owner remains in Sources")
 require("Assets.xcassets in Resources" in project, "App assets remain bundled")
 
 versions = re.findall(r"MARKETING_VERSION = ([^;]+);", project)
@@ -67,6 +78,7 @@ legacy_markers = [
 for marker in legacy_markers:
     require(marker not in prepare, f"Preparation does not reactivate legacy runtime marker: {marker}")
 require("audit_v0_5_0_functional_shell.py" in prepare, "Preparation runs the v0.5.0 functional-shell audit")
+require("audit_v0_5_0_core_navigation.py" in prepare, "Preparation runs the v0.5.0 navigation audit")
 require("rm -rf build" in prepare, "Preparation clears stale repository-local build output")
 
 if errors:

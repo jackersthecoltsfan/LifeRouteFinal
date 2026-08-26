@@ -119,3 +119,34 @@ final class AppRouter: ObservableObject {
         }
     }
 }
+
+// iOS 16 compatibility shim for the simple empty-state surface used by the
+// functional-core rebuild. SwiftUI's system ContentUnavailableView starts at
+// iOS 17, while LifeRoute still supports iOS 16 during this rebuild.
+struct ContentUnavailableView: View {
+    let title: String
+    let systemImage: String
+    let description: Text
+
+    init(_ title: String, systemImage: String, description: Text) {
+        self.title = title
+        self.systemImage = systemImage
+        self.description = description
+    }
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+            Text(title)
+                .font(.headline)
+            description
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+    }
+}

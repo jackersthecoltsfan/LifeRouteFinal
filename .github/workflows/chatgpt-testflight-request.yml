@@ -47,20 +47,42 @@ jobs:
           echo "target_sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
           echo "require_web=$REQUIRE_WEB" >> "$GITHUB_OUTPUT"
           echo "request_id=$REQUEST_ID" >> "$GITHUB_OUTPUT"
-          echo "Authorized explicit TestFlight request $REQUEST_ID for $TARGET_SHA."
+          echo "Authorized explicit TestFlight request $REQUEST_ID for validated app SHA $TARGET_SHA."
 
-      - name: Confirm target is current main
+      - name: Confirm main is release-equivalent to validated target
+        id: source
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_SHA: ${{ steps.request.outputs.target_sha }}
         run: |
           set -euo pipefail
           CURRENT_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')
-          test "$CURRENT_SHA" = "$TARGET_SHA" || {
-            echo "Refusing stale release: requested $TARGET_SHA but main is $CURRENT_SHA."
-            exit 1
-          }
-          echo "Target is the current main commit: $TARGET_SHA"
+
+          if [ "$CURRENT_SHA" != "$TARGET_SHA" ]; then
+            COMPARE=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${TARGET_SHA}...${CURRENT_SHA}")
+            MERGE_BASE=$(jq -r '.merge_base_commit.sha // empty' <<<"$COMPARE")
+            test "$MERGE_BASE" = "$TARGET_SHA" || {
+              echo "Requested SHA is not an ancestor of current main; refusing release."
+              exit 1
+            }
+
+            mapfile -t CHANGED < <(jq -r '.files[].filename' <<<"$COMPARE")
+            for file in "${CHANGED[@]}"; do
+              case "$file" in
+                *.md|ReusableAppWorkflow/*|ReusableAppWorkflow/**/*)
+                  echo "Release-inert change allowed after validation: $file"
+                  ;;
+                *)
+                  echo "Main changed release-relevant file after validation: $file"
+                  echo "Refusing TestFlight until the newer app source is validated."
+                  exit 1
+                  ;;
+              esac
+            done
+          fi
+
+          echo "release_sha=$CURRENT_SHA" >> "$GITHUB_OUTPUT"
+          echo "Current main $CURRENT_SHA is release-equivalent to validated app SHA $TARGET_SHA."
 
       - name: Wait for required validation
         env:
@@ -105,14 +127,14 @@ jobs:
             wait_for_workflow 'pages.yml' 'Publish Web Preview'
           fi
 
-      - name: Reconfirm current main before release
+      - name: Reconfirm release source did not change
         env:
           GH_TOKEN: ${{ github.token }}
-          TARGET_SHA: ${{ steps.request.outputs.target_sha }}
+          RELEASE_SHA: ${{ steps.source.outputs.release_sha }}
         run: |
           set -euo pipefail
           CURRENT_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')
-          test "$CURRENT_SHA" = "$TARGET_SHA" || {
+          test "$CURRENT_SHA" = "$RELEASE_SHA" || {
             echo "Main changed while validation was running; refusing stale release."
             exit 1
           }
@@ -121,6 +143,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_SHA: ${{ steps.request.outputs.target_sha }}
+          RELEASE_SHA: ${{ steps.source.outputs.release_sha }}
           REQUEST_ID: ${{ steps.request.outputs.request_id }}
         run: |
           set -euo pipefail
@@ -128,4 +151,4 @@ jobs:
             --method POST \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/testflight.yml/dispatches" \
             -f ref=main
-          echo "Dispatched manual TestFlight workflow for $TARGET_SHA from explicit request $REQUEST_ID."
+          echo "Dispatched manual TestFlight workflow at main $RELEASE_SHA after validating app source $TARGET_SHA from explicit request $REQUEST_ID."

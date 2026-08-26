@@ -89,7 +89,8 @@ require(0 <= idx('live-day.js') < idx('day-controls-v5.js'), "Live Day core load
 require(0 <= idx('nature-settings-web.js') < idx('theme-catalog-v3.js'), "Settings shell loads before theme catalog normalization")
 require('loadHelper(' not in text('LifeRoute/Web/settings-classic-themes-web.js'), "classic themes do not inject duplicate theme scripts")
 
-# E) Release pipeline must rebuild/audit before a signed archive and upload.
+# E) Release pipeline must rebuild/audit before a signed archive and upload,
+# but that pipeline may only be entered by explicit manual dispatch.
 prepare_pos = testflight.find('bash scripts/prepare_build.sh')
 audit_pos = testflight.find('python3 scripts/audit_liferoute_build.py')
 archive_pos = testflight.find('Archive LifeRoute')
@@ -100,7 +101,13 @@ require('concurrency:' in testflight and 'group: liferoute-testflight' in testfl
 require('cancel-in-progress: false' in testflight, "an active TestFlight upload cannot be cancelled by a duplicate request")
 require('CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}"' in testflight, "each TestFlight run gets a unique build number")
 require('Clean temporary Apple signing assets' in testflight and 'if: always()' in testflight, "temporary signing assets are cleaned even after failure")
-require('"[no-testflight]"' in auto_release and 'skipping testflight dispatch' in auto_release.lower(), "protected audit commits cannot auto-upload")
+automatic_triggers = ('workflow_run:', 'repository_dispatch:', 'schedule:', 'push:', 'pull_request:')
+require('workflow_dispatch:' in testflight, "TestFlight upload requires explicit workflow dispatch")
+require(all(trigger not in testflight for trigger in automatic_triggers), "TestFlight upload has no automatic trigger")
+require('workflow_dispatch:' in auto_release, "former auto-release workflow is a manual-only policy guard")
+require(all(trigger not in auto_release for trigger in automatic_triggers), "policy guard has no automatic release trigger")
+require('gh workflow' not in auto_release.lower() and '/dispatches' not in auto_release.lower(), "policy guard cannot dispatch TestFlight")
+require('actions: write' not in auto_release, "policy guard cannot write Actions state")
 
 # F) Repository safety/privacy: no user fixtures, private keys, or signing payloads are distributable source.
 for forbidden in (
@@ -139,4 +146,4 @@ if failed:
     if private_files:
         print("Private files:", private_files)
     raise SystemExit(1)
-print("LifeRoute runtime pressure, lifecycle, privacy, deterministic loading, and release ordering audit passed.")
+print("LifeRoute runtime pressure, lifecycle, privacy, deterministic loading, and manual-only release ordering audit passed.")

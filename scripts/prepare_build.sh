@@ -24,7 +24,9 @@ PATCHES=(
   patch_provider_selection.py
   patch_day_navigation.py
   patch_auth_gate.py
+  patch_auth_keychain_reliability_v1.py
   patch_home_location_v3.py
+  patch_location_ui_consolidation_v1.py
   patch_stability.py
   patch_theme_settings.py
   patch_release_hardening_v1.py
@@ -177,13 +179,17 @@ python3 scripts/audit_runtime_polish.py
 python3 scripts/audit_visual_timer.py
 python3 scripts/audit_tools_section.py
 python3 scripts/audit_auth_enabled_v2.py
+python3 scripts/audit_auth_security_contract_v1.py
 python3 scripts/audit_address_setup_v1.py
+python3 scripts/audit_address_autocomplete_contract_v1.py
+python3 scripts/audit_home_persistence_v1.py
 python3 scripts/audit_schedule_simplify_v1.py
 python3 scripts/audit_aba_note_quality_v2.py
 python3 scripts/audit_appearance.py
 python3 scripts/audit_stability.py
 python3 scripts/audit_feature_parity_performance_ai.py
 python3 scripts/audit_interaction_performance_v3.py
+python3 scripts/audit_no_programmatic_scroll_v5.py
 
 # AI-specific independent review angles.
 python3 scripts/audit_ai_user_journeys_v2.py

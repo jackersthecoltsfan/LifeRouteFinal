@@ -1,20 +1,22 @@
-# LifeRoute — Automated GitHub to TestFlight
+# LifeRoute — Confirmed GitHub to TestFlight
 
-LifeRoute now uses an automatic release chain:
+LifeRoute uses automatic validation with **manual-only TestFlight release**:
 
-1. **iOS Build Check** runs on relevant changes to `main`.
-2. It runs the same deterministic build preparation used by TestFlight, the full regression audit, and an iOS Simulator build.
-3. **Auto TestFlight After CI** checks that the validated commit is still the current `main` commit.
-4. If the commit is eligible for release, it automatically dispatches **Send to TestFlight**.
-5. The TestFlight workflow prepares the app again, reruns the regression audit, validates Apple credentials and bundle IDs, archives the real-device Release build, exports the signed IPA, uploads it to App Store Connect/TestFlight, saves a short-lived IPA artifact, and cleans temporary Apple signing assets.
+1. **iOS Build Check** runs automatically on relevant changes to `main`.
+2. It runs the deterministic build preparation, full regression audit, and an iOS Simulator build.
+3. Passing CI does **not** upload to TestFlight and does **not** dispatch the TestFlight workflow.
+4. A TestFlight upload happens only after Brandon explicitly confirms that a TestFlight run should be used.
+5. After that confirmation, **Send to TestFlight** is manually dispatched. It prepares the app again, reruns the regression audit, validates Apple credentials and bundle IDs, archives the real-device Release build, exports the signed IPA, uploads it to App Store Connect/TestFlight, and cleans temporary Apple signing assets.
+
+This policy exists because App Store Connect enforces an application upload limit. Routine development, auditing, web previews, and GitHub commits must never spend a TestFlight upload automatically.
 
 ## Release-control commit tags
 
-The assistant/build process chooses these when appropriate; the user should not need to manage them during normal work.
+These tags remain useful for clarity, but they are no longer the primary protection against accidental TestFlight uploads because TestFlight is manual-only at the workflow level.
 
-- `[no-testflight]` — validate the change but do not create a TestFlight build.
-- `[web-only]` — web/preview-only change; do not create a TestFlight build.
-- No release-control tag — a passing current `main` commit is eligible for automatic TestFlight promotion.
+- `[no-testflight]` — explicitly indicates validation/build work with no TestFlight release.
+- `[web-only]` — web/preview-only change; no TestFlight release.
+- No release-control tag — still does **not** authorize TestFlight. Explicit confirmation is always required.
 
 ## One-time GitHub secrets
 
@@ -42,16 +44,16 @@ The intended routine is:
 
 1. Brandon tells ChatGPT/Codex what should change.
 2. The implementation is made and committed to GitHub.
-3. GitHub automatically prepares, audits, and builds it.
-4. If the commit is release-eligible and CI passes, GitHub automatically signs and uploads it to TestFlight.
-5. Brandon updates/installs the build in the TestFlight app and tests it on the iPhone.
-6. Brandon reports any UX or functional problems; the cycle repeats.
+3. GitHub automatically prepares, audits, builds, and may publish the web preview when relevant.
+4. ChatGPT reports the validation/build status and leaves TestFlight untouched.
+5. When Brandon explicitly says to send the validated version to TestFlight, the **Send to TestFlight** workflow is manually dispatched once.
+6. Brandon installs/tests that build on the iPhone and reports any UX or functional problems.
 
-Opening GitHub Actions and manually pressing **Run workflow** is now a fallback/debugging action, not the normal release process.
+**Never infer TestFlight permission from a code-change request, a successful audit, a successful build, a request to “launch,” or a web publish request. The user must explicitly confirm TestFlight.**
 
 ## Automatic repair monitor
 
-A ChatGPT condition-watch named **LifeRoute Build Repair** monitors the build chain. On a failed build it may make up to two targeted repairs (`auto-repair 1/2`, then `auto-repair 2/2`). If both fail, it stops changing code and escalates the current failure and attempted fixes instead of continuing indefinitely.
+A ChatGPT condition-watch named **LifeRoute Build Repair** may monitor the build chain. On a failed build it may make targeted repairs when authorized by the project workflow, but repair/validation work does not authorize a TestFlight upload.
 
 ## Signing cleanup
 
@@ -59,12 +61,13 @@ GitHub-hosted Macs are temporary. Xcode automatic signing may create a temporary
 
 The TestFlight workflow prevents two release jobs from signing at the same time, reducing duplicate signing assets from accidental overlapping runs.
 
-## What Brandon should not have to do for routine releases
+## What Brandon should not have to do for routine development
 
 - Open Xcode on a PC/Mac.
 - Download or convert `.p8` / `.p12` files again.
 - Create a new distribution certificate for every build.
 - Manually increment TestFlight build numbers.
-- Manually run the CI workflow.
-- Manually dispatch TestFlight after every successful build.
-- Read GitHub logs when the automatic repair layer can resolve the failure safely.
+- Manually run normal CI checks.
+- Read GitHub logs when ChatGPT can inspect them directly.
+
+For TestFlight specifically, Brandon's only required action is the **explicit release confirmation**; ChatGPT/Codex can handle the manual workflow dispatch after that confirmation.

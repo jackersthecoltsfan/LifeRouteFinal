@@ -156,7 +156,7 @@ final class SessionToolsCore: ObservableObject {
     }
 }
 
-// MARK: - Checkpoint 03F: client-specific visual support domain
+// MARK: - Checkpoint 03F / 04A: client-specific persistent visual supports
 
 struct ClientVisualIcon: Identifiable, Hashable {
     let id: UUID
@@ -248,9 +248,16 @@ enum ClientVisualSupportError: LocalizedError {
 
 @MainActor
 final class ClientVisualSupportCore: ObservableObject {
-    @Published private(set) var icons: [ClientVisualIcon] = []
-    @Published private(set) var choiceBoards: [ClientChoiceBoard] = []
-    @Published private(set) var schedules: [ClientVisualSchedule] = []
+    @Published private(set) var icons: [ClientVisualIcon]
+    @Published private(set) var choiceBoards: [ClientChoiceBoard]
+    @Published private(set) var schedules: [ClientVisualSchedule]
+
+    init(restoredState: RestoredClientVisualSupportState? = nil) {
+        let restored = restoredState ?? LifeRoutePersistenceStore.shared.loadClientVisualSupports()
+        self.icons = restored.icons
+        self.choiceBoards = restored.choiceBoards
+        self.schedules = restored.schedules
+    }
 
     func icons(for clientCode: String) -> [ClientVisualIcon] {
         let code = normalizedRequiredClientCode(clientCode)
@@ -277,15 +284,16 @@ final class ClientVisualSupportCore: ObservableObject {
         guard !cleanLabel.isEmpty else { throw ClientVisualSupportError.missingLabel }
         let icon = ClientVisualIcon(clientCode: code, label: cleanLabel, imageData: imageData)
         icons.append(icon)
+        persistVisualSupports()
         return icon
     }
 
     func removeIcon(id: UUID) {
         icons.removeAll { $0.id == id }
-        choiceBoards = choiceBoards.map { board in
+        choiceBoards = choiceBoards.compactMap { board in
             var updated = board
             updated.iconIDs.removeAll { $0 == id }
-            return updated
+            return updated.iconIDs.isEmpty ? nil : updated
         }
         schedules = schedules.map { schedule in
             var updated = schedule
@@ -296,6 +304,7 @@ final class ClientVisualSupportCore: ObservableObject {
             }
             return updated
         }
+        persistVisualSupports()
     }
 
     @discardableResult
@@ -318,11 +327,13 @@ final class ClientVisualSupportCore: ObservableObject {
             columns: columns == 3 ? 3 : 2
         )
         choiceBoards.append(board)
+        persistVisualSupports()
         return board
     }
 
     func removeChoiceBoard(id: UUID) {
         choiceBoards.removeAll { $0.id == id }
+        persistVisualSupports()
     }
 
     @discardableResult
@@ -344,16 +355,51 @@ final class ClientVisualSupportCore: ObservableObject {
 
         let schedule = ClientVisualSchedule(clientCode: code, title: cleanTitle, steps: cleanedSteps)
         schedules.append(schedule)
+        persistVisualSupports()
         return schedule
     }
 
     func removeSchedule(id: UUID) {
         schedules.removeAll { $0.id == id }
+        persistVisualSupports()
     }
 
     func icon(id: UUID, for clientCode: String) -> ClientVisualIcon? {
         let code = normalizedRequiredClientCode(clientCode)
         return icons.first { $0.id == id && $0.clientCode == code }
+    }
+
+    func retainClientCodes(_ clientCodes: Set<String>) {
+        let normalized = Set(clientCodes.map { normalizedRequiredClientCode($0).lowercased() })
+        let before = (icons.count, choiceBoards.count, schedules.count)
+        icons.removeAll { !normalized.contains($0.clientCode.lowercased()) }
+        let survivingIconIDs = Set(icons.map(\.id))
+        choiceBoards = choiceBoards.compactMap { board in
+            guard normalized.contains(board.clientCode.lowercased()) else { return nil }
+            var updated = board
+            updated.iconIDs.removeAll { !survivingIconIDs.contains($0) }
+            return updated.iconIDs.isEmpty ? nil : updated
+        }
+        schedules = schedules.compactMap { schedule in
+            guard normalized.contains(schedule.clientCode.lowercased()) else { return nil }
+            var updated = schedule
+            updated.steps = updated.steps.map { step in
+                var item = step
+                if let iconID = item.iconID, !survivingIconIDs.contains(iconID) { item.iconID = nil }
+                return item
+            }
+            return updated
+        }
+        let after = (icons.count, choiceBoards.count, schedules.count)
+        if before != after { persistVisualSupports() }
+    }
+
+    private func persistVisualSupports() {
+        LifeRoutePersistenceStore.shared.saveClientVisualSupports(
+            icons: icons,
+            choiceBoards: choiceBoards,
+            schedules: schedules
+        )
     }
 
     private func normalizedRequiredClientCode(_ value: String) -> String {

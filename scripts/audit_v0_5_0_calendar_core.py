@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,7 +51,8 @@ require("guard end > start" in domain, "Manual appointments reject invalid time 
 require("@Published private(set) var events" in domain, "Event mutations remain owned by CalendarCoreState")
 
 require("@StateObject private var calendarState = CalendarCoreState()" in content, "Root view owns one CalendarCoreState")
-require("ScheduleCoreView(router: router, calendarState: calendarState)" in content, "Schedule receives the root calendar state explicitly")
+schedule_call = re.search(r"ScheduleCoreView\(([^\n]*)\)", content)
+require(bool(schedule_call) and "calendarState: calendarState" in schedule_call.group(1), "Schedule receives the root calendar state explicitly even as reviewed provider dependencies are added")
 require("Picker(\"Schedule range\"" in content and "LifeRouteCalendarRange.allCases" in content, "Schedule exposes Day / Week / Month native selection")
 require("calendarState.shiftSelection(selectedRange, by: -1)" in content and "calendarState.shiftSelection(selectedRange, by: 1)" in content, "Schedule period controls use calendar owner")
 require("DatePicker(\"Selected date\"" in content, "Schedule allows direct date selection")

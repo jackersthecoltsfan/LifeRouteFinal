@@ -64,13 +64,20 @@ for alias in [
 ]:
     require(alias in mapper, f"Reviewed legacy client alias is supported: {alias}")
 
+require("private static func normalizedPair" in mapper, "Legacy client-code normalization is pure and mapper-owned")
+require("ClientProfileCore.normalizedPair" not in mapper, "Legacy parsing does not cross into main-actor client state")
 require('deterministicUUID(namespace: "legacy-client"' in mapper, "Imported client IDs are deterministic")
 require('deterministicUUID(namespace: "legacy-place"' in mapper, "Imported place IDs are deterministic")
 require('let id = "legacy-v4-\\(stableSourceID)"' in mapper, "Imported manual event IDs are migration-namespaced and stable")
 require("private static func placeIdentity" in mapper, "Saved-place dedupe uses normalized logical identity")
 require("case \"gym\"" in mapper and "default: return .other" in mapper, "Legacy place types map through an explicit allow-list")
+require("let part1 = String(hex.prefix(8))" in mapper and "let part5 = String(hex.dropFirst(20).prefix(12))" in mapper, "Deterministic UUID construction is split into compiler-safe subexpressions")
+require("preconditionFailure(\"Deterministic legacy UUID construction failed\")" in mapper, "Deterministic UUID construction cannot silently fall back to a random ID")
+require("?? UUID()" not in mapper, "Migration IDs have no random fallback")
 
-require("static func mergeIntoNativeStore" in mapper, "Mapper has one explicit native merge entrypoint")
+require("static func mergeIntoNativeStore" in mapper, "Mapper has an explicit native merge entrypoint")
+require("mergeIntoNativeStore(payload, store: .shared)" in mapper, "Main-actor shared-store lookup occurs inside the merge function body")
+require("store: LifeRoutePersistenceStore = .shared" not in mapper, "Main-actor persistence singleton is not captured in a default argument")
 require("guard !payload.isEmpty else { return }" in mapper, "Empty migration is a no-op")
 require("existingCodes.insert(code).inserted" in mapper, "Existing native clients win on duplicate code")
 require("identities.insert(identity).inserted" in mapper, "Existing native saved places win on duplicate logical identity")

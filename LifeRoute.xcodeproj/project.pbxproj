@@ -17,6 +17,7 @@
 		A10000000000000000000014 /* SessionToolsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* SessionToolsViews.swift */; };
 		A10000000000000000000015 /* CalendarProviderCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* CalendarProviderCore.swift */; };
 		A10000000000000000000016 /* PersistenceCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* PersistenceCore.swift */; };
+		A10000000000000000000017 /* LegacyMigrationCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* LegacyMigrationCore.swift */; };
 /* End PBXBuildFile section */
 /* Begin PBXFileReference section */
 		A20000000000000000000001 /* LifeRouteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeRouteApp.swift; sourceTree = "<group>"; };
@@ -35,6 +36,7 @@
 		A20000000000000000000014 /* SessionToolsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionToolsViews.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* CalendarProviderCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarProviderCore.swift; sourceTree = "<group>"; };
 		A20000000000000000000016 /* PersistenceCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceCore.swift; sourceTree = "<group>"; };
+		A20000000000000000000017 /* LegacyMigrationCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyMigrationCore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 /* Begin PBXFrameworksBuildPhase section */
 		A30000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; files = (); buildActionMask = 2147483647; runOnlyForDeploymentPostprocessing = 0; };
@@ -52,6 +54,7 @@
 			A20000000000000000000013 /* SessionToolsDomain.swift */,
 			A20000000000000000000014 /* SessionToolsViews.swift */,
 			A20000000000000000000016 /* PersistenceCore.swift */,
+			A20000000000000000000017 /* LegacyMigrationCore.swift */,
 			A20000000000000000000002 /* ContentView.swift */,
 			A20000000000000000000003 /* LifeRouteWebView.swift */,
 			A20000000000000000000004 /* Assets.xcassets */,
@@ -81,12 +84,13 @@
 			A10000000000000000000013 /* SessionToolsDomain.swift in Sources */,
 			A10000000000000000000014 /* SessionToolsViews.swift in Sources */,
 			A10000000000000000000016 /* PersistenceCore.swift in Sources */,
+			A10000000000000000000017 /* LegacyMigrationCore.swift in Sources */,
 			A10000000000000000000002 /* ContentView.swift in Sources */,
 		); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 /* Begin XCBuildConfiguration section */
-		B10000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 16.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0;}; name = Debug;};
-		B10000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; IPHONEOS_DEPLOYMENT_TARGET = 16.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0;}; name = Release;};
+		B10000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; IPHONEOS_DEPLOYMENT_TARGET = 16.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0;}; name = Debug;};
+		B10000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; IPHONEOS_DEPLOYMENT_TARGET = 16.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0;}; name = Release;};
 		B10000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 2; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LifeRoute/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; MARKETING_VERSION = 0.5.0; PRODUCT_BUNDLE_IDENTIFIER = Com.Brandongood.LifeRoute; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1;}; name = Debug;};
 		B10000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 2; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LifeRoute/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; MARKETING_VERSION = 0.5.0; PRODUCT_BUNDLE_IDENTIFIER = Com.Brandongood.LifeRoute; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1;}; name = Release;};
 /* End XCBuildConfiguration section */

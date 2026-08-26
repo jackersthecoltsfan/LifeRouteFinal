@@ -1,5 +1,5 @@
 // LifeRoute final top-navigation enforcer.
-// The top bar must contain exactly four equal destinations with no hidden/legacy track.
+// Keeps exactly four equal destinations without creating a mutation/reflow loop.
 (() => {
   if (window.__lifeRouteTopNavFourV1Loaded) return;
   window.__lifeRouteTopNavFourV1Loaded = true;
@@ -20,23 +20,28 @@
       byView.set(view, button);
     });
 
-    // If the canonical navigation owner has not finished yet, let it create the
-    // missing buttons and come back on the next frame/mutation.
     if (ORDER.some(view => !byView.has(view))) return false;
 
-    ORDER.forEach(view => tabs.appendChild(byView.get(view)));
+    const current = Array.from(tabs.querySelectorAll(':scope > .tab'));
+    const alreadyOrdered = current.length === ORDER.length && ORDER.every((view, index) => current[index] === byView.get(view));
+    if (!alreadyOrdered) ORDER.forEach(view => tabs.appendChild(byView.get(view)));
 
-    tabs.style.setProperty('display', 'grid', 'important');
-    tabs.style.setProperty('grid-template-columns', 'repeat(4, minmax(0, 1fr))', 'important');
-    tabs.style.setProperty('grid-auto-columns', '0', 'important');
-    tabs.style.setProperty('grid-auto-flow', 'row', 'important');
-    tabs.style.setProperty('width', '100%', 'important');
+    const setImportant = (element, property, value) => {
+      if (element.style.getPropertyValue(property) === value && element.style.getPropertyPriority(property) === 'important') return;
+      element.style.setProperty(property, value, 'important');
+    };
+
+    setImportant(tabs, 'display', 'grid');
+    setImportant(tabs, 'grid-template-columns', 'repeat(4, minmax(0, 1fr))');
+    setImportant(tabs, 'grid-auto-columns', '0');
+    setImportant(tabs, 'grid-auto-flow', 'row');
+    setImportant(tabs, 'width', '100%');
 
     tabs.querySelectorAll(':scope > .tab').forEach(button => {
-      button.style.setProperty('width', '100%', 'important');
-      button.style.setProperty('min-width', '0', 'important');
-      button.style.setProperty('max-width', 'none', 'important');
-      button.style.setProperty('margin', '0', 'important');
+      setImportant(button, 'width', '100%');
+      setImportant(button, 'min-width', '0');
+      setImportant(button, 'max-width', 'none');
+      setImportant(button, 'margin', '0');
     });
 
     tabs.dataset.lrFourTabLayout = '1';
@@ -56,15 +61,9 @@
   const start = () => {
     enforce();
     const tabs = document.querySelector('.tabs');
-    if (tabs) {
-      new MutationObserver(queue).observe(tabs, {
-        childList: true,
-        attributes: true,
-        attributeFilter: ['class', 'style']
-      });
-    }
+    if (tabs) new MutationObserver(queue).observe(tabs, { childList: true });
     requestAnimationFrame(enforce);
-    setTimeout(enforce, 120);
+    setTimeout(enforce, 180);
   };
 
   if (document.readyState === 'loading') {

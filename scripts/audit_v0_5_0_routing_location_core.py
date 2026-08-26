@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,7 +55,8 @@ require("guard !cleanName.isEmpty" in domain and "guard !cleanAddress.isEmpty" i
 require("NSLocationWhenInUseUsageDescription" in plist, "Location permission usage description exists")
 require("@StateObject private var routingState = RoutingLocationCore()" in content, "Root view owns one RoutingLocationCore")
 require("TodayCoreView(router: router, routingState: routingState)" in content, "Today receives route state explicitly")
-require("SetupCoreView(router: router, routingState: routingState)" in content, "Setup receives route state explicitly")
+setup_call = re.search(r"SetupCoreView\(([^\n]*)\)", content)
+require(bool(setup_call) and "routingState: routingState" in setup_call.group(1), "Setup receives route state explicitly even as other reviewed dependencies are added")
 require("Button(\"Use current location\")" in content, "Today exposes a semantic current-location control")
 require("Button(\"Estimate\")" in content and "calculateRoute(to: place" in content, "Saved-place route estimate action is wired")
 require("Button(\"Open in Maps\")" in content and "openInAppleMaps" in content, "Saved-place Apple Maps action is wired")

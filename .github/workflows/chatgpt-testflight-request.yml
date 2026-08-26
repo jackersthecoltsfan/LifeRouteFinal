@@ -1,0 +1,131 @@
+name: ChatGPT TestFlight Release Request
+run-name: ChatGPT TestFlight request · ${{ github.event.head_commit.message }}
+
+on:
+  push:
+    branches: [chatgpt-release]
+    paths:
+      - '.liferoute/testflight-release-request.json'
+
+permissions:
+  contents: read
+  actions: write
+
+# This bridge never releases from normal main pushes. A release requires an
+# explicit request-file commit on the dedicated chatgpt-release branch.
+concurrency:
+  group: liferoute-chatgpt-release
+  cancel-in-progress: true
+
+jobs:
+  authorize-and-dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout release-request branch
+        uses: actions/checkout@v7
+
+      - name: Validate explicit release request
+        id: request
+        run: |
+          set -euo pipefail
+          FILE='.liferoute/testflight-release-request.json'
+          test -s "$FILE" || (echo 'Missing release request file.' && exit 1)
+
+          TARGET_SHA=$(jq -r '.target_sha // empty' "$FILE")
+          AUTHORIZED=$(jq -r '.authorized // false' "$FILE")
+          REQUIRE_WEB=$(jq -r '.require_web_preview // false' "$FILE")
+          REQUEST_ID=$(jq -r '.request_id // empty' "$FILE")
+          REQUESTED_BY=$(jq -r '.requested_by // empty' "$FILE")
+
+          test "$AUTHORIZED" = 'true' || (echo 'Release request is not explicitly authorized.' && exit 1)
+          test "$REQUESTED_BY" = 'chatgpt-explicit-user-request' || (echo 'Release request origin is invalid.' && exit 1)
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || (echo 'target_sha must be a full 40-character lowercase SHA.' && exit 1)
+          test -n "$REQUEST_ID" || (echo 'request_id is required.' && exit 1)
+          case "$REQUIRE_WEB" in true|false) ;; *) echo 'require_web_preview must be true or false.'; exit 1 ;; esac
+
+          echo "target_sha=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+          echo "require_web=$REQUIRE_WEB" >> "$GITHUB_OUTPUT"
+          echo "request_id=$REQUEST_ID" >> "$GITHUB_OUTPUT"
+          echo "Authorized explicit TestFlight request $REQUEST_ID for $TARGET_SHA."
+
+      - name: Confirm target is current main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.request.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')
+          test "$CURRENT_SHA" = "$TARGET_SHA" || {
+            echo "Refusing stale release: requested $TARGET_SHA but main is $CURRENT_SHA."
+            exit 1
+          }
+          echo "Target is the current main commit: $TARGET_SHA"
+
+      - name: Wait for required validation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.request.outputs.target_sha }}
+          REQUIRE_WEB: ${{ steps.request.outputs.require_web }}
+        run: |
+          set -euo pipefail
+
+          wait_for_workflow() {
+            local workflow="$1"
+            local label="$2"
+            for attempt in $(seq 1 180); do
+              RUNS=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs?branch=main&event=push&head_sha=${TARGET_SHA}&per_page=10")
+              COUNT=$(jq '.workflow_runs | length' <<<"$RUNS")
+              if [ "$COUNT" -eq 0 ]; then
+                echo "$label: no matching run yet."
+                sleep 30
+                continue
+              fi
+
+              STATUS=$(jq -r '.workflow_runs[0].status' <<<"$RUNS")
+              CONCLUSION=$(jq -r '.workflow_runs[0].conclusion // ""' <<<"$RUNS")
+              RUN_ID=$(jq -r '.workflow_runs[0].id' <<<"$RUNS")
+              echo "$label run $RUN_ID: status=$STATUS conclusion=${CONCLUSION:-pending}"
+
+              if [ "$STATUS" = 'completed' ]; then
+                test "$CONCLUSION" = 'success' || {
+                  echo "$label did not pass; refusing TestFlight dispatch."
+                  exit 1
+                }
+                return 0
+              fi
+              sleep 30
+            done
+            echo "$label did not complete within the release-request job window."
+            exit 1
+          }
+
+          wait_for_workflow 'ios-ci.yml' 'iOS Build Check'
+          if [ "$REQUIRE_WEB" = 'true' ]; then
+            wait_for_workflow 'pages.yml' 'Publish Web Preview'
+          fi
+
+      - name: Reconfirm current main before release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.request.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')
+          test "$CURRENT_SHA" = "$TARGET_SHA" || {
+            echo "Main changed while validation was running; refusing stale release."
+            exit 1
+          }
+
+      - name: Manually dispatch Send to TestFlight
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.request.outputs.target_sha }}
+          REQUEST_ID: ${{ steps.request.outputs.request_id }}
+        run: |
+          set -euo pipefail
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/testflight.yml/dispatches" \
+            -f ref=main
+          echo "Dispatched manual TestFlight workflow for $TARGET_SHA from explicit request $REQUEST_ID."

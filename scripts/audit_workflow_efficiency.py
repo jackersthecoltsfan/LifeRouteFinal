@@ -46,11 +46,13 @@ testflight = read("testflight")
 
 check("iOS CI does not trigger on every workflow edit", "'.github/workflows/**'" not in ios and '".github/workflows/**"' not in ios)
 check("iOS CI self-change still triggers validation", ".github/workflows/ios-ci.yml" in ios)
-check("iOS CI routes release-policy audit to lightweight workflow", "!scripts/audit_release_isolation.py" in ios)
+for policy_script in ["audit_release_isolation.py", "audit_workflow_efficiency.py"]:
+    check(f"iOS routes {policy_script} to lightweight workflow", f"!scripts/{policy_script}" in ios)
 check("iOS concurrency is workflow-scoped", "group: ${{ github.workflow }}-${{ github.ref }}" in ios)
 check("iOS cancels superseded validation", "cancel-in-progress: true" in ios)
 
-check("Pages routes release-policy audit to lightweight workflow", "!scripts/audit_release_isolation.py" in pages)
+for policy_script in ["audit_release_isolation.py", "audit_workflow_efficiency.py"]:
+    check(f"Pages routes {policy_script} to lightweight workflow", f"!scripts/{policy_script}" in pages)
 check("Pages concurrency is workflow-scoped", "group: ${{ github.workflow }}-${{ github.ref }}" in pages)
 check("Pages cancels superseded previews", "cancel-in-progress: true" in pages)
 
@@ -67,6 +69,7 @@ for duplicate in [
 
 check("policy audit uses inexpensive Ubuntu runner", "runs-on: ubuntu-latest" in policy and "macos-" not in policy)
 check("policy audit covers workflow edits", ".github/workflows/**" in policy)
+check("policy audit covers both policy scripts", "audit_release_isolation.py" in policy and "audit_workflow_efficiency.py" in policy)
 check("policy audit covers release documentation", "TESTFLIGHT_SETUP.md" in policy and "APP_CREATION_PLAYBOOK.md" in policy)
 
 # The assistant release bridge should validate completed runs and dispatch; it

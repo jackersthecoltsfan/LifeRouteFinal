@@ -1,48 +1,22 @@
-name: Auto TestFlight After CI
-run-name: Auto TestFlight · ${{ github.event.workflow_run.head_sha }}
+name: TestFlight Manual Release Policy
+run-name: TestFlight remains manual-only
 
+# LifeRoute policy: validation may run automatically, but TestFlight upload must
+# NEVER be dispatched automatically. Use the dedicated "Send to TestFlight"
+# workflow only after Brandon explicitly confirms a release run.
 on:
-  workflow_run:
-    workflows: ["iOS Build Check"]
-    types: [completed]
+  workflow_dispatch:
 
 permissions:
-  actions: write
   contents: read
 
-concurrency:
-  group: liferoute-auto-testflight
-  cancel-in-progress: true
-
 jobs:
-  dispatch:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
+  policy:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 2
     steps:
-      - name: Send latest validated main to TestFlight
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VALIDATED_SHA: ${{ github.event.workflow_run.head_sha }}
+      - name: Confirm manual-only TestFlight policy
         run: |
-          set -euo pipefail
-          CURRENT_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')
-          if [ "$CURRENT_SHA" != "$VALIDATED_SHA" ]; then
-            echo "Skipping older validated commit $VALIDATED_SHA; main is now $CURRENT_SHA."
-            exit 0
-          fi
-
-          COMMIT_MESSAGE=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${VALIDATED_SHA}" --jq '.commit.message')
-          if [[ "$COMMIT_MESSAGE" == *"[web-only]"* ]]; then
-            echo "Web-only commit validated; skipping TestFlight dispatch."
-            exit 0
-          fi
-          if [[ "$COMMIT_MESSAGE" == *"[no-testflight]"* ]]; then
-            echo "No-TestFlight commit validated; skipping TestFlight dispatch."
-            exit 0
-          fi
-
-          echo "iOS Build Check passed for $VALIDATED_SHA. Starting TestFlight automatically."
-          gh workflow run testflight.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo "LifeRoute TestFlight uploads are manual-only."
+          echo "This workflow does not dispatch or upload a build."
+          echo "Run .github/workflows/testflight.yml only after explicit user confirmation."

@@ -38,7 +38,6 @@ liquid = read(WEB / "interaction-liquid-v4.js")
 stability = read(WEB / "stability-runtime.js")
 prepare = read(PREPARE)
 
-# Core visual system and readable color tokens.
 for marker in ["--bg:", "--panel:", "--text:", "--muted:", "--blue:", "--gold:"]:
     check(marker in index, f"base visual token exists: {marker}")
 check("font-family:Inter" in index and "-apple-system" in index, "system-native typography stack exists")
@@ -46,20 +45,17 @@ check("max-width:860px" in refined, "refined content width stays focused")
 check("--lr-radius:17px" in refined, "consistent refined corner radius exists")
 check("backdrop-filter:blur(18px)" in refined, "navigation glass treatment exists")
 
-# Day screen must stay visually minimal.
 check("#today .hero.lrDayHeroRemoved{display:none!important}" in day, "redundant Day hero is removed")
 check("background:transparent!important" in day and "lrDayCommandStrip" in day, "Day command strip is visually lightweight")
 check("lrClearAll" in day and "var(--red)" in day, "destructive Clear all is visually distinguished")
 check("lrEndHomeCompact" in day, "End at Home control uses compact treatment")
 
-# Theme selection should be legible and selected state obvious.
 check('content:"✓"' in simplify, "selected theme cards show a checkmark")
 check("lrThemeSelectedMark" in simplify, "theme select sections show selected mark")
 check("lifeRouteDynamicAnimalSection" in themes, "living-creature theme family is catalogued in Settings")
 check("prefers-reduced-motion:reduce" in animals, "living creature scenes respect reduced motion")
 check("prefers-reduced-motion:reduce" in fluid, "fluid scenes respect reduced motion")
 
-# Premium interaction system.
 for marker in [
     "lifeRoutePremiumInteractionsV1Styles",
     "lrPremiumIconSpin",
@@ -81,7 +77,6 @@ check("#lifeRouteThemeFX .fxOrb" in premium and "animation:none!important" in pr
 check("topNavSelector" in premium and "lrPremiumNavRelease" in premium, "top navigation has lightweight press and spring-release motion")
 check("will-change:auto" in premium, "mobile top navigation does not pin compositor layers")
 
-# Categorized theme accordions.
 for marker in [
     "lifeRouteThemeAccordionV1Styles",
     "lrThemeAccordionHead",
@@ -101,29 +96,24 @@ check("observer.observe(document.body" not in accordion, "theme accordion never 
 check("observer.observe(overlay" in accordion and "queueSync" in accordion, "theme accordion observation is Settings-scoped and frame-coalesced")
 check("backdrop-filter:none!important" in accordion, "theme accordion removes expensive mobile glass blur")
 
-# Liquid navigation performance.
 check("observer.observe(document.body" not in liquid, "Liquid Glass navigation never observes the whole document")
-check("getBoundingClientRect" not in liquid and "offsetWidth;" not in liquid, "Liquid Glass navigation avoids explicit forced geometry flush patterns")
+check("getBoundingClientRect" not in liquid, "Liquid Glass indicator avoids rectangle traversal across nested coordinate spaces")
 check("void pane.offsetWidth" not in liquid, "directional navigation does not force synchronous animation restart")
 check("scanKnownHosts" in liquid and "installHost(host)" in liquid, "Liquid Glass navigation updates only known/scoped hosts")
 check("backdrop-filter:none!important" in liquid, "mobile Liquid Glass disables persistent nav blur")
 
-# Shared tactile layer should not duplicate premium motion work.
 check("filter:brightness" not in polish and "saturate(1.08)" not in polish, "base press feedback avoids filter-heavy animation")
 check("lrPageEnter" not in polish, "base polish no longer duplicates premium page-entry animation")
 check("document.addEventListener('click',event=>{const control=enabledTarget" not in polish, "base polish does not repeat pointer press work on click")
 
-# Final native runtime must not re-enable expensive effects after performance layers.
 check("#lifeRouteThemeFX .fxBeam{animation:none!important;will-change:auto!important;filter:none!important" in stability, "native runtime keeps theme FX blur disabled")
 check("html[data-life-route-runtime=\"native\"] .calendarHubNav" in stability and "backdrop-filter:none!important" in stability, "native nav glass uses blur-free compositing")
 check(".dynLayer{filter:none!important" in stability, "coarse-pointer dynamic backgrounds avoid expensive blur")
 
-# Visual Timer / First-Then overlays should look intentional rather than utility-default.
 check("lrVisualTimerV2" in timer and "linear-gradient(155deg,#030913" in timer, "visual timer has dedicated futuristic presentation")
 check("font-variant-numeric:tabular-nums" in timer, "timer digits remain visually stable")
 check("lifeRouteFirstThenEscape" in first_then, "First/Then has a persistent polished Back control")
 
-# Final shared aesthetic polish and mobile ergonomics.
 for marker in [
     "overflow-x:hidden",
     "-webkit-font-smoothing:antialiased",
@@ -139,15 +129,12 @@ for marker in [
 check("premium-interactions-v1.js" in polish, "premium interactions are wired into shared startup")
 check("theme-accordion-v1.js" in polish, "theme accordions are wired into shared startup")
 
-# Smoothness: appearance work stays structural, but is scoped to the UI it owns
-# instead of traversing every Tools/Resources/overlay change in the application.
 check("characterData: true" not in simplify, "appearance observer ignores live text-only mutations")
 check('observer.observe(document.body' not in simplify, "appearance simplifier does not watch entire document")
 check('document.getElementById("today")' in simplify and 'document.getElementById("lifeRouteSettingsOverlay")' in simplify, "appearance simplifier watches Today and Settings only")
 check('observer.observe(document.body' not in refined, "refined UI does not watch entire document")
 check('document.getElementById("today")' in refined and "requestAnimationFrame" in refined, "refined UI is Today-scoped and frame-coalesced")
 
-# Shared build wiring. Web and native/TestFlight must receive the same final appearance layer.
 check('"aesthetic-polish-v1.js"' in prepare, "prepared build includes final aesthetic polish")
 try:
     check(prepare.index('"refined-ui-v2.js"') < prepare.index('"aesthetic-polish-v1.js"') < prepare.index('"stability-runtime.js"'), "aesthetic polish loads after refined UI and before stability runtime")

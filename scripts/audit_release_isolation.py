@@ -62,6 +62,8 @@ for forbidden in automatic_release_triggers:
     check(f"TestFlight has no automatic trigger {forbidden[:-1]}", forbidden not in testflight)
 check("TestFlight has no Actions write permission", "actions: write" not in testflight)
 check("TestFlight contains the upload step", "Upload to TestFlight" in testflight and "--upload-app" in testflight)
+check("TestFlight accepts assistant authorized_sha input", "authorized_sha:" in testflight)
+check("TestFlight validates dispatched SHA against authorized SHA", 'test "$GITHUB_SHA" = "$AUTHORIZED_SHA"' in testflight)
 
 release_capable = []
 for path in workflow_files:
@@ -78,6 +80,7 @@ check("assistant bridge has no push trigger", not bool(re.search(r"(?m)^\s*push\
 check("assistant bridge has Actions write permission", "actions: write" in assistant_release)
 check("assistant bridge requires exact authorization marker", "AUTHORIZED_TESTFLIGHT_RELEASE=YES" in assistant_release)
 check("assistant bridge dispatches only testflight.yml", "actions/workflows/testflight.yml/dispatches" in assistant_release)
+check("assistant bridge passes exact authorized SHA", "authorized_sha" in assistant_release and "$RELEASE_SHA" in assistant_release)
 check("assistant bridge has no Apple credential references", not any(token in assistant_release for token in apple_secrets))
 check("assistant bridge has no upload machinery", not any(marker in assistant_release for marker in upload_markers))
 check("assistant bridge has no archive/export machinery", not re.search(r"(?i)xcodebuild|\.ipa|exportArchive|archivePath", assistant_release))
@@ -107,6 +110,7 @@ manual_policy_documented = (
 check("manual-only release policy documented", manual_policy_documented)
 check("explicit confirmation documented", "explicit" in policy_docs.lower() and "confirmation" in policy_docs.lower())
 check("launch does not imply TestFlight documented", "launch" in policy_docs.lower() and "does not" in policy_docs.lower())
+check("exact-SHA assistant dispatch documented", "exact-SHA" in policy_docs or "exact main SHA" in policy_docs)
 
 failed = [name for name, ok in checks if not ok]
 for name, ok in checks:

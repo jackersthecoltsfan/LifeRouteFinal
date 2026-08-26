@@ -54,4 +54,22 @@ for path in sorted(WEB.glob("*.js")):
 if violations:
     raise SystemExit("Programmatic scrolling survived final preparation: " + "; ".join(violations))
 
+# The top navigation is finalized by a tiny runtime enforcer. It removes any
+# legacy/hidden fifth child and forces the four canonical destinations into four
+# equal full-width columns. Keep this tag outside the normalized core list so its
+# scoped observer can reconcile any later toolbar mutation during startup.
+nav_script = WEB / "top-nav-four-v1.js"
+if not nav_script.exists() or not nav_script.read_text().strip():
+    raise SystemExit("Missing final four-tab navigation enforcer")
+
+index_path = WEB / "index.html"
+index = index_path.read_text()
+nav_tag = '<script src="top-nav-four-v1.js"></script>'
+if nav_tag not in index:
+    if "</body>" not in index:
+        raise SystemExit("Could not inject final four-tab navigation enforcer")
+    index = index.replace("</body>", nav_tag + "\n</body>", 1)
+    index_path.write_text(index)
+
 print("Removed legacy programmatic scrolling from: " + (", ".join(changed) if changed else "no remaining files"))
+print("Final four-tab navigation enforcer enabled.")

@@ -46,6 +46,8 @@ location_code = r'''
             locationManager.distanceFilter = live ? 50 : kCLDistanceFilterNone
             locationManager.activityType = .automotiveNavigation
             locationManager.pausesLocationUpdatesAutomatically = true
+            locationManager.allowsBackgroundLocationUpdates = false
+            locationManager.showsBackgroundLocationIndicator = false
         }
 
         private func requestCurrentLocation() {
@@ -81,6 +83,14 @@ location_code = r'''
 
         private func startLiveLocation() {
             configureLocationManager(live: true)
+            guard CLLocationManager.locationServicesEnabled() else {
+                liveLocationStreaming = false
+                emit(type: "currentLocationStatus", payload: [
+                    "status": "error",
+                    "message": "Location Services are turned off on this iPhone."
+                ])
+                return
+            }
             switch locationManager.authorizationStatus {
             case .notDetermined:
                 streamLocationAfterAuthorization = true
@@ -91,7 +101,8 @@ location_code = r'''
                 streamLocationAfterAuthorization = false
                 liveLocationStreaming = true
                 locationManager.startUpdatingLocation()
-                emit(type: "currentLocationStatus", payload: ["status": "live"])
+                locationManager.requestLocation()
+                emit(type: "currentLocationStatus", payload: ["status": "locating"])
             case .denied:
                 liveLocationStreaming = false
                 emit(type: "currentLocationStatus", payload: [
@@ -122,7 +133,8 @@ location_code = r'''
                     liveLocationStreaming = true
                     configureLocationManager(live: true)
                     manager.startUpdatingLocation()
-                    emit(type: "currentLocationStatus", payload: ["status": "live"])
+                    manager.requestLocation()
+                    emit(type: "currentLocationStatus", payload: ["status": "locating"])
                 } else {
                     emit(type: "currentLocationStatus", payload: ["status": "authorized"])
                     if requestLocationAfterAuthorization {
@@ -148,7 +160,7 @@ location_code = r'''
         }
 
         func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-            guard let location = locations.last else { return }
+            guard let location = locations.reversed().first(where: { $0.horizontalAccuracy >= 0 }) else { return }
             emit(type: "currentLocation", payload: [
                 "status": liveLocationStreaming ? "live" : "ready",
                 "latitude": location.coordinate.latitude,
@@ -161,7 +173,7 @@ location_code = r'''
 
         func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
             if let clError = error as? CLError, clError.code == .locationUnknown {
-                emit(type: "currentLocationStatus", payload: ["status": liveLocationStreaming ? "live" : "locating"])
+                emit(type: "currentLocationStatus", payload: ["status": liveLocationStreaming ? "locating" : "locating"])
                 return
             }
             emit(type: "currentLocationStatus", payload: [
@@ -179,4 +191,4 @@ if location_code not in text:
     text = text.replace(marker, location_code + marker, 1)
 
 path.write_text(text)
-print("Foreground live-location bridge enabled.")
+print("Foreground live-location bridge enabled with verified initial-fix acquisition and fallback-safe status reporting.")

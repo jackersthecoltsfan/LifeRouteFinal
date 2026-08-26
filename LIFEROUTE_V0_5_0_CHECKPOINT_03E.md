@@ -10,6 +10,6 @@ Scope:
 - Provider events replace only their own source inside `CalendarCoreState`; manual events are protected.
 - The legacy WebView coordinator remains quarantined and is not compiled into the active target.
 
-Validation status: pending exact-head CI at the commit that adds this record.
+Validation status: **Green.** The original 03E feature commit was followed by composable regression-audit corrections during 03F. The complete provider layer then passed the accumulated provider audit and iOS Simulator build at the green 03F exact head `431c2db03b4786f5b84d513e11a04a187f551177` (iOS CI #639), and has continued to pass through the green 04A/04B exact-head builds.
 
-Next functional checkpoint: client-specific native visual supports. Every saved visual icon, choice board, First/Then visual selection, and visual schedule must be owned by a four-letter client code and must draw only from that client’s visual library. Persistence remains deferred to checkpoint 04; the ownership model must be correct before persistence is added.
+Next functional checkpoint was 03F: client-specific native visual supports, with every icon/choice board/First-Then visual/schedule owned by a client and no cross-client references.

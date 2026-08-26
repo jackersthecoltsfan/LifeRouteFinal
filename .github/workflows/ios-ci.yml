@@ -35,13 +35,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
       - name: Prepare v0.5.0 functional core
         run: bash scripts/prepare_build.sh
-
-      - name: Audit checkpoint 03B routing/location
-        run: python3 scripts/audit_v0_5_0_routing_location_core.py
-
+      - name: Audit checkpoint 03C clients/setup
+        run: python3 scripts/audit_v0_5_0_clients_core.py
       - name: Build LifeRoute for iOS Simulator
         run: |
           set -euo pipefail

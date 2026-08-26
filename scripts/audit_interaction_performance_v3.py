@@ -12,6 +12,7 @@ stability = (WEB / "interaction-stability-v3.js").read_text()
 toolbar = (WEB / "toolbar-cleanup-v1.js").read_text()
 top_nav = (WEB / "top-nav-four-v1.js").read_text()
 aesthetic = (WEB / "aesthetic-polish-v1.js").read_text()
+premium = (WEB / "premium-interactions-v1.js").read_text()
 timer = (WEB / "visual-timer-v2.js").read_text()
 swift = SWIFT.read_text()
 
@@ -55,24 +56,32 @@ require(A1, '.card,.hero,.metric{backdrop-filter:none!important' in delight,
         'Long-page cards still carry live backdrop blur in the final delight layer.')
 require(A1, 'setInterval(' not in delight and 'setInterval(' not in top_nav,
         'Interaction/navigation polish should not own recurring interval loops.')
+require(A1, 'observer.observe(document.body' not in premium,
+        'Premium interaction runtime still observes the whole document.')
+require(A1, 'offsetWidth' not in premium and 'getBoundingClientRect' not in premium,
+        'Premium interaction runtime performs synchronous geometry reads.')
 
 # ANGLE 2: motion should feel fluid but stay transform/opacity based and responsive.
 require(A2, 'will-change:auto' in delight,
         'Buttons still carry permanent transform compositor hints.')
 require(A2, 'transition:transform .055s' in delight,
         'Fast touch-down response is missing.')
-require(A2, 'animation:lrPageEnter .22s cubic-bezier(.16,1,.3,1) both;' in aesthetic,
-        'Final page entry timing/easing is not the fluid v5 contract.')
-require(A2, 'from{opacity:.38;transform:translate3d(0,5px,0) scale(.998)}' in aesthetic,
-        'Page entry does not use the low-travel transform/opacity start state.')
-require(A2, '@media(prefers-reduced-motion:reduce)' in aesthetic,
+require(A2, 'animation:lrPremiumViewEnter .24s var(--lr-premium-ease) both' in premium,
+        'Final page entry timing/easing is not the optimized premium contract.')
+require(A2, 'from{opacity:.35;transform:translate3d(0,7px,0) scale(.993)}' in premium,
+        'Premium page entry does not use the bounded transform/opacity start state.')
+require(A2, 'lrPageEnter' not in aesthetic,
+        'A second legacy page-entry animation still duplicates premium motion.')
+require(A2, '@media(prefers-reduced-motion:reduce)' in aesthetic and 'prefers-reduced-motion:reduce' in premium,
         'Reduced Motion fallback is missing from interaction polish.')
 require(A2, 'html.lrInteractionBusy #lifeRouteDelightBackdrop>span' in delight,
         'Ambient background motion is not paused during finger interaction.')
 require(A2, 'touch-action:manipulation' in delight or 'touch-action:manipulation' in aesthetic,
         'Touch controls are missing manipulation hinting for responsive taps.')
-require(A2, 'backdrop-filter:blur(14px)' in delight,
-        'Navigation glass should retain a lighter bounded blur instead of card-wide blur.')
+require(A2, 'topNavSelector' in premium and 'lrPremiumNavRelease' in premium,
+        'Top navigation tactile animation is missing.')
+require(A2, 'syncCalendarSelection' in premium and 'aria-selected' in premium,
+        'Day/Week/Month immediate selected-state response is missing.')
 
 # ANGLE 3: user owns scrolling; lifecycle work must stop or pause appropriately.
 guard_tag = '<script src="interaction-stability-v3.js"></script>'

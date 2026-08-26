@@ -5,9 +5,6 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "LifeRoute" / "Web"
 GUARD = "interaction-stability-v3.js"
 
-# Rewrite legacy viewport-moving APIs to the inert guard aliases. This is deliberately
-# done as the final source-preparation pass so older feature patches cannot reintroduce
-# automatic page movement after this point.
 replacements = [
     ("window.scrollTo?.(", "window.__lifeRouteNoScroll?.("),
     ("window.scrollTo(", "window.__lifeRouteNoScroll("),
@@ -31,8 +28,6 @@ for path in sorted(WEB.glob("*.js")):
         path.write_text(text)
         changed.append(path.name)
 
-# Inline runtime code in index.html follows the same rule. This closes the old
-# optimizeWeek() loophole where a direct scrollIntoView call survived JS-only scans.
 index_path = WEB / "index.html"
 index = index_path.read_text()
 original_index = index
@@ -42,8 +37,6 @@ if index != original_index:
     index_path.write_text(index)
     changed.append("index.html")
 
-# Final hard gate: prepared runtime files may not contain direct programmatic
-# viewport-scrolling calls. The guard file itself owns the disabled native methods.
 forbidden = (
     "window.scrollTo(",
     "window.scrollTo?.(",
@@ -70,22 +63,16 @@ for token in forbidden:
 if violations:
     raise SystemExit("Programmatic scrolling survived final preparation: " + "; ".join(violations))
 
-# Final performance/motion pass. The previous freeze report exposed two expensive
-# patterns: broad class-attribute observation and too many simultaneously blurred
-# long-page cards. Keep the glass/navigation feel while minimizing main-thread and
-# compositor pressure during real finger interaction.
+# Final performance/motion pass.
 delight_path = WEB / "delight-ui-v1.js"
 delight = delight_path.read_text()
 
-# Only navigation surfaces keep live backdrop blur. Long content cards retain their
-# glass look through translucent fills, borders and shadows without per-card blur.
 delight = delight.replace(
     '.card,.hero,.metric,.lrContextTabs,.tabs{backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}',
     '.lrContextTabs,.tabs{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}\n    .card,.hero,.metric{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}',
     1,
 )
 
-# Replace broad class-attribute observation with child-list-only reconciliation.
 start_pattern = re.compile(
     r"  const start = \(\) => \{\n"
     r"    mountBackdrop\(\);\n"
@@ -115,22 +102,31 @@ if start_count != 1 and 'observer.observe(appRoot, { childList:true, subtree:tru
 
 delight_path.write_text(delight)
 
-# Smooth page entry without animating layout-affecting properties.
+# Page-entry ownership: older builds used lrPageEnter in aesthetic-polish.
+# Optimized builds intentionally remove that duplicate and use lrPremiumViewEnter
+# from premium-interactions-v1.js. Never reintroduce a second page animation.
 aesthetic_path = WEB / "aesthetic-polish-v1.js"
 aesthetic = aesthetic_path.read_text()
-aesthetic = aesthetic.replace(
-    'animation:lrPageEnter .20s cubic-bezier(.2,.8,.2,1) both;',
-    'animation:lrPageEnter .22s cubic-bezier(.16,1,.3,1) both;',
-    1,
-)
-aesthetic = aesthetic.replace(
-    'from{opacity:.14;transform:translate3d(0,8px,0) scale(.995)}',
-    'from{opacity:.38;transform:translate3d(0,5px,0) scale(.998)}',
-    1,
-)
-aesthetic_path.write_text(aesthetic)
+premium_path = WEB / "premium-interactions-v1.js"
+premium = premium_path.read_text()
+legacy_page_entry = "lrPageEnter" in aesthetic
+if legacy_page_entry:
+    aesthetic = aesthetic.replace(
+        'animation:lrPageEnter .20s cubic-bezier(.2,.8,.2,1) both;',
+        'animation:lrPageEnter .22s cubic-bezier(.16,1,.3,1) both;',
+        1,
+    )
+    aesthetic = aesthetic.replace(
+        'from{opacity:.14;transform:translate3d(0,8px,0) scale(.995)}',
+        'from{opacity:.38;transform:translate3d(0,5px,0) scale(.998)}',
+        1,
+    )
+    aesthetic_path.write_text(aesthetic)
+else:
+    if "lrPremiumViewEnter" not in premium or "requestAnimationFrame" not in premium:
+        raise SystemExit("smooth runtime verification failed: optimized premium page transition missing")
 
-# Collapse the old five-retry toolbar startup fanout and batch its child-list observer.
+# Collapse old toolbar startup fanout and batch observer.
 toolbar_path = WEB / "toolbar-cleanup-v1.js"
 toolbar = toolbar_path.read_text()
 toolbar = toolbar.replace(
@@ -166,10 +162,6 @@ elif 'let reconcileQueued = false;' not in toolbar:
     raise SystemExit('toolbar observer batching marker missing')
 toolbar_path.write_text(toolbar)
 
-# The top navigation is finalized by a tiny runtime enforcer. It removes any
-# legacy/hidden fifth child and forces the four canonical destinations into four
-# equal full-width columns. The enforcer itself is idempotent and observes child-list
-# changes only, preventing its own style writes from creating a mutation loop.
 nav_script = WEB / "top-nav-four-v1.js"
 nav_text = nav_script.read_text() if nav_script.exists() else ''
 for marker in ('alreadyOrdered', "observe(tabs, { childList: true })"):
@@ -186,15 +178,18 @@ if nav_tag not in index:
     index = index.replace("</body>", nav_tag + "\n</body>", 1)
     index_path.write_text(index)
 
-# Final invariants for the smoothness pass.
 checks = {
     delight_path: [
         'observer.observe(appRoot, { childList:true, subtree:true });',
         '.card,.hero,.metric{backdrop-filter:none!important',
     ],
-    aesthetic_path: ['animation:lrPageEnter .22s cubic-bezier(.16,1,.3,1) both;', 'translate3d(0,5px,0) scale(.998)'],
     toolbar_path: ['setTimeout(reconcile, 220);', 'let reconcileQueued = false;'],
 }
+if legacy_page_entry:
+    checks[aesthetic_path] = ['animation:lrPageEnter .22s cubic-bezier(.16,1,.3,1) both;', 'translate3d(0,5px,0) scale(.998)']
+else:
+    checks[premium_path] = ['lrPremiumViewEnter', 'requestAnimationFrame']
+
 for path, markers in checks.items():
     final = path.read_text()
     for marker in markers:
@@ -202,5 +197,5 @@ for path, markers in checks.items():
             raise SystemExit(f"smooth runtime verification failed: {path.name} missing {marker}")
 
 print("Removed legacy programmatic scrolling from: " + (", ".join(changed) if changed else "no remaining files"))
-print("Applied final smoothness pass: narrow observers, cheaper glass cards, batched toolbar reconciliation, fluid transform-only entries.")
+print("Applied final smoothness pass: narrow observers, cheaper glass cards, batched toolbar reconciliation, single compositor-friendly page transition system.")
 print("Final four-tab navigation enforcer enabled without an attribute-mutation loop.")

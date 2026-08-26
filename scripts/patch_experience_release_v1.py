@@ -14,14 +14,25 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
 
 
 # -----------------------------------------------------------------------------
-# Liquid navigation: animate the content that actually belongs to the selected
-# submenu, not merely the first .view.active element in document order.
+# Liquid navigation compatibility.
+# Legacy builds used forced-restart directional classes. The optimized runtime
+# intentionally removes that path and scopes indicator work to actual nav hosts.
+# If the optimized contract is present, do not reintroduce forced layout work.
 # -----------------------------------------------------------------------------
 liquid = WEB / "interaction-liquid-v4.js"
-old = """    requestAnimationFrame(()=>{const pane=document.querySelector('.view.active,.lrSetupPane.active');if(!pane||reduceMotion())return;pane.classList.remove('lrSlideFromRight','lrSlideFromLeft');void pane.offsetWidth;pane.classList.add(direction>=0?'lrSlideFromRight':'lrSlideFromLeft');setTimeout(()=>pane.classList.remove('lrSlideFromRight','lrSlideFromLeft'),340);});
+liquid_text = liquid.read_text()
+optimized_liquid = (
+    "no whole-document mutation scans or forced layout animation restarts" in liquid_text
+    and "scanKnownHosts" in liquid_text
+    and "observer.observe(document.body" not in liquid_text
+    and "void pane.offsetWidth" not in liquid_text
+)
+
+if not optimized_liquid:
+    old = """    requestAnimationFrame(()=>{const pane=document.querySelector('.view.active,.lrSetupPane.active');if(!pane||reduceMotion())return;pane.classList.remove('lrSlideFromRight','lrSlideFromLeft');void pane.offsetWidth;pane.classList.add(direction>=0?'lrSlideFromRight':'lrSlideFromLeft');setTimeout(()=>pane.classList.remove('lrSlideFromRight','lrSlideFromLeft'),340);});
   };
 """
-new = """    const transitionTarget = (() => {
+    new = """    const transitionTarget = (() => {
       if (host.matches('.tabs')) return document.querySelector('.view.active');
       if (host.matches('.lrPlaceCategories')) return document.querySelector('#places #placesList') || document.querySelector('#places');
       if (host.matches('.setupSubnav')) return document.querySelector('.lrSetupPane.active,.setupPane.active') || document.querySelector('#setup');
@@ -36,21 +47,20 @@ new = """    const transitionTarget = (() => {
     requestAnimationFrame(()=>{const pane=transitionTarget;if(!pane||reduceMotion())return;pane.classList.remove('lrSlideFromRight','lrSlideFromLeft');void pane.offsetWidth;pane.classList.add(direction>=0?'lrSlideFromRight':'lrSlideFromLeft');setTimeout(()=>pane.classList.remove('lrSlideFromRight','lrSlideFromLeft'),340);});
   };
 """
-replace_once(liquid, old, new, "submenu directional transition targeting")
+    replace_once(liquid, old, new, "submenu directional transition targeting")
 
-# The slide classes also need to animate non-view content surfaces used by submenus.
-replace_once(
-    liquid,
-    ".view.active.lrSlideFromRight,.lrSetupPane.active.lrSlideFromRight{animation:lrSlideFromRight .28s cubic-bezier(.2,.82,.2,1) both!important}.view.active.lrSlideFromLeft,.lrSetupPane.active.lrSlideFromLeft{animation:lrSlideFromLeft .28s cubic-bezier(.2,.82,.2,1) both!important}",
-    ".lrSlideFromRight{animation:lrSlideFromRight .28s cubic-bezier(.2,.82,.2,1) both!important}.lrSlideFromLeft{animation:lrSlideFromLeft .28s cubic-bezier(.2,.82,.2,1) both!important}",
-    "submenu slide class coverage",
-)
-replace_once(
-    liquid,
-    ".view.active.lrSlideFromRight,.view.active.lrSlideFromLeft,.lrSetupPane.active.lrSlideFromRight,.lrSetupPane.active.lrSlideFromLeft{animation:none!important}",
-    ".lrSlideFromRight,.lrSlideFromLeft{animation:none!important}",
-    "reduced-motion slide class coverage",
-)
+    replace_once(
+        liquid,
+        ".view.active.lrSlideFromRight,.lrSetupPane.active.lrSlideFromRight{animation:lrSlideFromRight .28s cubic-bezier(.2,.82,.2,1) both!important}.view.active.lrSlideFromLeft,.lrSetupPane.active.lrSlideFromLeft{animation:lrSlideFromLeft .28s cubic-bezier(.2,.82,.2,1) both!important}",
+        ".lrSlideFromRight{animation:lrSlideFromRight .28s cubic-bezier(.2,.82,.2,1) both!important}.lrSlideFromLeft{animation:lrSlideFromLeft .28s cubic-bezier(.2,.82,.2,1) both!important}",
+        "submenu slide class coverage",
+    )
+    replace_once(
+        liquid,
+        ".view.active.lrSlideFromRight,.view.active.lrSlideFromLeft,.lrSetupPane.active.lrSlideFromRight,.lrSetupPane.active.lrSlideFromLeft{animation:none!important}",
+        ".lrSlideFromRight,.lrSlideFromLeft{animation:none!important}",
+        "reduced-motion slide class coverage",
+    )
 
 # -----------------------------------------------------------------------------
 # Universal autocomplete: keep the broad form coverage the user requested while
@@ -65,8 +75,6 @@ replace_once(
     "sensitive autocomplete exclusions",
 )
 
-# Textareas can still receive autocomplete when they are ordinary planning fields,
-# but obvious note/documentation surfaces are excluded by the signal above.
 replace_once(
     auto,
     "const value = clean(input.value);\n    if (!value || value.length > 140) return;",
@@ -93,8 +101,17 @@ if schedule.exists():
         )
         schedule.write_text(text)
 
+liquid_source = liquid.read_text()
+if optimized_liquid:
+    liquid_markers = ["scanKnownHosts", "installHost(host)", "observer.observe(document.body"]
+    if liquid_markers[0] not in liquid_source or liquid_markers[1] not in liquid_source or liquid_markers[2] in liquid_source:
+        raise SystemExit("Experience release verification failed: optimized Liquid Glass performance contract missing")
+else:
+    for marker in ["const transitionTarget = (() =>", "host.matches('.lrThemeCategoryTabs')", ".lrSlideFromRight{animation:"]:
+        if marker not in liquid_source:
+            raise SystemExit(f"Experience release verification failed: interaction-liquid-v4.js missing {marker}")
+
 for path, markers in {
-    liquid: ["const transitionTarget = (() =>", "host.matches('.lrThemeCategoryTabs')", ".lrSlideFromRight{animation:"],
     auto: ["session note|clinical note", "input instanceof HTMLTextAreaElement && value.length > 80"],
     schedule: ["const MAX_STEPS = 12;", "Visual schedules support up to ${MAX_STEPS} steps"],
 }.items():
@@ -103,4 +120,4 @@ for path, markers in {
         if marker not in source:
             raise SystemExit(f"Experience release verification failed: {path.name} missing {marker}")
 
-print("Unified experience hardened: submenu slide targeting, privacy-safe autocomplete history, and bounded Visual Schedule state.")
+print("Unified experience hardened: optimized/scoped navigation accepted, privacy-safe autocomplete history, and bounded Visual Schedule state.")

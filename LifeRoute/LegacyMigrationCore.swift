@@ -56,9 +56,14 @@ enum LegacyMigrationCore {
     }
 
     @MainActor
+    static func mergeIntoNativeStore(_ payload: LegacyMigrationPayload) {
+        mergeIntoNativeStore(payload, store: .shared)
+    }
+
+    @MainActor
     static func mergeIntoNativeStore(
         _ payload: LegacyMigrationPayload,
-        store: LifeRoutePersistenceStore = .shared
+        store: LifeRoutePersistenceStore
     ) {
         guard !payload.isEmpty else { return }
 
@@ -107,8 +112,8 @@ enum LegacyMigrationCore {
         var output: [LifeRouteClientProfile] = []
 
         for raw in rawClients {
-            let first = ClientProfileCore.normalizedPair(string(raw["first2"]))
-            let last = ClientProfileCore.normalizedPair(string(raw["last2"]))
+            let first = normalizedPair(string(raw["first2"]))
+            let last = normalizedPair(string(raw["last2"]))
             guard first.count == 2, last.count == 2 else { continue }
             let code = first + last
             let key = code.lowercased()
@@ -313,6 +318,15 @@ enum LegacyMigrationCore {
         return output
     }
 
+    private static func normalizedPair(_ value: String) -> String {
+        let letters = value.unicodeScalars
+            .filter { CharacterSet.letters.contains($0) }
+            .prefix(2)
+        let raw = String(String.UnicodeScalarView(letters))
+        guard let first = raw.first else { return "" }
+        return String(first).uppercased() + raw.dropFirst().lowercased()
+    }
+
     private static func isoDate(_ value: Any?) -> Date? {
         let raw = clean(value)
         guard !raw.isEmpty else { return nil }
@@ -355,14 +369,18 @@ enum LegacyMigrationCore {
         let first = fnv1a64(bytes, offset: 0xcbf29ce484222325)
         let second = fnv1a64(bytes.reversed(), offset: 0x84222325cbf29ce4)
         let hex = String(format: "%016llx%016llx", first, second)
-        let uuidString = [
-            String(hex.prefix(8)),
-            String(hex.dropFirst(8).prefix(4)),
-            String(hex.dropFirst(12).prefix(4)),
-            String(hex.dropFirst(16).prefix(4)),
-            String(hex.dropFirst(20).prefix(12))
-        ].joined(separator: "-")
-        return UUID(uuidString: uuidString) ?? UUID()
+
+        let part1 = String(hex.prefix(8))
+        let part2 = String(hex.dropFirst(8).prefix(4))
+        let part3 = String(hex.dropFirst(12).prefix(4))
+        let part4 = String(hex.dropFirst(16).prefix(4))
+        let part5 = String(hex.dropFirst(20).prefix(12))
+        let uuidString = "\(part1)-\(part2)-\(part3)-\(part4)-\(part5)"
+
+        guard let uuid = UUID(uuidString: uuidString) else {
+            preconditionFailure("Deterministic legacy UUID construction failed")
+        }
+        return uuid
     }
 
     private static func fnv1a64<S: Sequence>(_ bytes: S, offset: UInt64) -> UInt64 where S.Element == UInt8 {

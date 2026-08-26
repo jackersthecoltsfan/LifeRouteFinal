@@ -32,6 +32,8 @@ themes = read(WEB / "theme-catalog-v3.js")
 animals = read(WEB / "dynamic-animals-v1.js")
 fluid = read(WEB / "fluid-scenes-v1.js")
 polish = read(WEB / "aesthetic-polish-v1.js")
+premium = read(WEB / "premium-interactions-v1.js")
+accordion = read(WEB / "theme-accordion-v1.js")
 prepare = read(PREPARE)
 
 # Core visual system and readable color tokens.
@@ -55,6 +57,38 @@ check("lifeRouteDynamicAnimalSection" in themes, "living-creature theme family i
 check("prefers-reduced-motion:reduce" in animals, "living creature scenes respect reduced motion")
 check("prefers-reduced-motion:reduce" in fluid, "fluid scenes respect reduced motion")
 
+# Premium interaction system.
+for marker in [
+    "lifeRoutePremiumInteractionsV1Styles",
+    "lrPremiumIconSpin",
+    "lrPremiumIconPulse",
+    "lrPremiumIconAdvance",
+    "lrPremiumViewEnter",
+    "lrPremiumSheetIn",
+    "LifeRoutePremiumInteractions",
+    "prefers-reduced-motion:reduce",
+]:
+    check(marker in premium, f"premium interaction contract exists: {marker}")
+check("window.scrollTo" not in premium and ".scrollTo(" not in premium, "premium interactions never programmatically move document scroll")
+check("action:'haptic'" in premium, "premium interaction layer can reach native haptics")
+
+# Categorized theme accordions.
+for marker in [
+    "lifeRouteThemeAccordionV1Styles",
+    "lrThemeAccordionHead",
+    "lrThemeAccordionBody",
+    "aria-expanded",
+    "['lifeRouteCoreThemeSection',['Classic'",
+    "['lifeRouteMetallicWaveThemeSection',['Metallic'",
+    "['lifeRouteDynamicThemeSection',['Dynamic'",
+    "['lifeRouteFluidSceneSection',['Fluid'",
+    "['lifeRouteDynamicAnimalSection',['Living'",
+    "['Scenery','Nature-inspired visual environments']",
+    "prefers-reduced-motion:reduce",
+]:
+    check(marker in accordion, f"theme accordion contract exists: {marker}")
+check("isActiveSection(section)" in accordion and "section.classList.add('isOpen')" in accordion, "active theme category opens automatically")
+
 # Visual Timer / First-Then overlays should look intentional rather than utility-default.
 check("lrVisualTimerV2" in timer and "linear-gradient(155deg,#030913" in timer, "visual timer has dedicated futuristic presentation")
 check("font-variant-numeric:tabular-nums" in timer, "timer digits remain visually stable")
@@ -73,6 +107,8 @@ for marker in [
     "prefers-reduced-motion:reduce",
 ]:
     check(marker in polish, f"final aesthetic guardrail: {marker}")
+check("premium-interactions-v1.js" in polish, "premium interactions are wired into shared startup")
+check("theme-accordion-v1.js" in polish, "theme accordions are wired into shared startup")
 
 # Smoothness: appearance work stays structural, but is scoped to the UI it owns
 # instead of traversing every Tools/Resources/overlay change in the application.
@@ -95,4 +131,4 @@ if failures:
     for failure in failures:
         print(f"FAIL: {failure}")
     raise SystemExit(1)
-print("LifeRoute appearance, mobile ergonomics, scoped presentation work, and aesthetic consistency audit passed.")
+print("LifeRoute appearance, premium interactions, categorized themes, mobile ergonomics, and aesthetic consistency audit passed.")

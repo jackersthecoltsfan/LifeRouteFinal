@@ -28,8 +28,6 @@
     return control;
   };
 
-  // Kept as the shared public haptic helper. Button haptics themselves are owned by
-  // delight-ui-v1 so a single physical tap creates one intentional native impulse.
   const emitNativeHaptic = styleName => {
     try {
       const handler = window.webkit?.messageHandlers?.lifeRoute;
@@ -50,7 +48,9 @@
 
   const EXPERIENCE_LAYERS = [
     ['lifeRouteInteractionLiquidV4Script','interaction-liquid-v4.js','__lifeRouteInteractionLiquidV4Loaded'],
+    ['lifeRoutePremiumInteractionsV1Script','premium-interactions-v1.js','__lifeRoutePremiumInteractionsV1Loaded'],
     ['lifeRouteThemeExperienceV4Script','theme-experience-v4.js','__lifeRouteThemeExperienceV4Loaded'],
+    ['lifeRouteThemeAccordionV1Script','theme-accordion-v1.js','__lifeRouteThemeAccordionV1Loaded'],
     ['lifeRouteUniversalAutocompleteV2Script','universal-autocomplete-v2.js','__lifeRouteUniversalAutocompleteV2Loaded'],
     ['lifeRouteVisualScheduleV1Script','visual-schedule-v1.js','__lifeRouteVisualScheduleV1Loaded'],
     ['lifeRouteWelcomeTourV2Script','welcome.js','__lifeRouteWelcomeTourV2Loaded']

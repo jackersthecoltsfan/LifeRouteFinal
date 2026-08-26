@@ -46,6 +46,12 @@ PATCHES=(
   patch_touch_delight_v2.py
   patch_interaction_performance_v3.py
   patch_no_programmatic_scroll_v4.py
+  # v0.4.0 physical-device recovery sequence. Keep this order: cosmetics,
+  # functionality, performance, stability, then the post-patch functionality audit.
+  patch_cosmetic_icons_v040.py
+  patch_global_interaction_reliability_v040.py
+  patch_performance_v040.py
+  patch_stability_v040.py
 )
 for patch in "${PATCHES[@]}"; do
   python3 "scripts/$patch"
@@ -203,6 +209,19 @@ python3 scripts/audit_live_location_deep.py
 python3 scripts/audit_external_services.py
 python3 scripts/audit_state_invariants.py
 
+# v0.4.0 requested ordered physical-device release audits. Functionality is
+# deliberately repeated after performance/stability to catch pass-induced breakage.
+echo "=== v0.4.0 ordered audit 1/5: COSMETIC ==="
+python3 scripts/audit_cosmetic_v040.py
+echo "=== v0.4.0 ordered audit 2/5: FUNCTIONALITY PASS 1 ==="
+python3 scripts/audit_functionality_v040.py
+echo "=== v0.4.0 ordered audit 3/5: PERFORMANCE ==="
+python3 scripts/audit_performance_v040.py
+echo "=== v0.4.0 ordered audit 4/5: STABILITY ==="
+python3 scripts/audit_stability_v040.py
+echo "=== v0.4.0 ordered audit 5/5: FUNCTIONALITY PASS 2 ==="
+python3 scripts/audit_functionality_v040.py
+
 # Critical native bridge contracts.
 for marker in \
   requestRouteTimes searchStoreLocations requestCurrentLocation startLiveLocation stopLiveLocation CLLocationManagerDelegate \
@@ -270,7 +289,9 @@ grep -q 'END_HZ = 1320' LifeRoute/Web/visual-timer-v2.js
 grep -q '0.25 \* gainScale' LifeRoute/Web/visual-timer-v2.js
 grep -q 'boost:5' LifeRoute/Web/timer-native-audio-v1.js
 grep -q 'playGlassTone(frequency: Double, intensity: Double, boost: Double = 5.0)' LifeRoute/LifeRouteWebView.swift
-grep -q 'lrTouchPressed' LifeRoute/Web/delight-ui-v1.js
+grep -q 'decorative work happens only after' LifeRoute/Web/delight-ui-v1.js
+grep -q 'transition:transform .055s' LifeRoute/Web/delight-ui-v1.js
+! grep -q "classList.add('lrTouchPressed')" LifeRoute/Web/delight-ui-v1.js
 grep -q "action:'haptic'" LifeRoute/Web/delight-ui-v1.js
 grep -q 'grid-template-columns:repeat(4,minmax(0,1fr))!important' LifeRoute/Web/delight-ui-v1.js
 grep -q 'window.scrollTo = noProgrammaticScroll' LifeRoute/Web/interaction-stability-v3.js
@@ -280,4 +301,4 @@ grep -q 'NSFaceIDUsageDescription' LifeRoute/Info.plist
 grep -q 'lifeRouteAestheticPolishV1Styles' LifeRoute/Web/aesthetic-polish-v1.js
 grep -q 'min-height:44px!important' LifeRoute/Web/aesthetic-polish-v1.js
 
-echo "LifeRoute feature preflight + login/address/schedule + AI multi-angle release audits passed."
+echo "LifeRoute feature preflight + ordered v0.4.0 cosmetic/function/performance/stability/function audits passed."

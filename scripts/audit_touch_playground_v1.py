@@ -39,7 +39,8 @@ check("scroll listener is passive", "window.addEventListener('scroll'" in play a
 check("scrolling pauses ambient background", "lrUserScrolling #lifeRouteDelightBackdrop>span" in play)
 check("hidden page pauses ambient background", "lrDocumentHidden #lifeRouteDelightBackdrop>span" in play)
 check("visibility lifecycle hook exists", "visibilitychange" in play)
-check("touch layer has no programmatic scrolling", all(token not in play for token in ["scrollIntoView(", "scrollTo(", "scrollBy("])) )
+programmatic_scroll_tokens = ["scrollIntoView(", "scrollTo(", "scrollBy("]
+check("touch layer has no programmatic scrolling", all(token not in play for token in programmatic_scroll_tokens))
 
 # 4) DOM pressure and leak resistance.
 check("touch bloom removes on animation end", "animationend" in play and "bloom.remove()" in play)

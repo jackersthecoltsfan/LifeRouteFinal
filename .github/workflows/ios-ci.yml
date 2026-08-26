@@ -11,6 +11,7 @@ on:
       - 'LifeRoute.xcodeproj/**'
       - 'scripts/**'
       - '!scripts/audit_release_isolation.py'
+      - '!scripts/audit_workflow_efficiency.py'
       - '.github/workflows/ios-ci.yml'
   pull_request:
     paths:
@@ -20,6 +21,7 @@ on:
       - 'LifeRoute.xcodeproj/**'
       - 'scripts/**'
       - '!scripts/audit_release_isolation.py'
+      - '!scripts/audit_workflow_efficiency.py'
       - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
 

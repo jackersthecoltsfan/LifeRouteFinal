@@ -8,6 +8,13 @@ struct RestoredClientVisualSupportState {
     static let empty = RestoredClientVisualSupportState(icons: [], choiceBoards: [], schedules: [])
 }
 
+struct RestoredRoutingPersistenceState {
+    var homeAddress: String
+    var savedPlaces: [LifeRouteSavedPlace]
+
+    static let empty = RestoredRoutingPersistenceState(homeAddress: "", savedPlaces: [])
+}
+
 @MainActor
 final class LifeRoutePersistenceStore {
     static let shared = LifeRoutePersistenceStore()
@@ -52,19 +59,28 @@ final class LifeRoutePersistenceStore {
         var visualIcons: [PersistedVisualIcon]
         var choiceBoards: [PersistedChoiceBoard]
         var visualSchedules: [PersistedVisualSchedule]
+        var homeAddress: String
+        var savedPlaces: [LifeRouteSavedPlace]
+        var manualCalendarEvents: [LifeRouteCalendarEvent]
 
         init(
-            schemaVersion: Int = 1,
+            schemaVersion: Int = 2,
             clients: [LifeRouteClientProfile] = [],
             visualIcons: [PersistedVisualIcon] = [],
             choiceBoards: [PersistedChoiceBoard] = [],
-            visualSchedules: [PersistedVisualSchedule] = []
+            visualSchedules: [PersistedVisualSchedule] = [],
+            homeAddress: String = "",
+            savedPlaces: [LifeRouteSavedPlace] = [],
+            manualCalendarEvents: [LifeRouteCalendarEvent] = []
         ) {
             self.schemaVersion = schemaVersion
             self.clients = clients
             self.visualIcons = visualIcons
             self.choiceBoards = choiceBoards
             self.visualSchedules = visualSchedules
+            self.homeAddress = homeAddress
+            self.savedPlaces = savedPlaces
+            self.manualCalendarEvents = manualCalendarEvents
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -73,6 +89,9 @@ final class LifeRoutePersistenceStore {
             case visualIcons
             case choiceBoards
             case visualSchedules
+            case homeAddress
+            case savedPlaces
+            case manualCalendarEvents
         }
 
         init(from decoder: Decoder) throws {
@@ -82,6 +101,9 @@ final class LifeRoutePersistenceStore {
             visualIcons = try container.decodeIfPresent([PersistedVisualIcon].self, forKey: .visualIcons) ?? []
             choiceBoards = try container.decodeIfPresent([PersistedChoiceBoard].self, forKey: .choiceBoards) ?? []
             visualSchedules = try container.decodeIfPresent([PersistedVisualSchedule].self, forKey: .visualSchedules) ?? []
+            homeAddress = try container.decodeIfPresent(String.self, forKey: .homeAddress) ?? ""
+            savedPlaces = try container.decodeIfPresent([LifeRouteSavedPlace].self, forKey: .savedPlaces) ?? []
+            manualCalendarEvents = try container.decodeIfPresent([LifeRouteCalendarEvent].self, forKey: .manualCalendarEvents) ?? []
         }
     }
 
@@ -229,6 +251,31 @@ final class LifeRoutePersistenceStore {
         persist()
     }
 
+    func loadRoutingState() -> RestoredRoutingPersistenceState {
+        state = Self.sanitized(state)
+        return RestoredRoutingPersistenceState(homeAddress: state.homeAddress, savedPlaces: state.savedPlaces)
+    }
+
+    func saveRoutingState(homeAddress: String, savedPlaces: [LifeRouteSavedPlace]) {
+        var next = state
+        next.homeAddress = homeAddress
+        next.savedPlaces = savedPlaces
+        state = Self.sanitized(next)
+        persist()
+    }
+
+    func loadManualCalendarEvents() -> [LifeRouteCalendarEvent] {
+        state = Self.sanitized(state)
+        return state.manualCalendarEvents
+    }
+
+    func saveManualCalendarEvents(_ events: [LifeRouteCalendarEvent]) {
+        var next = state
+        next.manualCalendarEvents = events.filter { $0.source == .manual }
+        state = Self.sanitized(next)
+        persist()
+    }
+
     private func persist() {
         guard let fileURL else { return }
         do {
@@ -307,12 +354,52 @@ final class LifeRoutePersistenceStore {
             return clean
         }
 
+        let homeAddress = input.homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var seenPlaceIDs = Set<UUID>()
+        let savedPlaces = input.savedPlaces.compactMap { place -> LifeRouteSavedPlace? in
+            let name = place.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let address = place.address.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty, !address.isEmpty, seenPlaceIDs.insert(place.id).inserted else { return nil }
+            return LifeRouteSavedPlace(
+                id: place.id,
+                name: name,
+                address: address,
+                kind: place.kind,
+                minimumVisitMinutes: place.minimumVisitMinutes,
+                useInGapSuggestions: place.useInGapSuggestions
+            )
+        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+        var seenManualEventIDs = Set<String>()
+        let manualCalendarEvents = input.manualCalendarEvents.compactMap { event -> LifeRouteCalendarEvent? in
+            guard event.source == .manual,
+                  event.end > event.start,
+                  seenManualEventIDs.insert(event.id).inserted else { return nil }
+            return LifeRouteCalendarEvent(
+                id: event.id,
+                title: event.title,
+                start: event.start,
+                end: event.end,
+                location: event.location,
+                calendarTitle: event.calendarTitle,
+                isAllDay: event.isAllDay,
+                source: .manual
+            )
+        }.sorted {
+            if $0.start != $1.start { return $0.start < $1.start }
+            return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+        }
+
         return NativeState(
-            schemaVersion: max(1, input.schemaVersion),
+            schemaVersion: max(2, input.schemaVersion),
             clients: clients,
             visualIcons: icons,
             choiceBoards: boards,
-            visualSchedules: schedules
+            visualSchedules: schedules,
+            homeAddress: homeAddress,
+            savedPlaces: savedPlaces,
+            manualCalendarEvents: manualCalendarEvents
         )
     }
 

@@ -1,9 +1,12 @@
 import SwiftUI
+import PhotosUI
+import UIKit
 
 struct SessionToolsNativeView: View {
     @ObservedObject var router: AppRouter
     @ObservedObject var toolsState: SessionToolsCore
     @ObservedObject var clientState: ClientProfileCore
+    @StateObject private var visualState = ClientVisualSupportCore()
 
     var body: some View {
         List {
@@ -24,6 +27,11 @@ struct SessionToolsNativeView: View {
                 NavigationLink(value: SessionToolRoute.quickNotes) {
                     Label("Quick Session Notes", systemImage: "note.text")
                 }
+                NavigationLink {
+                    ClientVisualSupportCenter(visualState: visualState, clientState: clientState)
+                } label: {
+                    Label("Client Visual Supports", systemImage: "square.grid.2x2")
+                }
                 NavigationLink(value: SessionToolRoute.firstThen) {
                     Label("First / Then", systemImage: "arrow.right")
                 }
@@ -41,7 +49,7 @@ struct SessionToolsNativeView: View {
             }
 
             Section {
-                Text("Scratch notes and plans are session-only until the persistence checkpoint.")
+                Text("Visual supports are client-specific and session-only until the persistence checkpoint.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -54,7 +62,7 @@ struct SessionToolsNativeView: View {
             case .quickNotes:
                 QuickSessionNotesView(toolsState: toolsState, clientState: clientState)
             case .firstThen:
-                FirstThenNativeView()
+                ClientFirstThenVisualView(visualState: visualState, clientState: clientState)
             case .sessionPlan:
                 SessionPlanOrganizerView(toolsState: toolsState, clientState: clientState)
             }
@@ -105,12 +113,8 @@ struct VisualTimerView: View {
                     else { timer.resume() }
                 }
                 .disabled(!timer.isRunning && timer.remainingSeconds() <= 0)
-                Button("+1 minute") {
-                    timer.addMinute()
-                }
-                Button("Reset") {
-                    timer.reset()
-                }
+                Button("+1 minute") { timer.addMinute() }
+                Button("Reset") { timer.reset() }
             }
 
             Section {
@@ -141,48 +145,34 @@ struct QuickSessionNotesView: View {
             Section("New scratch note") {
                 Picker("Client", selection: $selectedClientCode) {
                     Text("General / no client").tag("")
-                    ForEach(clientState.clients) { client in
-                        Text(client.code).tag(client.code)
-                    }
+                    ForEach(clientState.clients) { client in Text(client.code).tag(client.code) }
                 }
-                TextEditor(text: $noteText)
-                    .frame(minHeight: 100)
+                TextEditor(text: $noteText).frame(minHeight: 100)
                 Button("Save note") {
                     do {
                         try toolsState.addNote(text: noteText, clientCode: selectedClientCode)
                         noteText = ""
                         message = "Scratch note saved for this app session."
-                    } catch {
-                        message = error.localizedDescription
-                    }
+                    } catch { message = error.localizedDescription }
                 }
-                if let message {
-                    Text(message)
-                        .foregroundStyle(.secondary)
-                }
+                if let message { Text(message).foregroundStyle(.secondary) }
             }
 
             Section("Recent notes") {
                 if toolsState.notes.isEmpty {
-                    Text("No scratch notes yet")
-                        .foregroundStyle(.secondary)
+                    Text("No scratch notes yet").foregroundStyle(.secondary)
                 } else {
                     ForEach(toolsState.notes.reversed()) { note in
                         VStack(alignment: .leading, spacing: 5) {
                             HStack {
-                                Text(note.clientCode ?? "General")
-                                    .font(.caption.bold())
+                                Text(note.clientCode ?? "General").font(.caption.bold())
                                 Spacer()
                                 Text(note.createdAt.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .font(.caption).foregroundStyle(.secondary)
                             }
                             Text(note.text)
-                            Button("Delete note", role: .destructive) {
-                                toolsState.removeNote(id: note.id)
-                            }
-                        }
-                        .padding(.vertical, 3)
+                            Button("Delete note", role: .destructive) { toolsState.removeNote(id: note.id) }
+                        }.padding(.vertical, 3)
                     }
                 }
             }
@@ -192,34 +182,439 @@ struct QuickSessionNotesView: View {
     }
 }
 
-struct FirstThenNativeView: View {
-    @State private var first = ""
-    @State private var then = ""
+// MARK: - Client-specific visual supports
+
+struct ClientVisualSupportCenter: View {
+    @ObservedObject var visualState: ClientVisualSupportCore
+    @ObservedObject var clientState: ClientProfileCore
+    @State private var selectedClientCode = ""
 
     var body: some View {
         Form {
-            Section("Build board") {
-                TextField("First activity", text: $first)
-                TextField("Then activity", text: $then)
-                Button("Swap") {
-                    (first, then) = (then, first)
+            if clientState.clients.isEmpty {
+                Section {
+                    ContentUnavailableView(
+                        "Add a client first",
+                        systemImage: "person.crop.circle.badge.plus",
+                        description: Text("Visual supports are always saved to a specific ABA-style client code.")
+                    )
+                }
+            } else {
+                Section("Client") {
+                    Picker("Visual library", selection: $selectedClientCode) {
+                        ForEach(clientState.clients) { client in Text(client.code).tag(client.code) }
+                    }
+                    Text("Only \(selectedClientCode.isEmpty ? "the selected client’s" : selectedClientCode + "’s") icons will appear in the builders below.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+
+                if !selectedClientCode.isEmpty {
+                    Section("Build") {
+                        NavigationLink {
+                            ClientVisualIconLibraryView(visualState: visualState, clientCode: selectedClientCode)
+                        } label: {
+                            Label("Icon Library", systemImage: "photo.on.rectangle")
+                        }
+                        NavigationLink {
+                            ClientChoiceBoardBuilderView(visualState: visualState, clientCode: selectedClientCode)
+                        } label: {
+                            Label("Choice Boards", systemImage: "square.grid.2x2")
+                        }
+                        NavigationLink {
+                            ClientFirstThenVisualView(visualState: visualState, clientState: clientState, initialClientCode: selectedClientCode)
+                        } label: {
+                            Label("First / Then", systemImage: "arrow.right")
+                        }
+                        NavigationLink {
+                            ClientVisualScheduleBuilderView(visualState: visualState, clientCode: selectedClientCode)
+                        } label: {
+                            Label("Visual Schedules", systemImage: "list.number")
+                        }
+                    }
+
+                    Section("\(selectedClientCode) library") {
+                        LabeledContent("Icons", value: "\(visualState.icons(for: selectedClientCode).count)")
+                        LabeledContent("Choice boards", value: "\(visualState.choiceBoards(for: selectedClientCode).count)")
+                        LabeledContent("Schedules", value: "\(visualState.schedules(for: selectedClientCode).count)")
+                    }
+                }
+
+                Section {
+                    Text("Visual supports are client-specific and session-only until the persistence checkpoint.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Visual Supports")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { selectDefaultClientIfNeeded() }
+    }
+
+    private func selectDefaultClientIfNeeded() {
+        if selectedClientCode.isEmpty || clientState.client(code: selectedClientCode) == nil {
+            selectedClientCode = clientState.clients.first?.code ?? ""
+        }
+    }
+}
+
+struct ClientVisualIconLibraryView: View {
+    @ObservedObject var visualState: ClientVisualSupportCore
+    let clientCode: String
+    @State private var label = ""
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var photoData: Data?
+    @State private var message: String?
+
+    var body: some View {
+        Form {
+            Section("New \(clientCode) icon") {
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    Label(photoData == nil ? "Choose photo" : "Change photo", systemImage: "photo")
+                }
+                if let photoData, let image = UIImage(data: photoData) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 220)
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                TextField("Icon label", text: $label)
+                    .textInputAutocapitalization(.words)
+                Button("Save icon to \(clientCode)") { saveIcon() }
+                if let message { Text(message).foregroundStyle(.secondary) }
+                Text("A photo is optional at this checkpoint; a text-only visual card can also be saved. Selected photos stay inside the native app state and are not uploaded.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section("\(clientCode) icon library") {
+                let icons = visualState.icons(for: clientCode)
+                if icons.isEmpty {
+                    Text("No icons saved for \(clientCode) yet.").foregroundStyle(.secondary)
+                } else {
+                    ForEach(icons) { icon in
+                        HStack(spacing: 12) {
+                            ClientVisualIconThumbnail(icon: icon, size: 58)
+                            VStack(alignment: .leading) {
+                                Text(icon.label).font(.headline)
+                                Text(icon.imageData == nil ? "Text visual" : "Photo visual")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button(role: .destructive) { visualState.removeIcon(id: icon.id) } label: {
+                                Image(systemName: "trash")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("\(clientCode) Icons")
+        .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: selectedPhotoItem) { newItem in
+            Task {
+                guard let newItem else {
+                    photoData = nil
+                    return
+                }
+                photoData = try? await newItem.loadTransferable(type: Data.self)
+            }
+        }
+    }
+
+    private func saveIcon() {
+        do {
+            _ = try visualState.addIcon(clientCode: clientCode, label: label, imageData: photoData)
+            label = ""
+            selectedPhotoItem = nil
+            photoData = nil
+            message = "Icon saved to \(clientCode)’s visual library for this app session."
+        } catch { message = error.localizedDescription }
+    }
+}
+
+struct ClientChoiceBoardBuilderView: View {
+    @ObservedObject var visualState: ClientVisualSupportCore
+    let clientCode: String
+    @State private var boardTitle = "Choices"
+    @State private var columns = 2
+    @State private var selectedIconIDs = Set<UUID>()
+    @State private var message: String?
+
+    var body: some View {
+        Form {
+            Section("Board") {
+                TextField("Board title", text: $boardTitle)
+                Picker("Columns", selection: $columns) {
+                    Text("2 columns · up to 8").tag(2)
+                    Text("3 columns · up to 9").tag(3)
                 }
             }
 
-            Section("FIRST") {
-                Text(first.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "First activity" : first)
-                    .font(.title.bold())
-                    .frame(maxWidth: .infinity, minHeight: 100, alignment: .center)
+            Section("Choose from \(clientCode)’s icons") {
+                let icons = visualState.icons(for: clientCode)
+                if icons.isEmpty {
+                    Text("Create icons for \(clientCode) first. No other client’s icons are shown here.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(icons) { icon in
+                        Button {
+                            toggle(icon.id)
+                        } label: {
+                            HStack(spacing: 12) {
+                                ClientVisualIconThumbnail(icon: icon, size: 52)
+                                Text(icon.label).foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: selectedIconIDs.contains(icon.id) ? "checkmark.circle.fill" : "circle")
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                Text("\(selectedIconIDs.count) selected")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("Save board to \(clientCode)") { saveBoard() }
+                if let message { Text(message).foregroundStyle(.secondary) }
             }
 
-            Section("THEN") {
-                Text(then.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Then activity" : then)
-                    .font(.title.bold())
-                    .frame(maxWidth: .infinity, minHeight: 100, alignment: .center)
+            Section("Saved \(clientCode) boards") {
+                let boards = visualState.choiceBoards(for: clientCode)
+                if boards.isEmpty {
+                    Text("No choice boards saved for \(clientCode) yet.").foregroundStyle(.secondary)
+                } else {
+                    ForEach(boards) { board in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(board.title).font(.headline)
+                            Text(board.iconIDs.compactMap { visualState.icon(id: $0, for: clientCode)?.label }.joined(separator: " · "))
+                                .font(.caption).foregroundStyle(.secondary)
+                            Text("\(board.columns) columns · \(board.iconIDs.count) icons")
+                                .font(.caption2).foregroundStyle(.secondary)
+                            Button("Delete board", role: .destructive) { visualState.removeChoiceBoard(id: board.id) }
+                        }.padding(.vertical, 3)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Choice Boards")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func toggle(_ id: UUID) {
+        if selectedIconIDs.contains(id) {
+            selectedIconIDs.remove(id)
+        } else if selectedIconIDs.count < (columns == 3 ? 9 : 8) {
+            selectedIconIDs.insert(id)
+        }
+    }
+
+    private func saveBoard() {
+        do {
+            let ordered = visualState.icons(for: clientCode).map(\.id).filter(selectedIconIDs.contains)
+            _ = try visualState.saveChoiceBoard(clientCode: clientCode, title: boardTitle, iconIDs: ordered, columns: columns)
+            selectedIconIDs.removeAll()
+            message = "Choice board saved to \(clientCode)."
+        } catch { message = error.localizedDescription }
+    }
+}
+
+struct ClientFirstThenVisualView: View {
+    @ObservedObject var visualState: ClientVisualSupportCore
+    @ObservedObject var clientState: ClientProfileCore
+    @State private var selectedClientCode: String
+    @State private var firstText = ""
+    @State private var thenText = ""
+    @State private var firstIconID = ""
+    @State private var thenIconID = ""
+
+    init(visualState: ClientVisualSupportCore, clientState: ClientProfileCore, initialClientCode: String = "") {
+        self.visualState = visualState
+        self.clientState = clientState
+        _selectedClientCode = State(initialValue: initialClientCode)
+    }
+
+    var body: some View {
+        Form {
+            if clientState.clients.isEmpty {
+                Section { Text("Add a client in Setup before using client visual supports.").foregroundStyle(.secondary) }
+            } else {
+                Section("Client") {
+                    Picker("Client", selection: $selectedClientCode) {
+                        ForEach(clientState.clients) { client in Text(client.code).tag(client.code) }
+                    }
+                }
+
+                if !selectedClientCode.isEmpty {
+                    Section("Build") {
+                        let icons = visualState.icons(for: selectedClientCode)
+                        TextField("First activity", text: $firstText)
+                        Picker("First visual", selection: $firstIconID) {
+                            Text("Text only").tag("")
+                            ForEach(icons) { icon in Text(icon.label).tag(icon.id.uuidString) }
+                        }
+                        TextField("Then activity", text: $thenText)
+                        Picker("Then visual", selection: $thenIconID) {
+                            Text("Text only").tag("")
+                            ForEach(icons) { icon in Text(icon.label).tag(icon.id.uuidString) }
+                        }
+                        Button("Swap First / Then") {
+                            (firstText, thenText) = (thenText, firstText)
+                            (firstIconID, thenIconID) = (thenIconID, firstIconID)
+                        }
+                        Text("Only icons saved to \(selectedClientCode) are available here.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+
+                    Section("FIRST") {
+                        VisualSupportPreviewCard(icon: selectedIcon(idString: firstIconID), fallbackText: firstText.isEmpty ? "First activity" : firstText)
+                    }
+                    Section("THEN") {
+                        VisualSupportPreviewCard(icon: selectedIcon(idString: thenIconID), fallbackText: thenText.isEmpty ? "Then activity" : thenText)
+                    }
+                }
             }
         }
         .navigationTitle("First / Then")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { selectDefaultClientIfNeeded() }
+        .onChange(of: selectedClientCode) { _ in
+            firstIconID = ""
+            thenIconID = ""
+        }
+    }
+
+    private func selectDefaultClientIfNeeded() {
+        if selectedClientCode.isEmpty || clientState.client(code: selectedClientCode) == nil {
+            selectedClientCode = clientState.clients.first?.code ?? ""
+        }
+    }
+
+    private func selectedIcon(idString: String) -> ClientVisualIcon? {
+        guard let id = UUID(uuidString: idString), !selectedClientCode.isEmpty else { return nil }
+        return visualState.icon(id: id, for: selectedClientCode)
+    }
+}
+
+struct ClientVisualScheduleBuilderView: View {
+    @ObservedObject var visualState: ClientVisualSupportCore
+    let clientCode: String
+    @State private var title = "Visual Schedule"
+    @State private var draftLabel = ""
+    @State private var selectedIconID = ""
+    @State private var steps: [ClientVisualScheduleStep] = []
+    @State private var message: String?
+
+    var body: some View {
+        Form {
+            Section("Schedule") {
+                TextField("Schedule title", text: $title)
+                let icons = visualState.icons(for: clientCode)
+                TextField("Next step", text: $draftLabel)
+                Picker("Visual", selection: $selectedIconID) {
+                    Text("Text only").tag("")
+                    ForEach(icons) { icon in Text(icon.label).tag(icon.id.uuidString) }
+                }
+                Button("Add step") { addStep() }
+            }
+
+            Section("Steps") {
+                if steps.isEmpty {
+                    Text("Add the first step. The visual picker only contains \(clientCode)’s icons.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(steps) { step in
+                        HStack(spacing: 10) {
+                            if let iconID = step.iconID, let icon = visualState.icon(id: iconID, for: clientCode) {
+                                ClientVisualIconThumbnail(icon: icon, size: 48)
+                            }
+                            Text(step.label)
+                            Spacer()
+                            Button(role: .destructive) { steps.removeAll { $0.id == step.id } } label: { Image(systemName: "trash") }
+                        }
+                    }
+                }
+                Button("Save schedule to \(clientCode)") { saveSchedule() }
+                if let message { Text(message).foregroundStyle(.secondary) }
+            }
+
+            Section("Saved \(clientCode) schedules") {
+                let saved = visualState.schedules(for: clientCode)
+                if saved.isEmpty {
+                    Text("No visual schedules saved for \(clientCode) yet.").foregroundStyle(.secondary)
+                } else {
+                    ForEach(saved) { schedule in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(schedule.title).font(.headline)
+                            Text(schedule.steps.map(\.label).joined(separator: " → "))
+                                .font(.caption).foregroundStyle(.secondary)
+                            Button("Delete schedule", role: .destructive) { visualState.removeSchedule(id: schedule.id) }
+                        }.padding(.vertical, 3)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Visual Schedules")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func addStep() {
+        let icon = UUID(uuidString: selectedIconID).flatMap { visualState.icon(id: $0, for: clientCode) }
+        let clean = draftLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolved = clean.isEmpty ? (icon?.label ?? "") : clean
+        guard !resolved.isEmpty else {
+            message = "Add a step label or choose one of \(clientCode)’s icons."
+            return
+        }
+        steps.append(ClientVisualScheduleStep(label: resolved, iconID: icon?.id))
+        draftLabel = ""
+        selectedIconID = ""
+        message = nil
+    }
+
+    private func saveSchedule() {
+        do {
+            _ = try visualState.saveSchedule(clientCode: clientCode, title: title, steps: steps)
+            steps.removeAll()
+            message = "Visual schedule saved to \(clientCode)."
+        } catch { message = error.localizedDescription }
+    }
+}
+
+private struct ClientVisualIconThumbnail: View {
+    let icon: ClientVisualIcon
+    let size: CGFloat
+
+    var body: some View {
+        Group {
+            if let data = icon.imageData, let image = UIImage(data: data) {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10).fill(.quaternary)
+                    Text(icon.label.prefix(2).uppercased()).font(.headline)
+                }
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct VisualSupportPreviewCard: View {
+    let icon: ClientVisualIcon?
+    let fallbackText: String
+
+    var body: some View {
+        VStack(spacing: 12) {
+            if let icon {
+                ClientVisualIconThumbnail(icon: icon, size: 170)
+                Text(fallbackText == "First activity" || fallbackText == "Then activity" ? icon.label : fallbackText)
+                    .font(.title.bold())
+            } else {
+                Text(fallbackText).font(.title.bold())
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 160)
+        .padding(.vertical, 10)
     }
 }
 
@@ -237,9 +632,7 @@ struct SessionPlanOrganizerView: View {
             Section("Session context") {
                 Picker("Client", selection: $selectedClientCode) {
                     Text("General / no client").tag("")
-                    ForEach(clientState.clients) { client in
-                        Text(client.code).tag(client.code)
-                    }
+                    ForEach(clientState.clients) { client in Text(client.code).tag(client.code) }
                 }
                 Picker("Session length", selection: $durationMinutes) {
                     Text("1 hour").tag(60)
@@ -249,20 +642,16 @@ struct SessionPlanOrganizerView: View {
                     Text("4 hours").tag(240)
                 }
                 if !selectedClientCode.isEmpty {
-                    Button("Load saved client profile") {
-                        loadClientProfile()
-                    }
+                    Button("Load saved client profile") { loadClientProfile() }
                 }
             }
 
             Section("Supervisor-approved targets / priorities") {
-                TextEditor(text: $targetsText)
-                    .frame(minHeight: 110)
+                TextEditor(text: $targetsText).frame(minHeight: 110)
             }
 
             Section("Known reinforcers / useful activities") {
-                TextEditor(text: $reinforcersText)
-                    .frame(minHeight: 90)
+                TextEditor(text: $reinforcersText).frame(minHeight: 90)
             }
 
             Section {
@@ -275,17 +664,11 @@ struct SessionPlanOrganizerView: View {
                             reinforcersText: reinforcersText
                         )
                         message = "Plan organized from the information you supplied."
-                    } catch {
-                        message = error.localizedDescription
-                    }
+                    } catch { message = error.localizedDescription }
                 }
                 Text("This tool only organizes information you enter or load from the client profile. Follow the supervising clinician’s approved prompting, reinforcement, behavior, and treatment procedures.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let message {
-                    Text(message)
-                        .foregroundStyle(.secondary)
-                }
+                    .font(.caption).foregroundStyle(.secondary)
+                if let message { Text(message).foregroundStyle(.secondary) }
             }
 
             if let plan = toolsState.lastPlan {

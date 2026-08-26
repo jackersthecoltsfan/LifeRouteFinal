@@ -18,6 +18,7 @@ visual_bridge=text("LifeRoute/Web/visual-resolver-bridge.js")
 animals=text("LifeRoute/Web/dynamic-animals-v1.js")
 nature=text("LifeRoute/Web/photoreal-nature-web.js")
 resources=text("LifeRoute/Web/resources-hub-web.js")
+autocomplete=text("LifeRoute/Web/universal-autocomplete-v2.js")
 config=text("LifeRoute/Web/config.js")
 preview=text("scripts/web-preview.js")
 
@@ -71,6 +72,15 @@ for host in ["photon.komoot.io","nominatim.openstreetmap.org"]:
 require("AbortController" in search and "Promise.allSettled" in search, "stop search has deadlines and independent provider fallback")
 require("AbortController" in store and "timeoutMs" in store, "direct store search helper has deadlines")
 
+# Search-field autocomplete uses public, read-only suggestion APIs with a bounded
+# request lifecycle. No credential or account data is sent by this module.
+require("duckduckgo.com/ac/" in autocomplete, "universal autocomplete declares DuckDuckGo suggestion API")
+require("en.wikipedia.org/w/api.php" in autocomplete, "universal autocomplete declares Wikipedia fallback")
+require("AbortController" in autocomplete and "webController" in autocomplete and "5000" in autocomplete,
+        "universal autocomplete suggestions have abort + timeout bounds")
+require("sensitive = input" in autocomplete and "lifeRouteAuthGate" in autocomplete,
+        "universal autocomplete excludes sensitive/auth fields")
+
 # Public visual/media services. Curated static photos carry no app payload. Generic
 # Wikimedia lookup is allowed only for safe generic terms and has a hard deadline.
 require("commons.wikimedia.org/w/api.php" in visual, "generic visual resolver uses Wikimedia Commons")
@@ -117,6 +127,7 @@ runtime_service_hosts={
     "accounts.google.com","oauth2.googleapis.com","www.googleapis.com",
     "photon.komoot.io","nominatim.openstreetmap.org","router.project-osrm.org",
     "overpass-api.de","overpass.private.coffee","commons.wikimedia.org",
+    "duckduckgo.com","en.wikipedia.org",
 }
 map_handoff_hosts={"maps.apple.com","www.google.com"}
 media_hosts={"unsplash.com","images.unsplash.com","images.pexels.com"}
@@ -169,4 +180,4 @@ if unknown: print("UNREVIEWED HOSTS:", ", ".join(unknown))
 if failed:
     for label in failed: print("FAIL:", label)
     raise SystemExit(1)
-print("Apple native integrations, Google OAuth/API, secure calendar subscriptions, browser routing/search, all direct fetch paths, visual media, resource-link boundaries, timeouts, workload caps, and host classification passed.")
+print("Apple native integrations, Google OAuth/API, secure calendar subscriptions, browser routing/search, autocomplete suggestions, all direct fetch paths, visual media, resource-link boundaries, timeouts, workload caps, and host classification passed.")

@@ -1,18 +1,36 @@
 # LifeRoute — Confirmed GitHub to TestFlight
 
-LifeRoute uses automatic validation with **manual-only TestFlight release**:
+LifeRoute uses automatic validation with **explicit-confirmation-only TestFlight release**:
 
 1. **iOS Build Check** runs automatically on relevant changes to `main`.
 2. It runs the deterministic build preparation, full regression audit, and an iOS Simulator build.
 3. Passing CI does **not** upload to TestFlight and does **not** dispatch the TestFlight workflow.
 4. A TestFlight upload happens only after Brandon explicitly confirms that a TestFlight run should be used.
-5. After that confirmation, **Send to TestFlight** is manually dispatched. It prepares the app again, reruns the regression audit, validates Apple credentials and bundle IDs, archives the real-device Release build, exports the signed IPA, uploads it to App Store Connect/TestFlight, and cleans temporary Apple signing assets.
+5. After that confirmation, **Send to TestFlight** can be started in either of two deliberate ways:
+   - Brandon can use GitHub's normal **Run workflow** button (`workflow_dispatch`).
+   - ChatGPT/Codex can create a tightly validated release-request issue for the exact current `main` SHA. The workflow accepts that issue only when it was created by the repository owner, its title exactly names the event SHA, and its body contains the exact authorization marker.
+6. The TestFlight workflow then prepares the app again, reruns the regression audit, validates Apple credentials and bundle IDs, archives the real-device Release build, exports the signed IPA, uploads it to App Store Connect/TestFlight, and cleans temporary Apple signing assets.
 
-This policy exists because App Store Connect enforces an application upload limit. Routine development, auditing, web previews, and GitHub commits must never spend a TestFlight upload automatically.
+This policy exists because App Store Connect enforces an application upload limit. Routine development, auditing, web previews, GitHub commits, ordinary issues, and successful CI runs must never spend a TestFlight upload automatically.
+
+## Assistant release-request safeguard
+
+The assistant-triggerable path is intentionally narrow. It does **not** add a push trigger and does not make passing CI automatically publish.
+
+For LifeRoute, an issue-triggered release is eligible only when all of these are true:
+
+- The event is a newly opened GitHub issue.
+- The issue author is the repository owner.
+- The issue title is exactly `LifeRoute TestFlight release @ <current event SHA>`.
+- The issue body is exactly `AUTHORIZED_TESTFLIGHT_RELEASE=YES`.
+
+ChatGPT/Codex must create that release request only after Brandon explicitly says to send/upload/release the validated build to TestFlight. A feature request, successful build, web publish request, or general request to continue development is not release authorization.
+
+This mechanism exists so Brandon can authorize a release in ChatGPT and let the connected GitHub tooling initiate it even when the connector does not expose GitHub's `workflow_dispatch` API directly.
 
 ## Release-control commit tags
 
-These tags remain useful for clarity, but they are no longer the primary protection against accidental TestFlight uploads because TestFlight is manual-only at the workflow level.
+These tags remain useful for clarity, but they are no longer the primary protection against accidental TestFlight uploads because TestFlight requires an explicit release signal.
 
 - `[no-testflight]` — explicitly indicates validation/build work with no TestFlight release.
 - `[web-only]` — web/preview-only change; no TestFlight release.
@@ -46,7 +64,7 @@ The intended routine is:
 2. The implementation is made and committed to GitHub.
 3. GitHub automatically prepares, audits, builds, and may publish the web preview when relevant.
 4. ChatGPT reports the validation/build status and leaves TestFlight untouched.
-5. When Brandon explicitly says to send the validated version to TestFlight, the **Send to TestFlight** workflow is manually dispatched once.
+5. When Brandon explicitly says to send the validated version to TestFlight, ChatGPT/Codex should initiate **Send to TestFlight** through the connected workflow-dispatch action when available, or through the guarded release-request issue when workflow dispatch is not exposed.
 6. Brandon installs/tests that build on the iPhone and reports any UX or functional problems.
 
 **Never infer TestFlight permission from a code-change request, a successful audit, a successful build, a request to “launch,” or a web publish request. The user must explicitly confirm TestFlight.**
@@ -70,4 +88,4 @@ The TestFlight workflow prevents two release jobs from signing at the same time,
 - Manually run normal CI checks.
 - Read GitHub logs when ChatGPT can inspect them directly.
 
-For TestFlight specifically, Brandon's only required action is the **explicit release confirmation**; ChatGPT/Codex can handle the manual workflow dispatch after that confirmation.
+For TestFlight specifically, Brandon's only required action is the **explicit release confirmation**; ChatGPT/Codex can initiate the guarded release after that confirmation.

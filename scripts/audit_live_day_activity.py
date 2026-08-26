@@ -41,7 +41,6 @@ widget = read(WIDGET)
 pbx = read(PBX)
 plist = read(PLIST)
 ext_plist = read(EXT_PLIST)
-auto = read(AUTO)
 testflight = read(TESTFLIGHT)
 
 # UI: remove the oversized commitments hero while keeping controls available.
@@ -97,13 +96,11 @@ check("NSSupportsLiveActivities" in plist, "host app declares Live Activity supp
 check("com.apple.widgetkit-extension" in ext_plist, "extension uses WidgetKit extension point")
 
 # Release safety: development validation is allowed, but TestFlight is never
-# automatic. This is deliberately stricter than the old commit-marker policy.
+# automatic. The former automatic TestFlight workflow must stay deleted.
 automatic_triggers = ["workflow_run:", "repository_dispatch:", "schedule:", "push:", "pull_request:"]
 check("workflow_dispatch:" in testflight, "TestFlight release requires explicit workflow dispatch")
 check(all(trigger not in testflight for trigger in automatic_triggers), "TestFlight release has no automatic trigger")
-check("workflow_dispatch:" in auto, "former auto-TestFlight workflow is manual-only policy guard")
-check(all(trigger not in auto for trigger in automatic_triggers), "policy guard cannot automatically dispatch TestFlight")
-check("gh workflow" not in auto.lower() and "/dispatches" not in auto.lower(), "policy guard contains no TestFlight dispatch command")
+check(not AUTO.exists(), "legacy auto-TestFlight workflow is removed")
 
 print(f"LifeRoute Live Day audit: {len(passes)} passed, {len(failures)} failed")
 if failures:

@@ -10,7 +10,9 @@ on:
       - 'LifeRouteLiveActivity/**'
       - 'LifeRoute.xcodeproj/**'
       - 'scripts/**'
-      - '.github/workflows/**'
+      - '!scripts/audit_release_isolation.py'
+      - '!scripts/audit_workflow_efficiency.py'
+      - '.github/workflows/ios-ci.yml'
   pull_request:
     paths:
       - 'LifeRoute/**'
@@ -18,15 +20,18 @@ on:
       - 'LifeRouteLiveActivity/**'
       - 'LifeRoute.xcodeproj/**'
       - 'scripts/**'
-      - '.github/workflows/**'
+      - '!scripts/audit_release_isolation.py'
+      - '!scripts/audit_workflow_efficiency.py'
+      - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# A newer code check makes an older in-progress check irrelevant.
+# Keep only the newest validation for the same workflow/ref. Using the workflow
+# name in the key prevents an unrelated workflow from sharing this group.
 concurrency:
-  group: liferoute-ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -54,5 +59,3 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
             build
-
-# Release trigger: Apple-native AI polish approved for TestFlight on 2026-08-25.

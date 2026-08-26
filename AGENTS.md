@@ -3,7 +3,8 @@
 ## Repository authority
 
 - This repository is the canonical source of truth for LifeRoute product code, architecture, documentation, build automation, and release configuration.
-- Treat `APP_CREATION_PLAYBOOK.md`, `TESTFLIGHT_SETUP.md`, and everything relevant in `ReusableAppWorkflow/` as canonical workflow sources. Read and follow them before changing build, CI, signing, GitHub Actions, release, or TestFlight behavior.
+- Start continuity-sensitive work by reading `LIFEROUTE_HANDOFF.md` when it exists.
+- Treat `APP_CREATION_PLAYBOOK.md`, `TESTFLIGHT_SETUP.md`, `GITHUB_ACTIONS_RUNBOOK.md`, and everything relevant in `ReusableAppWorkflow/` as canonical workflow sources. Read and follow them before changing build, CI, signing, GitHub Actions, release, or TestFlight behavior.
 - Also consult `README.md`, `FEATURE_PLAN.md`, `INTEGRATIONS.md`, `SECURITY_NOTES.md`, and `APP_WORKFLOW_LIBRARY.md` when work touches their subject matter. Keep documentation consistent with implemented behavior.
 - Follow the repository's established GitHub-to-TestFlight automation. Do not invent or introduce a separate release process unless the product owner explicitly requests a redesign.
 
@@ -16,7 +17,7 @@
 
 ## Before implementing changes
 
-1. Read the applicable canonical documentation and any more-specific instructions in scope.
+1. Read the current handoff and applicable canonical documentation and any more-specific instructions in scope.
 2. Inspect the existing architecture and trace the relevant end-to-end behavior, including SwiftUI, native services, the WebView bridge/runtime, persistence, generated patches, audits, and release preparation when applicable.
 3. Check the working tree and preserve unrelated user changes.
 4. Reuse existing models, services, components, bridge contracts, persistence mechanisms, and workflow infrastructure where appropriate.
@@ -58,8 +59,17 @@ Use consistent design tokens and reusable components rather than isolated stylin
 
 - `scripts/prepare_build.sh` is the deterministic preparation and preflight entry point shared by preview, iOS CI, and TestFlight. Keep it safe to run repeatedly and ensure the prepared source represents the code that is actually built.
 - Feature patch scripts and audits are part of the current architecture. If a source file is generated or patched during preparation, update the authoritative input and the related patch/audit contracts together; do not make a change that is silently overwritten during preparation.
-- Keep CI and TestFlight aligned with the canonical workflow. Respect release-control tags and latest-validated-`main` safeguards described in the workflow documentation.
+- Keep CI and TestFlight aligned with the canonical workflow. TestFlight is explicit-confirmation-only; ordinary pushes do not authorize or upload a release.
 - Do not push, release, dispatch workflows, or change external systems unless the user's request authorizes that action.
+
+## GitHub Actions reliability
+
+- Before attempting to repair queued/stuck Actions, check official GitHub service status and follow `GITHUB_ACTIONS_RUNBOOK.md`.
+- Do not create commits merely to wake an upstream-degraded Actions queue.
+- During an active GitHub Actions incident, keep workflow-hardening/diagnostic edits on a non-`main` branch and avoid generating replacement runs.
+- When GitHub is operational, use normal cancellation once and force-cancel only for a run that still meets the documented zombie criteria. Do not loop cancellation requests.
+- Keep expensive macOS work narrowly triggered and avoid duplicating audits already owned by `prepare_build.sh`.
+- The assistant TestFlight bridge should require already-completed successful validation and fail fast rather than holding a runner while polling CI.
 
 ## Verification and handoff
 
@@ -68,6 +78,8 @@ Use consistent design tokens and reusable components rather than isolated stylin
 - For iOS changes, run an available compile/build check when the local environment supports it. Report clearly when Xcode, Simulator, signing, a physical device, provider credentials, or another external dependency prevents local verification.
 - Add or update focused automated tests or deterministic audits for important new behavior. Do not rely only on marker/substring checks when executable unit, integration, or UI tests are practical.
 - For larger changes, summarize what changed, what was tested, any remaining risks, and recommended next steps.
+- Refresh `LIFEROUTE_HANDOFF.md` after major milestones, release-state changes, material workflow changes, or concluded troubleshooting incidents. Keep it compact and do not include secrets or unrelated personal data.
+- Proactively recommend a new LifeRoute chat when the context-pressure signals in `LIFEROUTE_HANDOFF.md` appear. Update the handoff first, then give the short restart prompt instead of asking the user to reconstruct project history.
 
 ## Security and privacy
 

@@ -28,7 +28,7 @@ catalog = text("LifeRoute/Web/theme-catalog-v3.js")
 aesthetic = text("LifeRoute/Web/aesthetic-polish-v1.js")
 ui_simplify = text("LifeRoute/Web/ui-simplify-v4.js")
 testflight = text(".github/workflows/testflight.yml")
-auto_release = text(".github/workflows/auto-testflight.yml")
+auto_release_path = Path(".github/workflows/auto-testflight.yml")
 
 # A) Observer / timer pressure: high-frequency helpers stay scoped to the UI they own.
 require('observer.observe(document.body' not in controls, "Live Day helper no longer watches whole document")
@@ -90,7 +90,8 @@ require(0 <= idx('nature-settings-web.js') < idx('theme-catalog-v3.js'), "Settin
 require('loadHelper(' not in text('LifeRoute/Web/settings-classic-themes-web.js'), "classic themes do not inject duplicate theme scripts")
 
 # E) Release pipeline must rebuild/audit before a signed archive and upload,
-# but that pipeline may only be entered by explicit manual dispatch.
+# but that pipeline may only be entered by explicit manual dispatch. The
+# obsolete automatic TestFlight workflow must remain deleted.
 prepare_pos = testflight.find('bash scripts/prepare_build.sh')
 audit_pos = testflight.find('python3 scripts/audit_liferoute_build.py')
 archive_pos = testflight.find('Archive LifeRoute')
@@ -104,10 +105,7 @@ require('Clean temporary Apple signing assets' in testflight and 'if: always()' 
 automatic_triggers = ('workflow_run:', 'repository_dispatch:', 'schedule:', 'push:', 'pull_request:')
 require('workflow_dispatch:' in testflight, "TestFlight upload requires explicit workflow dispatch")
 require(all(trigger not in testflight for trigger in automatic_triggers), "TestFlight upload has no automatic trigger")
-require('workflow_dispatch:' in auto_release, "former auto-release workflow is a manual-only policy guard")
-require(all(trigger not in auto_release for trigger in automatic_triggers), "policy guard has no automatic release trigger")
-require('gh workflow' not in auto_release.lower() and '/dispatches' not in auto_release.lower(), "policy guard cannot dispatch TestFlight")
-require('actions: write' not in auto_release, "policy guard cannot write Actions state")
+require(not auto_release_path.exists(), "legacy auto-TestFlight workflow is removed")
 
 # F) Repository safety/privacy: no user fixtures, private keys, or signing payloads are distributable source.
 for forbidden in (

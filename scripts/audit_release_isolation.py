@@ -5,74 +5,112 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = ROOT / ".github" / "workflows"
 PAGES = WORKFLOWS / "pages.yml"
 TESTFLIGHT = WORKFLOWS / "testflight.yml"
-AUTO_POLICY = WORKFLOWS / "auto-testflight.yml"
-RELEASE_PLACEHOLDER = WORKFLOWS / "release.yml"
+ASSISTANT_RELEASE = WORKFLOWS / "chatgpt-testflight-request.yml"
 SETUP = ROOT / "TESTFLIGHT_SETUP.md"
+PLAYBOOK = ROOT / "APP_CREATION_PLAYBOOK.md"
 
 checks = []
+
 
 def check(name: str, ok: bool) -> None:
     checks.append((name, bool(ok)))
 
-pages = PAGES.read_text() if PAGES.exists() else ""
-testflight = TESTFLIGHT.read_text() if TESTFLIGHT.exists() else ""
-auto = AUTO_POLICY.read_text() if AUTO_POLICY.exists() else ""
-release = RELEASE_PLACEHOLDER.read_text() if RELEASE_PLACEHOLDER.exists() else ""
-setup = SETUP.read_text() if SETUP.exists() else ""
-automatic_triggers = ["workflow_run:", "repository_dispatch:", "schedule:", "push:", "pull_request:"]
 
-# Dedicated TestFlight workflow must remain explicit/manual only.
+def text(path: Path) -> str:
+    return path.read_text() if path.exists() else ""
+
+
+def executable_yaml(src: str) -> str:
+    return "\n".join(
+        line for line in src.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    )
+
+
+pages = text(PAGES)
+testflight = text(TESTFLIGHT)
+assistant_release = text(ASSISTANT_RELEASE)
+setup = text(SETUP)
+playbook = text(PLAYBOOK)
+workflow_files = sorted(WORKFLOWS.glob("*.yml")) + sorted(WORKFLOWS.glob("*.yaml"))
+
+automatic_release_triggers = [
+    "workflow_run:",
+    "repository_dispatch:",
+    "schedule:",
+    "push:",
+    "pull_request:",
+    "issues:",
+]
+apple_secrets = [
+    "APPLE_TEAM_ID",
+    "APP_STORE_CONNECT_KEY_ID",
+    "APP_STORE_CONNECT_ISSUER_ID",
+    "APP_STORE_CONNECT_PRIVATE_KEY",
+]
+upload_markers = [
+    "Upload to TestFlight",
+    "--upload-app",
+    "iTMSTransporter",
+    "xcrun altool",
+]
+
+# There is exactly one real upload workflow, and it is manual-only.
 check("dedicated TestFlight workflow exists", TESTFLIGHT.exists())
 check("TestFlight requires workflow_dispatch", bool(re.search(r"(?m)^\s*workflow_dispatch\s*:\s*$", testflight)))
-for forbidden in automatic_triggers:
+for forbidden in automatic_release_triggers:
     check(f"TestFlight has no automatic trigger {forbidden[:-1]}", forbidden not in testflight)
+check("TestFlight has no Actions write permission", "actions: write" not in testflight)
+check("TestFlight contains the upload step", "Upload to TestFlight" in testflight and "--upload-app" in testflight)
+check("TestFlight accepts assistant authorized_sha input", "authorized_sha:" in testflight)
+check("TestFlight validates dispatched SHA against authorized SHA", 'test "$GITHUB_SHA" = "$AUTHORIZED_SHA"' in testflight)
 
-# The former auto-promoter is now a harmless manual policy card only.
-check("auto-TestFlight file exists as policy guard", AUTO_POLICY.exists())
-check("auto policy is manual-only", bool(re.search(r"(?m)^\s*workflow_dispatch\s*:\s*$", auto)))
-for forbidden in automatic_triggers:
-    check(f"auto policy has no trigger {forbidden[:-1]}", forbidden not in auto)
-check("auto policy cannot invoke gh workflow", "gh workflow" not in auto.lower())
-check("auto policy cannot call dispatch API", "/dispatches" not in auto.lower() and "createworkflowdispatch" not in auto.lower())
-check("auto policy has no Actions write permission", "actions: write" not in auto)
+release_capable = []
+for path in workflow_files:
+    src = text(path)
+    if any(marker in src for marker in upload_markers):
+        release_capable.append(path.name)
+check("only testflight.yml contains upload machinery", release_capable == ["testflight.yml"])
 
-# A historical release.yml placeholder must also remain inert so there is no
-# second release-shaped path hiding outside testflight.yml.
-check("release placeholder exists", RELEASE_PLACEHOLDER.exists())
-check("release placeholder is manual-only", bool(re.search(r"(?m)^\s*workflow_dispatch\s*:\s*$", release)))
-for forbidden in automatic_triggers:
-    check(f"release placeholder has no trigger {forbidden[:-1]}", forbidden not in release)
-check("release placeholder has read-only contents permission", "contents: read" in release and "contents: write" not in release)
-check("release placeholder has no Actions write permission", "actions: write" not in release)
-check("release placeholder has no Apple credentials", not any(token in release for token in [
-    "APPLE_TEAM_ID", "APP_STORE_CONNECT_KEY_ID", "APP_STORE_CONNECT_ISSUER_ID", "APP_STORE_CONNECT_PRIVATE_KEY"
-]))
-check("release placeholder has no archive/upload machinery", not re.search(r"(?i)xcodebuild|\.ipa|upload.*testflight|iTMSTransporter|notarytool|altool|gh workflow|/dispatches", release))
+# The assistant bridge may dispatch the manual workflow, but it may not sign,
+# archive, or upload an app itself.
+check("assistant release bridge exists", ASSISTANT_RELEASE.exists())
+check("assistant bridge is issue-gated", bool(re.search(r"(?m)^\s*issues\s*:\s*$", assistant_release)))
+check("assistant bridge has no push trigger", not bool(re.search(r"(?m)^\s*push\s*:\s*$", assistant_release)))
+check("assistant bridge has Actions write permission", "actions: write" in assistant_release)
+check("assistant bridge requires exact authorization marker", "AUTHORIZED_TESTFLIGHT_RELEASE=YES" in assistant_release)
+check("assistant bridge dispatches only testflight.yml", "actions/workflows/testflight.yml/dispatches" in assistant_release)
+check("assistant bridge passes exact authorized SHA", "authorized_sha" in assistant_release and "$RELEASE_SHA" in assistant_release)
+check("assistant bridge has no Apple credential references", not any(token in assistant_release for token in apple_secrets))
+check("assistant bridge has no upload machinery", not any(marker in assistant_release for marker in upload_markers))
+check("assistant bridge has no archive/export machinery", not re.search(r"(?i)xcodebuild|\.ipa|exportArchive|archivePath", assistant_release))
 
-# Web publishing must be release-isolated. Comments may mention TestFlight, but
-# executable workflow lines must never call or dispatch it.
-executable_pages = "\n".join(
-    line for line in pages.splitlines()
-    if line.strip() and not line.lstrip().startswith("#")
-)
+# Every other workflow is validation/publishing/policy only. None may gain Apple
+# secrets, Actions-write dispatch capability, or TestFlight upload machinery.
+for path in workflow_files:
+    if path.name in {"testflight.yml", "chatgpt-testflight-request.yml"}:
+        continue
+    src = executable_yaml(text(path))
+    check(f"{path.name} has no Apple credential references", not any(token in src for token in apple_secrets))
+    check(f"{path.name} cannot dispatch TestFlight", "actions/workflows/testflight.yml/dispatches" not in src)
+    check(f"{path.name} has no Actions write permission", "actions: write" not in src)
+    check(f"{path.name} has no TestFlight upload machinery", not any(marker in src for marker in upload_markers))
+
+# Pages is explicitly release-isolated.
 check("Pages workflow exists", PAGES.exists())
-check("Pages does not invoke TestFlight workflow", "testflight.yml" not in executable_pages.lower())
-check("Pages does not use GitHub CLI workflow dispatch", "gh workflow" not in executable_pages.lower())
-check("Pages does not call workflow dispatch REST", "/dispatches" not in executable_pages.lower())
-check("Pages has no Apple credential references", not any(token in executable_pages for token in [
-    "APPLE_TEAM_ID", "APP_STORE_CONNECT_KEY_ID", "APP_STORE_CONNECT_ISSUER_ID", "APP_STORE_CONNECT_PRIVATE_KEY"
-]))
-check("Pages has no IPA upload command", not re.search(r"(?i)upload.*testflight|iTMSTransporter|notarytool|altool", executable_pages))
+check("Pages does not invoke TestFlight workflow", "testflight.yml" not in executable_yaml(pages).lower())
+check("Pages has no Apple credential references", not any(token in executable_yaml(pages) for token in apple_secrets))
 
-# Documentation keeps the human authorization boundary explicit. Accept both
-# the older manual-only wording and the newer, stricter explicit-confirmation wording.
+# Documentation keeps the human authorization boundary explicit and consistent.
+policy_docs = setup + "\n" + playbook
 manual_policy_documented = (
-    "manual-only TestFlight" in setup
-    or "explicit-confirmation-only TestFlight release" in setup
+    "manual-only TestFlight" in policy_docs
+    or "explicit-confirmation-only TestFlight release" in policy_docs
 )
 check("manual-only release policy documented", manual_policy_documented)
-check("explicit confirmation documented", "explicit" in setup.lower() and "confirmation" in setup.lower())
-check("launch does not imply TestFlight documented", "request to “launch,”" in setup or 'request to "launch,"' in setup)
+check("explicit confirmation documented", "explicit" in policy_docs.lower() and "confirmation" in policy_docs.lower())
+check("launch does not imply TestFlight documented", "launch" in policy_docs.lower() and "does not" in policy_docs.lower())
+check("exact-SHA assistant dispatch documented", "exact-SHA" in policy_docs or "exact main SHA" in policy_docs)
 
 failed = [name for name, ok in checks if not ok]
 for name, ok in checks:

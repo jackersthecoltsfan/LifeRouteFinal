@@ -10,6 +10,8 @@ Rebuild branch: `rebuild/v0.5.0-functional-core`
 
 Branch base: `64b0c2fef3172a101885e9bdaf4eb7860cc41997`
 
+Draft validation PR: `#20` — `LifeRoute v0.5.0 functional-core rebuild`. Do not merge until the rebuild sequence reaches the exact-SHA release checkpoint.
+
 The last v0.4.0 interaction hotfix was uploaded successfully to TestFlight in workflow run #72 / run ID `33013143643`. Physical-device testing still showed that buttons remained unusable. Treat that as the final signal that the existing active interaction/runtime architecture must be rebuilt rather than patched further.
 
 ## Product decision: rebuild the active architecture
@@ -56,7 +58,7 @@ Do not allow the prepared Xcode project, app target, Live Activity target, archi
 
 Build numbers may continue increasing normally under marketing version 0.5.0.
 
-Add a deterministic version audit that fails preparation/release if any prepared shipping target is not 0.5.0.
+Preparation must fail if any prepared shipping target is not 0.5.0.
 
 ## Architecture rebuild sequence
 
@@ -95,7 +97,7 @@ Audit this layer before adding features.
 Add and prove:
 
 - top-level navigation;
-- Today / Schedule / Session Tools / Resources / Setup destinations as appropriate to the rebuilt information architecture;
+- Today / Schedule / Session Tools / Resources / Setup destinations;
 - state ownership and restoration;
 - contextual navigation;
 - back/close behavior;
@@ -105,15 +107,15 @@ Audit every destination and transition.
 
 ### Layer 3 — core functional features
 
-Reintroduce major functional areas in small batches. Suggested order:
+Reintroduce major functional areas in small batches. Current sequence:
 
 1. calendar normalization and Day/Week/Month;
-2. location/current location/home address;
-3. routing and saved places;
-4. clients/setup data;
-5. Session Tools / ABA tools;
-6. provider connections such as Google Calendar read-only OAuth;
-7. Live Activity/native bridges where still useful;
+2. location/current location/home address and routing/saved places;
+3. clients/setup data;
+4. Session Tools / ABA tools;
+5. provider connections such as Apple Calendar and Google Calendar read-only OAuth;
+6. Resources and remaining deterministic functional surfaces;
+7. Live Activity/native integrations where still useful;
 8. AI/recommendation layers only after deterministic core features are stable.
 
 Each feature batch gets its own checkpoint and focused audit before the next is added.
@@ -134,13 +136,11 @@ Add deterministic persistence/migration tests.
 
 Only after core functionality works:
 
-- measure startup script/module count;
-- reduce startup work;
-- eliminate repeated scans and layout reads;
-- cap observers to narrow containers;
+- measure startup work;
+- eliminate repeated scans/layout work;
 - remove unnecessary timers/polling;
-- keep native/WKWebView work off critical interaction paths;
-- verify repeated navigation does not increase handler counts, DOM nodes, timers, or memory pressure;
+- keep native work off critical interaction paths;
+- verify repeated navigation does not increase handlers, nodes, tasks, or memory pressure;
 - preserve reduced-motion/accessibility behavior.
 
 ### Layer 6 — stability layer
@@ -148,12 +148,12 @@ Only after core functionality works:
 Verify:
 
 - one owner per interaction;
-- no duplicate startup modules;
+- no duplicate startup systems;
 - no overlay/pointer-event traps;
-- no race-prone delayed DOM rewrites;
-- no stale event handlers after navigation;
+- no race-prone delayed UI rewrites;
+- no stale event ownership after navigation;
 - deterministic lifecycle behavior across foreground/background/relaunch;
-- safe bridge error handling;
+- safe provider error handling;
 - graceful failure when external services are unavailable.
 
 ### Layer 7 — second full functionality pass
@@ -196,11 +196,9 @@ Preserve/refactor current appearance work into independently enableable modules 
 7. **Dynamic/scenery chunk** — animated or living backgrounds, environmental effects, creatures/scenery.
 8. **Onboarding/polish chunk** — welcome/tour and premium finishing details.
 
-Quarantine these chunks from the first functional-core release. Reintroduce them sequentially only after Brandon confirms the prior build remains functional on a physical iPhone.
+Quarantine these chunks from the first functional-core release. Reintroduce them sequentially only after physical-device confirmation of the prior build.
 
 Every cosmetic chunk must have its own performance/stability audit and must be removable without affecting navigation, data, routing, calendar, tools, or provider functionality.
-
-If adding a cosmetic chunk breaks physical-device functionality, revert only that chunk/checkpoint and continue from the last known-good commit.
 
 ## Checkpoint / save-progress protocol
 
@@ -215,33 +213,24 @@ For each layer or feature batch:
 5. do not mix unrelated architectural/cosmetic work into that checkpoint;
 6. keep the previous known-good checkpoint recoverable.
 
-Suggested checkpoint naming:
-
-- `v0.5.0 checkpoint 00 — inventory/quarantine`
-- `v0.5.0 checkpoint 01 — minimal interaction shell`
-- `v0.5.0 checkpoint 02 — core navigation`
-- `v0.5.0 checkpoint 03A — calendar core`
-- `v0.5.0 checkpoint 03B — routing/location core`
-- `v0.5.0 checkpoint 03C — setup/clients core`
-- `v0.5.0 checkpoint 03D — Session Tools core`
-- `v0.5.0 checkpoint 04 — persistence migration`
-- `v0.5.0 checkpoint 05 — performance`
-- `v0.5.0 checkpoint 06 — stability`
-- `v0.5.0 checkpoint 07 — second functionality pass`
-- `v0.5.0 cosmetic 01 — core identity`
-- `v0.5.0 cosmetic 02 — vector icons`
-- etc.
-
-Maintain a compact checkpoint table in this handoff as work progresses.
-
 ## Checkpoint table
 
 | Checkpoint | Commit | Status | Notes |
 |---|---|---|---|
 | Rebuild baseline | `64b0c2fef3172a101885e9bdaf4eb7860cc41997` | Baseline only | v0.4.0 runtime; buttons still unusable on physical device. Do not treat as functional core. |
 | Checkpoint 00 — inventory/quarantine | `558c649dfa501a4317d7bdc0aeb4ed6c4ef90e53` | Complete | Architecture/quarantine inventory saved; legacy interaction layers classified; cache policy preserves useful product data. Version guard work began at `2523331faa2d67c5d4e1a2a750267987cb50c80d`. |
-| Checkpoint 01 — minimal interaction shell | `5656d380345f6ca4b54f3dcb6a3030c9d9d9dde7` | Green | Native SwiftUI shell; legacy `LifeRouteWebView.swift` removed from active Sources and `LifeRoute/Web` removed from Resources; v0.4 patch stack no longer runs. CI run #627 / `33015560338` passed preparation, focused audit, and iOS Simulator build. |
-| Checkpoint 02 — core navigation | `066455a54a3552fe756a3da8877ec263faa6cd0a` | Green | Root `AppRouter`, five native NavigationStacks, typed routes, semantic NavigationLinks, native dismiss/back, centralized cross-tab navigation. Core code introduced at `4bb3cd809d2802f3ec69674a2b901a9e169fb679`; audit/workflow alignment finalized at this SHA. Policy run #12 / `33016029524` and iOS CI run #629 / `33016029523` passed. |
+| Checkpoint 01 — minimal interaction shell | `5656d380345f6ca4b54f3dcb6a3030c9d9d9dde7` | Green | Native SwiftUI shell; legacy `LifeRouteWebView.swift` removed from active Sources and `LifeRoute/Web` removed from Resources; v0.4 patch stack no longer runs. CI #627 / `33015560338` passed preparation, audit, and Simulator build. |
+| Checkpoint 02 — core navigation | `066455a54a3552fe756a3da8877ec263faa6cd0a` | Green | Root `AppRouter`, five native NavigationStacks, typed routes, semantic controls, native dismiss/back, centralized cross-tab navigation. Policy #12 / `33016029524` and iOS CI #629 / `33016029523` passed. |
+| Checkpoint 03A — calendar core | `2a1f5024d215bc4f14280ab7a9b26fb7e2392513` | Green | Native normalized calendar events and source identity, deterministic Day/Week/Month calculations, in-memory validated manual appointments. No provider/persistence/cosmetic dependency. Policy #14 / `33016371522`; iOS CI #631 / `33016371727` passed. |
+| Checkpoint 03B — routing/location core | `6523c8af0931f3fe7e6975a8562a41c83a9361d5` | Green | Native Core Location + MapKit, one-shot location requests, current-location-first routing with home fallback, session-only saved places, route estimates, Apple Maps handoff. Policy #15 / `33016701273`; iOS CI #632 / `33016701447` passed. |
+| Checkpoint 03C — clients/setup core | `d5aca2e916e5f1fccb2274e22a7736b9a5a542d9` | Green | Client feature code introduced at `98df74bb622855a537046c380e3bacdbffb0bc9a`; composable audit correction finalized at this SHA. Native ABA-style four-letter client codes, service location, preferred activities, targets, behaviors of concern, communication/FCT, prompting, caregiver, and clinical notes. Policy #17 / `33016981569`; iOS CI #634 / `33016981568` passed. |
+| Checkpoint 03D — Session Tools core | `801f4601180f20889184e757e010972d94279431` | Green | Native absolute-deadline visual timer using `TimelineView`, client-linked scratch notes, text First/Then, and deterministic session-plan organizer constrained to user-entered/saved supervisor-approved information. No polling timer, modal overlay, AI, persistence, haptics, or cosmetic dependency. Policy #18 / `33017293601`; iOS CI #635 / `33017293583` passed. |
+
+## Active runtime / quarantine status
+
+The active application target currently compiles the reviewed native SwiftUI core and native feature-domain files. `LifeRouteWebView.swift` and `LifeRoute/Web/` remain in Git/Xcode project groups only as migration/reference material; they are not active Sources/Resources. `scripts/prepare_build.sh` does not run the v0.4.0 patch stack or inject legacy JavaScript.
+
+Build/cache policy: repository-local `build/` is cleared during preparation; Xcode DerivedData/archives/IPAs/user state remain gitignored. Do not blanket-delete user-entered product data or Keychain tokens merely as cache cleanup; persistence migration owns that decision later.
 
 ## Safety / compatibility constraints
 
@@ -270,6 +259,6 @@ At the beginning of the next thread:
 
 ## Immediate next action
 
-Begin **v0.5.0 checkpoint 03A — calendar core**.
+Begin **v0.5.0 checkpoint 03E — native calendar providers**.
 
-Build a native, side-effect-free calendar domain layer first: normalized event/source models, deterministic Day/Week/Month calculations, and in-memory manual appointment behavior. Keep provider OAuth/EventKit hookup, persistence migration, routing, and cosmetic calendar effects out of this checkpoint so failures remain attributable to one layer.
+Extract only the stable native provider logic from the quarantined WebView coordinator. Add Apple EventKit read access first and feed normalized `LifeRouteCalendarEvent` values directly into `CalendarCoreState`. Then add Google Calendar read-only PKCE OAuth using the existing non-secret iOS client configuration, retain refresh tokens only in Keychain, and normalize Google events directly into the same calendar state. Do not reactivate `LifeRouteWebView`, JavaScript bridge message handling, or browser persistence. Keep provider refresh user-triggered / bounded rather than polling.

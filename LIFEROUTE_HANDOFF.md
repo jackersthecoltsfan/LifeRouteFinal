@@ -2,9 +2,9 @@
 
 This file is the durable handoff between LifeRoute development threads. Keep it compact, current, and free of secrets or unrelated personal information.
 
-## How a new LifeRoute chat should resume
+## Resume protocol
 
-Read, in order:
+At the start of a new LifeRoute thread, read:
 
 1. `LIFEROUTE_HANDOFF.md`
 2. `AGENTS.md`
@@ -13,144 +13,73 @@ Read, in order:
 5. `GITHUB_ACTIONS_RUNBOOK.md`
 6. relevant files in `ReusableAppWorkflow/`
 
-Then inspect live GitHub/Actions state before acting on any recorded workflow status.
+Then inspect live GitHub/Actions state before acting on recorded workflow status.
 
-The user should only need to say:
-
-> Continue LifeRoute from the repository and the current handoff.
-
-## Current project state — 2026-08-26
+## Current state — 2026-08-26
 
 Repository: `jackersthecoltsfan/LifeRouteFinal`
 
-Validated release baseline on `main`:
+Current `main` product commit:
+`b59f9c244419786d92d9c898d9430c0f92ff3d70`
+(`Merge LifeRoute v0.4.0 direct startup`)
+
+PR `#13` (`LifeRoute v0.4.0 — remove local login gate`) was merged after its branch validations succeeded.
+
+The previous TestFlight release remains SHA:
 `0fb4c1b5e3873030295617f04577c254e1bc55d7`
-(`Merge LifeRoute performance smoothness pass`)
 
-Active isolated development branch:
-`feature/v0.4.0`
+TestFlight workflow `LifeRoute → TestFlight` run `#68` / ID `33003904725` completed successfully, including the actual `Upload to TestFlight` step.
 
-Draft validation PR:
-`#13` — `LifeRoute v0.4.0 — remove local login gate`
+**No TestFlight workflow was triggered for v0.4.0 merge SHA `b59f9c...`. Do not upload v0.4.0 until Brandon explicitly authorizes release.**
 
-Latest validated v0.4.0 runtime commit before this documentation refresh:
-`0e48338faccf5d416c01fad198cd2f49b6b97b6b`
+## v0.4.0 direct-startup decision
 
-Do not merge experimental work directly to `main`. Keep v0.4.0 isolated until its development phase is ready.
+Physical-device testing showed that the legacy local username/PIN login screen remained unreliable even after PIN fields accepted input. v0.4.0 therefore launches directly into LifeRoute.
 
-## Previous TestFlight release
+Implementation:
 
-The TestFlight workflow for main SHA `0fb4c1b5e3873030295617f04577c254e1bc55d7` completed successfully.
+- a deterministic early bypass returns before legacy local-auth startup work executes;
+- no PIN derivation, auth overlay/style construction, login rendering, settings polling, or native `authStatus` startup request runs on the normal v0.4.0 path;
+- stale auth overlay/styles/settings rows and auth-lock attributes are defensively removed;
+- the legacy local-auth implementation remains recoverable below the bypass for a future redesign;
+- native Keychain/biometric infrastructure remains present and hardened but dormant from normal startup;
+- Google Calendar OAuth remains separate, intact, and read-only (`calendar.readonly`);
+- no credentials, secrets, signing material, or provider tokens were exposed.
 
-- Workflow: `LifeRoute → TestFlight`
-- Run: `#68`
-- Run ID: `33003904725`
-- Result: success
-- The actual `Upload to TestFlight` step succeeded.
+The deterministic path remains rooted in `scripts/prepare_build.sh`; the v0.4.0 bypass is applied through the existing auth preparation chain.
 
-This is the last confirmed TestFlight release state before v0.4.0 development.
+## Validation evidence
 
-## v0.4.0 authentication decision
+Branch/runtime validation:
 
-Physical-device testing showed that PIN fields could accept input, but the local LifeRoute login screen itself remained unreliable/unresponsive.
+- iOS Build Check `#614` / run ID `33005423883` — success
+- confirmation iOS Build Check `#616` / run ID `33005620839` — success
+- umbrella regression audit: `577 checks passed, 0 failed`
 
-For v0.4.0, the local username/PIN gate is therefore intentionally bypassed on startup.
+Merged-main validation for SHA `b59f9c244419786d92d9c898d9430c0f92ff3d70`:
 
-Implemented behavior:
+- iOS Build Check `#617` / run ID `33005847996` — success
+- `Prepare the same features used by TestFlight` — success
+- `Full LifeRoute regression audit` — success
+- `Build LifeRoute for iOS Simulator` — success
 
-- LifeRoute launches directly into the main application.
-- The legacy local-auth implementation remains recoverable below an immediate v0.4.0 bypass for a future authentication redesign.
-- The bypass returns before PIN derivation, auth-style/overlay construction, login rendering, settings polling, or native `authStatus` startup requests can execute.
-- Defensive cleanup removes any stale legacy auth overlay, auth styles, auth settings section, or auth-lock document attributes.
-- Native Keychain and biometric infrastructure remains present and hardened but dormant from the normal v0.4.0 startup path.
-- Google Calendar OAuth remains separate, intact, and read-only (`calendar.readonly`).
-- No credentials, secrets, signing material, or provider tokens were exposed.
+Validated areas include auth direct-startup/no-touch-blocking behavior, Google OAuth scope preservation, client profiles/pickers, navigation, Day/Week/Month immediate selected state, routing/gap planning, Live Day/Live Activity, address/home/current/live location, stop/place search and duration, Tools and visual timer, First/Then/session-planning/visual tools, categorized themes, premium haptics/motion/accessibility, AI journeys/runtime safety, external-service limits, state invariants, and no legacy programmatic document scrolling.
 
-The deterministic build path applies this through the existing auth preparation chain; `scripts/prepare_build.sh` itself remains deterministic and unchanged for this feature.
+Performance/smoothness gates passed all four review angles:
 
-## v0.4.0 validation evidence
-
-Final branch validation for runtime commit `0e48338faccf5d416c01fad198cd2f49b6b97b6b` passed completely.
-
-GitHub Actions:
-
-- Workflow: `iOS Build Check`
-- Run: `#614`
-- Run ID: `33005423883`
-- Conclusion: success
-
-Required gates all passed:
-
-1. `Prepare the same features used by TestFlight` — success
-2. `Full LifeRoute regression audit` — success
-3. `Build LifeRoute for iOS Simulator` — success
-4. Xcode result — `** BUILD SUCCEEDED **`
-
-The umbrella full regression audit reported:
-
-- `577 checks passed, 0 failed`
-
-Important focused validation also passed, including:
-
-- v0.4.0 startup/auth bypass and no-overlay/touch-interception contract
-- Google OAuth read-only/provider-auth preservation
-- client pickers and saved-client profiles
-- navigation architecture and four-tab navigation
-- Day UI, Day/Week/Month immediate selected-state behavior, routing, and gap planning
-- Live Day reminders and Live Activity integration
-- address autocomplete, home persistence, current/live location, and stale-coordinate rejection
-- stop/place search and planned-stop duration
-- Tools, visual timer, First/Then, session planning, visual maker, and choice boards
-- categorized theme catalog and deep theme runtime
-- premium interactions, haptics, mobile ergonomics, accessibility, and appearance
-- stability and state invariants
-- AI user journeys, AI runtime/release safety, Vision/Image Playground/ABA-note hooks
-- external-service privacy/workload limits
-- no legacy programmatic document scrolling
-- feature parity/performance
-
-Performance/smoothness audit passed all four angles:
-
-1. runtime pressure & freeze prevention
-2. motion & touch responsiveness
+1. runtime pressure and freeze prevention
+2. motion and touch responsiveness
 3. scroll/lifecycle stability
-4. release artifact & navigation contract
+4. release-artifact and navigation integrity
 
-At the validated runtime commit, the branch differed from the release baseline only in five auth/auth-audit files. No calendar, routing, theme, tools, AI, navigation, or general performance implementation file was modified by this v0.4.0 login-removal task.
+## Performance and UI requirements to preserve
 
-## Performance requirements to preserve
+Do not reintroduce whole-document/broad class MutationObservers, repeated full-document scans, forced synchronous layout/reflow tricks, duplicate interaction/transition owners, heavy iPhone blur/filter animation, unnecessary timers/polling, repeated critical-path geometry measurements, or programmatic document scrolling.
 
-Do not reintroduce:
+Preserve immediate tactile response, lightweight spring motion/haptics, reduced-motion accessibility, immediate Day/Week/Month synchronization, premium dark-blue/gold styling, and categorized Themes (`Classic`, `Metallic`, `Scenery`, `Dynamic`, `Fluid`, `Living`).
 
-- whole-document or broad class-change MutationObservers
-- repeated full-document scans
-- forced synchronous layout/reflow tricks
-- duplicate button/page-transition systems
-- heavy iPhone blur/filter animation
-- multiple interaction owners for one tap
-- unnecessary polling/timers
-- repeated geometry measurement on critical interaction paths
-- programmatic document scrolling
+## Next action
 
-Prefer transform/opacity, scoped observers, event delegation, immediate selected-state/touch feedback, lightweight spring motion, and one owner per interaction.
+v0.4.0 direct-startup work is complete and validated on `main`. Wait for the next v0.4.0 feature request.
 
-## UI state to preserve
-
-Keep the premium Apple-style direction already validated:
-
-- sleek professional dark-blue/gold identity
-- immediate tactile response
-- lightweight haptics and spring feedback
-- smooth page/navigation transitions
-- reduced-motion accessibility
-- immediate Day/Week/Month selected-state synchronization
-- categorized Themes accordion/dropdown organization: Classic, Metallic, Scenery, Dynamic, Fluid, Living
-- strong mobile responsiveness with minimal clutter
-
-## Release policy / next action
-
-**Do not upload v0.4.0 to TestFlight until Brandon explicitly authorizes the release.**
-
-The current v0.4.0 work is validated but remains on the isolated development branch/draft PR while additional v0.4.0 features may be added.
-
-Next action: wait for the next v0.4.0 feature request. For every additional substantial feature, preserve the same regression/performance discipline. Before any eventual TestFlight release, rerun the complete preparation, full regression suite, performance/smoothness gates, and iOS build against the final release candidate, then require explicit release authorization.
+For the next substantial development task, branch from current `main` into a fresh isolated feature branch. Before any eventual TestFlight release, rerun deterministic preparation, the full regression suite, performance/smoothness gates, and iOS Simulator build against the final release candidate, then require Brandon's explicit release authorization.

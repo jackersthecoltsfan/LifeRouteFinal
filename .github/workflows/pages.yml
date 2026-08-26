@@ -35,25 +35,37 @@ jobs:
       - name: Audit 1 · Full LifeRoute regression
         run: python3 scripts/audit_liferoute_build.py
 
-      - name: Audit 2 · Touch playground syntax + contracts
+      - name: Audit 2 · Touch playground contracts
+        run: python3 scripts/audit_touch_playground_v1.py
+
+      - name: Audit 3 · JavaScript syntax sweep
         run: |
           node --check LifeRoute/Web/touch-playground-v1.js
-          python3 scripts/audit_touch_playground_v1.py
+          node --check LifeRoute/Web/delight-ui-v1.js
+          node --check LifeRoute/Web/delight-tail-v1.js
+          node --check LifeRoute/Web/aesthetic-polish-v1.js
+          node --check LifeRoute/Web/timer-native-audio-v1.js
+          node --check LifeRoute/Web/toolbar-cleanup-v1.js
 
-      - name: Audit 3 · Interaction and performance pressure
+      - name: Audit 4 · Interaction and performance pressure
         run: python3 scripts/audit_interaction_performance_v3.py
 
-      - name: Audit 4 · Runtime stability
+      - name: Audit 5 · Runtime stability
         run: python3 scripts/audit_stability.py
 
-      - name: Audit 5 · Release lifecycle and pressure
+      - name: Audit 6 · Release lifecycle and pressure
         run: python3 scripts/audit_runtime_release.py
 
-      - name: Audit 6 · State invariants
-        run: python3 scripts/audit_state_invariants.py
+      - name: Audit 7 · State invariants and user journeys
+        run: |
+          python3 scripts/audit_state_invariants.py
+          python3 scripts/audit_user_journeys.py
 
-      - name: Audit 7 · End-to-end user journeys
-        run: python3 scripts/audit_user_journeys.py
+      - name: Audit 8 · Immersive UI safety and accessibility
+        run: python3 scripts/audit_immersion_ui_v1.py
+
+      - name: Audit 9 · Web versus TestFlight release isolation
+        run: python3 scripts/audit_release_isolation.py
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -61,7 +73,7 @@ jobs:
       - name: Build browser preview
         run: python3 scripts/build_web_preview.py
 
-      - name: Audit 8 · Final browser artifact
+      - name: Audit 10 · Final browser artifact
         run: python3 scripts/audit_web_artifact.py
 
       - name: Report browser artifact budget

@@ -9,38 +9,43 @@ checks = []
 def require(condition, label):
     checks.append((bool(condition), label))
 
-require('const AUTH_GATE_ENABLED = false;' in auth, 'login gate is explicitly disabled')
-require('if (!AUTH_GATE_ENABLED)' in auth, 'disabled gate short-circuits before auth UI setup')
-require('window.LifeRouteAuth = { enabled: false' in auth, 'public auth API reports disabled state')
-require('document.getElementById("lifeRouteAuthGate")?.remove()' in auth, 'legacy login overlay is removed if present')
-require('document.getElementById("lifeRouteAuthSettingsSection")?.remove()' in auth, 'login/security settings row is removed if present')
-require('document.documentElement.removeAttribute("data-life-route-auth-locked")' in auth, 'root auth-lock marker is cleared')
-require('document.body?.removeAttribute("data-life-route-auth-locked")' in auth, 'body auth-lock marker is cleared')
-require('document.dispatchEvent(new CustomEvent("liferoute-auth-disabled"))' in auth, 'disabled-auth state is observable')
-require('patch_disable_auth_gate_v1.py' in prepare, 'disabled-login patch is mandatory in prepared builds')
-require('audit_auth_disabled_v1.py' in prepare, 'disabled-login audit is mandatory in prepared builds')
-require('<script src="auth-gate.js"></script>' in index, 'prepared app still loads recoverable auth module')
-
-# Ensure the disable block returns before any expensive or blocking auth work can run.
-disable_pos = auth.find('if (!AUTH_GATE_ENABLED)')
-return_pos = auth.find('    return;', disable_pos)
-style_pos = auth.find('  const styles = document.createElement("style")', disable_pos)
-derive_pos = auth.find('  const derivePin = async', disable_pos)
-render_pos = auth.find('  const renderLoading =', disable_pos)
-start_pos = auth.find('  const start = () =>', disable_pos)
-require(disable_pos >= 0 and return_pos > disable_pos, 'disabled-login early return exists')
-for position, label in [
-    (derive_pos, 'PIN derivation'),
-    (style_pos, 'auth style construction'),
-    (render_pos, 'auth loading UI'),
-    (start_pos, 'auth startup'),
+# v0.4.0 must load directly into the product with no local LifeRoute gate.
+for marker in [
+    'const AUTH_GATE_ENABLED = 0',
+    'window.__lifeRouteAuthGateDisabledV040 = true',
+    'cleanupLegacyGate',
+    'enabled: !!AUTH_GATE_ENABLED',
+    'return false;',
 ]:
-    require(position > return_pos, f'disabled-login return precedes {label}')
+    require(marker in auth, f'direct-launch marker present: {marker}')
+
+# The compatibility stub may clean up stale legacy UI, but it must never create,
+# style, poll, hash, or start the old authentication experience.
+for forbidden in [
+    'Create your login',
+    'Welcome back',
+    'renderLoading',
+    'renderLogin',
+    'renderSetup',
+    'PBKDF2',
+    'crypto.subtle',
+    'setInterval(',
+    'post({ action: "authStatus"',
+    'document.createElement("div")',
+    'document.body.appendChild',
+    'lrAuthGate{position:fixed',
+]:
+    require(forbidden not in auth, f'legacy auth work absent: {forbidden}')
+
+require('document.getElementById("lifeRouteAuthGate")?.remove()' in auth, 'stale login overlay is defensively removed')
+require('document.getElementById("lifeRouteAuthStyles")?.remove()' in auth, 'stale login styles are defensively removed')
+require('<script src="auth-gate.js"></script>' in index, 'recoverable compatibility module remains in deterministic startup order')
+require('patch_auth_keychain_reliability_v1.py' in prepare, 'prepared builds deterministically recreate the inert auth module')
 
 failed = [label for ok, label in checks if not ok]
-print(f"LifeRoute disabled-login audit: {len(checks) - len(failed)} passed, {len(failed)} failed")
+print(f"LifeRoute v0.4.0 direct-launch audit: {len(checks) - len(failed)} passed, {len(failed)} failed")
 if failed:
     for label in failed:
         print(f"FAIL: {label}")
     raise SystemExit(1)
-print('LifeRoute opens directly with login/PIN UI disabled and auth startup work off the critical path.')
+print('LifeRoute launches directly with no login overlay, polling, PIN derivation, or auth interaction interception.')

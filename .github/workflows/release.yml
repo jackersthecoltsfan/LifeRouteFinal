@@ -1,30 +1,21 @@
-name: One-Shot TestFlight Trial Dispatcher
-run-name: Authorized one-shot TestFlight trial
+name: Release Placeholder Policy
+run-name: Release placeholder is inert
 
-# TEMPORARY one-shot dispatcher created only because the user explicitly
-# commanded one TestFlight trial. It is guarded by the exact commit message and
-# by this file path, and will be restored to the inert manual-only policy as soon
-# as the dispatch fires.
+# This file intentionally performs no release. It remains a valid manual-only
+# workflow so an old placeholder cannot create failed push checks or evolve into
+# an accidental release path without being caught by the release-isolation audit.
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/release.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
-  dispatch-once:
-    if: github.event.head_commit.message == 'Authorize one TestFlight trial [testflight-once]'
+  policy:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Dispatch audited TestFlight workflow exactly once
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Confirm inert release placeholder
         run: |
-          set -euo pipefail
-          gh workflow run testflight.yml --repo "${{ github.repository }}" --ref main
-          echo "One explicit TestFlight trial dispatched."
+          echo "This workflow is intentionally inert."
+          echo "LifeRoute TestFlight releases use testflight.yml only after explicit user command."

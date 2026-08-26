@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-# Checkpoint 03F exact-head validation trigger: visual support ownership is client-specific.
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,7 +45,7 @@ require("requested.allSatisfy(allowed.contains)" in domain, "Choice boards rejec
 require("if let iconID = step.iconID, !allowed.contains(iconID)" in domain, "Visual schedules reject cross-client icon references")
 require("func icon(id: UUID, for clientCode: String)" in domain, "Icon lookup requires client context")
 for forbidden in ["UserDefaults", "localStorage", "WebKit", "WKWebView", "MutationObserver", "setInterval"]:
-    require(forbidden not in domain, f"Visual-support domain avoids deferred/legacy dependency: {forbidden}")
+    require(forbidden not in domain, f"Visual-support domain avoids legacy storage/runtime dependency: {forbidden}")
 
 require("@StateObject private var visualState = ClientVisualSupportCore()" in views, "Session Tools owns one visual-support state object")
 require("Client Visual Supports" in views, "Session Tools exposes client visual supports")
@@ -57,7 +56,7 @@ require("visualState.icons(for: clientCode)" in views, "Visual builders pull onl
 require("visualState.saveChoiceBoard(clientCode: clientCode" in views, "Choice boards save to the selected client")
 require("visualState.saveSchedule(clientCode: clientCode" in views, "Visual schedules save to the selected client")
 require("ClientFirstThenVisualView" in views and "visualState.icon(id:" in views, "First / Then visual lookup is client-scoped")
-require("Visual supports are client-specific and session-only until the persistence checkpoint." in views, "UI states client ownership and deferred persistence truthfully")
+require("Visual supports are client-specific" in views, "UI continues to state client-specific visual ownership")
 require("LifeRouteWebView.swift in Sources" not in project and "Web in Resources" not in project, "Legacy WebView runtime remains quarantined")
 require("audit_v0_5_0_client_visual_supports.py" in prepare, "Preparation runs the visual-support audit")
 require("Audit checkpoint 03F client visual supports" in workflow, "iOS CI exposes the 03F audit")

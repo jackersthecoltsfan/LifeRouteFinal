@@ -20,29 +20,31 @@
     .lrBoundaryOpen,.lrBoundaryGap button{position:relative;z-index:2}
     #lifeRouteMetalBackdrop,#lifeRouteThemeFX,#lifeRouteNatureBackdrop,#lifeRouteDynamicBackdrop{pointer-events:none!important}
 
-    /* Native WKWebView gets the same visual identity with less compositing work. */
-    html[data-life-route-runtime="native"] .bottom{backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important}
+    /* Native WKWebView keeps the visual identity without persistent blur-heavy compositing. */
+    html[data-life-route-runtime="native"] .bottom{backdrop-filter:blur(4px)!important;-webkit-backdrop-filter:blur(4px)!important}
     html[data-life-route-runtime="native"] .tabs,
     html[data-life-route-runtime="native"] .calendarHubNav,
-    html[data-life-route-runtime="native"] .liveDayPanel{backdrop-filter:blur(6px)!important;-webkit-backdrop-filter:blur(6px)!important}
+    html[data-life-route-runtime="native"] .lrContextTabs,
+    html[data-life-route-runtime="native"] .lrPlaceCategories,
+    html[data-life-route-runtime="native"] .setupSubnav,
+    html[data-life-route-runtime="native"] .lrThemeCategoryTabs,
+    html[data-life-route-runtime="native"] .liveDayPanel{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
     html[data-life-route-runtime="native"] #lifeRouteMetalBackdrop .metalWave,
     html[data-life-route-runtime="native"] #lifeRouteMetalBackdrop .specular{will-change:auto!important}
     html[data-life-route-runtime="native"] #lifeRouteThemeFX .fxOrb,
-    html[data-life-route-runtime="native"] #lifeRouteThemeFX .fxBeam{animation:none!important;will-change:auto!important}
-    html[data-life-route-runtime="native"] #lifeRouteThemeFX .fxOrb{filter:blur(42px)!important;opacity:.10!important}
-    html[data-life-route-runtime="native"] #lifeRouteThemeFX .fxBeam{filter:blur(18px)!important;opacity:.07!important}
+    html[data-life-route-runtime="native"] #lifeRouteThemeFX .fxBeam{animation:none!important;will-change:auto!important;filter:none!important;opacity:.05!important}
 
     @media(max-width:700px) and (pointer:coarse){
       html[data-life-route-runtime="web"] .dynC{display:none!important}
-      html[data-life-route-runtime="web"] .dynLayer{filter:blur(24px)!important;will-change:auto!important}
+      html[data-life-route-runtime="web"] .dynLayer{filter:none!important;will-change:auto!important;opacity:.12!important}
       html[data-life-route-runtime="web"][data-nature-theme="true"] #lrNatureAtmosphere{display:none!important}
-      html[data-life-route-runtime="web"] .bottom{backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important}
+      html[data-life-route-runtime="web"] .bottom{backdrop-filter:blur(6px)!important;-webkit-backdrop-filter:blur(6px)!important}
       html[data-life-route-runtime="web"][data-dynamic-theme] .card,
       html[data-life-route-runtime="web"][data-dynamic-theme] .metric,
       html[data-life-route-runtime="web"][data-dynamic-theme] .hero,
       html[data-life-route-runtime="web"][data-nature-theme="true"] .card,
       html[data-life-route-runtime="web"][data-nature-theme="true"] .metric,
-      html[data-life-route-runtime="web"][data-nature-theme="true"] .hero{backdrop-filter:blur(8px)!important;-webkit-backdrop-filter:blur(8px)!important}
+      html[data-life-route-runtime="web"][data-nature-theme="true"] .hero{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
     }
     @media(prefers-reduced-motion:reduce){
       #lifeRouteMetalBackdrop *,#lifeRouteThemeFX *,#lifeRouteDynamicBackdrop *,#lifeRouteNatureBackdrop *{animation:none!important}

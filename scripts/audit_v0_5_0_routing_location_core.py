@@ -36,7 +36,7 @@ project = read(PROJECT)
 for framework in ["CoreLocation", "MapKit", "Combine"]:
     require(f"import {framework}" in domain, f"Routing/location core uses native {framework}")
 for forbidden in ["WebKit", "JavaScript", "WKWebView", "MutationObserver", "localStorage", "UserDefaults", "Timer(", "setInterval"]:
-    require(forbidden not in domain, f"Routing/location core avoids legacy/persistence/timer dependency: {forbidden}")
+    require(forbidden not in domain, f"Routing/location core avoids legacy/browser persistence/timer dependency: {forbidden}")
 
 require("final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDelegate" in domain, "One native object owns location and route state")
 require("locationManager.requestWhenInUseAuthorization()" in domain, "Location permission is requested natively")
@@ -61,8 +61,9 @@ require("Button(\"Use current location\")" in content, "Today exposes a semantic
 require("Button(\"Estimate\")" in content and "calculateRoute(to: place" in content, "Saved-place route estimate action is wired")
 require("Button(\"Open in Maps\")" in content and "openInAppleMaps" in content, "Saved-place Apple Maps action is wired")
 require("Button(\"Add saved place\")" in content, "Setup exposes semantic saved-place creation")
-require("Home and saved places are session-only until the persistence checkpoint." in content, "Routing UI is truthful about in-memory state")
-require("@AppStorage" not in content and "UserDefaults" not in content, "Routing UI does not jump ahead into persistence")
+require("Home and saved places are stored locally in protected LifeRoute app data." in content, "Routing UI states durable routing-input storage truthfully")
+require("Current GPS coordinates and route estimates are not persisted." in content, "Routing UI states transient location/route boundary truthfully")
+require("@AppStorage" not in content and "UserDefaults" not in content, "Routing UI avoids ad-hoc preference persistence")
 require("RoutingLocationDomain.swift in Sources" in project, "Routing/location core is compiled into the active target")
 require("LifeRouteWebView.swift in Sources" not in project and "Web in Resources" not in project, "Legacy WebView runtime remains quarantined")
 

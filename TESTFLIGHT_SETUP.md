@@ -1,51 +1,62 @@
-# LifeRoute — Confirmed GitHub to TestFlight
+# LifeRoute — GitHub to TestFlight
 
-LifeRoute uses automatic validation with **explicit-confirmation-only TestFlight release**:
+LifeRoute uses automatic validation with **explicit-confirmation-only TestFlight release**.
 
-1. **iOS Build Check** runs automatically on relevant changes to `main`.
-2. It runs the deterministic build preparation, full regression audit, and an iOS Simulator build.
-3. Passing CI does **not** upload to TestFlight and does **not** dispatch the TestFlight workflow.
-4. A TestFlight upload happens only after Brandon explicitly confirms that a TestFlight run should be used.
-5. After that confirmation, **Send to TestFlight** can be started in either of two deliberate ways:
-   - Brandon can use GitHub's normal **Run workflow** button (`workflow_dispatch`).
-   - ChatGPT/Codex can create a tightly validated release-request issue for the exact current `main` SHA. The workflow accepts that issue only when it was created by the repository owner, its title exactly names the event SHA, and its body contains the exact authorization marker.
-6. The TestFlight workflow then prepares the app again, reruns the regression audit, validates Apple credentials and bundle IDs, archives the real-device Release build, exports the signed IPA, uploads it to App Store Connect/TestFlight, and cleans temporary Apple signing assets.
+Passing CI never uploads an app. Ordinary pushes never dispatch the TestFlight workflow. A release happens only after the product owner explicitly authorizes it.
 
-This policy exists because App Store Connect enforces an application upload limit. Routine development, auditing, web previews, GitHub commits, ordinary issues, and successful CI runs must never spend a TestFlight upload automatically.
+## Normal release sequence
+
+1. Relevant changes land on `main`.
+2. **iOS Build Check** prepares the exact shared source, runs regression checks, and compiles the simulator build.
+3. **Publish Web Preview** runs when the web/runtime artifact changed and publishes the validated browser preview.
+4. **Release Policy Check** validates release/workflow isolation when release documentation or workflow architecture changes.
+5. ChatGPT/Codex reports the validated state. TestFlight remains untouched.
+6. The product owner explicitly authorizes a TestFlight release.
+7. The release is started either with GitHub's **Run workflow** control for `Send to TestFlight`, or through the guarded assistant release-request bridge.
+8. `testflight.yml` prepares/audits again, validates Apple credentials and bundle IDs, archives, exports, uploads, and cleans temporary signing assets.
+9. The exact **Upload to TestFlight** step is verified before the release is reported as successful.
 
 ## Assistant release-request safeguard
 
-The assistant-triggerable path is intentionally narrow. It does **not** add a push trigger and does not make passing CI automatically publish.
+The assistant path exists so the product owner can authorize a release in ChatGPT even when the connected GitHub tool does not expose workflow dispatch directly.
 
-For LifeRoute, an issue-triggered release is eligible only when all of these are true:
+ChatGPT/Codex must **not** create the release request until required validation is already completed successfully. The bridge is intentionally fail-fast and does not hold a runner while waiting for CI.
 
-- The event is a newly opened GitHub issue.
-- The issue author is the repository owner.
-- The issue title is exactly `LifeRoute TestFlight release @ <current event SHA>`.
-- The issue body is exactly `AUTHORIZED_TESTFLIGHT_RELEASE=YES`.
+A request is eligible only when:
 
-ChatGPT/Codex must create that release request only after Brandon explicitly says to send/upload/release the validated build to TestFlight. A feature request, successful build, web publish request, or general request to continue development is not release authorization.
+- it is a newly opened GitHub issue;
+- the issue author is the repository owner;
+- the issue title is exactly `LifeRoute TestFlight release @ <current event SHA>`;
+- the body is exactly one of:
+  - `AUTHORIZED_TESTFLIGHT_RELEASE=YES`
+  - `AUTHORIZED_TESTFLIGHT_RELEASE=YES;REQUIRE_WEB_PREVIEW=YES`
 
-This mechanism exists so Brandon can authorize a release in ChatGPT and let the connected GitHub tooling initiate it even when the connector does not expose GitHub's `workflow_dispatch` API directly.
+The bridge rechecks current `main`, requires a completed successful release-equivalent iOS validation, requires a completed successful release-equivalent web preview when requested, then dispatches `testflight.yml`.
 
-## Release-control commit tags
+A feature request, successful build, request to continue, request to launch, or web-preview request does **not** authorize TestFlight.
 
-These tags remain useful for clarity, but they are no longer the primary protection against accidental TestFlight uploads because TestFlight requires an explicit release signal.
+## GitHub Actions outage rule
 
-- `[no-testflight]` — explicitly indicates validation/build work with no TestFlight release.
-- `[web-only]` — web/preview-only change; no TestFlight release.
-- No release-control tag — still does **not** authorize TestFlight. Explicit confirmation is always required.
+Do not create an assistant release request while GitHub Actions is degraded or in outage. Follow `GITHUB_ACTIONS_RUNBOOK.md` first. Release authorization remains valid, but dispatch waits until GitHub service health and required validation are reliable.
+
+## Sole release path
+
+`.github/workflows/testflight.yml` is the only workflow allowed to contain Apple signing, IPA export, or TestFlight upload machinery.
+
+It remains `workflow_dispatch` only. Other workflows may validate or dispatch it through the explicitly guarded assistant bridge, but may not sign/upload an app themselves.
 
 ## One-time GitHub secrets
 
-Repository **Settings → Secrets and variables → Actions** needs these four secrets:
+Repository **Settings → Secrets and variables → Actions** requires:
 
-1. `APPLE_TEAM_ID` — Apple Developer Team ID.
-2. `APP_STORE_CONNECT_KEY_ID` — App Store Connect API key ID.
-3. `APP_STORE_CONNECT_ISSUER_ID` — App Store Connect issuer ID.
-4. `APP_STORE_CONNECT_PRIVATE_KEY` — complete contents of the `AuthKey_XXXXXXXXXX.p8` file, including the BEGIN/END PRIVATE KEY lines.
+1. `APPLE_TEAM_ID`
+2. `APP_STORE_CONNECT_KEY_ID`
+3. `APP_STORE_CONNECT_ISSUER_ID`
+4. `APP_STORE_CONNECT_PRIVATE_KEY`
 
-Do not commit the `.p8` file itself.
+The private-key secret contains the complete contents of the App Store Connect `.p8` key. Never commit the `.p8` file, private certificates, or private keys.
+
+The same App Store Connect API key can generally be reused for routine LifeRoute releases while its permissions remain valid; a fresh key/certificate should not be created for every build.
 
 ## App identifiers
 
@@ -54,38 +65,27 @@ Do not commit the `.p8` file itself.
 - Xcode project: `LifeRoute.xcodeproj`
 - Scheme: `LifeRoute`
 
-The GitHub TestFlight workflow run number becomes the TestFlight build number automatically.
-
-## Normal LifeRoute update from now on
-
-The intended routine is:
-
-1. Brandon tells ChatGPT/Codex what should change.
-2. The implementation is made and committed to GitHub.
-3. GitHub automatically prepares, audits, builds, and may publish the web preview when relevant.
-4. ChatGPT reports the validation/build status and leaves TestFlight untouched.
-5. When Brandon explicitly says to send the validated version to TestFlight, ChatGPT/Codex should initiate **Send to TestFlight** through the connected workflow-dispatch action when available, or through the guarded release-request issue when workflow dispatch is not exposed.
-6. Brandon installs/tests that build on the iPhone and reports any UX or functional problems.
-
-**Never infer TestFlight permission from a code-change request, a successful audit, a successful build, a request to “launch,” or a web publish request. The user must explicitly confirm TestFlight.**
-
-## Automatic repair monitor
-
-A ChatGPT condition-watch named **LifeRoute Build Repair** may monitor the build chain. On a failed build it may make targeted repairs when authorized by the project workflow, but repair/validation work does not authorize a TestFlight upload.
+The GitHub TestFlight workflow run number becomes the TestFlight build number.
 
 ## Signing cleanup
 
-GitHub-hosted Macs are temporary. Xcode automatic signing may create a temporary Apple Development certificate and development provisioning profile during a release. The workflow records the signing assets that existed before the build and removes only temporary development assets created by that run. Existing Distribution certificates are not intentionally removed.
+GitHub-hosted Macs are ephemeral, but Xcode automatic signing can create Apple-side development certificates/provisioning assets during release work.
 
-The TestFlight workflow prevents two release jobs from signing at the same time, reducing duplicate signing assets from accidental overlapping runs.
+The release workflow snapshots existing signing assets before archive/export and cleans temporary assets created by that run. Existing Distribution assets are not intentionally removed.
 
-## What Brandon should not have to do for routine development
+TestFlight release concurrency is serialized so two release Macs do not create/sign at the same time.
 
-- Open Xcode on a PC/Mac.
-- Download or convert `.p8` / `.p12` files again.
-- Create a new distribution certificate for every build.
-- Manually increment TestFlight build numbers.
-- Manually run normal CI checks.
-- Read GitHub logs when ChatGPT can inspect them directly.
+## Release-control labels/tags
 
-For TestFlight specifically, Brandon's only required action is the **explicit release confirmation**; ChatGPT/Codex can initiate the guarded release after that confirmation.
+`[no-testflight]` and `[web-only]` may still be used as descriptive commit metadata, but they are not the security boundary. **No commit tag authorizes TestFlight.** Explicit release confirmation is always required.
+
+## What the product owner should not need to do routinely
+
+- Open Xcode or use a PC/Mac just to produce a build.
+- Download/convert `.p8` or `.p12` files again.
+- Create a distribution certificate for every release.
+- Increment build numbers manually.
+- Manually run ordinary CI checks.
+- Read GitHub logs when ChatGPT/Codex can inspect them.
+
+For routine TestFlight releases, the product owner's required action is the explicit release decision plus real-device testing after the build becomes available.

@@ -117,6 +117,9 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
     private let locationManager = CLLocationManager()
 
     override init() {
+        let restored = LifeRoutePersistenceStore.shared.loadRoutingState()
+        self.savedPlaces = restored.savedPlaces
+        self.homeAddress = restored.homeAddress
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
@@ -146,7 +149,8 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
         let cleaned = address.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { throw RoutingLocationCoreError.missingAddress }
         homeAddress = cleaned
-        routeMessage = "Home address saved for this app session."
+        persistRoutingInputs()
+        routeMessage = "Home address saved locally."
     }
 
     func addSavedPlace(
@@ -171,12 +175,14 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
             )
         )
         savedPlaces.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-        routeMessage = "Saved place added for this app session."
+        persistRoutingInputs()
+        routeMessage = "Saved place stored locally."
     }
 
     func removeSavedPlace(id: UUID) {
         savedPlaces.removeAll { $0.id == id }
         routeEstimates[id] = nil
+        persistRoutingInputs()
     }
 
     func calculateRoute(to place: LifeRouteSavedPlace, mode: LifeRouteTransportMode) async {
@@ -233,6 +239,10 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         locationMessage = "Location unavailable: \(error.localizedDescription)"
+    }
+
+    private func persistRoutingInputs() {
+        LifeRoutePersistenceStore.shared.saveRoutingState(homeAddress: homeAddress, savedPlaces: savedPlaces)
     }
 
     private func updateLocationMessage(for status: CLAuthorizationStatus) {

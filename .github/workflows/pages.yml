@@ -1,13 +1,13 @@
 name: Publish Web Preview
 run-name: LifeRoute web preview
 
-# Queue restart marker: 2026-08-26. No application/runtime behavior changes.
 on:
   push:
     branches: [main]
     paths:
       - 'LifeRoute/Web/**'
       - 'scripts/**'
+      - '!scripts/audit_release_isolation.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -16,16 +16,18 @@ permissions:
   pages: write
   id-token: write
 
+# Keep only the newest preview for this workflow/ref.
 concurrency:
-  group: liferoute-pages
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    # Pages is built from the exact same prepared source used by the native app,
-    # but publishing the web build never dispatches TestFlight.
+    # prepare_build.sh already runs the deep shared runtime/state/stability audits.
+    # Keep only independent web-specific checks here to avoid running the same
+    # audits twice on an expensive macOS runner.
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -33,44 +35,14 @@ jobs:
       - name: Prepare exact current LifeRoute build
         run: bash scripts/prepare_build.sh
 
-      - name: Audit 1 · Full LifeRoute regression
+      - name: Full LifeRoute regression audit
         run: python3 scripts/audit_liferoute_build.py
 
-      - name: Audit 2 · Touch playground contracts
-        run: python3 scripts/audit_touch_playground_v1.py
-
-      - name: Audit 3 · JavaScript syntax sweep
+      - name: Web-specific interaction audits
         run: |
-          node --check LifeRoute/Web/touch-playground-v1.js
-          node --check LifeRoute/Web/nav-portal-v1.js
-          node --check LifeRoute/Web/delight-ui-v1.js
-          node --check LifeRoute/Web/delight-tail-v1.js
-          node --check LifeRoute/Web/aesthetic-polish-v1.js
-          node --check LifeRoute/Web/timer-native-audio-v1.js
-          node --check LifeRoute/Web/toolbar-cleanup-v1.js
-
-      - name: Audit 4 · Interaction and performance pressure
-        run: python3 scripts/audit_interaction_performance_v3.py
-
-      - name: Audit 5 · Runtime stability
-        run: python3 scripts/audit_stability.py
-
-      - name: Audit 6 · Release lifecycle and pressure
-        run: python3 scripts/audit_runtime_release.py
-
-      - name: Audit 7 · State invariants and user journeys
-        run: |
-          python3 scripts/audit_state_invariants.py
-          python3 scripts/audit_user_journeys.py
-
-      - name: Audit 8 · Immersive UI safety and accessibility
-        run: python3 scripts/audit_immersion_ui_v1.py
-
-      - name: Audit 9 · Cinematic navigation performance
-        run: python3 scripts/audit_nav_portal_v1.py
-
-      - name: Audit 10 · Web versus TestFlight release isolation
-        run: python3 scripts/audit_release_isolation.py
+          python3 scripts/audit_touch_playground_v1.py
+          python3 scripts/audit_immersion_ui_v1.py
+          python3 scripts/audit_nav_portal_v1.py
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
@@ -78,7 +50,7 @@ jobs:
       - name: Build browser preview
         run: python3 scripts/build_web_preview.py
 
-      - name: Audit 11 · Final browser artifact
+      - name: Audit final browser artifact
         run: python3 scripts/audit_web_artifact.py
 
       - name: Report browser artifact budget

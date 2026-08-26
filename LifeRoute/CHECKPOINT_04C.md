@@ -13,6 +13,6 @@ The checkpoint:
 - does not import provider caches, route/GPS state, cosmetic/runtime state, or the old global visual library;
 - does not reactivate the legacy LifeRoute WebView UI or JavaScript startup graph.
 
-Exact-head validation retriggered after the compiler fixes above; runtime code is unchanged by this marker update.
+Exact-head validation is retriggered after the compiler fixes and rebuild handoff update; runtime behavior is unchanged by this marker update.
 
 The old WebKit website data remains untouched for a possible explicit, migration-only reader after native physical-device reliability is proven.

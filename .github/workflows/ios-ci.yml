@@ -43,7 +43,18 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Prepare the same features used by TestFlight
-        run: bash scripts/prepare_build.sh
+        run: |
+          set -o pipefail
+          bash scripts/prepare_build.sh 2>&1 | tee liferoute-prepare.log
+
+      - name: Temporary PR preparation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v040-prepare-diagnostics-${{ github.run_id }}
+          path: liferoute-prepare.log
+          if-no-files-found: ignore
+          retention-days: 1
 
       - name: Full LifeRoute regression audit
         run: python3 scripts/audit_liferoute_build.py

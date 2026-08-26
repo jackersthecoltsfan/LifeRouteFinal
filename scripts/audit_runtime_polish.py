@@ -93,7 +93,13 @@ check("visual schedule has presentation mode", "lifeRouteVisualScheduleOverlay" 
 check("visual schedule joins Visuals tool group", "openToolGroup" in VISUAL_SCHEDULE and "key === 'visuals'" in VISUAL_SCHEDULE)
 
 check("welcome is first-run persistent", "liferoute_welcome_tour_v2_seen" in WELCOME and "markSeen" in WELCOME)
-check("welcome waits for auth unlock", "liferoute-auth-unlocked" in WELCOME and "lifeRouteAuthGate" in WELCOME)
+check(
+    "welcome uses v0.4.0 direct-startup performance contract",
+    "__lifeRouteWelcomePerformanceV040" in WELCOME
+    and "lifeRouteAuthGate" not in WELCOME
+    and "MutationObserver" not in WELCOME
+    and "setTimeout(maybeShow, 220)" in WELCOME
+)
 check("walkthrough drives real app tabs", all(token in WELCOME for token in ['data-view="today"', 'data-view="tools"', 'data-view="resources"', 'data-view="setup"']))
 check("walkthrough highlights actual targets", "getBoundingClientRect" in WELCOME and "lrTourSpotlight" in WELCOME)
 check("walkthrough can be replayed", "lrReplayTourButton" in WELCOME and "Replay" in WELCOME)

@@ -14,6 +14,7 @@ PBX = ROOT / "LifeRoute.xcodeproj" / "project.pbxproj"
 PLIST = ROOT / "LifeRoute" / "Info.plist"
 EXT_PLIST = ROOT / "LifeRouteLiveActivity" / "Info.plist"
 AUTO = ROOT / ".github" / "workflows" / "auto-testflight.yml"
+TESTFLIGHT = ROOT / ".github" / "workflows" / "testflight.yml"
 
 failures: list[str] = []
 passes: list[str] = []
@@ -41,6 +42,7 @@ pbx = read(PBX)
 plist = read(PLIST)
 ext_plist = read(EXT_PLIST)
 auto = read(AUTO)
+testflight = read(TESTFLIGHT)
 
 # UI: remove the oversized commitments hero while keeping controls available.
 check("lrDayHeroRemoved" in day and "display:none!important" in day, "Day commitments hero is removed")
@@ -94,13 +96,18 @@ check("LifeRouteLiveActivityWidget.swift in Sources" in pbx, "Live Activity widg
 check("NSSupportsLiveActivities" in plist, "host app declares Live Activity support")
 check("com.apple.widgetkit-extension" in ext_plist, "extension uses WidgetKit extension point")
 
-# Release safety while this native build is being prepared but not shipped.
-check('[no-testflight]' in auto, "automatic TestFlight dispatcher honors no-testflight marker")
-check("No-TestFlight commit validated; skipping TestFlight dispatch." in auto, "no-testflight skip is explicit")
+# Release safety: development validation is allowed, but TestFlight is never
+# automatic. This is deliberately stricter than the old commit-marker policy.
+automatic_triggers = ["workflow_run:", "repository_dispatch:", "schedule:", "push:", "pull_request:"]
+check("workflow_dispatch:" in testflight, "TestFlight release requires explicit workflow dispatch")
+check(all(trigger not in testflight for trigger in automatic_triggers), "TestFlight release has no automatic trigger")
+check("workflow_dispatch:" in auto, "former auto-TestFlight workflow is manual-only policy guard")
+check(all(trigger not in auto for trigger in automatic_triggers), "policy guard cannot automatically dispatch TestFlight")
+check("gh workflow" not in auto.lower() and "/dispatches" not in auto.lower(), "policy guard contains no TestFlight dispatch command")
 
 print(f"LifeRoute Live Day audit: {len(passes)} passed, {len(failures)} failed")
 if failures:
     for failure in failures:
         print(f"FAIL: {failure}")
     raise SystemExit(1)
-print("LifeRoute Day UI, route-scoped Clear Day/Clear All controls, reminders, and Live Activity audit passed.")
+print("LifeRoute Day UI, route-scoped Clear Day/Clear All controls, reminders, Live Activity, and manual-only TestFlight policy audit passed.")

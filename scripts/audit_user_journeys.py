@@ -69,8 +69,6 @@ require('const leaveForStopAt = addMinutes(stopStart, -outMinutes)' in live, "in
 require('boundary-before-in' in live and 'boundary-before-out' in live, "both leave reminders exist for before-first route")
 require('travel, planned stop time, and arrival buffer' in live, "Live Day copy states full timing model")
 
-# Simple independent arithmetic sanity case: noon appointment, 12m in, 5m stop,
-# 17m onward, 10m buffer -> first departure 44m before noon = 11:16.
 appointment = 12 * 60
 calculated_departure = appointment - 10 - 17 - 5 - 12
 require(calculated_departure == 11 * 60 + 16, "independent stop-aware departure arithmetic sanity check")
@@ -89,11 +87,19 @@ require('clearDateKeys(GAP_STORE, day)' in controls, "Clear day removes that day
 require('clearDateKeys(BOUNDARY_STORE, day)' in controls, "Clear day removes that day's boundary stops")
 require('key.startsWith("liferoute_")' in controls and 'if (auth) localStorage.setItem(AUTH_STORE, auth)' in controls, "Clear all resets LifeRoute data but preserves sign-in")
 
-# 8) Location lifecycle works natively and on web without simultaneous watchers.
+# 8) Location lifecycle works natively and on web without permanently competing watchers.
+# A browser watcher may briefly overlap only as a watchdog fallback while a posted native
+# stream has failed to produce its first coordinate. Once a native fix arrives, the fallback
+# must be torn down immediately.
 require('watchPosition' in location, "browser live location uses continuous watch")
 require('clearWatch' in location, "browser live location watch can be stopped")
 require('startLiveLocation' in location and 'stopLiveLocation' in location, "native foreground live-location actions are paired")
-require('if (nativeAccepted)' in location and 'stopWebFallback()' in location, "browser watcher stops when native streaming owns location")
+require('NATIVE_FIX_TIMEOUT_MS' in location and 'armNativeWatchdog' in location and 'startWebFallback()' in location,
+        "browser fallback starts only after a bounded native first-fix watchdog")
+require("evt.engine !== 'browser-geolocation'" in location and 'stopWebFallback()' in location,
+        "browser watcher stops as soon as native coordinates actually arrive")
+require('clearNativeWatchdog()' in location and 'lastFixAt = Date.now()' in location,
+        "native coordinate ownership clears the watchdog and records freshness")
 require('visibilitychange' in location and 'pagehide' in location, "location lifecycle follows foreground visibility")
 
 # 9) First/Then and timer have reliable exits / audible child-facing feedback.

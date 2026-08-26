@@ -55,6 +55,53 @@ enum LegacyMigrationCore {
         )
     }
 
+    @MainActor
+    static func mergeIntoNativeStore(
+        _ payload: LegacyMigrationPayload,
+        store: LifeRoutePersistenceStore = .shared
+    ) {
+        guard !payload.isEmpty else { return }
+
+        if !payload.clients.isEmpty {
+            var existing = store.loadClients()
+            var existingCodes = Set(existing.map { $0.code.lowercased() })
+            var existingIDs = Set(existing.map(\.id))
+            for client in payload.clients {
+                let code = client.code.lowercased()
+                guard existingCodes.insert(code).inserted,
+                      existingIDs.insert(client.id).inserted else { continue }
+                existing.append(client)
+            }
+            store.saveClients(existing)
+        }
+
+        if !payload.homeAddress.isEmpty || !payload.savedPlaces.isEmpty {
+            let restored = store.loadRoutingState()
+            var places = restored.savedPlaces
+            var identities = Set(places.map { placeIdentity($0.name, $0.address) })
+            var ids = Set(places.map(\.id))
+            for place in payload.savedPlaces {
+                let identity = placeIdentity(place.name, place.address)
+                guard identities.insert(identity).inserted,
+                      ids.insert(place.id).inserted else { continue }
+                places.append(place)
+            }
+            let nativeHome = restored.homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+            let resolvedHome = nativeHome.isEmpty ? payload.homeAddress : nativeHome
+            store.saveRoutingState(homeAddress: resolvedHome, savedPlaces: places)
+        }
+
+        if !payload.manualCalendarEvents.isEmpty {
+            var events = store.loadManualCalendarEvents()
+            var ids = Set(events.map(\.id))
+            for event in payload.manualCalendarEvents where event.source == .manual {
+                guard ids.insert(event.id).inserted else { continue }
+                events.append(event)
+            }
+            store.saveManualCalendarEvents(events)
+        }
+    }
+
     private static func mapClients(_ rawClients: [[String: Any]]) -> [LifeRouteClientProfile] {
         var seenCodes = Set<String>()
         var output: [LifeRouteClientProfile] = []
@@ -167,7 +214,7 @@ enum LegacyMigrationCore {
             let address = clean(raw["address"])
             guard !name.isEmpty, !address.isEmpty else { continue }
 
-            let identity = "\(name.lowercased())|\(address.lowercased())"
+            let identity = placeIdentity(name, address)
             guard seenKeys.insert(identity).inserted else { continue }
 
             let legacyID = clean(raw["id"])
@@ -295,6 +342,12 @@ enum LegacyMigrationCore {
         if let value = value as? String { return value }
         if let number = value as? NSNumber { return number.stringValue }
         return ""
+    }
+
+    private static func placeIdentity(_ name: String, _ address: String) -> String {
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanAddress = address.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return "\(cleanName)|\(cleanAddress)"
     }
 
     private static func deterministicUUID(namespace: String, value: String) -> UUID {

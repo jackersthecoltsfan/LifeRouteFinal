@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var router = AppRouter()
+    @StateObject private var calendarState = CalendarCoreState()
 
     var body: some View {
         TabView(selection: $router.selectedSection) {
@@ -15,7 +16,7 @@ struct ContentView: View {
             .tag(AppSection.today)
 
             NavigationStack(path: $router.schedulePath) {
-                ScheduleCoreView(router: router)
+                ScheduleCoreView(router: router, calendarState: calendarState)
                     .navigationDestination(for: AppRoute.self) { route in
                         RouteDetailView(route: route, router: router)
                     }
@@ -111,53 +112,91 @@ private struct TodayCoreView: View {
     }
 }
 
-private enum ScheduleRange: String, CaseIterable, Identifiable {
-    case day = "Day"
-    case week = "Week"
-    case month = "Month"
-
-    var id: Self { self }
-}
-
 private struct ScheduleCoreView: View {
     @ObservedObject var router: AppRouter
-    @State private var selectedRange: ScheduleRange = .day
+    @ObservedObject var calendarState: CalendarCoreState
+
+    @State private var selectedRange: LifeRouteCalendarRange = .day
     @State private var draftTitle = ""
-    @State private var savedTitle = ""
+    @State private var draftDate = Date()
+    @State private var draftStart = Date()
+    @State private var draftEnd = Date().addingTimeInterval(3_600)
+    @State private var draftLocation = ""
+    @State private var draftAllDay = false
+    @State private var formMessage: String?
 
     var body: some View {
         Form {
             Section {
                 CoreHeader(
                     title: "Schedule",
-                    subtitle: "Native Day / Week / Month state before calendar data returns."
+                    subtitle: "Native calendar core. Provider connections and persistence return in later checkpoints."
                 )
             }
 
             Section("Range") {
                 Picker("Schedule range", selection: $selectedRange) {
-                    ForEach(ScheduleRange.allCases) { range in
+                    ForEach(LifeRouteCalendarRange.allCases) { range in
                         Text(range.rawValue).tag(range)
                     }
                 }
                 .pickerStyle(.segmented)
+            }
 
-                Text("Selected: \(selectedRange.rawValue)")
+            Section("Period") {
+                HStack {
+                    Button {
+                        calendarState.shiftSelection(selectedRange, by: -1)
+                    } label: {
+                        Label("Previous", systemImage: "chevron.left")
+                    }
+                    .labelStyle(.iconOnly)
+
+                    Spacer()
+                    Text(calendarState.periodLabel(for: selectedRange))
+                        .font(.headline)
+                    Spacer()
+
+                    Button {
+                        calendarState.shiftSelection(selectedRange, by: 1)
+                    } label: {
+                        Label("Next", systemImage: "chevron.right")
+                    }
+                    .labelStyle(.iconOnly)
+                }
+
+                DatePicker("Selected date", selection: $calendarState.selectedDate, displayedComponents: .date)
+                Button("Today") {
+                    calendarState.selectToday()
+                }
+                Text("\(calendarState.visibleEvents(in: selectedRange).count) events · \(calendarState.timedMinutes(in: selectedRange)) timed minutes")
                     .foregroundStyle(.secondary)
             }
 
-            Section("Form test") {
+            Section("Events") {
+                CalendarEventsView(range: selectedRange, calendarState: calendarState)
+            }
+
+            Section("Add manual appointment") {
                 TextField("Appointment title", text: $draftTitle)
                     .textInputAutocapitalization(.sentences)
                     .submitLabel(.done)
+                TextField("Location (optional)", text: $draftLocation)
+                    .textContentType(.fullStreetAddress)
+                DatePicker("Date", selection: $draftDate, displayedComponents: .date)
+                Toggle("All day", isOn: $draftAllDay)
 
-                Button("Save test value") {
-                    savedTitle = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !draftAllDay {
+                    DatePicker("Starts", selection: $draftStart, displayedComponents: .hourAndMinute)
+                    DatePicker("Ends", selection: $draftEnd, displayedComponents: .hourAndMinute)
                 }
-                .disabled(draftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-                if !savedTitle.isEmpty {
-                    Text("Saved: \(savedTitle)")
+                Button("Add appointment") {
+                    addAppointment()
+                }
+
+                if let formMessage {
+                    Text(formMessage)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -170,6 +209,109 @@ private struct ScheduleCoreView: View {
             }
         }
         .navigationTitle("Schedule")
+    }
+
+    private func addAppointment() {
+        do {
+            try calendarState.addManualEvent(
+                title: draftTitle,
+                date: draftDate,
+                startTime: draftStart,
+                endTime: draftEnd,
+                location: draftLocation,
+                isAllDay: draftAllDay
+            )
+            formMessage = "Appointment added for this app session."
+            draftTitle = ""
+            draftLocation = ""
+        } catch {
+            formMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct CalendarEventsView: View {
+    let range: LifeRouteCalendarRange
+    @ObservedObject var calendarState: CalendarCoreState
+
+    var body: some View {
+        switch range {
+        case .day:
+            eventRows(calendarState.events(on: calendarState.selectedDate))
+        case .week:
+            ForEach(calendarState.weekDates(), id: \.self) { date in
+                let events = calendarState.events(on: date)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                        .font(.headline)
+                    if events.isEmpty {
+                        Text("No events")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(events) { event in
+                            CalendarEventRow(event: event)
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        case .month:
+            let activeDays = calendarState.activeDaysInSelectedMonth()
+            if activeDays.isEmpty {
+                Text("No events this month")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(activeDays, id: \.self) { date in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                            .font(.headline)
+                        ForEach(calendarState.events(on: date)) { event in
+                            CalendarEventRow(event: event)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func eventRows(_ events: [LifeRouteCalendarEvent]) -> some View {
+        if events.isEmpty {
+            Text("No events on this day")
+                .foregroundStyle(.secondary)
+        } else {
+            ForEach(events) { event in
+                CalendarEventRow(event: event)
+            }
+        }
+    }
+}
+
+private struct CalendarEventRow: View {
+    let event: LifeRouteCalendarEvent
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(event.title)
+                .font(.body.weight(.semibold))
+            Text(timeLabel)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if !event.location.isEmpty {
+                Label(event.location, systemImage: "mappin.and.ellipse")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var timeLabel: String {
+        if event.isAllDay { return "All day · \(event.source.rawValue)" }
+        let start = event.start.formatted(date: .omitted, time: .shortened)
+        let end = event.end.formatted(date: .omitted, time: .shortened)
+        return "\(start)–\(end) · \(event.source.rawValue)"
     }
 }
 

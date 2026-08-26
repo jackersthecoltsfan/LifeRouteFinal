@@ -3,11 +3,12 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var router = AppRouter()
     @StateObject private var calendarState = CalendarCoreState()
+    @StateObject private var routingState = RoutingLocationCore()
 
     var body: some View {
         TabView(selection: $router.selectedSection) {
             NavigationStack(path: $router.todayPath) {
-                TodayCoreView(router: router)
+                TodayCoreView(router: router, routingState: routingState)
                     .navigationDestination(for: AppRoute.self) { route in
                         RouteDetailView(route: route, router: router)
                     }
@@ -43,7 +44,7 @@ struct ContentView: View {
             .tag(AppSection.resources)
 
             NavigationStack(path: $router.setupPath) {
-                SetupCoreView(router: router)
+                SetupCoreView(router: router, routingState: routingState)
                     .navigationDestination(for: AppRoute.self) { route in
                         RouteDetailView(route: route, router: router)
                     }
@@ -72,7 +73,9 @@ private struct CoreHeader: View {
 
 private struct TodayCoreView: View {
     @ObservedObject var router: AppRouter
+    @ObservedObject var routingState: RoutingLocationCore
     @State private var tapCount = 0
+    @State private var routeMode: LifeRouteTransportMode = .driving
 
     var body: some View {
         List {
@@ -89,6 +92,53 @@ private struct TodayCoreView: View {
                 }
                 Text("Successful taps: \(tapCount)")
                     .foregroundStyle(.secondary)
+            }
+
+            Section("Location & routes") {
+                Text(routingState.locationMessage)
+                    .foregroundStyle(.secondary)
+                Button("Use current location") {
+                    routingState.requestCurrentLocation()
+                }
+
+                Picker("Travel mode", selection: $routeMode) {
+                    ForEach(LifeRouteTransportMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+
+                if routingState.savedPlaces.isEmpty {
+                    Text("Add saved places in Setup to test route estimates.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(routingState.savedPlaces) { place in
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text(place.name)
+                                .font(.headline)
+                            Text(place.address)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if let estimate = routingState.routeEstimates[place.id] {
+                                Text("\(estimate.durationLabel) · \(estimate.distanceLabel) · \(estimate.mode.rawValue)")
+                                    .font(.subheadline)
+                            }
+                            HStack {
+                                Button("Estimate") {
+                                    Task { await routingState.calculateRoute(to: place, mode: routeMode) }
+                                }
+                                Button("Open in Maps") {
+                                    Task { await routingState.openInAppleMaps(place, mode: routeMode) }
+                                }
+                            }
+                        }
+                        .padding(.vertical, 3)
+                    }
+                }
+
+                if let routeMessage = routingState.routeMessage {
+                    Text(routeMessage)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Navigation ownership") {
@@ -377,9 +427,18 @@ private struct ResourcesCoreView: View {
 
 private struct SetupCoreView: View {
     @ObservedObject var router: AppRouter
+    @ObservedObject var routingState: RoutingLocationCore
+
     @State private var displayName = ""
     @State private var locationEnabled = false
     @State private var savedSummary = "Not saved yet"
+    @State private var homeDraft = ""
+    @State private var placeName = ""
+    @State private var placeAddress = ""
+    @State private var placeKind: LifeRoutePlaceKind = .other
+    @State private var placeMinutes = 60
+    @State private var placeSuggestions = true
+    @State private var placeMessage: String?
 
     var body: some View {
         Form {
@@ -388,6 +447,76 @@ private struct SetupCoreView: View {
                     title: "Setup",
                     subtitle: "Native fields only. No PIN or password gate."
                 )
+            }
+
+            Section("Location") {
+                Text(routingState.locationMessage)
+                    .foregroundStyle(.secondary)
+                Button("Request current location") {
+                    routingState.requestCurrentLocation()
+                }
+            }
+
+            Section("Home") {
+                TextField("Home address", text: $homeDraft)
+                    .textContentType(.fullStreetAddress)
+                Button("Use this home address") {
+                    do {
+                        try routingState.setHomeAddress(homeDraft)
+                        placeMessage = "Home address saved for this app session."
+                    } catch {
+                        placeMessage = error.localizedDescription
+                    }
+                }
+                if !routingState.homeAddress.isEmpty {
+                    Text(routingState.homeAddress)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("Saved places") {
+                TextField("Place name", text: $placeName)
+                TextField("Address or place", text: $placeAddress)
+                    .textContentType(.fullStreetAddress)
+                Picker("Type", selection: $placeKind) {
+                    ForEach(LifeRoutePlaceKind.allCases) { kind in
+                        Text(kind.rawValue).tag(kind)
+                    }
+                }
+                Stepper("Useful visit: \(placeMinutes) min", value: $placeMinutes, in: 15...240, step: 15)
+                Toggle("Use in gap suggestions", isOn: $placeSuggestions)
+                Button("Add saved place") {
+                    addPlace()
+                }
+
+                if routingState.savedPlaces.isEmpty {
+                    Text("No saved places yet")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(routingState.savedPlaces) { place in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(place.name)
+                                .font(.headline)
+                            Text("\(place.kind.rawValue) · \(place.minimumVisitMinutes) min")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(place.address)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button("Remove \(place.name)", role: .destructive) {
+                                routingState.removeSavedPlace(id: place.id)
+                            }
+                        }
+                    }
+                }
+
+                if let placeMessage {
+                    Text(placeMessage)
+                        .foregroundStyle(.secondary)
+                }
+                Text("Home and saved places are session-only until the persistence checkpoint.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Form and state test") {
@@ -410,6 +539,23 @@ private struct SetupCoreView: View {
             }
         }
         .navigationTitle("Setup")
+    }
+
+    private func addPlace() {
+        do {
+            try routingState.addSavedPlace(
+                name: placeName,
+                address: placeAddress,
+                kind: placeKind,
+                minimumVisitMinutes: placeMinutes,
+                useInGapSuggestions: placeSuggestions
+            )
+            placeMessage = "Saved place added for this app session."
+            placeName = ""
+            placeAddress = ""
+        } catch {
+            placeMessage = error.localizedDescription
+        }
     }
 }
 

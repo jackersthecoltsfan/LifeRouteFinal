@@ -1,0 +1,8 @@
+{
+  "request_id": "2026-08-26-pin-fix-546fe01",
+  "target_sha": "546fe01cdd2560d80994dff0fdf805822ed84e47",
+  "authorized": true,
+  "requested_by": "chatgpt-explicit-user-request",
+  "require_web_preview": true,
+  "reason": "Release the validated LifeRoute login PIN-entry fix to TestFlight after iOS Build Check and Publish Web Preview pass."
+}

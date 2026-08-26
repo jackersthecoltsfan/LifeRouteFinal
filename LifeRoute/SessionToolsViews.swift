@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import UIKit
+import ImageIO
 
 struct SessionToolsNativeView: View {
     @ObservedObject var router: AppRouter
@@ -68,10 +69,10 @@ struct SessionToolsNativeView: View {
             }
         }
         .onAppear {
-            visualState.retainClientCodes(Set(clientState.clients.map(\.code)))
+            visualState.retainClients(clientState.clients)
         }
         .onReceive(clientState.$clients) { clients in
-            visualState.retainClientCodes(Set(clients.map(\.code)))
+            visualState.retainClients(clients)
         }
     }
 }
@@ -269,6 +270,7 @@ struct ClientVisualIconLibraryView: View {
     @State private var label = ""
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var photoData: Data?
+    @State private var photoPreviewID = UUID()
     @State private var message: String?
 
     var body: some View {
@@ -277,13 +279,12 @@ struct ClientVisualIconLibraryView: View {
                 PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
                     Label(photoData == nil ? "Choose photo" : "Change photo", systemImage: "photo")
                 }
-                if let photoData, let image = UIImage(data: photoData) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 220)
-                        .frame(maxWidth: .infinity)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                if let photoData {
+                    ClientVisualDraftPhotoPreview(
+                        imageData: photoData,
+                        requestID: photoPreviewID,
+                        maximumHeight: 220
+                    )
                 }
                 TextField("Icon label", text: $label)
                     .textInputAutocapitalization(.words)
@@ -321,9 +322,13 @@ struct ClientVisualIconLibraryView: View {
             Task {
                 guard let newItem else {
                     photoData = nil
+                    photoPreviewID = UUID()
                     return
                 }
-                photoData = try? await newItem.loadTransferable(type: Data.self)
+                let loadedData = try? await newItem.loadTransferable(type: Data.self)
+                guard !Task.isCancelled else { return }
+                photoPreviewID = UUID()
+                photoData = loadedData
             }
         }
     }
@@ -585,14 +590,102 @@ struct ClientVisualScheduleBuilderView: View {
     }
 }
 
+private struct ClientVisualThumbnailRequest: Hashable, Sendable {
+    let assetID: UUID
+    let maximumPixelDimension: Int
+}
+
+private actor ClientVisualThumbnailCache {
+    static let shared = ClientVisualThumbnailCache()
+
+    private let cache: NSCache<NSString, UIImage>
+
+    init() {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 72
+        cache.totalCostLimit = 32 * 1_024 * 1_024
+        self.cache = cache
+    }
+
+    func thumbnail(
+        for request: ClientVisualThumbnailRequest,
+        imageData: Data
+    ) -> UIImage? {
+        let cacheKey = "\(request.assetID.uuidString)-\(request.maximumPixelDimension)" as NSString
+        if let cached = cache.object(forKey: cacheKey) { return cached }
+
+        let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
+        guard let source = CGImageSourceCreateWithData(imageData as CFData, sourceOptions as CFDictionary) else {
+            return nil
+        }
+        let thumbnailOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: request.maximumPixelDimension,
+            kCGImageSourceShouldCacheImmediately: true,
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(
+            source,
+            0,
+            thumbnailOptions as CFDictionary
+        ) else { return nil }
+
+        let image = UIImage(cgImage: cgImage)
+        let cost = cgImage.bytesPerRow * cgImage.height
+        cache.setObject(image, forKey: cacheKey, cost: cost)
+        return image
+    }
+}
+
+private struct ClientVisualDraftPhotoPreview: View {
+    let imageData: Data
+    let requestID: UUID
+    let maximumHeight: CGFloat
+    @Environment(\.displayScale) private var displayScale
+    @State private var preview: UIImage?
+
+    var body: some View {
+        let request = ClientVisualThumbnailRequest(
+            assetID: requestID,
+            maximumPixelDimension: max(1, Int(ceil(maximumHeight * displayScale)))
+        )
+
+        Group {
+            if let preview {
+                Image(uiImage: preview).resizable().scaledToFit()
+            } else {
+                ProgressView().frame(maxWidth: .infinity, minHeight: 120)
+            }
+        }
+        .frame(maxHeight: maximumHeight)
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .task(id: request) {
+            let decoded = await ClientVisualThumbnailCache.shared.thumbnail(
+                for: request,
+                imageData: imageData
+            )
+            guard !Task.isCancelled else { return }
+            preview = decoded
+        }
+    }
+}
+
 private struct ClientVisualIconThumbnail: View {
     let icon: ClientVisualIcon
     let size: CGFloat
+    @Environment(\.displayScale) private var displayScale
+    @State private var thumbnail: UIImage?
 
     var body: some View {
+        let request = ClientVisualThumbnailRequest(
+            assetID: icon.id,
+            maximumPixelDimension: max(1, Int(ceil(size * displayScale)))
+        )
+
         Group {
-            if let data = icon.imageData, let image = UIImage(data: data) {
-                Image(uiImage: image).resizable().scaledToFill()
+            if let thumbnail {
+                Image(uiImage: thumbnail).resizable().scaledToFill()
             } else {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10).fill(.quaternary)
@@ -602,6 +695,18 @@ private struct ClientVisualIconThumbnail: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: 10))
+        .task(id: request) {
+            guard let imageData = icon.imageData else {
+                thumbnail = nil
+                return
+            }
+            let decoded = await ClientVisualThumbnailCache.shared.thumbnail(
+                for: request,
+                imageData: imageData
+            )
+            guard !Task.isCancelled else { return }
+            thumbnail = decoded
+        }
     }
 }
 

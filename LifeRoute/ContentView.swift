@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var router = AppRouter()
     @StateObject private var calendarState = CalendarCoreState()
     @StateObject private var providerState = CalendarProviderCore()
@@ -54,6 +55,10 @@ struct ContentView: View {
             }
             .tabItem { Label(AppSection.setup.title, systemImage: AppSection.setup.systemImage) }
             .tag(AppSection.setup)
+        }
+        .onChange(of: scenePhase) { phase in
+            guard phase != .active else { return }
+            Task { await LifeRoutePersistenceStore.shared.flushPendingWrites() }
         }
     }
 }
@@ -138,6 +143,8 @@ private struct ScheduleCoreView: View {
     @State private var formMessage: String?
 
     var body: some View {
+        let presentation = calendarState.presentation(for: selectedRange)
+
         Form {
             Section { CoreHeader(title: "Schedule", subtitle: "Native calendar core with direct read-only provider connections.") }
             Section("Calendar providers") {
@@ -186,9 +193,9 @@ private struct ScheduleCoreView: View {
                 }
                 DatePicker("Selected date", selection: $calendarState.selectedDate, displayedComponents: .date)
                 Button("Today") { calendarState.selectToday() }
-                Text("\(calendarState.visibleEvents(in: selectedRange).count) events · \(calendarState.timedMinutes(in: selectedRange)) timed minutes").foregroundStyle(.secondary)
+                Text("\(presentation.eventCount) events · \(presentation.timedMinutes) timed minutes").foregroundStyle(.secondary)
             }
-            Section("Events") { CalendarEventsView(range: selectedRange, calendarState: calendarState) }
+            Section("Events") { CalendarEventsView(presentation: presentation) }
             Section("Add manual appointment") {
                 TextField("Appointment title", text: $draftTitle).textInputAutocapitalization(.sentences).submitLabel(.done)
                 TextField("Location (optional)", text: $draftLocation).textContentType(.fullStreetAddress)
@@ -222,29 +229,27 @@ private struct ScheduleCoreView: View {
 }
 
 private struct CalendarEventsView: View {
-    let range: LifeRouteCalendarRange
-    @ObservedObject var calendarState: CalendarCoreState
+    let presentation: LifeRouteCalendarRangePresentation
+
     var body: some View {
-        switch range {
+        switch presentation.range {
         case .day:
-            eventRows(calendarState.events(on: calendarState.selectedDate))
+            eventRows(presentation.days.first?.events ?? [])
         case .week:
-            ForEach(calendarState.weekDates(), id: \.self) { date in
-                let events = calendarState.events(on: date)
+            ForEach(presentation.days) { day in
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())).font(.headline)
-                    if events.isEmpty { Text("No events").foregroundStyle(.secondary) }
-                    else { ForEach(events) { event in CalendarEventRow(event: event) } }
+                    Text(day.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())).font(.headline)
+                    if day.events.isEmpty { Text("No events").foregroundStyle(.secondary) }
+                    else { ForEach(day.events) { event in CalendarEventRow(event: event) } }
                 }.padding(.vertical, 4)
             }
         case .month:
-            let activeDays = calendarState.activeDaysInSelectedMonth()
-            if activeDays.isEmpty { Text("No events this month").foregroundStyle(.secondary) }
+            if presentation.days.isEmpty { Text("No events this month").foregroundStyle(.secondary) }
             else {
-                ForEach(activeDays, id: \.self) { date in
+                ForEach(presentation.days) { day in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())).font(.headline)
-                        ForEach(calendarState.events(on: date)) { event in CalendarEventRow(event: event) }
+                        Text(day.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())).font(.headline)
+                        ForEach(day.events) { event in CalendarEventRow(event: event) }
                     }.padding(.vertical, 4)
                 }
             }

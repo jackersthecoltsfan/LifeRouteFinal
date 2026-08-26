@@ -47,7 +47,7 @@ require("throw ClientVisualSupportError.missingClient" in domain, "Visual creati
 require("requested.allSatisfy(allowed.contains)" in domain, "Choice boards reject cross-client icon references")
 require("if let iconID = step.iconID, !allowed.contains(iconID)" in domain, "Visual schedules reject cross-client icon references")
 require("func icon(id: UUID, for clientCode: String)" in domain, "Icon lookup requires client context")
-require("$0.id == id && $0.clientID == clientID" in domain, "Icon lookup enforces same-client UUID ownership")
+require("guard let icon = iconsByID[id], icon.clientID == clientID" in domain, "Icon lookup enforces same-client UUID ownership")
 for forbidden in ["UserDefaults", "localStorage", "WebKit", "WKWebView", "MutationObserver", "setInterval"]:
     require(forbidden not in domain, f"Visual-support domain avoids legacy storage/runtime dependency: {forbidden}")
 

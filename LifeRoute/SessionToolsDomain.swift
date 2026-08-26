@@ -163,7 +163,7 @@ struct ClientVisualIcon: Identifiable, Hashable {
     let clientID: UUID
     var clientCode: String
     var label: String
-    var imageData: Data?
+    let imageData: Data?
     let createdAt: Date
 
     init(id: UUID = UUID(), clientID: UUID, clientCode: String, label: String, imageData: Data? = nil, createdAt: Date = Date()) {
@@ -258,28 +258,33 @@ final class ClientVisualSupportCore: ObservableObject {
     @Published private(set) var choiceBoards: [ClientChoiceBoard]
     @Published private(set) var schedules: [ClientVisualSchedule]
 
+    private var iconsByClientID: [UUID: [ClientVisualIcon]] = [:]
+    private var choiceBoardsByClientID: [UUID: [ClientChoiceBoard]] = [:]
+    private var schedulesByClientID: [UUID: [ClientVisualSchedule]] = [:]
+    private var iconsByID: [UUID: ClientVisualIcon] = [:]
+    private var iconIDsByClientID: [UUID: Set<UUID>] = [:]
+
     init(restoredState: RestoredClientVisualSupportState? = nil) {
         let restored = restoredState ?? LifeRoutePersistenceStore.shared.loadClientVisualSupports()
         self.icons = restored.icons
         self.choiceBoards = restored.choiceBoards
         self.schedules = restored.schedules
+        rebuildVisualIndexes()
     }
 
     func icons(for clientCode: String) -> [ClientVisualIcon] {
         guard let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: normalizedRequiredClientCode(clientCode)) else { return [] }
-        return icons.filter { $0.clientID == clientID }.sorted { lhs, rhs in
-            lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
-        }
+        return iconsByClientID[clientID] ?? []
     }
 
     func choiceBoards(for clientCode: String) -> [ClientChoiceBoard] {
         guard let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: normalizedRequiredClientCode(clientCode)) else { return [] }
-        return choiceBoards.filter { $0.clientID == clientID }.sorted { $0.createdAt > $1.createdAt }
+        return choiceBoardsByClientID[clientID] ?? []
     }
 
     func schedules(for clientCode: String) -> [ClientVisualSchedule] {
         guard let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: normalizedRequiredClientCode(clientCode)) else { return [] }
-        return schedules.filter { $0.clientID == clientID }.sorted { $0.createdAt > $1.createdAt }
+        return schedulesByClientID[clientID] ?? []
     }
 
     @discardableResult
@@ -293,6 +298,7 @@ final class ClientVisualSupportCore: ObservableObject {
         guard !cleanLabel.isEmpty else { throw ClientVisualSupportError.missingLabel }
         let icon = ClientVisualIcon(clientID: clientID, clientCode: code, label: cleanLabel, imageData: imageData)
         icons.append(icon)
+        rebuildVisualIndexes()
         persistVisualSupports()
         return icon
     }
@@ -313,6 +319,7 @@ final class ClientVisualSupportCore: ObservableObject {
             }
             return updated
         }
+        rebuildVisualIndexes()
         persistVisualSupports()
     }
 
@@ -326,7 +333,7 @@ final class ClientVisualSupportCore: ObservableObject {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTitle.isEmpty else { throw ClientVisualSupportError.missingTitle }
 
-        let allowed = Set(icons.filter { $0.clientID == clientID }.map(\.id))
+        let allowed = iconIDsByClientID[clientID] ?? []
         var seen = Set<UUID>()
         let requested = iconIDs.filter { seen.insert($0).inserted }
         guard !requested.isEmpty else { throw ClientVisualSupportError.noIcons }
@@ -340,12 +347,14 @@ final class ClientVisualSupportCore: ObservableObject {
             columns: columns == 3 ? 3 : 2
         )
         choiceBoards.append(board)
+        rebuildVisualIndexes()
         persistVisualSupports()
         return board
     }
 
     func removeChoiceBoard(id: UUID) {
         choiceBoards.removeAll { $0.id == id }
+        rebuildVisualIndexes()
         persistVisualSupports()
     }
 
@@ -360,7 +369,7 @@ final class ClientVisualSupportCore: ObservableObject {
         guard !cleanTitle.isEmpty else { throw ClientVisualSupportError.missingTitle }
         guard !steps.isEmpty else { throw ClientVisualSupportError.noSteps }
 
-        let allowed = Set(icons.filter { $0.clientID == clientID }.map(\.id))
+        let allowed = iconIDsByClientID[clientID] ?? []
         let cleanedSteps = steps.compactMap { step -> ClientVisualScheduleStep? in
             let label = step.label.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !label.isEmpty else { return nil }
@@ -376,57 +385,100 @@ final class ClientVisualSupportCore: ObservableObject {
             steps: cleanedSteps
         )
         schedules.append(schedule)
+        rebuildVisualIndexes()
         persistVisualSupports()
         return schedule
     }
 
     func removeSchedule(id: UUID) {
         schedules.removeAll { $0.id == id }
+        rebuildVisualIndexes()
         persistVisualSupports()
     }
 
     func icon(id: UUID, for clientCode: String) -> ClientVisualIcon? {
         guard let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: normalizedRequiredClientCode(clientCode)) else { return nil }
-        return icons.first { $0.id == id && $0.clientID == clientID }
+        guard let icon = iconsByID[id], icon.clientID == clientID else { return nil }
+        return icon
     }
 
-    func retainClientCodes(_ clientCodes: Set<String>) {
-        let clientIDs = Set(clientCodes.compactMap { LifeRoutePersistenceStore.shared.clientID(forCode: normalizedRequiredClientCode($0)) })
-        let codeByID = Dictionary(uniqueKeysWithValues: clientCodes.compactMap { code -> (UUID, String)? in
-            guard let id = LifeRoutePersistenceStore.shared.clientID(forCode: normalizedRequiredClientCode(code)) else { return nil }
-            return (id, normalizedRequiredClientCode(code))
-        })
+    func retainClients(_ clients: [LifeRouteClientProfile]) {
+        let clientIDs = Set(clients.map(\.id))
+        let codeByID = Dictionary(uniqueKeysWithValues: clients.map { ($0.id, normalizedRequiredClientCode($0.code)) })
 
-        let before = (icons.count, choiceBoards.count, schedules.count)
-        icons = icons.compactMap { icon in
-            guard clientIDs.contains(icon.clientID), let currentCode = codeByID[icon.clientID] else { return nil }
+        var changed = false
+        let updatedIcons = icons.compactMap { icon -> ClientVisualIcon? in
+            guard clientIDs.contains(icon.clientID), let currentCode = codeByID[icon.clientID] else {
+                changed = true
+                return nil
+            }
             var updated = icon
+            if updated.clientCode != currentCode { changed = true }
             updated.clientCode = currentCode
             return updated
         }
-        let survivingIconIDs = Set(icons.map(\.id))
-        choiceBoards = choiceBoards.compactMap { board in
-            guard clientIDs.contains(board.clientID), let currentCode = codeByID[board.clientID] else { return nil }
+        let survivingIconIDs = Set(updatedIcons.map(\.id))
+        let updatedBoards = choiceBoards.compactMap { board -> ClientChoiceBoard? in
+            guard clientIDs.contains(board.clientID), let currentCode = codeByID[board.clientID] else {
+                changed = true
+                return nil
+            }
             var updated = board
+            if updated.clientCode != currentCode { changed = true }
             updated.clientCode = currentCode
+            let originalIconIDs = updated.iconIDs
             updated.iconIDs.removeAll { !survivingIconIDs.contains($0) }
-            return updated.iconIDs.isEmpty ? nil : updated
+            if updated.iconIDs != originalIconIDs { changed = true }
+            if updated.iconIDs.isEmpty {
+                changed = true
+                return nil
+            }
+            return updated
         }
-        schedules = schedules.compactMap { schedule in
-            guard clientIDs.contains(schedule.clientID), let currentCode = codeByID[schedule.clientID] else { return nil }
+        let updatedSchedules = schedules.compactMap { schedule -> ClientVisualSchedule? in
+            guard clientIDs.contains(schedule.clientID), let currentCode = codeByID[schedule.clientID] else {
+                changed = true
+                return nil
+            }
             var updated = schedule
+            if updated.clientCode != currentCode { changed = true }
             updated.clientCode = currentCode
             updated.steps = updated.steps.map { step in
                 var item = step
-                if let iconID = item.iconID, !survivingIconIDs.contains(iconID) { item.iconID = nil }
+                if let iconID = item.iconID, !survivingIconIDs.contains(iconID) {
+                    item.iconID = nil
+                    changed = true
+                }
                 return item
             }
             return updated
         }
-        let after = (icons.count, choiceBoards.count, schedules.count)
-        if before != after || icons.contains(where: { codeByID[$0.clientID] != $0.clientCode }) {
-            persistVisualSupports()
+        guard changed else { return }
+
+        icons = updatedIcons
+        choiceBoards = updatedBoards
+        schedules = updatedSchedules
+        rebuildVisualIndexes()
+        persistVisualSupports()
+    }
+
+    private func rebuildVisualIndexes() {
+        iconsByClientID = Dictionary(grouping: icons, by: \.clientID).mapValues { clientIcons in
+            clientIcons.sorted { lhs, rhs in
+                lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+            }
         }
+        choiceBoardsByClientID = Dictionary(grouping: choiceBoards, by: \.clientID).mapValues { boards in
+            boards.sorted { $0.createdAt > $1.createdAt }
+        }
+        schedulesByClientID = Dictionary(grouping: schedules, by: \.clientID).mapValues { clientSchedules in
+            clientSchedules.sorted { $0.createdAt > $1.createdAt }
+        }
+
+        var iconLookup: [UUID: ClientVisualIcon] = [:]
+        for icon in icons { iconLookup[icon.id] = icon }
+        iconsByID = iconLookup
+        iconIDsByClientID = iconsByClientID.mapValues { Set($0.map(\.id)) }
     }
 
     private func persistVisualSupports() {

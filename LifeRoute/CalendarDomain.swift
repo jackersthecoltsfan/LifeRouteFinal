@@ -8,7 +8,7 @@ enum LifeRouteCalendarSource: String, Codable, CaseIterable, Hashable {
     case calendarLink
 }
 
-enum LifeRouteCalendarRange: String, CaseIterable, Identifiable {
+enum LifeRouteCalendarRange: String, CaseIterable, Identifiable, Hashable {
     case day = "Day"
     case week = "Week"
     case month = "Month"
@@ -53,6 +53,22 @@ struct LifeRouteCalendarEvent: Identifiable, Codable, Hashable {
     }
 }
 
+struct LifeRouteCalendarDayEvents: Identifiable, Hashable {
+    let date: Date
+    let events: [LifeRouteCalendarEvent]
+
+    var id: Date { date }
+}
+
+struct LifeRouteCalendarRangePresentation: Hashable {
+    let range: LifeRouteCalendarRange
+    let days: [LifeRouteCalendarDayEvents]
+    let visibleEvents: [LifeRouteCalendarEvent]
+
+    var eventCount: Int { visibleEvents.count }
+    var timedMinutes: Int { visibleEvents.reduce(0) { $0 + $1.durationMinutes } }
+}
+
 enum CalendarCoreError: LocalizedError {
     case missingTitle
     case invalidTimeRange
@@ -73,6 +89,8 @@ final class CalendarCoreState: ObservableObject {
     @Published private(set) var events: [LifeRouteCalendarEvent]
 
     private var calendar: Calendar
+    private var eventIndicesByDay: [Date: [Int]] = [:]
+    private var eventCountsBySource: [LifeRouteCalendarSource: Int] = [:]
 
     init(now: Date = Date(), events: [LifeRouteCalendarEvent]? = nil) {
         var configured = Calendar(identifier: .gregorian)
@@ -84,6 +102,7 @@ final class CalendarCoreState: ObservableObject {
         self.selectedDate = now
         let restoredEvents = events ?? LifeRoutePersistenceStore.shared.loadManualCalendarEvents()
         self.events = restoredEvents.sorted(by: Self.eventSort)
+        rebuildEventIndexes()
     }
 
     func addManualEvent(
@@ -119,6 +138,7 @@ final class CalendarCoreState: ObservableObject {
             )
         )
         events.sort(by: Self.eventSort)
+        rebuildEventIndexes()
         selectedDate = date
         persistManualEvents()
     }
@@ -128,28 +148,30 @@ final class CalendarCoreState: ObservableObject {
         events.removeAll { $0.source == source }
         events.append(contentsOf: incoming.filter { $0.source == source })
         events.sort(by: Self.eventSort)
+        rebuildEventIndexes()
     }
 
     func removeProviderEvents(source: LifeRouteCalendarSource) {
         guard source != .manual else { return }
         events.removeAll { $0.source == source }
+        rebuildEventIndexes()
     }
 
     func eventCount(source: LifeRouteCalendarSource) -> Int {
-        events.filter { $0.source == source }.count
+        eventCountsBySource[source, default: 0]
     }
 
     func removeEvent(id: LifeRouteCalendarEvent.ID) {
         let previousCount = events.count
         events.removeAll { $0.id == id && $0.source == .manual }
-        if events.count != previousCount { persistManualEvents() }
+        if events.count != previousCount {
+            rebuildEventIndexes()
+            persistManualEvents()
+        }
     }
 
     func events(on date: Date) -> [LifeRouteCalendarEvent] {
-        let interval = dayInterval(containing: date)
-        return events.filter { event in
-            event.start < interval.end && event.end > interval.start
-        }
+        (eventIndicesByDay[calendar.startOfDay(for: date)] ?? []).map { events[$0] }
     }
 
     func weekDates(containing date: Date? = nil) -> [Date] {
@@ -170,24 +192,38 @@ final class CalendarCoreState: ObservableObject {
     }
 
     func activeDaysInSelectedMonth() -> [Date] {
-        monthDates().filter { !events(on: $0).isEmpty }
+        presentation(for: .month).days.map(\.date)
     }
 
     func timedMinutes(in range: LifeRouteCalendarRange) -> Int {
-        visibleEvents(in: range).reduce(0) { $0 + $1.durationMinutes }
+        presentation(for: range).timedMinutes
     }
 
     func visibleEvents(in range: LifeRouteCalendarRange) -> [LifeRouteCalendarEvent] {
+        presentation(for: range).visibleEvents
+    }
+
+    func presentation(for range: LifeRouteCalendarRange) -> LifeRouteCalendarRangePresentation {
+        let dates: [Date]
         switch range {
         case .day:
-            return events(on: selectedDate)
+            dates = [selectedDate]
         case .week:
-            let interval = weekInterval(containing: selectedDate)
-            return events(overlapping: interval)
+            dates = weekDates()
         case .month:
-            guard let interval = calendar.dateInterval(of: .month, for: selectedDate) else { return [] }
-            return events(overlapping: interval)
+            dates = monthDates()
         }
+
+        var visibleIndices = Set<Int>()
+        var days = dates.map { date -> LifeRouteCalendarDayEvents in
+            let indices = eventIndicesByDay[calendar.startOfDay(for: date)] ?? []
+            visibleIndices.formUnion(indices)
+            return LifeRouteCalendarDayEvents(date: date, events: indices.map { events[$0] })
+        }
+        if range == .month { days.removeAll { $0.events.isEmpty } }
+
+        let visible = visibleIndices.sorted().map { events[$0] }
+        return LifeRouteCalendarRangePresentation(range: range, days: days, visibleEvents: visible)
     }
 
     func periodLabel(for range: LifeRouteCalendarRange) -> String {
@@ -228,10 +264,27 @@ final class CalendarCoreState: ObservableObject {
         LifeRoutePersistenceStore.shared.saveManualCalendarEvents(events.filter { $0.source == .manual })
     }
 
-    private func events(overlapping interval: DateInterval) -> [LifeRouteCalendarEvent] {
-        events.filter { event in
-            event.start < interval.end && event.end > interval.start
+    private func rebuildEventIndexes() {
+        var indicesByDay: [Date: [Int]] = [:]
+        var countsBySource: [LifeRouteCalendarSource: Int] = [:]
+
+        for (index, event) in events.enumerated() {
+            countsBySource[event.source, default: 0] += 1
+            var dayStart = calendar.startOfDay(for: event.start)
+
+            while dayStart < event.end {
+                let interval = dayInterval(containing: dayStart)
+                if event.start < interval.end && event.end > interval.start {
+                    indicesByDay[dayStart, default: []].append(index)
+                }
+                guard let nextDay = calendar.date(byAdding: .day, value: 1, to: dayStart),
+                      nextDay > dayStart else { break }
+                dayStart = nextDay
+            }
         }
+
+        eventIndicesByDay = indicesByDay
+        eventCountsBySource = countsBySource
     }
 
     private func dayInterval(containing date: Date) -> DateInterval {

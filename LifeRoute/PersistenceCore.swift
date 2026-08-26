@@ -25,7 +25,65 @@ final class LifeRoutePersistenceStore {
         var clientCode: String
         var label: String
         var imageData: Data?
+        var imageFileName: String?
         var createdAt: Date
+
+        init(
+            id: UUID,
+            clientID: UUID,
+            clientCode: String,
+            label: String,
+            imageData: Data?,
+            createdAt: Date
+        ) {
+            self.id = id
+            self.clientID = clientID
+            self.clientCode = clientCode
+            self.label = label
+            self.imageData = imageData
+            self.imageFileName = imageData == nil ? nil : Self.fileName(for: id)
+            self.createdAt = createdAt
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case id
+            case clientID
+            case clientCode
+            case label
+            case imageData
+            case imageFileName
+            case createdAt
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decode(UUID.self, forKey: .id)
+            clientID = try container.decode(UUID.self, forKey: .clientID)
+            clientCode = try container.decode(String.self, forKey: .clientCode)
+            label = try container.decode(String.self, forKey: .label)
+            imageData = try container.decodeIfPresent(Data.self, forKey: .imageData)
+            let hasExternalImage = try container.decodeIfPresent(String.self, forKey: .imageFileName) != nil
+            imageFileName = hasExternalImage || imageData != nil ? Self.fileName(for: id) : nil
+            createdAt = try container.decode(Date.self, forKey: .createdAt)
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(id, forKey: .id)
+            try container.encode(clientID, forKey: .clientID)
+            try container.encode(clientCode, forKey: .clientCode)
+            try container.encode(label, forKey: .label)
+            try container.encodeIfPresent(resolvedImageFileName, forKey: .imageFileName)
+            try container.encode(createdAt, forKey: .createdAt)
+        }
+
+        var resolvedImageFileName: String? {
+            imageData != nil || imageFileName != nil ? Self.fileName(for: id) : nil
+        }
+
+        private static func fileName(for id: UUID) -> String {
+            "\(id.uuidString.lowercased()).visual"
+        }
     }
 
     private struct PersistedChoiceBoard: Codable {
@@ -53,7 +111,7 @@ final class LifeRoutePersistenceStore {
         var createdAt: Date
     }
 
-    private struct NativeState: Codable {
+    private struct NativeState: Codable, @unchecked Sendable {
         var schemaVersion: Int
         var clients: [LifeRouteClientProfile]
         var visualIcons: [PersistedVisualIcon]
@@ -64,7 +122,7 @@ final class LifeRoutePersistenceStore {
         var manualCalendarEvents: [LifeRouteCalendarEvent]
 
         init(
-            schemaVersion: Int = 2,
+            schemaVersion: Int = 3,
             clients: [LifeRouteClientProfile] = [],
             visualIcons: [PersistedVisualIcon] = [],
             choiceBoards: [PersistedChoiceBoard] = [],
@@ -107,21 +165,104 @@ final class LifeRoutePersistenceStore {
         }
     }
 
+    private struct PersistenceWriteResult: Sendable {
+        let revision: UInt64
+        let errorMessage: String?
+    }
+
+    private actor SnapshotWriter {
+        private let fileManager = FileManager.default
+        private let fileURL: URL
+        private let imageDirectoryURL: URL
+        private var latestWrittenRevision: UInt64 = 0
+
+        init(fileURL: URL, imageDirectoryURL: URL) {
+            self.fileURL = fileURL
+            self.imageDirectoryURL = imageDirectoryURL
+        }
+
+        func persist(_ snapshot: NativeState, revision: UInt64) -> PersistenceWriteResult {
+            guard revision > latestWrittenRevision else {
+                return PersistenceWriteResult(revision: revision, errorMessage: nil)
+            }
+
+            do {
+                try fileManager.createDirectory(at: imageDirectoryURL, withIntermediateDirectories: true)
+                try? fileManager.setAttributes(
+                    [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                    ofItemAtPath: imageDirectoryURL.path
+                )
+
+                var retainedImageFiles = Set<String>()
+                for icon in snapshot.visualIcons {
+                    guard let imageData = icon.imageData,
+                          let fileName = icon.resolvedImageFileName else { continue }
+                    retainedImageFiles.insert(fileName)
+                    let imageURL = imageDirectoryURL.appendingPathComponent(fileName, isDirectory: false)
+                    guard !fileManager.fileExists(atPath: imageURL.path) else { continue }
+                    try imageData.write(to: imageURL, options: [.atomic])
+                    try? fileManager.setAttributes(
+                        [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                        ofItemAtPath: imageURL.path
+                    )
+                }
+
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                encoder.outputFormatting = [.sortedKeys]
+                let data = try encoder.encode(snapshot)
+                try data.write(to: fileURL, options: [.atomic])
+                try? fileManager.setAttributes(
+                    [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                    ofItemAtPath: fileURL.path
+                )
+
+                if let existingFiles = try? fileManager.contentsOfDirectory(
+                    at: imageDirectoryURL,
+                    includingPropertiesForKeys: nil,
+                    options: [.skipsHiddenFiles]
+                ) {
+                    for existingURL in existingFiles where !retainedImageFiles.contains(existingURL.lastPathComponent) {
+                        try? fileManager.removeItem(at: existingURL)
+                    }
+                }
+
+                latestWrittenRevision = revision
+                return PersistenceWriteResult(revision: revision, errorMessage: nil)
+            } catch {
+                return PersistenceWriteResult(
+                    revision: revision,
+                    errorMessage: "LifeRoute could not save native state: \(error.localizedDescription)"
+                )
+            }
+        }
+    }
+
     private let fileManager: FileManager
-    private let fileURL: URL?
+    private var fileURL: URL?
+    private var imageDirectoryURL: URL?
     private var state: NativeState
+    private var clientIDByNormalizedCode: [String: UUID]
+    private var snapshotWriter: SnapshotWriter?
+    private var persistenceRevision: UInt64
+    private var persistenceTask: Task<Void, Never>?
     private(set) var recoveryMessage: String?
 
     private init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
+        self.fileURL = nil
+        self.imageDirectoryURL = nil
         self.state = NativeState()
+        self.clientIDByNormalizedCode = [:]
+        self.snapshotWriter = nil
+        self.persistenceRevision = 0
+        self.persistenceTask = nil
         self.recoveryMessage = nil
 
         guard let applicationSupport = fileManager.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
         ).first else {
-            self.fileURL = nil
             self.recoveryMessage = "Application Support is unavailable; native data will remain in memory."
             return
         }
@@ -130,32 +271,48 @@ final class LifeRoutePersistenceStore {
             .appendingPathComponent("LifeRoute", isDirectory: true)
             .appendingPathComponent("NativeState", isDirectory: true)
         let url = directory.appendingPathComponent("native-state-v1.json", isDirectory: false)
+        let imagesURL = directory.appendingPathComponent("VisualImages", isDirectory: true)
         self.fileURL = url
+        self.imageDirectoryURL = imagesURL
 
         do {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+            try fileManager.createDirectory(at: imagesURL, withIntermediateDirectories: true)
             try? fileManager.setAttributes(
                 [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
                 ofItemAtPath: directory.path
             )
 
-            guard fileManager.fileExists(atPath: url.path) else { return }
-            let data = try Data(contentsOf: url)
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let decoded = try decoder.decode(NativeState.self, from: data)
-            self.state = Self.sanitized(decoded)
+            if fileManager.fileExists(atPath: url.path) {
+                let data = try Data(contentsOf: url)
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                let decoded = try decoder.decode(NativeState.self, from: data)
+                let hydrated = Self.hydratingVisualImages(in: decoded, from: imagesURL)
+                self.state = Self.sanitized(hydrated)
+            }
         } catch {
+            let recoveryTimestamp = Int(Date().timeIntervalSince1970)
             let backupURL = directory.appendingPathComponent(
-                "native-state-v1-corrupt-\(Int(Date().timeIntervalSince1970)).json",
+                "native-state-v1-corrupt-\(recoveryTimestamp).json",
                 isDirectory: false
             )
             if fileManager.fileExists(atPath: url.path) {
                 try? fileManager.moveItem(at: url, to: backupURL)
             }
+            let imageBackupURL = directory.appendingPathComponent(
+                "VisualImages-corrupt-\(recoveryTimestamp)",
+                isDirectory: true
+            )
+            if fileManager.fileExists(atPath: imagesURL.path) {
+                try? fileManager.moveItem(at: imagesURL, to: imageBackupURL)
+            }
             self.state = NativeState()
             self.recoveryMessage = "LifeRoute preserved an unreadable native state file and started with safe defaults."
         }
+
+        self.clientIDByNormalizedCode = Self.clientIndex(for: state.clients)
+        self.snapshotWriter = SnapshotWriter(fileURL: url, imageDirectoryURL: imagesURL)
     }
 
     func loadClients() -> [LifeRouteClientProfile] {
@@ -163,19 +320,18 @@ final class LifeRoutePersistenceStore {
     }
 
     func clientID(forCode code: String) -> UUID? {
-        state.clients.first { $0.code.caseInsensitiveCompare(code) == .orderedSame }?.id
+        clientIDByNormalizedCode[Self.normalizedClientCode(code)]
     }
 
     func saveClients(_ clients: [LifeRouteClientProfile]) {
         var next = state
         next.clients = Self.sanitizedClients(clients)
         state = Self.sanitized(next)
+        clientIDByNormalizedCode = Self.clientIndex(for: state.clients)
         persist()
     }
 
     func loadClientVisualSupports() -> RestoredClientVisualSupportState {
-        state = Self.sanitized(state)
-
         let icons = state.visualIcons.map {
             ClientVisualIcon(
                 id: $0.id,
@@ -252,46 +408,45 @@ final class LifeRoutePersistenceStore {
     }
 
     func loadRoutingState() -> RestoredRoutingPersistenceState {
-        state = Self.sanitized(state)
         return RestoredRoutingPersistenceState(homeAddress: state.homeAddress, savedPlaces: state.savedPlaces)
     }
 
     func saveRoutingState(homeAddress: String, savedPlaces: [LifeRouteSavedPlace]) {
         var next = state
-        next.homeAddress = homeAddress
-        next.savedPlaces = savedPlaces
-        state = Self.sanitized(next)
+        next.homeAddress = homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        next.savedPlaces = Self.sanitizedSavedPlaces(savedPlaces)
+        state = next
         persist()
     }
 
     func loadManualCalendarEvents() -> [LifeRouteCalendarEvent] {
-        state = Self.sanitized(state)
         return state.manualCalendarEvents
     }
 
     func saveManualCalendarEvents(_ events: [LifeRouteCalendarEvent]) {
         var next = state
-        next.manualCalendarEvents = events.filter { $0.source == .manual }
-        state = Self.sanitized(next)
+        next.manualCalendarEvents = Self.sanitizedManualCalendarEvents(events)
+        state = next
         persist()
     }
 
     private func persist() {
-        guard let fileURL else { return }
-        do {
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .iso8601
-            encoder.outputFormatting = [.sortedKeys]
-            let data = try encoder.encode(state)
-            try data.write(to: fileURL, options: [.atomic])
-            try? fileManager.setAttributes(
-                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
-                ofItemAtPath: fileURL.path
-            )
-            recoveryMessage = nil
-        } catch {
-            recoveryMessage = "LifeRoute could not save native state: \(error.localizedDescription)"
+        guard let snapshotWriter else { return }
+        persistenceRevision &+= 1
+        let revision = persistenceRevision
+        let snapshot = state
+        let previousTask = persistenceTask
+
+        persistenceTask = Task { [weak self, snapshotWriter] in
+            await previousTask?.value
+            let result = await snapshotWriter.persist(snapshot, revision: revision)
+            guard let self, result.revision == self.persistenceRevision else { return }
+            self.recoveryMessage = result.errorMessage
         }
+    }
+
+    func flushPendingWrites() async {
+        await persistenceTask?.value
     }
 
     private static func sanitized(_ input: NativeState) -> NativeState {
@@ -355,9 +510,48 @@ final class LifeRoutePersistenceStore {
         }
 
         let homeAddress = input.homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let savedPlaces = sanitizedSavedPlaces(input.savedPlaces)
+        let manualCalendarEvents = sanitizedManualCalendarEvents(input.manualCalendarEvents)
 
+        return NativeState(
+            schemaVersion: max(3, input.schemaVersion),
+            clients: clients,
+            visualIcons: icons,
+            choiceBoards: boards,
+            visualSchedules: schedules,
+            homeAddress: homeAddress,
+            savedPlaces: savedPlaces,
+            manualCalendarEvents: manualCalendarEvents
+        )
+    }
+
+    private static func hydratingVisualImages(in input: NativeState, from directory: URL) -> NativeState {
+        var hydrated = input
+        hydrated.visualIcons = input.visualIcons.map { storedIcon in
+            guard storedIcon.imageData == nil,
+                  let fileName = storedIcon.resolvedImageFileName else { return storedIcon }
+            var icon = storedIcon
+            icon.imageData = try? Data(
+                contentsOf: directory.appendingPathComponent(fileName, isDirectory: false),
+                options: [.mappedIfSafe]
+            )
+            if icon.imageData == nil { icon.imageFileName = nil }
+            return icon
+        }
+        return hydrated
+    }
+
+    private static func clientIndex(for clients: [LifeRouteClientProfile]) -> [String: UUID] {
+        Dictionary(uniqueKeysWithValues: clients.map { (normalizedClientCode($0.code), $0.id) })
+    }
+
+    private static func normalizedClientCode(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private static func sanitizedSavedPlaces(_ input: [LifeRouteSavedPlace]) -> [LifeRouteSavedPlace] {
         var seenPlaceIDs = Set<UUID>()
-        let savedPlaces = input.savedPlaces.compactMap { place -> LifeRouteSavedPlace? in
+        return input.compactMap { place -> LifeRouteSavedPlace? in
             let name = place.name.trimmingCharacters(in: .whitespacesAndNewlines)
             let address = place.address.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !name.isEmpty, !address.isEmpty, seenPlaceIDs.insert(place.id).inserted else { return nil }
@@ -370,9 +564,11 @@ final class LifeRoutePersistenceStore {
                 useInGapSuggestions: place.useInGapSuggestions
             )
         }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
 
+    private static func sanitizedManualCalendarEvents(_ input: [LifeRouteCalendarEvent]) -> [LifeRouteCalendarEvent] {
         var seenManualEventIDs = Set<String>()
-        let manualCalendarEvents = input.manualCalendarEvents.compactMap { event -> LifeRouteCalendarEvent? in
+        return input.compactMap { event -> LifeRouteCalendarEvent? in
             guard event.source == .manual,
                   event.end > event.start,
                   seenManualEventIDs.insert(event.id).inserted else { return nil }
@@ -390,17 +586,6 @@ final class LifeRoutePersistenceStore {
             if $0.start != $1.start { return $0.start < $1.start }
             return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
         }
-
-        return NativeState(
-            schemaVersion: max(2, input.schemaVersion),
-            clients: clients,
-            visualIcons: icons,
-            choiceBoards: boards,
-            visualSchedules: schedules,
-            homeAddress: homeAddress,
-            savedPlaces: savedPlaces,
-            manualCalendarEvents: manualCalendarEvents
-        )
     }
 
     private static func sanitizedClients(_ input: [LifeRouteClientProfile]) -> [LifeRouteClientProfile] {

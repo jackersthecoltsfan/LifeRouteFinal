@@ -227,6 +227,7 @@
         setStatus(evt.message || "Could not save the login.", "error");
         return;
       }
+      nativeConfigured = true;
       if (pendingBiometricEnable) {
         post({ action: "authSetBiometricEnabled", enabled: true });
         pendingBiometricEnable = false;

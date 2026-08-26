@@ -64,8 +64,13 @@ check("Pages has no Apple credential references", not any(token in executable_pa
 ]))
 check("Pages has no IPA upload command", not re.search(r"(?i)upload.*testflight|iTMSTransporter|notarytool|altool", executable_pages))
 
-# Documentation keeps the human authorization boundary explicit.
-check("manual-only release policy documented", "manual-only TestFlight" in setup)
+# Documentation keeps the human authorization boundary explicit. Accept both
+# the older manual-only wording and the newer, stricter explicit-confirmation wording.
+manual_policy_documented = (
+    "manual-only TestFlight" in setup
+    or "explicit-confirmation-only TestFlight release" in setup
+)
+check("manual-only release policy documented", manual_policy_documented)
 check("explicit confirmation documented", "explicit" in setup.lower() and "confirmation" in setup.lower())
 check("launch does not imply TestFlight documented", "request to “launch,”" in setup or 'request to "launch,"' in setup)
 

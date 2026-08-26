@@ -79,10 +79,13 @@ check("assistant release bridge timeout is short", bool(timeout) and int(timeout
 check("assistant release bridge has no 30-second polling", "sleep 30" not in assistant)
 check("assistant release bridge has no 180-iteration wait loops", "seq 1 180" not in assistant)
 check("assistant bridge requires completed successful validation", 'status == "completed" and .conclusion == "success"' in assistant)
+check("assistant bridge sends authorized_sha", "authorized_sha" in assistant and "$RELEASE_SHA" in assistant)
 
 check("TestFlight remains workflow_dispatch only", "workflow_dispatch:" in testflight and not any(
     trigger in testflight for trigger in ["push:", "pull_request:", "issues:", "workflow_run:", "schedule:"]
 ))
+check("TestFlight declares authorized_sha input", "authorized_sha:" in testflight)
+check("TestFlight enforces authorized SHA when supplied", 'test "$GITHUB_SHA" = "$AUTHORIZED_SHA"' in testflight)
 
 failed = [name for name, ok in checks if not ok]
 for name, ok in checks:

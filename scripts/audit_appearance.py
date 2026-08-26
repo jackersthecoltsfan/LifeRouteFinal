@@ -34,6 +34,8 @@ fluid = read(WEB / "fluid-scenes-v1.js")
 polish = read(WEB / "aesthetic-polish-v1.js")
 premium = read(WEB / "premium-interactions-v1.js")
 accordion = read(WEB / "theme-accordion-v1.js")
+liquid = read(WEB / "interaction-liquid-v4.js")
+stability = read(WEB / "stability-runtime.js")
 prepare = read(PREPARE)
 
 # Core visual system and readable color tokens.
@@ -98,6 +100,23 @@ check("isActiveSection(section)" in accordion and "section.classList.add('isOpen
 check("observer.observe(document.body" not in accordion, "theme accordion never watches the whole document")
 check("observer.observe(overlay" in accordion and "queueSync" in accordion, "theme accordion observation is Settings-scoped and frame-coalesced")
 check("backdrop-filter:none!important" in accordion, "theme accordion removes expensive mobile glass blur")
+
+# Liquid navigation performance.
+check("observer.observe(document.body" not in liquid, "Liquid Glass navigation never observes the whole document")
+check("getBoundingClientRect" not in liquid and "offsetWidth;" not in liquid, "Liquid Glass navigation avoids explicit forced geometry flush patterns")
+check("void pane.offsetWidth" not in liquid, "directional navigation does not force synchronous animation restart")
+check("scanKnownHosts" in liquid and "installHost(host)" in liquid, "Liquid Glass navigation updates only known/scoped hosts")
+check("backdrop-filter:none!important" in liquid, "mobile Liquid Glass disables persistent nav blur")
+
+# Shared tactile layer should not duplicate premium motion work.
+check("filter:brightness" not in polish and "saturate(1.08)" not in polish, "base press feedback avoids filter-heavy animation")
+check("lrPageEnter" not in polish, "base polish no longer duplicates premium page-entry animation")
+check("document.addEventListener('click',event=>{const control=enabledTarget" not in polish, "base polish does not repeat pointer press work on click")
+
+# Final native runtime must not re-enable expensive effects after performance layers.
+check("#lifeRouteThemeFX .fxBeam{animation:none!important;will-change:auto!important;filter:none!important" in stability, "native runtime keeps theme FX blur disabled")
+check("html[data-life-route-runtime=\"native\"] .calendarHubNav" in stability and "backdrop-filter:none!important" in stability, "native nav glass uses blur-free compositing")
+check(".dynLayer{filter:none!important" in stability, "coarse-pointer dynamic backgrounds avoid expensive blur")
 
 # Visual Timer / First-Then overlays should look intentional rather than utility-default.
 check("lrVisualTimerV2" in timer and "linear-gradient(155deg,#030913" in timer, "visual timer has dedicated futuristic presentation")

@@ -26,7 +26,7 @@ content = read(CONTENT)
 project = read(PROJECT)
 
 for forbidden in ["WebKit", "WKWebView", "JavaScript", "localStorage", "UserDefaults", "@AppStorage", "NotificationCenter", "Timer("]:
-    require(forbidden not in domain + views, f"Client core avoids legacy/persistence/runtime dependency: {forbidden}")
+    require(forbidden not in domain + views, f"Client core avoids legacy/runtime dependency: {forbidden}")
 require("struct LifeRouteClientProfile: Identifiable, Codable, Hashable" in domain, "Client profile is a plain value model")
 require("var code: String { first2 + last2 }" in domain, "Client code derives from two first + two last initials")
 require("final class ClientProfileCore: ObservableObject" in domain, "One native owner manages client profiles")
@@ -42,8 +42,8 @@ require("Full names are not required." in views, "Client UI preserves ABA-style 
 require("NavigationLink" in views and "ClientEditorView" in views, "Client add/edit uses native navigation")
 require("Button(\"Remove\", role: .destructive)" in views, "Client removal uses a semantic native button")
 require("TextEditor(text: $preferredActivities)" in views and "TextEditor(text: $currentTargets)" in views, "Long-form session fields accept native text input")
-require("Client profiles are session-only until the persistence checkpoint." in views, "Client UI is truthful about in-memory state")
-require("ClientProfileDomain.swift in Sources" in project and "ClientViews.swift in Sources" in project, "Client core files are compiled into the active target")
+require("Client profiles are saved locally in protected LifeRoute app data on this iPhone." in views, "Client UI states the current native persistence behavior truthfully")
+require("ClientProfileDomain.swift in Sources" in project and "ClientViews.swift in Sources" in project, "Client core files compile in the active target")
 require("LifeRouteWebView.swift in Sources" not in project and "Web in Resources" not in project, "Legacy WebView runtime remains quarantined")
 
 if errors:

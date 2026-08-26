@@ -93,6 +93,7 @@ final class LifeRoutePersistenceStore {
     private init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
         self.state = NativeState()
+        self.recoveryMessage = nil
 
         guard let applicationSupport = fileManager.urls(
             for: .applicationSupportDirectory,

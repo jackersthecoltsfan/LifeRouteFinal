@@ -91,12 +91,6 @@
     }
   };
 
-  document.addEventListener("click", event => {
-    if (!event.target.closest?.("#locationButton")) return;
-    rememberEnabled();
-    setTimeout(() => start(false), 120);
-  }, true);
-
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") start(false);
     else stop();

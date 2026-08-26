@@ -1,4 +1,5 @@
 from pathlib import Path
+import runpy
 
 path = Path("LifeRoute/LifeRouteWebView.swift")
 text = path.read_text()
@@ -77,11 +78,10 @@ if new_save not in text:
 
 path.write_text(text)
 
-# LifeRoute v0.4.0 deliberately removes the unreliable local login gate from
-# startup. Keep the native Keychain/biometric bridge above for a future auth
-# redesign, but make the bundled web module inert: no overlay, no auth-status
-# request, no polling, no PBKDF2 work, and no interaction interception.
-web_path = Path("LifeRoute/Web/auth-gate.js")
-web_path.write_text('''// LifeRoute v0.4.0 startup authentication policy.\n// The legacy local login UI is intentionally disabled for this release.\n(() => {\n  const AUTH_GATE_ENABLED = 0;\n  window.__lifeRouteAuthGateLoaded = true;\n  window.__lifeRouteAuthGateDisabledV040 = true;\n\n  const cleanupLegacyGate = () => {\n    document.getElementById("lifeRouteAuthGate")?.remove();\n    document.getElementById("lifeRouteAuthStyles")?.remove();\n  };\n\n  cleanupLegacyGate();\n  if (document.readyState === "loading") {\n    document.addEventListener("DOMContentLoaded", cleanupLegacyGate, { once: true });\n  }\n\n  window.LifeRouteAuth = Object.freeze({\n    enabled: !!AUTH_GATE_ENABLED,\n    lock() {\n      cleanupLegacyGate();\n      return false;\n    }\n  });\n})();\n''')
+# Keep the native security implementation hardened, then bypass the legacy web
+# gate before any of its startup/UI work executes. The separate patch is
+# intentionally single-purpose and is invoked here so the existing deterministic
+# prepare_build ordering remains unchanged.
+runpy.run_path("scripts/patch_disable_auth_gate_v1.py", run_name="__main__")
 
-print("Native auth Keychain reliability preserved; v0.4.0 web login gate disabled at startup.")
+print("Native auth Keychain reliability preserved; v0.4.0 web login startup bypass applied.")

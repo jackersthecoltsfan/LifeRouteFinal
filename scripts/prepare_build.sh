@@ -11,12 +11,15 @@ set -euo pipefail
 # runners are fresh already; this protects local/manual invocations too.
 rm -rf build
 
-# Keep this checkpoint deterministic and small.
-python3 -m py_compile scripts/audit_v0_5_0_functional_shell.py
+# Keep preparation deterministic and limited to the active native core.
+python3 -m py_compile \
+  scripts/audit_v0_5_0_functional_shell.py \
+  scripts/audit_v0_5_0_core_navigation.py
 plutil -lint LifeRoute/Info.plist
 
-# Fail immediately if target membership, native navigation ownership, or the
-# explicit 0.5.0 marketing-version contract regresses.
+# Checkpoint-specific gates. The shell audit protects quarantine/versioning;
+# the navigation audit protects one-owner native routing and back/close behavior.
 python3 scripts/audit_v0_5_0_functional_shell.py
+python3 scripts/audit_v0_5_0_core_navigation.py
 
 echo "LifeRoute v0.5.0 functional-core preparation passed. Legacy WebView runtime remains quarantined."

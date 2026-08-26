@@ -1,49 +1,56 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedSection: AppSection = .today
+    @StateObject private var router = AppRouter()
 
     var body: some View {
-        TabView(selection: $selectedSection) {
-            NavigationStack {
-                TodayCoreView()
+        TabView(selection: $router.selectedSection) {
+            NavigationStack(path: $router.todayPath) {
+                TodayCoreView(router: router)
+                    .navigationDestination(for: AppRoute.self) { route in
+                        RouteDetailView(route: route, router: router)
+                    }
             }
-            .tabItem { Label("Today", systemImage: "sun.max") }
+            .tabItem { Label(AppSection.today.title, systemImage: AppSection.today.systemImage) }
             .tag(AppSection.today)
 
-            NavigationStack {
-                ScheduleCoreView()
+            NavigationStack(path: $router.schedulePath) {
+                ScheduleCoreView(router: router)
+                    .navigationDestination(for: AppRoute.self) { route in
+                        RouteDetailView(route: route, router: router)
+                    }
             }
-            .tabItem { Label("Schedule", systemImage: "calendar") }
+            .tabItem { Label(AppSection.schedule.title, systemImage: AppSection.schedule.systemImage) }
             .tag(AppSection.schedule)
 
-            NavigationStack {
-                SessionToolsCoreView()
+            NavigationStack(path: $router.toolsPath) {
+                SessionToolsCoreView(router: router)
+                    .navigationDestination(for: AppRoute.self) { route in
+                        RouteDetailView(route: route, router: router)
+                    }
             }
-            .tabItem { Label("Tools", systemImage: "wrench.and.screwdriver") }
+            .tabItem { Label(AppSection.tools.title, systemImage: AppSection.tools.systemImage) }
             .tag(AppSection.tools)
 
-            NavigationStack {
-                ResourcesCoreView()
+            NavigationStack(path: $router.resourcesPath) {
+                ResourcesCoreView(router: router)
+                    .navigationDestination(for: AppRoute.self) { route in
+                        RouteDetailView(route: route, router: router)
+                    }
             }
-            .tabItem { Label("Resources", systemImage: "books.vertical") }
+            .tabItem { Label(AppSection.resources.title, systemImage: AppSection.resources.systemImage) }
             .tag(AppSection.resources)
 
-            NavigationStack {
-                SetupCoreView()
+            NavigationStack(path: $router.setupPath) {
+                SetupCoreView(router: router)
+                    .navigationDestination(for: AppRoute.self) { route in
+                        RouteDetailView(route: route, router: router)
+                    }
             }
-            .tabItem { Label("Setup", systemImage: "gearshape") }
+            .tabItem { Label(AppSection.setup.title, systemImage: AppSection.setup.systemImage) }
             .tag(AppSection.setup)
         }
     }
-}
-
-private enum AppSection: Hashable {
-    case today
-    case schedule
-    case tools
-    case resources
-    case setup
 }
 
 private struct CoreHeader: View {
@@ -63,6 +70,7 @@ private struct CoreHeader: View {
 }
 
 private struct TodayCoreView: View {
+    @ObservedObject var router: AppRouter
     @State private var tapCount = 0
 
     var body: some View {
@@ -70,7 +78,7 @@ private struct TodayCoreView: View {
             Section {
                 CoreHeader(
                     title: "LifeRoute",
-                    subtitle: "v0.5.0 functional core — native interaction checkpoint"
+                    subtitle: "v0.5.0 native functional core"
                 )
             }
 
@@ -82,18 +90,38 @@ private struct TodayCoreView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Navigation ownership") {
+                NavigationLink("Open Today detail", value: AppRoute.todayDetails)
+                Button("Open Schedule detail") {
+                    router.open(.scheduleDetails, in: .schedule)
+                }
+                Button("Open Setup detail") {
+                    router.open(.setupDetails, in: .setup)
+                }
+            }
+
             Section("Current rebuild state") {
                 Label("Direct launch", systemImage: "checkmark.circle")
-                Label("Native navigation", systemImage: "checkmark.circle")
+                Label("One native router", systemImage: "checkmark.circle")
                 Label("No login gate", systemImage: "checkmark.circle")
-                Label("Legacy cosmetic runtime quarantined", systemImage: "checkmark.circle")
+                Label("Legacy WebView runtime quarantined", systemImage: "checkmark.circle")
             }
         }
         .navigationTitle("Today")
     }
 }
 
+private enum ScheduleRange: String, CaseIterable, Identifiable {
+    case day = "Day"
+    case week = "Week"
+    case month = "Month"
+
+    var id: Self { self }
+}
+
 private struct ScheduleCoreView: View {
+    @ObservedObject var router: AppRouter
+    @State private var selectedRange: ScheduleRange = .day
     @State private var draftTitle = ""
     @State private var savedTitle = ""
 
@@ -102,8 +130,20 @@ private struct ScheduleCoreView: View {
             Section {
                 CoreHeader(
                     title: "Schedule",
-                    subtitle: "Minimal form/state test before calendar features return."
+                    subtitle: "Native Day / Week / Month state before calendar data returns."
                 )
+            }
+
+            Section("Range") {
+                Picker("Schedule range", selection: $selectedRange) {
+                    ForEach(ScheduleRange.allCases) { range in
+                        Text(range.rawValue).tag(range)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Text("Selected: \(selectedRange.rawValue)")
+                    .foregroundStyle(.secondary)
             }
 
             Section("Form test") {
@@ -121,12 +161,20 @@ private struct ScheduleCoreView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            Section("Stack test") {
+                NavigationLink("Open Schedule detail", value: AppRoute.scheduleDetails)
+                Button("Return to Today tab") {
+                    router.select(.today)
+                }
+            }
         }
         .navigationTitle("Schedule")
     }
 }
 
 private struct SessionToolsCoreView: View {
+    @ObservedObject var router: AppRouter
     @State private var toolEnabled = false
 
     var body: some View {
@@ -143,12 +191,20 @@ private struct SessionToolsCoreView: View {
                 Text(toolEnabled ? "Test tool is on" : "Test tool is off")
                     .foregroundStyle(.secondary)
             }
+
+            Section("Stack test") {
+                NavigationLink("Open Tools detail", value: AppRoute.toolsDetails)
+                Button("Open Resources") {
+                    router.select(.resources)
+                }
+            }
         }
         .navigationTitle("Session Tools")
     }
 }
 
 private struct ResourcesCoreView: View {
+    @ObservedObject var router: AppRouter
     @State private var acknowledged = false
 
     var body: some View {
@@ -156,7 +212,7 @@ private struct ResourcesCoreView: View {
             Section {
                 CoreHeader(
                     title: "Resources",
-                    subtitle: "Resource links and hubs return after the native shell is proven stable."
+                    subtitle: "Resource links return after their native ownership is reviewed."
                 )
             }
 
@@ -165,12 +221,20 @@ private struct ResourcesCoreView: View {
                     acknowledged = true
                 }
             }
+
+            Section("Stack test") {
+                NavigationLink("Open Resources detail", value: AppRoute.resourcesDetails)
+                Button("Open Session Tools") {
+                    router.select(.tools)
+                }
+            }
         }
         .navigationTitle("Resources")
     }
 }
 
 private struct SetupCoreView: View {
+    @ObservedObject var router: AppRouter
     @State private var displayName = ""
     @State private var locationEnabled = false
     @State private var savedSummary = "Not saved yet"
@@ -195,8 +259,43 @@ private struct SetupCoreView: View {
                 Text(savedSummary)
                     .foregroundStyle(.secondary)
             }
+
+            Section("Stack test") {
+                NavigationLink("Open Setup detail", value: AppRoute.setupDetails)
+                Button("Reset Setup navigation path") {
+                    router.resetPath(for: .setup)
+                }
+            }
         }
         .navigationTitle("Setup")
+    }
+}
+
+private struct RouteDetailView: View {
+    let route: AppRoute
+    @ObservedObject var router: AppRouter
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        List {
+            Section {
+                Label(route.title, systemImage: route.systemImage)
+                    .font(.headline)
+                Text(route.subtitle)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Native navigation test") {
+                Button("Close") {
+                    dismiss()
+                }
+                Button("Go to Today") {
+                    router.select(.today)
+                }
+            }
+        }
+        .navigationTitle(route.title)
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

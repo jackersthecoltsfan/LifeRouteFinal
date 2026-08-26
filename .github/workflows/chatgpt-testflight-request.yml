@@ -10,10 +10,9 @@ permissions:
   actions: write
   issues: write
 
-# Normal pushes never reach TestFlight. This permanent bridge accepts only an
-# exact repository-owner release request created after explicit user approval.
-# It may reuse an older successful/queued validation only when every commit
-# since that validation is release-inert documentation/workflow infrastructure.
+# This bridge is deliberately short-lived. ChatGPT/Codex must verify required
+# validation before opening the release request; the workflow never occupies a
+# runner while waiting for CI or Pages to finish.
 concurrency:
   group: liferoute-chatgpt-testflight-request
   cancel-in-progress: false
@@ -26,7 +25,7 @@ jobs:
       (github.event.issue.body == 'AUTHORIZED_TESTFLIGHT_RELEASE=YES' ||
        github.event.issue.body == 'AUTHORIZED_TESTFLIGHT_RELEASE=YES;REQUIRE_WEB_PREVIEW=YES')
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_SHA: ${{ github.sha }}
@@ -44,201 +43,95 @@ jobs:
           }
           echo "Explicit owner-authorized request targets current main $RELEASE_SHA."
 
-      - name: Find release-equivalent iOS validation
-        id: ios
+      - name: Require completed release-equivalent iOS validation
         run: |
           set -euo pipefail
           RUNS=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ios-ci.yml/runs?branch=main&event=push&per_page=50")
-          RUN_ID=''
-          VALIDATED_SHA=''
+          FOUND=''
 
           while IFS=$'\t' read -r candidate_id candidate_sha; do
             [ -n "$candidate_id" ] || continue
             if [ "$candidate_sha" = "$RELEASE_SHA" ]; then
-              RUN_ID="$candidate_id"
-              VALIDATED_SHA="$candidate_sha"
+              FOUND="$candidate_id"
               break
             fi
 
             COMPARE=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${candidate_sha}...${RELEASE_SHA}" 2>/dev/null || true)
-            MERGE_BASE=$(jq -r '.merge_base_commit.sha // empty' <<<"${COMPARE:-{}}")
-            [ "$MERGE_BASE" = "$candidate_sha" ] || continue
+            [ "$(jq -r '.merge_base_commit.sha // empty' <<<"${COMPARE:-{}}")" = "$candidate_sha" ] || continue
 
             SAFE=true
             while IFS= read -r file; do
               case "$file" in
-                *.md|ReusableAppWorkflow/*|ReusableAppWorkflow/**/*|.github/workflows/chatgpt-testflight-request.yml|.github/workflows/testflight.yml)
+                *.md|ReusableAppWorkflow/*|ReusableAppWorkflow/**/*|.github/workflows/chatgpt-testflight-request.yml|.github/workflows/testflight.yml|.github/workflows/policy-check.yml)
                   ;;
-                *)
-                  SAFE=false
-                  echo "Release-relevant change after candidate $candidate_sha: $file"
-                  break
-                  ;;
+                *) SAFE=false; break ;;
               esac
             done < <(jq -r '.files[].filename' <<<"$COMPARE")
+            [ "$SAFE" = true ] && { FOUND="$candidate_id"; break; }
+          done < <(jq -r '.workflow_runs[] | select(.status == "completed" and .conclusion == "success") | [.id, .head_sha] | @tsv' <<<"$RUNS")
 
-            if [ "$SAFE" = true ]; then
-              RUN_ID="$candidate_id"
-              VALIDATED_SHA="$candidate_sha"
-              break
-            fi
-          done < <(jq -r '.workflow_runs[] | [.id, .head_sha] | @tsv' <<<"$RUNS")
-
-          test -n "$RUN_ID" || {
-            echo "No release-equivalent iOS Build Check exists; refusing release."
+          test -n "$FOUND" || {
+            echo "No completed successful release-equivalent iOS Build Check exists. Refusing release without waiting."
             exit 1
           }
-          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "validated_sha=$VALIDATED_SHA" >> "$GITHUB_OUTPUT"
-          echo "Using release-equivalent iOS Build Check $RUN_ID at $VALIDATED_SHA."
+          echo "Using successful release-equivalent iOS Build Check $FOUND."
 
-      - name: Wait for iOS Build Check
-        env:
-          IOS_RUN_ID: ${{ steps.ios.outputs.run_id }}
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 180); do
-            RUN=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${IOS_RUN_ID}")
-            STATUS=$(jq -r '.status' <<<"$RUN")
-            CONCLUSION=$(jq -r '.conclusion // ""' <<<"$RUN")
-            echo "iOS Build Check $IOS_RUN_ID: status=$STATUS conclusion=${CONCLUSION:-pending}"
-            if [ "$STATUS" = 'completed' ]; then
-              test "$CONCLUSION" = 'success' || {
-                echo "iOS Build Check did not pass; refusing TestFlight dispatch."
-                exit 1
-              }
-              break
-            fi
-            [ "$attempt" -lt 180 ] || { echo "iOS validation timed out."; exit 1; }
-            sleep 30
-          done
-
-      - name: Find release-equivalent web preview
+      - name: Require completed release-equivalent web preview
         if: env.REQUEST_BODY == 'AUTHORIZED_TESTFLIGHT_RELEASE=YES;REQUIRE_WEB_PREVIEW=YES'
-        id: web
         run: |
           set -euo pipefail
           RUNS=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/pages.yml/runs?branch=main&event=push&per_page=50")
-          RUN_ID=''
-          VALIDATED_SHA=''
+          FOUND=''
 
           while IFS=$'\t' read -r candidate_id candidate_sha; do
             [ -n "$candidate_id" ] || continue
             if [ "$candidate_sha" = "$RELEASE_SHA" ]; then
-              RUN_ID="$candidate_id"
-              VALIDATED_SHA="$candidate_sha"
+              FOUND="$candidate_id"
               break
             fi
 
             COMPARE=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${candidate_sha}...${RELEASE_SHA}" 2>/dev/null || true)
-            MERGE_BASE=$(jq -r '.merge_base_commit.sha // empty' <<<"${COMPARE:-{}}")
-            [ "$MERGE_BASE" = "$candidate_sha" ] || continue
+            [ "$(jq -r '.merge_base_commit.sha // empty' <<<"${COMPARE:-{}}")" = "$candidate_sha" ] || continue
 
             SAFE=true
             while IFS= read -r file; do
               case "$file" in
-                *.md|ReusableAppWorkflow/*|ReusableAppWorkflow/**/*|.github/workflows/chatgpt-testflight-request.yml|.github/workflows/testflight.yml)
+                *.md|ReusableAppWorkflow/*|ReusableAppWorkflow/**/*|.github/workflows/chatgpt-testflight-request.yml|.github/workflows/testflight.yml|.github/workflows/policy-check.yml)
                   ;;
-                *)
-                  SAFE=false
-                  break
-                  ;;
+                *) SAFE=false; break ;;
               esac
             done < <(jq -r '.files[].filename' <<<"$COMPARE")
+            [ "$SAFE" = true ] && { FOUND="$candidate_id"; break; }
+          done < <(jq -r '.workflow_runs[] | select(.status == "completed" and .conclusion == "success") | [.id, .head_sha] | @tsv' <<<"$RUNS")
 
-            if [ "$SAFE" = true ]; then
-              RUN_ID="$candidate_id"
-              VALIDATED_SHA="$candidate_sha"
-              break
-            fi
-          done < <(jq -r '.workflow_runs[] | [.id, .head_sha] | @tsv' <<<"$RUNS")
-
-          test -n "$RUN_ID" || {
-            echo "No release-equivalent Publish Web Preview exists; refusing release."
+          test -n "$FOUND" || {
+            echo "No completed successful release-equivalent web preview exists. Refusing release without waiting."
             exit 1
           }
-          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "validated_sha=$VALIDATED_SHA" >> "$GITHUB_OUTPUT"
-          echo "Using release-equivalent web preview $RUN_ID at $VALIDATED_SHA."
-
-      - name: Wait for web preview
-        if: env.REQUEST_BODY == 'AUTHORIZED_TESTFLIGHT_RELEASE=YES;REQUIRE_WEB_PREVIEW=YES'
-        env:
-          WEB_RUN_ID: ${{ steps.web.outputs.run_id }}
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 180); do
-            RUN=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${WEB_RUN_ID}")
-            STATUS=$(jq -r '.status' <<<"$RUN")
-            CONCLUSION=$(jq -r '.conclusion // ""' <<<"$RUN")
-            echo "Publish Web Preview $WEB_RUN_ID: status=$STATUS conclusion=${CONCLUSION:-pending}"
-            if [ "$STATUS" = 'completed' ]; then
-              test "$CONCLUSION" = 'success' || {
-                echo "Publish Web Preview did not pass; refusing TestFlight dispatch."
-                exit 1
-              }
-              break
-            fi
-            [ "$attempt" -lt 180 ] || { echo "Web preview validation timed out."; exit 1; }
-            sleep 30
-          done
+          echo "Using successful release-equivalent web preview $FOUND."
 
       - name: Reconfirm main before TestFlight
         run: |
           set -euo pipefail
           CURRENT_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')
           test "$CURRENT_SHA" = "$RELEASE_SHA" || {
-            echo "Main changed while validation was running; refusing stale release."
+            echo "Main changed during authorization checks; refusing stale release."
             exit 1
           }
 
-      - name: Dispatch Send to TestFlight
-        id: dispatch
+      - name: Dispatch exact-SHA Send to TestFlight
         run: |
           set -euo pipefail
-          BEFORE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          jq -n \
+            --arg ref main \
+            --arg sha "$RELEASE_SHA" \
+            --arg issue "$REQUEST_ISSUE" \
+            '{ref:$ref, inputs:{authorized_sha:$sha, request_issue:$issue}}' |
           gh api \
             --method POST \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/testflight.yml/dispatches" \
-            -f ref=main
+            --input -
 
-          RUN_ID=''
-          for attempt in $(seq 1 30); do
-            RUNS=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/testflight.yml/runs?branch=main&event=workflow_dispatch&head_sha=${RELEASE_SHA}&per_page=10")
-            RUN_ID=$(jq -r --arg before "$BEFORE" '.workflow_runs | map(select(.created_at >= $before)) | sort_by(.created_at) | last | .id // empty' <<<"$RUNS")
-            [ -n "$RUN_ID" ] && break
-            sleep 2
-          done
-          test -n "$RUN_ID" || { echo "Could not discover dispatched TestFlight run."; exit 1; }
-          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "Dispatched Send to TestFlight run $RUN_ID for $RELEASE_SHA."
-
-      - name: Verify TestFlight upload completed
-        env:
-          TESTFLIGHT_RUN_ID: ${{ steps.dispatch.outputs.run_id }}
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 180); do
-            RUN=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${TESTFLIGHT_RUN_ID}")
-            STATUS=$(jq -r '.status' <<<"$RUN")
-            CONCLUSION=$(jq -r '.conclusion // ""' <<<"$RUN")
-            RUN_NUMBER=$(jq -r '.run_number' <<<"$RUN")
-            echo "Send to TestFlight #$RUN_NUMBER: status=$STATUS conclusion=${CONCLUSION:-pending}"
-            if [ "$STATUS" = 'completed' ]; then
-              test "$CONCLUSION" = 'success' || { echo "TestFlight workflow failed."; exit 1; }
-              JOBS=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${TESTFLIGHT_RUN_ID}/jobs?per_page=100")
-              UPLOAD=$(jq -r '[.jobs[].steps[]? | select(.name == "Upload to TestFlight") | .conclusion] | first // empty' <<<"$JOBS")
-              test "$UPLOAD" = 'success' || { echo "Upload to TestFlight step was not successful."; exit 1; }
-              echo "TESTFLIGHT_RUN_NUMBER=$RUN_NUMBER" >> "$GITHUB_ENV"
-              break
-            fi
-            [ "$attempt" -lt 180 ] || { echo "TestFlight verification timed out."; exit 1; }
-            sleep 30
-          done
-
-      - name: Close completed release request
-        run: |
-          set -euo pipefail
-          gh issue close "$REQUEST_ISSUE" \
+          gh issue comment "$REQUEST_ISSUE" \
             --repo "$GITHUB_REPOSITORY" \
-            --comment "TestFlight upload succeeded in Send to TestFlight #${TESTFLIGHT_RUN_NUMBER}. Exact Upload to TestFlight step: success."
+            --body "Validated release request accepted for ${RELEASE_SHA}. Send to TestFlight was dispatched with an exact-SHA guard. Keep this issue open until the upload result is verified."

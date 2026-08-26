@@ -29,6 +29,10 @@ Current main at the time this handoff was prepared: `a0ee0fdab88d7dab91bc8e9f858
 
 Active workflow-hardening branch: `workflow-hardening-2026-08-26`
 
+Latest hardening branch head before this handoff refresh: `5b6cabcb299d5b1e87eb7f36a4d5a9560220304d`
+
+A ChatGPT condition-watch named **LifeRoute Actions Recovery** is enabled to check GitHub Actions/Pages and the LifeRoute queue hourly. It should notify only when recovery materially changes the next action.
+
 ### Current product/release objective
 
 Release the PIN-entry reliability fix to TestFlight after current-main validation is healthy.
@@ -47,7 +51,7 @@ The user has already explicitly authorized this PIN-fix TestFlight release. Do n
 
 ### Current external blocker
 
-GitHub reported a major Actions outage on 2026-08-26 beginning at 15:11 UTC, with Pages also degraded. The incident involved a database primary, failover, inbound throttling, and gradual traffic restoration. Several old LifeRoute workflow records remained stuck in `queued` even after normal cancellation requests.
+GitHub reported a major Actions outage on 2026-08-26 beginning at 15:11 UTC, with Pages also degraded. GitHub reported a database-primary problem, partial failover, inbound throttling, upstream Vitess investigation, and gradual traffic restoration. Several old LifeRoute workflow records remained stuck in `queued` even after normal cancellation requests.
 
 Do not interpret those stale queued records as an app build failure. Follow `GITHUB_ACTIONS_RUNBOOK.md` and check current GitHub Status before attempting recovery.
 
@@ -58,14 +62,18 @@ The hardening branch is intentionally off `main` while GitHub Actions is unstabl
 - narrowed iOS CI triggers so unrelated workflow-file edits do not launch macOS builds;
 - workflow-scoped concurrency keys;
 - Pages removal of duplicate deep audits already owned by `prepare_build.sh`;
+- policy-only audit scripts excluded from expensive iOS/Pages triggers;
 - a lightweight Ubuntu `policy-check.yml` for release/workflow policy changes;
 - stronger release-isolation audit that verifies only `testflight.yml` contains actual upload machinery;
 - removal of inert `auto-testflight.yml` and `release.yml` placeholder workflows;
 - a workflow-efficiency audit to prevent trigger/polling/duplication regressions;
 - a short-lived assistant TestFlight bridge that requires already-completed successful validation instead of polling for up to two hours;
-- `GITHUB_ACTIONS_RUNBOOK.md` for provider-outage diagnosis and safe cancellation escalation.
+- exact-SHA assistant release dispatch, with `testflight.yml` refusing a mismatched authorized SHA;
+- streamlined `APP_CREATION_PLAYBOOK.md` and `TESTFLIGHT_SETUP.md` so documentation matches the real explicit-confirmation release model;
+- `GITHUB_ACTIONS_RUNBOOK.md` for provider-outage diagnosis, safe cancellation escalation, and TestFlight-specific recovery rules;
+- `AGENTS.md` continuity rules requiring future LifeRoute work to read this handoff and provider-status runbook.
 
-Before merging this hardening branch, run/verify the two policy audits and review the workflow diff after GitHub Actions returns to normal.
+Before merging this hardening branch, verify the two policy audits and review the workflow diff after GitHub Actions returns to normal. Do not create a pull request during the current outage because the pull request itself would generate more workflow events.
 
 ## Release policy
 
@@ -74,6 +82,7 @@ TestFlight is explicit-confirmation-only.
 - Normal pushes may validate/build/publish the web preview but never upload to TestFlight.
 - `testflight.yml` is the sole workflow containing Apple signing/upload machinery and remains manual (`workflow_dispatch`) only.
 - ChatGPT/Codex may use the guarded owner-authorized release-request bridge after the user has explicitly authorized release and the required validation has already succeeded.
+- Assistant dispatch carries the exact authorized SHA into `testflight.yml`; a mismatch fails before preparation/signing.
 - Do not create a release request while GitHub Actions is degraded/outage.
 
 ## Automatic conversation handoff protocol
@@ -118,9 +127,9 @@ Do not wait until the current thread actually loses continuity. When one strong 
 ## Next actions after GitHub recovery
 
 1. Confirm GitHub Actions/Pages are operational and allow backlog to settle.
-2. Re-read the five historical queued/zombie runs; force-cancel only if they still meet the runbook criteria.
-3. Verify and finish the workflow-hardening branch.
-4. Merge hardening to `main` only after static review/policy audits pass.
-5. Obtain one clean current-main iOS validation and web preview as required.
+2. Re-read the historical queued/zombie runs; force-cancel only if they still meet the runbook criteria.
+3. Verify the two hardening policy audits and current workflow diff.
+4. Merge hardening to `main` only after the provider is healthy and review passes.
+5. Obtain one clean current-main iOS validation, one web preview when required, and the lightweight release policy check.
 6. Use the already-authorized guarded release path for the PIN-fix TestFlight build.
 7. Verify the exact `Upload to TestFlight` step succeeds and report the new build number.

@@ -1,5 +1,4 @@
 from pathlib import Path
-import runpy
 
 path = Path("LifeRoute/Web/auth-gate.js")
 text = path.read_text()
@@ -10,12 +9,15 @@ marker = '''  if (window.__lifeRouteAuthGateLoaded) return;
 block = '''  if (window.__lifeRouteAuthGateLoaded) return;
   window.__lifeRouteAuthGateLoaded = true;
 
-  // Login is intentionally disabled for this release. Keep the authentication
-  // implementation below recoverable, but do not mount a gate or security row.
-  const AUTH_GATE_ENABLED = false;
+  // LifeRoute v0.4.0 launches directly into the app. Keep the legacy local
+  // authentication implementation below recoverable for a later redesign, but
+  // return before it creates styles/UI, performs PIN work, polls Settings, or
+  // requests native authentication state.
+  const AUTH_GATE_ENABLED = 0;
   if (!AUTH_GATE_ENABLED) {
     const removeDisabledAuthUI = () => {
       document.getElementById("lifeRouteAuthGate")?.remove();
+      document.getElementById("lifeRouteAuthStyles")?.remove();
       document.getElementById("lifeRouteAuthSettingsSection")?.remove();
       document.documentElement.removeAttribute("data-life-route-auth-locked");
       document.body?.removeAttribute("data-life-route-auth-locked");
@@ -25,21 +27,17 @@ block = '''  if (window.__lifeRouteAuthGateLoaded) return;
     } else {
       removeDisabledAuthUI();
     }
-    window.LifeRouteAuth = { enabled: false, lock() { removeDisabledAuthUI(); } };
+    window.__lifeRouteAuthGateDisabledV040 = true;
+    window.LifeRouteAuth = { enabled: false, lock() { removeDisabledAuthUI(); return false; } };
     document.dispatchEvent(new CustomEvent("liferoute-auth-disabled"));
     return;
   }
 '''
 
-if "const AUTH_GATE_ENABLED = false;" not in text:
+if "const AUTH_GATE_ENABLED = 0;" not in text:
     if marker not in text:
         raise SystemExit("Could not locate auth-gate bootstrap marker")
     text = text.replace(marker, block, 1)
 
 path.write_text(text)
-print("LifeRoute login/PIN gate disabled for this release; app opens directly.")
-
-# Keep the narrative-note quality upgrade inside the deterministic build-prep
-# path without duplicating its implementation here.
-runpy.run_path("scripts/patch_aba_note_quality_v2.py", run_name="__main__")
-runpy.run_path("scripts/audit_aba_note_quality_v2.py", run_name="__main__")
+print("LifeRoute v0.4.0 login/PIN gate bypassed before auth startup work; recoverable implementation preserved.")

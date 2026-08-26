@@ -1,10 +1,10 @@
 # LifeRoute Project Handoff
 
-This file is the durable handoff between LifeRoute ChatGPT threads. It should stay compact, current, and free of secrets or unrelated personal information.
+This file is the durable handoff between LifeRoute development threads. Keep it compact, current, and free of secrets or unrelated personal information.
 
 ## How a new LifeRoute chat should resume
 
-At the start of a new LifeRoute project thread, read:
+Read, in order:
 
 1. `LIFEROUTE_HANDOFF.md`
 2. `AGENTS.md`
@@ -13,7 +13,7 @@ At the start of a new LifeRoute project thread, read:
 5. `GITHUB_ACTIONS_RUNBOOK.md`
 6. relevant files in `ReusableAppWorkflow/`
 
-Then inspect live GitHub state before assuming that a workflow/run status recorded here is still current.
+Then inspect live GitHub/Actions state before acting on any recorded workflow status.
 
 The user should only need to say:
 
@@ -23,113 +23,134 @@ The user should only need to say:
 
 Repository: `jackersthecoltsfan/LifeRouteFinal`
 
-Default branch: `main`
+Validated release baseline on `main`:
+`0fb4c1b5e3873030295617f04577c254e1bc55d7`
+(`Merge LifeRoute performance smoothness pass`)
 
-Current main at the time this handoff was prepared: `a0ee0fdab88d7dab91bc8e9f858266d21eb288c5`
+Active isolated development branch:
+`feature/v0.4.0`
 
-Active workflow-hardening branch: `workflow-hardening-2026-08-26`
+Draft validation PR:
+`#13` — `LifeRoute v0.4.0 — remove local login gate`
 
-Latest hardening branch head before this handoff refresh: `5b6cabcb299d5b1e87eb7f36a4d5a9560220304d`
+Latest validated v0.4.0 runtime commit before this documentation refresh:
+`0e48338faccf5d416c01fad198cd2f49b6b97b6b`
 
-A ChatGPT condition-watch named **LifeRoute Actions Recovery** is enabled to check GitHub Actions/Pages and the LifeRoute queue hourly. It should notify only when recovery materially changes the next action.
+Do not merge experimental work directly to `main`. Keep v0.4.0 isolated until its development phase is ready.
 
-### Current product/release objective
+## Previous TestFlight release
 
-Release the PIN-entry reliability fix to TestFlight after current-main validation is healthy.
+The TestFlight workflow for main SHA `0fb4c1b5e3873030295617f04577c254e1bc55d7` completed successfully.
 
-Original PIN fix commit: `546fe01cdd2560d80994dff0fdf805822ed84e47` (`Fix PIN entry on web and iPhone`).
+- Workflow: `LifeRoute → TestFlight`
+- Run: `#68`
+- Run ID: `33003904725`
+- Result: success
+- The actual `Upload to TestFlight` step succeeded.
 
-The fix uses reliable masked numeric PIN inputs and preserves 4-digit validation/Keychain hardening. Subsequent commits have primarily changed release/workflow infrastructure rather than the app runtime.
+This is the last confirmed TestFlight release state before v0.4.0 development.
 
-The user has already explicitly authorized this PIN-fix TestFlight release. Do not ask for release authorization again for this specific release target unless the app/runtime source changes materially after this handoff.
+## v0.4.0 authentication decision
 
-### Latest useful validation evidence
+Physical-device testing showed that PIN fields could accept input, but the local LifeRoute login screen itself remained unreliable/unresponsive.
 
-- iOS Build Check #574 for main SHA `924417ea6585ee594646a0869c77371483bf8774` completed successfully.
-- The corresponding web preview passed all app/runtime/regression audits but failed one stale documentation-wording policy assertion.
-- That assertion was corrected on main in `a0ee0fdab88d7dab91bc8e9f858266d21eb288c5`; no app runtime behavior changed in that commit.
+For v0.4.0, the local username/PIN gate is therefore intentionally bypassed on startup.
 
-### Current external blocker
+Implemented behavior:
 
-GitHub reported a major Actions outage on 2026-08-26 beginning at 15:11 UTC, with Pages also degraded. GitHub reported a database-primary problem, partial failover, inbound throttling, upstream Vitess investigation, and gradual traffic restoration. Several old LifeRoute workflow records remained stuck in `queued` even after normal cancellation requests.
+- LifeRoute launches directly into the main application.
+- The legacy local-auth implementation remains recoverable below an immediate v0.4.0 bypass for a future authentication redesign.
+- The bypass returns before PIN derivation, auth-style/overlay construction, login rendering, settings polling, or native `authStatus` startup requests can execute.
+- Defensive cleanup removes any stale legacy auth overlay, auth styles, auth settings section, or auth-lock document attributes.
+- Native Keychain and biometric infrastructure remains present and hardened but dormant from the normal v0.4.0 startup path.
+- Google Calendar OAuth remains separate, intact, and read-only (`calendar.readonly`).
+- No credentials, secrets, signing material, or provider tokens were exposed.
 
-Do not interpret those stale queued records as an app build failure. Follow `GITHUB_ACTIONS_RUNBOOK.md` and check current GitHub Status before attempting recovery.
+The deterministic build path applies this through the existing auth preparation chain; `scripts/prepare_build.sh` itself remains deterministic and unchanged for this feature.
 
-## Workflow-hardening work in progress
+## v0.4.0 validation evidence
 
-The hardening branch is intentionally off `main` while GitHub Actions is unstable. It currently includes these process improvements:
+Final branch validation for runtime commit `0e48338faccf5d416c01fad198cd2f49b6b97b6b` passed completely.
 
-- narrowed iOS CI triggers so unrelated workflow-file edits do not launch macOS builds;
-- workflow-scoped concurrency keys;
-- Pages removal of duplicate deep audits already owned by `prepare_build.sh`;
-- policy-only audit scripts excluded from expensive iOS/Pages triggers;
-- a lightweight Ubuntu `policy-check.yml` for release/workflow policy changes;
-- stronger release-isolation audit that verifies only `testflight.yml` contains actual upload machinery;
-- removal of inert `auto-testflight.yml` and `release.yml` placeholder workflows;
-- a workflow-efficiency audit to prevent trigger/polling/duplication regressions;
-- a short-lived assistant TestFlight bridge that requires already-completed successful validation instead of polling for up to two hours;
-- exact-SHA assistant release dispatch, with `testflight.yml` refusing a mismatched authorized SHA;
-- streamlined `APP_CREATION_PLAYBOOK.md` and `TESTFLIGHT_SETUP.md` so documentation matches the real explicit-confirmation release model;
-- `GITHUB_ACTIONS_RUNBOOK.md` for provider-outage diagnosis, safe cancellation escalation, and TestFlight-specific recovery rules;
-- `AGENTS.md` continuity rules requiring future LifeRoute work to read this handoff and provider-status runbook.
+GitHub Actions:
 
-Before merging this hardening branch, verify the two policy audits and review the workflow diff after GitHub Actions returns to normal. Do not create a pull request during the current outage because the pull request itself would generate more workflow events.
+- Workflow: `iOS Build Check`
+- Run: `#614`
+- Run ID: `33005423883`
+- Conclusion: success
 
-## Release policy
+Required gates all passed:
 
-TestFlight is explicit-confirmation-only.
+1. `Prepare the same features used by TestFlight` — success
+2. `Full LifeRoute regression audit` — success
+3. `Build LifeRoute for iOS Simulator` — success
+4. Xcode result — `** BUILD SUCCEEDED **`
 
-- Normal pushes may validate/build/publish the web preview but never upload to TestFlight.
-- `testflight.yml` is the sole workflow containing Apple signing/upload machinery and remains manual (`workflow_dispatch`) only.
-- ChatGPT/Codex may use the guarded owner-authorized release-request bridge after the user has explicitly authorized release and the required validation has already succeeded.
-- Assistant dispatch carries the exact authorized SHA into `testflight.yml`; a mismatch fails before preparation/signing.
-- Do not create a release request while GitHub Actions is degraded/outage.
+The umbrella full regression audit reported:
 
-## Automatic conversation handoff protocol
+- `577 checks passed, 0 failed`
 
-ChatGPT should proactively prepare a new-thread handoff before context quality degrades. There is no reliable user-visible numeric token meter available to the assistant, so use observable context-pressure signals rather than waiting for the platform to reject another message.
+Important focused validation also passed, including:
 
-### Refresh this file when
+- v0.4.0 startup/auth bypass and no-overlay/touch-interception contract
+- Google OAuth read-only/provider-auth preservation
+- client pickers and saved-client profiles
+- navigation architecture and four-tab navigation
+- Day UI, Day/Week/Month immediate selected-state behavior, routing, and gap planning
+- Live Day reminders and Live Activity integration
+- address autocomplete, home persistence, current/live location, and stale-coordinate rejection
+- stop/place search and planned-stop duration
+- Tools, visual timer, First/Then, session planning, visual maker, and choice boards
+- categorized theme catalog and deep theme runtime
+- premium interactions, haptics, mobile ergonomics, accessibility, and appearance
+- stability and state invariants
+- AI user journeys, AI runtime/release safety, Vision/Image Playground/ABA-note hooks
+- external-service privacy/workload limits
+- no legacy programmatic document scrolling
+- feature parity/performance
 
-Refresh the current-state sections after any of these:
+Performance/smoothness audit passed all four angles:
 
-- a TestFlight release succeeds or fails in a way that changes next steps;
-- a major feature implementation reaches a stable commit;
-- CI/release architecture changes materially;
-- a significant external incident changes the plan;
-- the active objective or branch changes;
-- a long troubleshooting sequence reaches a clear conclusion.
+1. runtime pressure & freeze prevention
+2. motion & touch responsiveness
+3. scroll/lifecycle stability
+4. release artifact & navigation contract
 
-Do not update this file for every minor cosmetic edit or every workflow status poll.
+At the validated runtime commit, the branch differed from the release baseline only in five auth/auth-audit files. No calendar, routing, theme, tools, AI, navigation, or general performance implementation file was modified by this v0.4.0 login-removal task.
 
-### Proactively recommend a new LifeRoute thread when any strong signal occurs
+## Performance requirements to preserve
 
-- ChatGPT/app explicitly reports that the conversation is too long.
-- The assistant has to reconstruct already-established project state from summaries/history more than once in a short span.
-- The current thread has crossed multiple major implementation/release/troubleshooting phases and old tool results are becoming necessary to answer ordinary follow-ups.
-- The assistant notices conflicting or stale remembered workflow state that requires repeated re-reading before acting.
-- A large new phase is about to start (for example, a major UI rebuild or API integration) after a long completed phase.
-- The user asks whether a new thread would be better.
+Do not reintroduce:
 
-Do not wait until the current thread actually loses continuity. When one strong signal or several moderate signals appear, prepare the handoff first and then tell the user that a clean LifeRoute thread is recommended.
+- whole-document or broad class-change MutationObservers
+- repeated full-document scans
+- forced synchronous layout/reflow tricks
+- duplicate button/page-transition systems
+- heavy iPhone blur/filter animation
+- multiple interaction owners for one tap
+- unnecessary polling/timers
+- repeated geometry measurement on critical interaction paths
+- programmatic document scrolling
 
-### Handoff procedure
+Prefer transform/opacity, scoped observers, event delegation, immediate selected-state/touch feedback, lightweight spring motion, and one owner per interaction.
 
-1. Re-read live GitHub state relevant to the active objective.
-2. Update this file with current main SHA, active branch, goal, latest validations/releases, blockers, key decisions, and exact next action.
-3. Keep the handoff concise; link to canonical repository docs instead of duplicating them.
-4. Tell the user a new thread is recommended and provide only this short opening prompt:
+## UI state to preserve
 
-> Continue LifeRoute from the repository and the current handoff.
+Keep the premium Apple-style direction already validated:
 
-5. In the new thread, read this file before asking the user to repeat anything.
+- sleek professional dark-blue/gold identity
+- immediate tactile response
+- lightweight haptics and spring feedback
+- smooth page/navigation transitions
+- reduced-motion accessibility
+- immediate Day/Week/Month selected-state synchronization
+- categorized Themes accordion/dropdown organization: Classic, Metallic, Scenery, Dynamic, Fluid, Living
+- strong mobile responsiveness with minimal clutter
 
-## Next actions after GitHub recovery
+## Release policy / next action
 
-1. Confirm GitHub Actions/Pages are operational and allow backlog to settle.
-2. Re-read the historical queued/zombie runs; force-cancel only if they still meet the runbook criteria.
-3. Verify the two hardening policy audits and current workflow diff.
-4. Merge hardening to `main` only after the provider is healthy and review passes.
-5. Obtain one clean current-main iOS validation, one web preview when required, and the lightweight release policy check.
-6. Use the already-authorized guarded release path for the PIN-fix TestFlight build.
-7. Verify the exact `Upload to TestFlight` step succeeds and report the new build number.
+**Do not upload v0.4.0 to TestFlight until Brandon explicitly authorizes the release.**
+
+The current v0.4.0 work is validated but remains on the isolated development branch/draft PR while additional v0.4.0 features may be added.
+
+Next action: wait for the next v0.4.0 feature request. For every additional substantial feature, preserve the same regression/performance discipline. Before any eventual TestFlight release, rerun the complete preparation, full regression suite, performance/smoothness gates, and iOS build against the final release candidate, then require explicit release authorization.

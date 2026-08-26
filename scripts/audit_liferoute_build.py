@@ -176,10 +176,27 @@ for loader in BROWSER_FILES:
 for loader in CORE_FILES:
     require(f'loadPreviewScript("{loader}")' not in preview, f"Web preview does not duplicate shared feature: {loader}")
 
-# Authentication / security.
-require("username + 4-digit PIN" in auth, "Authentication implementation remains recoverable")
-require("PBKDF2" in auth, "Browser PIN uses PBKDF2 derivation")
-require("liferoute_auth_browser_v2" in auth, "Current local auth storage version present")
+# Authentication / security. v0.4.0 preserves the legacy local-auth
+# implementation for a later redesign, but startup must return before any of
+# its UI, PIN derivation, polling, or native auth-status work can execute.
+require("__lifeRouteAuthGateDisabledV040" in auth and "const AUTH_GATE_ENABLED = 0" in auth, "LifeRoute local auth gate is disabled for v0.4.0")
+auth_bypass_pos = auth.find("if (!AUTH_GATE_ENABLED)")
+auth_return_pos = auth.find("    return;", auth_bypass_pos)
+require(auth_bypass_pos >= 0 and auth_return_pos > auth_bypass_pos, "LifeRoute auth bypass returns immediately")
+for marker, label in [
+    ('const derivePin = async', "browser PIN derivation"),
+    ('const styles = document.createElement("style")', "auth style creation"),
+    ('const ensureGate =', "auth overlay creation"),
+    ('const installSettings =', "auth settings polling"),
+    ('const start = () =>', "auth startup"),
+    ('post({ action: "authStatus"', "native auth-status request"),
+]:
+    marker_pos = auth.find(marker, auth_bypass_pos)
+    require(marker_pos > auth_return_pos, f"Auth bypass precedes {label}")
+require('document.getElementById("lifeRouteAuthGate")?.remove()' in auth and 'document.getElementById("lifeRouteAuthStyles")?.remove()' in auth, "Stale local-auth UI is removed defensively")
+require("username + 4-digit PIN" in auth and "PBKDF2" in auth and "liferoute_auth_browser_v2" in auth, "Dormant local-auth implementation remains recoverable below bypass")
+require("authSetCredentials" in swift and "kSecAttrAccessibleWhenUnlockedThisDeviceOnly" in swift, "Native auth foundation remains recoverable")
+require('https://www.googleapis.com/auth/calendar.readonly' in swift and 'ASWebAuthenticationSession' in swift, "Google OAuth remains intact and read-only")
 all_code = "\n".join(text(path) for path in sorted(WEB.rglob("*.js"))) + "\n" + preview + "\n" + swift
 require("PREVIEW_CODE" not in all_code and "246810" not in all_code, "Obsolete SMS preview code absent")
 require(not re.search(r"client_secret\s*[:=]", all_code, flags=re.I), "No OAuth client secret embedded in app code")

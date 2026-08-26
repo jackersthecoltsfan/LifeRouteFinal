@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# Checkpoint 03F exact-head validation trigger: visual support ownership is client-specific.
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]

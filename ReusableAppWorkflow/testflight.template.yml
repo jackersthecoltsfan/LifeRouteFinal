@@ -3,6 +3,8 @@ run-name: __APP_NAME__ → TestFlight #${{ github.run_number }}
 
 on:
   workflow_dispatch:
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
@@ -13,6 +15,16 @@ concurrency:
 
 jobs:
   release:
+    # Two deliberate release paths only:
+    # 1) GitHub's normal manual workflow_dispatch button.
+    # 2) A repository-owner issue created after explicit user authorization,
+    #    tied to the exact default-branch SHA represented by this event.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' &&
+       github.event.issue.user.login == github.repository_owner &&
+       github.event.issue.title == format('__APP_NAME__ TestFlight release @ {0}', github.sha) &&
+       github.event.issue.body == 'AUTHORIZED_TESTFLIGHT_RELEASE=YES')
     runs-on: macos-26
     timeout-minutes: 30
     env:

@@ -13,7 +13,6 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
         return
     raise SystemExit(f"{label}: expected pattern not found in {path}")
 
-# These mature helpers no longer need multiple delayed installation attempts.
 replace_once(
     WEB / "end-home-route-web.js",
     '  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => setTimeout(install, 250), { once: true });\n  else setTimeout(install, 250);\n  [600, 1200, 2400].forEach(delay => setTimeout(install, delay));',
@@ -39,8 +38,6 @@ replace_once(
     "Visual quality polling cleanup",
 )
 
-# UI simplification only cares about Today and Settings; do not wake it for
-# unrelated Tools/Resources/overlay DOM changes.
 replace_once(
     WEB / "ui-simplify-v4.js",
     '  const observer = new MutationObserver(polish);\n  const start = () => {\n    observer.observe(document.body, { childList: true, subtree: true });\n    polish();\n  };',
@@ -48,8 +45,6 @@ replace_once(
     "UI simplifier observer scope",
 )
 
-# patch_stability.py already frame-coalesces refined-ui before this patch runs.
-# Tighten its remaining page-wide observer and remove the delayed retry fanout.
 refined_path = WEB / "refined-ui-v2.js"
 refined = refined_path.read_text()
 prepared_old = '''  const start = () => {
@@ -88,15 +83,17 @@ if desired not in refined:
     refined_path.write_text(refined)
 
 # Native WKWebView: preserve the premium identity but stop compositing a blurred
-# layer behind every card. This is one of the highest-cost effects on long
-# scrolling Day/Tools screens. Navigation glass remains intentionally intact.
+# layer behind every card. Accept both the original and newer optimized stability
+# comment so source-level performance improvements remain deterministic.
 stability_path = WEB / "stability-runtime.js"
 stability = stability_path.read_text()
 native_perf_marker = 'html[data-life-route-runtime="native"] .lrNativePerfSolid'
 if native_perf_marker not in stability:
-    needle = '    /* Native WKWebView gets the same visual identity with less compositing work. */\n'
-    rules = '''    /* Native WKWebView gets the same visual identity with less compositing work. */
-    html[data-life-route-runtime="native"] body{background-attachment:scroll!important}
+    needles = [
+        '    /* Native WKWebView gets the same visual identity with less compositing work. */\n',
+        '    /* Native WKWebView keeps the visual identity without persistent blur-heavy compositing. */\n',
+    ]
+    rules = '''    html[data-life-route-runtime="native"] body{background-attachment:scroll!important}
     html[data-life-route-runtime="native"] .card,
     html[data-life-route-runtime="native"] .metric,
     html[data-life-route-runtime="native"] .todoMetric,
@@ -104,9 +101,10 @@ if native_perf_marker not in stability:
     html[data-life-route-runtime="native"] .hero{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
     html[data-life-route-runtime="native"] .lrNativePerfSolid{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 '''
-    if needle not in stability:
+    needle = next((candidate for candidate in needles if candidate in stability), None)
+    if needle is None:
         raise SystemExit("Native compositing cleanup: stability style marker not found")
-    stability = stability.replace(needle, rules, 1)
+    stability = stability.replace(needle, needle + rules, 1)
 
 old_start = '''  const start = () => {
     bindBottomActions();
@@ -125,9 +123,6 @@ if new_start not in stability:
     stability = stability.replace(old_start, new_start, 1)
 stability_path.write_text(stability)
 
-# Browser preview should not dynamically reload modules that are already in the
-# shared core. Load guards prevent correctness bugs, but the duplicate requests
-# still add startup/network work.
 preview = ROOT / "scripts" / "web-preview.js"
 text = preview.read_text()
 for name in [

@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 
 path = Path("LifeRoute/Web/smart-context.js")
 text = path.read_text()
@@ -17,13 +16,8 @@ text = text.replace(
     ''
 )
 
-# The old smart strip duplicated information already visible in the schedule and
-# created a stray "smart"-style status area. Remove it completely.
-pattern = re.compile(r'    const renderSmartStrip = \(\) => \{.*?\n    \};\n\n    buildSetupPanels\(\);', re.S)
-replacement = '''    const renderSmartStrip = () => {\n      document.getElementById("smartContextStrip")?.remove();\n    };\n\n    buildSetupPanels();'''
-text, count = pattern.subn(replacement, text, count=1)
-if count != 1 and "document.getElementById(\"smartContextStrip\")?.remove();" not in text:
-    raise SystemExit("Could not remove redundant smart context strip")
-
+# Keep renderSmartStrip structurally intact here because a later location-safety
+# patch hardens its live-location freshness logic. The visible strip is removed
+# by home-location-v3.js / schedule-simplify-v1.js after all safety patches run.
 path.write_text(text)
-print("Home/location UI simplified; MapKit/smart badges removed.")
+print("Home/location UI simplified; obsolete MapKit badge removed while smart-context safety hooks remain patchable.")

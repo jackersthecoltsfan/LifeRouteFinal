@@ -49,7 +49,7 @@ struct ClientProfilesView: View {
             }
 
             Section {
-                Text("Client profiles are session-only until the persistence checkpoint.")
+                Text("Client profiles are saved locally in protected LifeRoute app data on this iPhone.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

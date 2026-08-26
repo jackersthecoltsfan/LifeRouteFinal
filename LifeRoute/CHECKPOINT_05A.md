@@ -1,5 +1,9 @@
 # Checkpoint 05A — Performance architecture
 
+Status: **Green** on runtime commit `c63bf974daf65dbffca2e8210962a16ad0cdb25c`.
+
+Validation: GitHub Actions run `33024385161` passed the accumulated v0.5.0 preparation/audit suite, the focused 05A audit, and the actual iOS Simulator build.
+
 This checkpoint improves the native functional core without changing product behavior or ownership.
 
 ## Persistence

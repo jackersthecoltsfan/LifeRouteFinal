@@ -11,7 +11,7 @@ Use this only as the quick entrypoint. The full source of truth is `LIFEROUTE_V0
 
 ## Current functional state
 
-Green through Checkpoint 04B:
+Green through Checkpoint 05A:
 - native SwiftUI shell/navigation;
 - Day/Week/Month calendar core;
 - Apple + Google read-only calendar providers;
@@ -19,11 +19,13 @@ Green through Checkpoint 04B:
 - clients/setup;
 - Session Tools;
 - client-specific visual icons, Choice Boards, First/Then and Visual Schedules;
-- protected persistence for clients + client visuals + manual appointments + home + saved places.
+- protected persistence for clients + client visuals + manual appointments + home + saved places;
+- pure-native reviewed legacy data mapping/merge boundary;
+- off-main ordered snapshot persistence, external protected image blobs, indexed visual/calendar derivation, and cached/downsampled thumbnails.
 
 The legacy WebView/JavaScript interaction runtime remains quarantined and must stay inactive.
 
-## Checkpoint 04C
+## Checkpoints 04C and 05A
 
 04C implements a pure-native, WebKit-free legacy v0.4 mapping/merge boundary for only reviewed data: clients, manual appointments, saved places, and home address.
 
@@ -32,25 +34,16 @@ The first 04C audit passed. The first Simulator compile then found three isolate
 - deterministic UUID construction simplified into compiler-safe explicit components with no random fallback;
 - `LifeRoutePersistenceStore.shared` removed from a main-actor default argument.
 
-Runtime compile fixes are committed through `d4fb77f13fb9194618ddd0ce475dddc31c52f5fe`. Later commits are documentation/validation-marker bookkeeping on top of the same runtime.
+04C is green on runtime-equivalent head `5295d93141b9a3e45af6dd4cc21855308999da3a`; run `33021676527` passed its accumulated audits and actual Simulator build.
 
-At the previous chat stop, GitHub Actions had still not emitted a corrected-head pull-request run despite path-matched commits and PR retriggers. Therefore the **first action** is:
-- inspect the current live PR #20 head;
-- check whether accumulated audits + the iOS Simulator build have now run on a runtime-equivalent corrected 04C head;
-- if green, mark 04C complete in the handoff;
-- if not, trigger/repair validation without changing functional architecture.
+05A is green on runtime commit `c63bf974daf65dbffca2e8210962a16ad0cdb25c`; run `33024385161` passed every accumulated preparation/audit step, the focused performance-architecture audit, and the actual iOS Simulator build.
 
 Do not add an automatic startup WebKit/localStorage reader. Preserve old WebKit data untouched until native physical-device reliability is proven.
 
-## Performance Layer 05A — next after 04C green
+## Immediate next action — Layer 6 stability
 
-Initial code-first performance inventory is complete. Highest-priority targets:
-1. `LifeRoutePersistenceStore` performs synchronous whole-snapshot JSON encode/write on `@MainActor`, including visual image bytes.
-2. read methods redundantly sanitize the entire state after load/save boundaries already sanitized it.
-3. visual-support views repeatedly filter/sort broad arrays and repeatedly search icon IDs during rendering.
-4. `ClientVisualIconThumbnail` decodes `UIImage(data:)` inside SwiftUI `body`.
-5. calendar Day/Week/Month rendering repeatedly filters event collections and should be reviewed for provider-scale event counts.
+Inspect the live branch, draft PR #20, and Actions state first. Then verify one interaction owner per action, deterministic foreground/background/relaunch behavior, graceful provider failures, no overlay/pointer/race regressions, and no lifecycle-created duplicate tasks.
 
-For 05A, preserve current ownership and optimize these costs directly. Do not introduce polling, global observers, broad mega-state objects, cosmetic animation systems, or legacy runtime code.
+Do not change product behavior, add cosmetics, reactivate legacy WebView/JavaScript code, merge PR #20, or upload to TestFlight.
 
-After 05A: Layer 6 stability → Layer 7 second full functionality pass → exact merged-main validation → v0.5.0 functional TestFlight candidate → physical iPhone confirmation → cosmetics reintroduced one audited chunk at a time.
+After Layer 6: Layer 7 second full functionality pass → exact merged-main validation → v0.5.0 functional TestFlight candidate only with explicit authorization → physical iPhone confirmation → cosmetics reintroduced one audited chunk at a time.

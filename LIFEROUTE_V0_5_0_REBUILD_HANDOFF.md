@@ -12,9 +12,9 @@ Branch base: `64b0c2fef3172a101885e9bdaf4eb7860cc41997`
 
 Draft validation PR: `#20` — `LifeRoute v0.5.0 functional-core rebuild`.
 
-Checkpoint 04C validated runtime head: `5295d93141b9a3e45af6dd4cc21855308999da3a`.
+Checkpoint 05A validated runtime head: `c63bf974daf65dbffca2e8210962a16ad0cdb25c`.
 
-Always inspect the live PR head before acting; Checkpoint 05A work advances beyond this 04C validation SHA.
+GitHub Actions run `33024385161` passed the accumulated preparation/audit suite, the focused 05A audit, and the actual iOS Simulator build. Always inspect the live PR head before acting.
 
 Keep the PR draft/unmerged until the rebuild reaches the exact-SHA release checkpoint.
 
@@ -90,7 +90,7 @@ Do not persist:
 04C deliberately does **not** activate a WebKit/localStorage reader at startup. It only provides a reviewed native JSON mapping/merge boundary that can accept known legacy data later. Old WebKit website data remains untouched for a possible explicit migration-only reader after the native build is proven reliable on physical hardware.
 
 ### Layer 5 — performance
-Checkpoint 05A implementation is in progress and requires same-commit accumulated audit + iOS Simulator validation before it can be marked green.
+Checkpoint 05A is green on runtime head `c63bf974daf65dbffca2e8210962a16ad0cdb25c`. GitHub Actions run `33024385161` passed the accumulated preparation/audit suite, the focused 05A performance-architecture audit, and the actual iOS Simulator build.
 
 Highest-priority performance targets found:
 1. `LifeRoutePersistenceStore` is `@MainActor` and synchronously reads/encodes/writes the entire JSON snapshot, including visual-photo bytes. Every save currently serializes the whole state on the interaction thread.
@@ -183,7 +183,7 @@ GitHub Actions run `33021676527` completed successfully. It passed preparation, 
 | 04A — client + visual persistence | `d2fff00154954fc21f55d22ab247d3c0c2a8e3aa` | Green | Protected Application Support snapshot, atomic writes, corruption recovery, client UUID visual ownership. Policy #35; CI #652 / run `33019810261`. |
 | 04B — routing + manual calendar persistence | `dcfb886150ce7316ab83723b2c151b47849ba3d0` | Green | Manual appointments, home, saved places persist; provider events/GPS/route estimates remain transient. Policy #37; CI #654 / run `33020305153`. |
 | 04C — legacy data mapper/cleanup boundary | runtime-equivalent head `5295d93141b9a3e45af6dd4cc21855308999da3a` | Green | Pure native mapper/merge; accumulated audits + Simulator build passed in run `33021676527`. |
-| 05A — performance architecture | checkpoint implementation pending exact validation | In validation | Ordered off-main snapshot writer, external protected image blobs, visual indexes/downsample cache, calendar presentation indexes, focused executable audit. |
+| 05A — performance architecture | `c63bf974daf65dbffca2e8210962a16ad0cdb25c` | Green | Ordered off-main snapshot writer, external protected image blobs, visual indexes/downsample cache, calendar presentation indexes; accumulated audits + Simulator build passed in run `33024385161`. |
 
 ## Cosmetic chunks preserved for later
 
@@ -216,14 +216,14 @@ For every remaining layer/slice:
 2. Read `AGENTS.md`.
 3. Read `LIFEROUTE_V0_5_0_CHECKPOINT_00_INVENTORY.md` when migration/quarantine context matters.
 4. Inspect the live `rebuild/v0.5.0-functional-core` branch, PR #20, and current Actions state.
-5. Confirm the live Checkpoint 05A head and inspect its accumulated iOS CI run.
-6. Mark 05A green only when its focused audit and actual iOS Simulator compile pass on the same runtime-equivalent commit.
+5. Confirm the live head still contains the green Checkpoint 05A runtime commit and inspect current Actions state.
+6. Begin Layer 6 stability without changing product behavior or reactivating quarantined runtime/cosmetic code.
 7. Never return to v0.4 interaction-hotfix layering.
 
 ## Immediate next action
 
-**Finish Checkpoint 05A validation. Do not begin Layer 6 until 05A is green.**
+**Begin Layer 6 stability from the green Checkpoint 05A runtime.**
 
 Do not add a startup WebKit migration reader before the first physical-device reliability checkpoint. Preserve old WebKit data untouched. Keep the old global visual library quarantined.
 
-For 05A, run the full accumulated preparation/audit suite, inspect the exact live workflow job, and require a successful actual iOS Simulator build. Keep PR #20 draft/unmerged and TestFlight untouched.
+For Layer 6, audit one interaction owner per action, foreground/background/relaunch behavior, graceful provider failures, overlay/pointer/race regressions, and lifecycle-created duplicate tasks. Keep PR #20 draft/unmerged and TestFlight untouched.

@@ -12,6 +12,8 @@ Active rebuild branch: `rebuild/v0.5.0-functional-core`
 
 Detailed rebuild handoff: `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`
 
+Current green runtime checkpoint: **05A — performance architecture**, commit `c63bf974daf65dbffca2e8210962a16ad0cdb25c`; GitHub Actions run `33024385161` passed all accumulated audits and the actual iOS Simulator build.
+
 At the start of a new LifeRoute thread, read in this order:
 
 1. `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`
@@ -57,6 +59,6 @@ The last v0.4.0 hotfix release was TestFlight workflow run #72 / run ID `3301314
 
 ## Immediate next action
 
-Start **v0.5.0 checkpoint 00 — inventory/quarantine** as defined in `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`.
+Begin **Layer 6 — stability** from the green Checkpoint 05A runtime as defined in `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`.
 
-Inventory all startup modules, event owners, overlays, observers, timers, persistence keys, generated patches, native bridges, functional feature modules, and cosmetic modules. Produce a proposed minimal startup/runtime graph before building checkpoint 01, the minimal interaction shell.
+Verify one owner per interaction, deterministic foreground/background/relaunch behavior, graceful provider failures, no overlay/pointer/race regressions, and no lifecycle-created duplicate tasks. Keep PR #20 draft/unmerged, do not upload to TestFlight, and do not add cosmetic chunks yet.

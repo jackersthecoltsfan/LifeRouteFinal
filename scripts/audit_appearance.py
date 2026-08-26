@@ -93,6 +93,9 @@ for marker in [
 ]:
     check(marker in accordion, f"theme accordion contract exists: {marker}")
 check("isActiveSection(section)" in accordion and "section.classList.add('isOpen')" in accordion, "active theme category opens automatically")
+check("observer.observe(document.body" not in accordion, "theme accordion never watches the whole document")
+check("observer.observe(overlay" in accordion and "queueSync" in accordion, "theme accordion observation is Settings-scoped and frame-coalesced")
+check("backdrop-filter:none!important" in accordion, "theme accordion removes expensive mobile glass blur")
 
 # Visual Timer / First-Then overlays should look intentional rather than utility-default.
 check("lrVisualTimerV2" in timer and "linear-gradient(155deg,#030913" in timer, "visual timer has dedicated futuristic presentation")

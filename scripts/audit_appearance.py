@@ -71,6 +71,11 @@ for marker in [
     check(marker in premium, f"premium interaction contract exists: {marker}")
 check("window.scrollTo" not in premium and ".scrollTo(" not in premium, "premium interactions never programmatically move document scroll")
 check("action:'haptic'" in premium, "premium interaction layer can reach native haptics")
+check("observer.observe(document.body" not in premium and "subtree:true" not in premium, "premium interaction observer never watches the whole document subtree")
+check("offsetWidth" not in premium and "getBoundingClientRect" not in premium, "premium interactions avoid forced synchronous layout reads")
+check("filter:blur(2px)" not in premium and "filter:brightness" not in premium, "premium tap and navigation motion avoids expensive animated filters")
+check("syncCalendarSelection" in premium and "aria-selected" in premium, "Day Week Month selected state updates immediately")
+check("#lifeRouteThemeFX .fxOrb" in premium and "animation:none!important" in premium, "mobile theme effects are reduced to protect frame rate")
 
 # Categorized theme accordions.
 for marker in [
@@ -131,4 +136,4 @@ if failures:
     for failure in failures:
         print(f"FAIL: {failure}")
     raise SystemExit(1)
-print("LifeRoute appearance, premium interactions, categorized themes, mobile ergonomics, and aesthetic consistency audit passed.")
+print("LifeRoute appearance, premium interactions, categorized themes, mobile ergonomics, smoothness, and aesthetic consistency audit passed.")

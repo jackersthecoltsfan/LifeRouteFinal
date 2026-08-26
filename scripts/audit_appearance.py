@@ -32,6 +32,8 @@ themes = read(WEB / "theme-catalog-v3.js")
 animals = read(WEB / "dynamic-animals-v1.js")
 fluid = read(WEB / "fluid-scenes-v1.js")
 polish = read(WEB / "aesthetic-polish-v1.js")
+premium = read(WEB / "premium-interactions-v1.js")
+accordion = read(WEB / "theme-accordion-v1.js")
 prepare = read(PREPARE)
 
 # Core visual system and readable color tokens.
@@ -48,12 +50,26 @@ check("background:transparent!important" in day and "lrDayCommandStrip" in day, 
 check("lrClearAll" in day and "var(--red)" in day, "destructive Clear all is visually distinguished")
 check("lrEndHomeCompact" in day, "End at Home control uses compact treatment")
 
-# Theme selection should be legible and selected state obvious.
+# Theme selection should be legible, compact, categorized, and selected state obvious.
 check('content:"✓"' in simplify, "selected theme cards show a checkmark")
 check("lrThemeSelectedMark" in simplify, "theme select sections show selected mark")
 check("lifeRouteDynamicAnimalSection" in themes, "living-creature theme family is catalogued in Settings")
 check("prefers-reduced-motion:reduce" in animals, "living creature scenes respect reduced motion")
 check("prefers-reduced-motion:reduce" in fluid, "fluid scenes respect reduced motion")
+for marker in [
+    "lrThemeAccordion",
+    "lrThemeAccordionHead",
+    "lrThemeAccordionBody",
+    "Classic",
+    "Metallic",
+    "Dynamic",
+    "Fluid",
+    "Living",
+    "Nature-inspired visual environments",
+    "aria-expanded",
+    "prefers-reduced-motion:reduce",
+]:
+    check(marker in accordion, f"categorized theme accordion contract: {marker}")
 
 # Visual Timer / First-Then overlays should look intentional rather than utility-default.
 check("lrVisualTimerV2" in timer and "linear-gradient(155deg,#030913" in timer, "visual timer has dedicated futuristic presentation")
@@ -74,16 +90,34 @@ for marker in [
 ]:
     check(marker in polish, f"final aesthetic guardrail: {marker}")
 
-# Smoothness: appearance work stays structural, but is scoped to the UI it owns
-# instead of traversing every Tools/Resources/overlay change in the application.
+# Premium Apple-like interaction vocabulary: tactile icon response, view/sheet continuity,
+# semantic haptics, transform-only motion, and reduced-motion accessibility.
+for marker in [
+    "lrPremiumIconTap",
+    "lrPremiumIconSpin",
+    "lrPremiumIconPulse",
+    "lrPremiumIconAdvance",
+    "lrPremiumViewEnter",
+    "lrPremiumSheetIn",
+    "LifeRoutePremiumInteractions",
+    "feedback(kind='selection'",
+    "prefers-reduced-motion:reduce",
+]:
+    check(marker in premium, f"premium interaction contract: {marker}")
+check("window.scrollTo" not in premium and ".scrollTo(" not in premium, "premium interactions never move document scroll")
+check("transform:" in premium and "filter:" in premium, "premium animations use compositor-friendly visual properties")
+
+# Smoothness: appearance work stays structural, but is scoped to the UI it owns.
 check("characterData: true" not in simplify, "appearance observer ignores live text-only mutations")
 check('observer.observe(document.body' not in simplify, "appearance simplifier does not watch entire document")
 check('document.getElementById("today")' in simplify and 'document.getElementById("lifeRouteSettingsOverlay")' in simplify, "appearance simplifier watches Today and Settings only")
 check('observer.observe(document.body' not in refined, "refined UI does not watch entire document")
 check('document.getElementById("today")' in refined and "requestAnimationFrame" in refined, "refined UI is Today-scoped and frame-coalesced")
 
-# Shared build wiring. Web and native/TestFlight must receive the same final appearance layer.
+# Shared build wiring. Web and native/TestFlight must receive the same final appearance layers.
 check('"aesthetic-polish-v1.js"' in prepare, "prepared build includes final aesthetic polish")
+check("premium-interactions-v1.js" in polish, "aesthetic startup loads premium interactions")
+check("theme-accordion-v1.js" in polish, "aesthetic startup loads categorized theme accordions")
 try:
     check(prepare.index('"refined-ui-v2.js"') < prepare.index('"aesthetic-polish-v1.js"') < prepare.index('"stability-runtime.js"'), "aesthetic polish loads after refined UI and before stability runtime")
 except ValueError:
@@ -95,4 +129,4 @@ if failures:
     for failure in failures:
         print(f"FAIL: {failure}")
     raise SystemExit(1)
-print("LifeRoute appearance, mobile ergonomics, scoped presentation work, and aesthetic consistency audit passed.")
+print("LifeRoute appearance, premium interactions, categorized themes, mobile ergonomics, and aesthetic consistency audit passed.")

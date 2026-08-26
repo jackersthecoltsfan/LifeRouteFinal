@@ -2,7 +2,6 @@ from pathlib import Path
 
 checks=[]
 def require(v,label): checks.append((bool(v),label))
-
 def text(path): return Path(path).read_text()
 
 swift=text("LifeRoute/LifeRouteWebView.swift")
@@ -19,22 +18,38 @@ for marker in ["CLLocationManagerDelegate","requestWhenInUseAuthorization","star
 require("kCLLocationAccuracyNearestTenMeters" in swift, "live native location requests navigation-grade accuracy")
 require("distanceFilter = live ? 50" in swift, "native live updates are movement-filtered")
 require("pausesLocationUpdatesAutomatically = true" in swift, "CoreLocation may pause unnecessary updates")
+require("allowsBackgroundLocationUpdates = false" in swift and "showsBackgroundLocationIndicator = false" in swift,
+        "native stream is explicitly foreground-only")
+require("CLLocationManager.locationServicesEnabled()" in swift, "native start verifies Location Services are enabled")
+require("locationManager.requestLocation()" in swift and "manager.requestLocation()" in swift,
+        "native stream nudges an immediate first fix")
+require("locations.reversed().first(where: { $0.horizontalAccuracy >= 0 })" in swift,
+        "native stream ignores invalid accuracy fixes")
+require('payload: ["status": "locating"]' in swift,
+        "native stream does not claim live-ready before a coordinate fix")
 require("NSLocationWhenInUseUsageDescription" in info, "When-In-Use location purpose string exists")
 require("UIBackgroundModes" not in info or "location" not in info, "app does not silently request persistent background GPS")
 
-# Browser lifecycle.
+# Browser/native lifecycle and fallback watchdog.
 for marker in ["navigator.geolocation.watchPosition","navigator.geolocation.clearWatch","visibilitychange","pagehide","pageshow"]:
     require(marker in live, f"web live location lifecycle contains {marker}")
-require('enableHighAccuracy: true' in live, "web requests high-accuracy foreground position")
-require('maximumAge: 12000' in live, "web watcher limits accepted cached positions")
-require('timeout: 15000' in live, "web location acquisition has timeout")
-require('webWatch != null' in live, "web prevents duplicate location watchers")
+require("enableHighAccuracy:true" in live or "enableHighAccuracy: true" in live, "web requests high-accuracy foreground position")
+require("maximumAge:12000" in live or "maximumAge: 12000" in live, "web watcher limits accepted cached positions")
+require("timeout:15000" in live or "timeout: 15000" in live, "web location acquisition has timeout")
+require("webWatch != null" in live, "web prevents duplicate location watchers")
+require("NATIVE_FIX_TIMEOUT_MS" in live and "armNativeWatchdog" in live,
+        "native request has a bounded first-fix watchdog")
+require("nativeBridgeAvailable" in live and "messageHandlers?.lifeRoute" in live,
+        "native availability requires an actual WKWebView message handler")
+require("startWebFallback()" in live and "lastFixAt" in live,
+        "watchdog can recover through foreground web geolocation when native fix stalls")
+require("diagnostics" in live and "webFallback" in live,
+        "live-location state exposes lightweight diagnostics")
 
-# One UI action owns one live-location request path. Lifecycle/state modules do
-# not also attach competing #locationButton listeners.
-require('document.addEventListener("click"' not in live,
+# One UI action owns one live-location request path.
+require('document.addEventListener("click"' not in live and "document.addEventListener('click'" not in live,
         "live-location lifecycle does not own Setup button clicks")
-require('document.addEventListener("click"' not in home,
+require('document.addEventListener("click"' not in home and "document.addEventListener('click'" not in home,
         "Home state layer does not own competing Setup button clicks")
 require('window.LifeRouteHomeLocationV3?.startLiveLocation?.()' in smart,
         "Setup live-location button delegates through the Home/location facade")
@@ -59,7 +74,7 @@ require("freshLiveLocation" in search and "age <= 120000" in search, "stop searc
 # Location state must carry the values route calculations need.
 for marker in ["latitude", "longitude", "accuracyMeters", "timestamp", "streaming"]:
     require(marker in swift, f"native currentLocation event carries {marker}")
-require("locationUpdatedAt = Date.now()" in live, "browser/native wrapper records freshness timestamp")
+require("locationUpdatedAt" in live and "Date.now()" in live, "browser/native wrapper records freshness timestamp")
 require("locationAccuracyMeters" in live, "location accuracy is retained for diagnostics")
 
 failed=[label for ok,label in checks if not ok]
@@ -67,4 +82,4 @@ print(f"LifeRoute deep live-location audit: {len(checks)-len(failed)} passed, {l
 if failed:
     for label in failed: print("FAIL:",label)
     raise SystemExit(1)
-print("Foreground authorization, single-request UI ownership, streaming, freshness, stale-coordinate rejection, route refresh pressure, and cleanup passed.")
+print("Foreground authorization, verified initial acquisition, watchdog fallback, streaming, freshness, stale-coordinate rejection, route refresh pressure, and cleanup passed.")

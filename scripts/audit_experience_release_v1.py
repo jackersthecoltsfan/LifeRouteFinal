@@ -5,6 +5,7 @@ WEB = ROOT / "LifeRoute" / "Web"
 
 files = {
     "liquid": (WEB / "interaction-liquid-v4.js").read_text(),
+    "premium": (WEB / "premium-interactions-v1.js").read_text(),
     "auto": (WEB / "universal-autocomplete-v2.js").read_text(),
     "theme": (WEB / "theme-experience-v4.js").read_text(),
     "schedule": (WEB / "visual-schedule-v1.js").read_text(),
@@ -19,6 +20,7 @@ def require(condition, label):
 # One canonical experience owner per domain.
 for marker in [
     "interaction-liquid-v4.js",
+    "premium-interactions-v1.js",
     "theme-experience-v4.js",
     "universal-autocomplete-v2.js",
     "visual-schedule-v1.js",
@@ -28,20 +30,25 @@ for marker in [
 require("liquid-interactions-v1.js" not in files["aesthetic"], "legacy duplicate Liquid layer is not loaded")
 require("form-autocomplete-v2.js" not in files["aesthetic"], "legacy duplicate autocomplete layer is not loaded")
 
-# Liquid selection movement + true submenu transitions.
+# Liquid navigation remains responsible for the moving selected indicator, but
+# performance-optimized builds intentionally use one premium page-entry system
+# instead of forced directional slide restarts.
 for marker in [
     ".lrLiquidIndicator",
     "TAB_HOST_SELECTOR",
     ".lrThemeCategoryTabs",
-    "const transitionTarget = (() =>",
-    "host.matches('.lrPlaceCategories')",
-    "host.matches('.lrContextTabs')",
-    "host.matches('.lrThemeCategoryTabs')",
-    ".lrSlideFromRight{animation:",
-    ".lrSlideFromLeft{animation:",
-    "prefers-reduced-motion: reduce",
+    "scanKnownHosts",
+    "installHost(host)",
+    "queueLayout",
+    "prefers-reduced-motion:reduce",
 ]:
     require(marker in files["liquid"], f"Liquid interaction contains {marker}")
+require("observer.observe(document.body" not in files["liquid"], "Liquid interaction has no whole-document observer")
+require("void pane.offsetWidth" not in files["liquid"], "Liquid interaction has no forced directional layout restart")
+require("lrSlideFromRight" not in files["liquid"] and "lrSlideFromLeft" not in files["liquid"], "duplicate directional slide system is removed")
+require("lrPremiumViewEnter" in files["premium"] and "requestAnimationFrame" in files["premium"], "premium layer owns lightweight page transition")
+require("topNavSelector" in files["premium"] and "lrPremiumNavRelease" in files["premium"], "top navigation has tactile release animation")
+require("syncCalendarSelection" in files["premium"] and "aria-selected" in files["premium"], "Day Week Month selected state responds immediately")
 
 # Haptics should extend beyond plain buttons without creating another button-haptic owner.
 require("input[type=\"checkbox\"]" in files["liquid"] and "input[type=\"range\"]" in files["liquid"],
@@ -101,7 +108,7 @@ for marker in [
     require(marker in files["schedule"], f"Visual Schedule contains {marker}")
 
 # Hard no-programmatic-document-scroll contract for every newly introduced experience layer.
-for name in ["liquid", "auto", "theme", "schedule", "welcome"]:
+for name in ["liquid", "premium", "auto", "theme", "schedule", "welcome"]:
     source = files[name]
     for forbidden in ["scrollIntoView(", "window.scrollTo(", "window.scrollBy("]:
         require(forbidden not in source, f"{name} never calls {forbidden}")
@@ -112,4 +119,4 @@ if failed:
     for label in failed:
         print("FAIL:", label)
     raise SystemExit(1)
-print("Liquid navigation, submenu slides, haptics, privacy-safe universal autocomplete, unique themes, walkthrough, Visual Schedule, and no-auto-scroll passed.")
+print("Optimized Liquid navigation, premium page/nav motion, immediate calendar selection, haptics, privacy-safe autocomplete, unique themes, walkthrough, Visual Schedule, and no-auto-scroll passed.")

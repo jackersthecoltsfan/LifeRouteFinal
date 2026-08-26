@@ -50,6 +50,16 @@ GitHub documents `force-cancel` specifically for workflow runs that do not respo
 
 If the connected GitHub tool does not expose cancel/force-cancel directly, ChatGPT/Codex may create a temporary, tightly scoped helper workflow on a non-main maintenance branch. The helper must target explicit run IDs, use `actions: write`, perform no release action, and be removed or left off `main` after recovery.
 
+## TestFlight runs require extra care
+
+A TestFlight run is not equivalent to disposable CI once its release job has actually started.
+
+- Do not cancel/retry an actively signing or uploading TestFlight run merely because it is slower than usual; respect the workflow timeout unless there is clear evidence of failure.
+- If a stale TestFlight run never created a job and is only a pre-run queue zombie, it can be force-cancelled after GitHub recovers using the normal zombie criteria.
+- If cancellation/outage happened after archive/export/upload may have started, first determine whether App Store Connect received the build before dispatching another release. Avoid duplicate uploads and unnecessary build-number consumption.
+- Remember that TestFlight cleanup intentionally runs after failures so temporary Apple signing assets can be removed. Force-cancel is an emergency recovery tool, not normal release control.
+- Never dispatch a replacement TestFlight run until the prior release state is understood.
+
 ## Recovery after GitHub reports service restoration
 
 1. Wait approximately 5 minutes for GitHub to drain/reconcile backlog.
@@ -82,6 +92,7 @@ The assistant TestFlight release bridge must not hold a runner for long periods 
 - `testflight.yml` remains `workflow_dispatch` only.
 - Ordinary pushes never upload to TestFlight.
 - The assistant bridge may dispatch `testflight.yml` only after explicit user authorization and successful release-equivalent validation.
+- Assistant dispatch passes the exact authorized `main` SHA; `testflight.yml` refuses a mismatched SHA.
 - No other workflow may contain Apple signing secrets or TestFlight upload machinery.
 
 ### Avoid queue-amplifying repair behavior

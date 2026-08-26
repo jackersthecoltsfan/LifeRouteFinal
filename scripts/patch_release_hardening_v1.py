@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 def replace_once(path: Path, old: str, new: str, label: str):
@@ -103,4 +104,18 @@ replace_once(
     "stop duration custom input validation",
 )
 
-print("Release hardening applied: truthful browser bridge, scoped Live Day observer, commit-aware stop-duration prompt, validated custom duration.")
+# v0.5.0 release contract. The checked-in project and the generated Live Activity
+# target historically carried older marketing versions, so deterministic
+# preparation now normalizes every shipping target to 0.5.0 and fails if a stale
+# value survives. Build numbers remain independent through CURRENT_PROJECT_VERSION.
+pbx = Path("LifeRoute.xcodeproj/project.pbxproj")
+pbx_text = pbx.read_text(encoding="utf-8")
+pbx_text = re.sub(r"MARKETING_VERSION = [^;]+;", "MARKETING_VERSION = 0.5.0;", pbx_text)
+pbx.write_text(pbx_text, encoding="utf-8")
+versions = re.findall(r"MARKETING_VERSION = ([^;]+);", pbx_text)
+if not versions:
+    raise SystemExit("v0.5.0 version audit failed: no MARKETING_VERSION settings found")
+if any(version.strip() != "0.5.0" for version in versions):
+    raise SystemExit(f"v0.5.0 version audit failed: prepared target versions are {versions}")
+
+print("Release hardening applied: truthful browser bridge, scoped Live Day observer, commit-aware stop-duration prompt, validated custom duration, v0.5.0 marketing-version contract.")

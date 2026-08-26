@@ -3,6 +3,8 @@ run-name: LifeRoute → TestFlight #${{ github.run_number }}
 
 on:
   workflow_dispatch:
+  issues:
+    types: [opened]
 
 permissions:
   contents: read
@@ -14,6 +16,17 @@ concurrency:
 
 jobs:
   release:
+    # TestFlight still requires an explicit human release decision. The normal
+    # GitHub Run workflow button remains available. When ChatGPT/Codex cannot
+    # access workflow_dispatch directly, it may create a release-request issue
+    # only after Brandon explicitly authorizes TestFlight. That request must be
+    # authored by the repository owner and name this exact default-branch SHA.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' &&
+       github.event.issue.user.login == github.repository_owner &&
+       github.event.issue.title == format('LifeRoute TestFlight release @ {0}', github.sha) &&
+       github.event.issue.body == 'AUTHORIZED_TESTFLIGHT_RELEASE=YES')
     runs-on: macos-26
     timeout-minutes: 30
     env:

@@ -37,8 +37,8 @@ jobs:
         uses: actions/checkout@v7
       - name: Prepare v0.5.0 functional core
         run: bash scripts/prepare_build.sh
-      - name: Audit checkpoint 03C clients/setup
-        run: python3 scripts/audit_v0_5_0_clients_core.py
+      - name: Audit checkpoint 03D Session Tools
+        run: python3 scripts/audit_v0_5_0_session_tools_core.py
       - name: Build LifeRoute for iOS Simulator
         run: |
           set -euo pipefail

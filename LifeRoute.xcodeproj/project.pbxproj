@@ -14,6 +14,8 @@
 		A10000000000000000000010 /* RoutingLocationDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* RoutingLocationDomain.swift */; };
 		A10000000000000000000011 /* ClientProfileDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* ClientProfileDomain.swift */; };
 		A10000000000000000000012 /* ClientViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* ClientViews.swift */; };
+		A10000000000000000000013 /* SessionToolsDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* SessionToolsDomain.swift */; };
+		A10000000000000000000014 /* SessionToolsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* SessionToolsViews.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,15 +31,12 @@
 		A20000000000000000000010 /* RoutingLocationDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutingLocationDomain.swift; sourceTree = "<group>"; };
 		A20000000000000000000011 /* ClientProfileDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientProfileDomain.swift; sourceTree = "<group>"; };
 		A20000000000000000000012 /* ClientViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientViews.swift; sourceTree = "<group>"; };
+		A20000000000000000000013 /* SessionToolsDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionToolsDomain.swift; sourceTree = "<group>"; };
+		A20000000000000000000014 /* SessionToolsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionToolsViews.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		A30000000000000000000001 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			files = ();
-			buildActionMask = 2147483647;
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+		A30000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; files = (); buildActionMask = 2147483647; runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -49,6 +48,8 @@
 			A20000000000000000000010 /* RoutingLocationDomain.swift */,
 			A20000000000000000000011 /* ClientProfileDomain.swift */,
 			A20000000000000000000012 /* ClientViews.swift */,
+			A20000000000000000000013 /* SessionToolsDomain.swift */,
+			A20000000000000000000014 /* SessionToolsViews.swift */,
 			A20000000000000000000002 /* ContentView.swift */,
 			A20000000000000000000003 /* LifeRouteWebView.swift */,
 			A20000000000000000000004 /* Assets.xcassets */,
@@ -78,6 +79,8 @@
 			A10000000000000000000010 /* RoutingLocationDomain.swift in Sources */,
 			A10000000000000000000011 /* ClientProfileDomain.swift in Sources */,
 			A10000000000000000000012 /* ClientViews.swift in Sources */,
+			A10000000000000000000013 /* SessionToolsDomain.swift in Sources */,
+			A10000000000000000000014 /* SessionToolsViews.swift in Sources */,
 			A10000000000000000000002 /* ContentView.swift in Sources */,
 		); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */

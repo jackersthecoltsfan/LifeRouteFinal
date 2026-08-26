@@ -5,6 +5,7 @@ struct ContentView: View {
     @StateObject private var calendarState = CalendarCoreState()
     @StateObject private var routingState = RoutingLocationCore()
     @StateObject private var clientState = ClientProfileCore()
+    @StateObject private var toolsState = SessionToolsCore()
 
     var body: some View {
         TabView(selection: $router.selectedSection) {
@@ -27,7 +28,7 @@ struct ContentView: View {
             .tag(AppSection.schedule)
 
             NavigationStack(path: $router.toolsPath) {
-                SessionToolsCoreView(router: router)
+                SessionToolsNativeView(router: router, toolsState: toolsState, clientState: clientState)
                     .navigationDestination(for: AppRoute.self) { route in
                         RouteDetailView(route: route, router: router)
                     }
@@ -248,24 +249,6 @@ private struct CalendarEventRow: View {
     private var timeLabel: String {
         if event.isAllDay { return "All day · \(event.source.rawValue)" }
         return "\(event.start.formatted(date: .omitted, time: .shortened))–\(event.end.formatted(date: .omitted, time: .shortened)) · \(event.source.rawValue)"
-    }
-}
-
-private struct SessionToolsCoreView: View {
-    @ObservedObject var router: AppRouter
-    @State private var toolEnabled = false
-    var body: some View {
-        List {
-            Section { CoreHeader(title: "Session Tools", subtitle: "Tool features will be migrated here one audited batch at a time.") }
-            Section("State test") {
-                Toggle("Enable test tool", isOn: $toolEnabled)
-                Text(toolEnabled ? "Test tool is on" : "Test tool is off").foregroundStyle(.secondary)
-            }
-            Section("Stack test") {
-                NavigationLink("Open Tools detail", value: AppRoute.toolsDetails)
-                Button("Open Resources") { router.select(.resources) }
-            }
-        }.navigationTitle("Session Tools")
     }
 }
 

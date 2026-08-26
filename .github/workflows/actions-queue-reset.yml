@@ -1,0 +1,94 @@
+name: LifeRoute Actions Queue Reset
+run-name: Reset LifeRoute Actions queue
+
+on:
+  push:
+    branches: [chatgpt-release]
+    paths:
+      - '.github/workflows/actions-queue-reset.yml'
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+
+jobs:
+  reset:
+    if: github.actor == github.repository_owner && github.event.head_commit.message == 'Reset LifeRoute Actions queue'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      IOS_RUN_ID: '32985832208'
+      WEB_RUN_ID: '32984466479'
+    steps:
+      - name: Read current main SHA
+        id: main
+        run: |
+          set -euo pipefail
+          MAIN_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq '.sha')
+          echo "sha=$MAIN_SHA" >> "$GITHUB_OUTPUT"
+          echo "Current main: $MAIN_SHA"
+
+      - name: Cancel stale LifeRoute runs
+        run: |
+          set -euo pipefail
+          for status in queued in_progress; do
+            RUNS=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?status=${status}&per_page=100")
+            while IFS= read -r run_id; do
+              [ -n "$run_id" ] || continue
+              [ "$run_id" != "$GITHUB_RUN_ID" ] || continue
+              echo "Cancelling stale run $run_id"
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/cancel" >/dev/null 2>&1 || true
+            done < <(jq -r '.workflow_runs[] | select(.path == ".github/workflows/ios-ci.yml" or .path == ".github/workflows/pages.yml" or .path == ".github/workflows/chatgpt-testflight-request.yml" or .path == ".github/workflows/testflight.yml") | .id' <<<"$RUNS")
+          done
+
+      - name: Wait for restart targets to become cancellable-complete
+        run: |
+          set -euo pipefail
+          for run_id in "$IOS_RUN_ID" "$WEB_RUN_ID"; do
+            for attempt in $(seq 1 30); do
+              status=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')
+              echo "Run $run_id status=$status"
+              [ "$status" = "completed" ] && break
+              sleep 2
+            done
+            status=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" --jq '.status')
+            [ "$status" = "completed" ] || { echo "Run $run_id did not finish cancellation."; exit 1; }
+          done
+
+      - name: Restart iOS and web validation
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${IOS_RUN_ID}/rerun" >/dev/null
+          echo "Restarted iOS Build Check run $IOS_RUN_ID"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${WEB_RUN_ID}/rerun" >/dev/null
+          echo "Restarted Publish Web Preview run $WEB_RUN_ID"
+
+      - name: Replace stale release request
+        env:
+          MAIN_SHA: ${{ steps.main.outputs.sha }}
+        run: |
+          set -euo pipefail
+          TITLE="LifeRoute TestFlight release @ ${MAIN_SHA}"
+          while IFS= read -r issue_number; do
+            [ -n "$issue_number" ] || continue
+            gh issue close "$issue_number" --repo "$GITHUB_REPOSITORY" --comment "Superseded by Actions queue reset." || true
+          done < <(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$TITLE\") | .number")
+
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TITLE" \
+            --body 'AUTHORIZED_TESTFLIGHT_RELEASE=YES;REQUIRE_WEB_PREVIEW=YES'
+
+      - name: Summary
+        env:
+          MAIN_SHA: ${{ steps.main.outputs.sha }}
+        run: |
+          {
+            echo "### LifeRoute Actions queue reset"
+            echo "- Stale LifeRoute validation/release runs: cancellation requested"
+            echo "- iOS Build Check restarted from run ${IOS_RUN_ID}"
+            echo "- Publish Web Preview restarted from run ${WEB_RUN_ID}"
+            echo "- Guarded TestFlight request recreated for ${MAIN_SHA}"
+          } >> "$GITHUB_STEP_SUMMARY"

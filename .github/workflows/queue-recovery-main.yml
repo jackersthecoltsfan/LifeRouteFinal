@@ -1,0 +1,23 @@
+name: LifeRoute queue recovery main
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# Temporary one-shot outage recovery. This shares the historical TestFlight
+# concurrency group solely so GitHub replaces the orphaned pending run.
+concurrency:
+  group: liferoute-testflight
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: No-op recovery
+        run: echo "Queue recovery only; no build, signing, secrets, or upload."

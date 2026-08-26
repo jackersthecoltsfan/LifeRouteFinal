@@ -15,7 +15,6 @@ def check(name: str, ok: bool) -> None:
 play = PLAY.read_text() if PLAY.exists() else ""
 delight = DELIGHT.read_text() if DELIGHT.exists() else ""
 index = INDEX.read_text() if INDEX.exists() else ""
-all_js = "\n".join(path.read_text(errors="ignore") for path in WEB.glob("*.js"))
 
 # 1) Touch response and cleanup.
 check("touch playground exists", PLAY.exists() and len(play) > 1500)
@@ -33,7 +32,7 @@ check("touch bloom avoids top-left animation", not re.search(r"@keyframes[^}]+(?
 check("release animation is short", ".24s" in play)
 check("bloom animation is short", ".34s" in play)
 check("reduced motion supported", "prefers-reduced-motion:reduce" in play)
-check("no filter blur in touch layer", "filter:blur(" not in play and "backdrop-filter" not in play)
+check("no blur work in touch layer", "filter:blur(" not in play and "backdrop-filter" not in play)
 
 # 3) Scroll and lifecycle safety.
 check("scroll listener is passive", "window.addEventListener('scroll'" in play and "passive:true" in play)
@@ -57,7 +56,8 @@ check("place tab shimmer exists", ".lrPlaceCategory.active::after" in play)
 check("primary action glint exists", "lrPrimaryGlint" in play)
 
 # 6) Shared startup contract.
-check("touch playground is loaded", '<script src="touch-playground-v1.js"></script>' in index)
+check("touch playground is loaded", "touch-playground-v1.js" in index)
+check("touch playground is deferred", 'defer src="touch-playground-v1.js"' in index)
 check("no permanent button will-change transform", "button,[role=\"button\"]{transform-origin:center;will-change:transform" not in delight)
 
 failed = [name for name, ok in checks if not ok]

@@ -74,7 +74,7 @@ final class CalendarCoreState: ObservableObject {
 
     private var calendar: Calendar
 
-    init(now: Date = Date(), events: [LifeRouteCalendarEvent] = []) {
+    init(now: Date = Date(), events: [LifeRouteCalendarEvent]? = nil) {
         var configured = Calendar(identifier: .gregorian)
         configured.locale = .current
         configured.timeZone = .current
@@ -82,7 +82,8 @@ final class CalendarCoreState: ObservableObject {
         configured.minimumDaysInFirstWeek = 4
         self.calendar = configured
         self.selectedDate = now
-        self.events = events.sorted(by: Self.eventSort)
+        let restoredEvents = events ?? LifeRoutePersistenceStore.shared.loadManualCalendarEvents()
+        self.events = restoredEvents.sorted(by: Self.eventSort)
     }
 
     func addManualEvent(
@@ -119,6 +120,7 @@ final class CalendarCoreState: ObservableObject {
         )
         events.sort(by: Self.eventSort)
         selectedDate = date
+        persistManualEvents()
     }
 
     func replaceProviderEvents(_ incoming: [LifeRouteCalendarEvent], source: LifeRouteCalendarSource) {
@@ -138,7 +140,9 @@ final class CalendarCoreState: ObservableObject {
     }
 
     func removeEvent(id: LifeRouteCalendarEvent.ID) {
+        let previousCount = events.count
         events.removeAll { $0.id == id && $0.source == .manual }
+        if events.count != previousCount { persistManualEvents() }
     }
 
     func events(on date: Date) -> [LifeRouteCalendarEvent] {
@@ -218,6 +222,10 @@ final class CalendarCoreState: ObservableObject {
 
     func selectToday() {
         selectedDate = Date()
+    }
+
+    private func persistManualEvents() {
+        LifeRoutePersistenceStore.shared.saveManualCalendarEvents(events.filter { $0.source == .manual })
     }
 
     private func events(overlapping interval: DateInterval) -> [LifeRouteCalendarEvent] {

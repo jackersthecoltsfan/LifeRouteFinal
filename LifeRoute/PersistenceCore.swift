@@ -14,6 +14,7 @@ final class LifeRoutePersistenceStore {
 
     private struct PersistedVisualIcon: Codable {
         var id: UUID
+        var clientID: UUID
         var clientCode: String
         var label: String
         var imageData: Data?
@@ -22,6 +23,7 @@ final class LifeRoutePersistenceStore {
 
     private struct PersistedChoiceBoard: Codable {
         var id: UUID
+        var clientID: UUID
         var clientCode: String
         var title: String
         var iconIDs: [UUID]
@@ -37,6 +39,7 @@ final class LifeRoutePersistenceStore {
 
     private struct PersistedVisualSchedule: Codable {
         var id: UUID
+        var clientID: UUID
         var clientCode: String
         var title: String
         var steps: [PersistedScheduleStep]
@@ -136,15 +139,13 @@ final class LifeRoutePersistenceStore {
         state.clients
     }
 
+    func clientID(forCode code: String) -> UUID? {
+        state.clients.first { $0.code.caseInsensitiveCompare(code) == .orderedSame }?.id
+    }
+
     func saveClients(_ clients: [LifeRouteClientProfile]) {
         var next = state
         next.clients = Self.sanitizedClients(clients)
-
-        let validCodes = Set(next.clients.map { $0.code.lowercased() })
-        next.visualIcons.removeAll { !validCodes.contains($0.clientCode.lowercased()) }
-        next.choiceBoards.removeAll { !validCodes.contains($0.clientCode.lowercased()) }
-        next.visualSchedules.removeAll { !validCodes.contains($0.clientCode.lowercased()) }
-
         state = Self.sanitized(next)
         persist()
     }
@@ -155,6 +156,7 @@ final class LifeRoutePersistenceStore {
         let icons = state.visualIcons.map {
             ClientVisualIcon(
                 id: $0.id,
+                clientID: $0.clientID,
                 clientCode: $0.clientCode,
                 label: $0.label,
                 imageData: $0.imageData,
@@ -164,6 +166,7 @@ final class LifeRoutePersistenceStore {
         let boards = state.choiceBoards.map {
             ClientChoiceBoard(
                 id: $0.id,
+                clientID: $0.clientID,
                 clientCode: $0.clientCode,
                 title: $0.title,
                 iconIDs: $0.iconIDs,
@@ -174,6 +177,7 @@ final class LifeRoutePersistenceStore {
         let schedules = state.visualSchedules.map {
             ClientVisualSchedule(
                 id: $0.id,
+                clientID: $0.clientID,
                 clientCode: $0.clientCode,
                 title: $0.title,
                 steps: $0.steps.map { ClientVisualScheduleStep(id: $0.id, label: $0.label, iconID: $0.iconID) },
@@ -192,6 +196,7 @@ final class LifeRoutePersistenceStore {
         next.visualIcons = icons.map {
             PersistedVisualIcon(
                 id: $0.id,
+                clientID: $0.clientID,
                 clientCode: $0.clientCode,
                 label: $0.label,
                 imageData: $0.imageData,
@@ -201,6 +206,7 @@ final class LifeRoutePersistenceStore {
         next.choiceBoards = choiceBoards.map {
             PersistedChoiceBoard(
                 id: $0.id,
+                clientID: $0.clientID,
                 clientCode: $0.clientCode,
                 title: $0.title,
                 iconIDs: $0.iconIDs,
@@ -211,6 +217,7 @@ final class LifeRoutePersistenceStore {
         next.visualSchedules = schedules.map {
             PersistedVisualSchedule(
                 id: $0.id,
+                clientID: $0.clientID,
                 clientCode: $0.clientCode,
                 title: $0.title,
                 steps: $0.steps.map { PersistedScheduleStep(id: $0.id, label: $0.label, iconID: $0.iconID) },
@@ -241,28 +248,34 @@ final class LifeRoutePersistenceStore {
 
     private static func sanitized(_ input: NativeState) -> NativeState {
         let clients = sanitizedClients(input.clients)
-        let validCodes = Set(clients.map { $0.code.lowercased() })
+        let codeByClientID = Dictionary(uniqueKeysWithValues: clients.map { ($0.id, $0.code) })
 
         var seenIconIDs = Set<UUID>()
-        let icons = input.visualIcons.filter { icon in
-            let validClient = validCodes.contains(icon.clientCode.lowercased())
-            let validLabel = !icon.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            return validClient && validLabel && seenIconIDs.insert(icon.id).inserted
+        let icons = input.visualIcons.compactMap { icon -> PersistedVisualIcon? in
+            guard let currentCode = codeByClientID[icon.clientID],
+                  !icon.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  seenIconIDs.insert(icon.id).inserted else { return nil }
+            var clean = icon
+            clean.clientCode = currentCode
+            clean.label = icon.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            return clean
         }
-        let iconOwner = Dictionary(uniqueKeysWithValues: icons.map { ($0.id, $0.clientCode.lowercased()) })
+        let iconOwner = Dictionary(uniqueKeysWithValues: icons.map { ($0.id, $0.clientID) })
 
         var seenBoardIDs = Set<UUID>()
         let boards = input.choiceBoards.compactMap { board -> PersistedChoiceBoard? in
-            let code = board.clientCode.lowercased()
-            guard validCodes.contains(code), seenBoardIDs.insert(board.id).inserted else { return nil }
+            guard let currentCode = codeByClientID[board.clientID],
+                  seenBoardIDs.insert(board.id).inserted else { return nil }
             var seen = Set<UUID>()
             let validIconIDs = board.iconIDs.filter {
-                iconOwner[$0] == code && seen.insert($0).inserted
+                iconOwner[$0] == board.clientID && seen.insert($0).inserted
             }
             guard !validIconIDs.isEmpty else { return nil }
+            let title = board.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty else { return nil }
             var clean = board
-            clean.title = board.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !clean.title.isEmpty else { return nil }
+            clean.clientCode = currentCode
+            clean.title = title
             clean.iconIDs = Array(validIconIDs.prefix(9))
             clean.columns = board.columns == 3 ? 3 : 2
             return clean
@@ -270,15 +283,15 @@ final class LifeRoutePersistenceStore {
 
         var seenScheduleIDs = Set<UUID>()
         let schedules = input.visualSchedules.compactMap { schedule -> PersistedVisualSchedule? in
-            let code = schedule.clientCode.lowercased()
-            guard validCodes.contains(code), seenScheduleIDs.insert(schedule.id).inserted else { return nil }
+            guard let currentCode = codeByClientID[schedule.clientID],
+                  seenScheduleIDs.insert(schedule.id).inserted else { return nil }
             let title = schedule.title.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !title.isEmpty else { return nil }
             let steps = schedule.steps.compactMap { step -> PersistedScheduleStep? in
                 let label = step.label.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !label.isEmpty else { return nil }
                 let safeIconID: UUID?
-                if let iconID = step.iconID, iconOwner[iconID] == code {
+                if let iconID = step.iconID, iconOwner[iconID] == schedule.clientID {
                     safeIconID = iconID
                 } else {
                     safeIconID = nil
@@ -287,6 +300,7 @@ final class LifeRoutePersistenceStore {
             }
             guard !steps.isEmpty else { return nil }
             var clean = schedule
+            clean.clientCode = currentCode
             clean.title = title
             clean.steps = steps
             return clean

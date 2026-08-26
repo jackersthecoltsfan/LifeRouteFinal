@@ -38,6 +38,7 @@ PATCHES=(
   patch_visual_ai_v1.py
   patch_ai_everywhere_v2.py
   patch_aba_ai_note_v1.py
+  patch_aba_note_quality_v2.py
   patch_day_ui_reliability_v1.py
   patch_interaction_finalize_v2.py
   patch_touch_delight_v2.py
@@ -178,6 +179,7 @@ python3 scripts/audit_tools_section.py
 python3 scripts/audit_auth_enabled_v2.py
 python3 scripts/audit_address_setup_v1.py
 python3 scripts/audit_schedule_simplify_v1.py
+python3 scripts/audit_aba_note_quality_v2.py
 python3 scripts/audit_appearance.py
 python3 scripts/audit_stability.py
 python3 scripts/audit_feature_parity_performance_ai.py

@@ -33,7 +33,7 @@ project = read(PROJECT)
 
 require("import Foundation" in domain and "import Combine" in domain, "Calendar domain is native Foundation/Combine")
 for forbidden in ["WebKit", "UIKit", "JavaScript", "WKWebView", "MutationObserver", "UserDefaults", "localStorage"]:
-    require(forbidden not in domain, f"Calendar domain avoids unrelated runtime/persistence dependency: {forbidden}")
+    require(forbidden not in domain, f"Calendar domain avoids unrelated runtime/browser persistence dependency: {forbidden}")
 
 for source in ["manual", "apple", "google", "calendarLink"]:
     require(f"case {source}" in domain, f"Normalized calendar source exists: {source}")
@@ -58,8 +58,8 @@ require("calendarState.shiftSelection(selectedRange, by: -1)" in content and "ca
 require("DatePicker(\"Selected date\"" in content, "Schedule allows direct date selection")
 require("CalendarEventsView" in content and "CalendarEventRow" in content, "Schedule renders normalized calendar events natively")
 require("Button(\"Add appointment\")" in content and "calendarState.addManualEvent(" in content, "Manual appointment form writes through CalendarCoreState")
-require("Appointment added for this app session." in content, "UI is truthful that checkpoint 03A data is in-memory only")
-require("UserDefaults" not in content and "@AppStorage" not in content, "Calendar UI does not jump ahead into persistence")
+require("Appointment saved locally on this iPhone." in content, "UI states durable manual-appointment storage truthfully")
+require("UserDefaults" not in content and "@AppStorage" not in content, "Calendar UI avoids ad-hoc preference persistence")
 require("CalendarDomain.swift in Sources" in project, "Calendar domain is compiled into the active target")
 require("LifeRouteWebView.swift in Sources" not in project and "Web in Resources" not in project, "Legacy WebView runtime remains quarantined")
 

@@ -41,9 +41,12 @@ require("func addNote(text: String, clientCode: String?)" in domain, "Quick-note
 require("QuickSessionNotesView" in views and "Picker(\"Client\"" in views, "Quick notes can link to an ABA client code")
 require("Button(\"Delete note\", role: .destructive)" in views, "Quick note deletion uses a semantic native action")
 
-require("FirstThenNativeView" in views, "Text First/Then tool exists natively")
-require("TextField(\"First activity\"" in views and "TextField(\"Then activity\"" in views, "First/Then uses native text input")
-require("Button(\"Swap\")" in views, "First/Then swap is a semantic native button")
+# 03F upgrades the original text-only First/Then surface into a client-aware
+# visual version while preserving native text fallback and semantic swapping.
+require("ClientFirstThenVisualView" in views, "First/Then tool remains native after client-visual upgrade")
+require("TextField(\"First activity\"" in views and "TextField(\"Then activity\"" in views, "First/Then preserves native text input")
+require("Button(\"Swap First / Then\")" in views, "First/Then swap remains a semantic native button")
+require("visualState.icons(for: selectedClientCode)" in views, "First/Then visual choices are client-scoped")
 
 require("SessionPlanSnapshot" in domain and "func buildPlan(" in domain, "Session plan organizer has deterministic owned state")
 require("supervisor-approved target" in domain.lower() or "supervisor-approved target" in views.lower(), "Session plan is constrained to supervisor-approved targets")
@@ -55,7 +58,7 @@ require("@StateObject private var toolsState = SessionToolsCore()" in content, "
 require("SessionToolsNativeView(router: router, toolsState: toolsState, clientState: clientState)" in content, "Tools receive owned tool/client state explicitly")
 require("NavigationLink(value: SessionToolRoute." in views and ".navigationDestination(for: SessionToolRoute.self)" in views, "Tools use typed native navigation inside the existing Tools stack")
 require("NavigationStack" not in views, "Tools do not create a competing NavigationStack")
-require("Scratch notes and plans are session-only until the persistence checkpoint." in views, "Tools UI is truthful about in-memory state")
+require("Scratch note saved for this app session." in views and "Visual supports are client-specific and session-only until the persistence checkpoint." in views, "Tools UI remains truthful about in-memory state")
 require("SessionToolsDomain.swift in Sources" in project and "SessionToolsViews.swift in Sources" in project, "Session Tools files compile in the active target")
 require("LifeRouteWebView.swift in Sources" not in project and "Web in Resources" not in project, "Legacy WebView runtime remains quarantined")
 

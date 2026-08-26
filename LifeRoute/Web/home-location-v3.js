@@ -1,5 +1,5 @@
 // LifeRoute Home + live-location reliability layer.
-// Keeps a dedicated persisted home anchor in sync with the shared preferences and Saved Places models.
+// Owns the canonical Home anchor and exposes one location facade to the setup UI.
 (() => {
   if (window.__lifeRouteHomeLocationV3Loaded) return;
   window.__lifeRouteHomeLocationV3Loaded = true;
@@ -114,31 +114,18 @@
   };
 
   const startLiveLocation = () => {
-    try { window.LifeRouteLiveLocation?.start?.(); } catch (_) {}
-    // One-shot request is kept as a fast first fix while the foreground stream starts.
     try {
-      if (typeof window.postNative === "function") window.postNative({ action: "requestCurrentLocation" });
+      if (window.LifeRouteLiveLocation?.start) {
+        window.LifeRouteLiveLocation.start();
+        return true;
+      }
     } catch (_) {}
+    try {
+      return typeof window.postNative === "function" && !!window.postNative({ action: "startLiveLocation" });
+    } catch (_) {
+      return false;
+    }
   };
-
-  document.addEventListener("click", event => {
-    const save = event.target.closest?.("#saveHomeButton");
-    if (save) {
-      const address = persistHome(document.getElementById("homeAddressField")?.value);
-      simplifyHomeUI();
-      try { window.setStatus?.(address ? "Home address saved" : "Home address cleared"); } catch (_) {}
-      setTimeout(() => { try { window.refreshRouteTimes?.(); } catch (_) {} }, 80);
-      return;
-    }
-    if (event.target.closest?.("#locationButton")) startLiveLocation();
-  }, true);
-
-  document.addEventListener("change", event => {
-    if (event.target?.id === "homeAddressField" && event.target.dataset.lrAutocompleteSelected === "1") {
-      persistHome(event.target.value);
-      simplifyHomeUI();
-    }
-  }, true);
 
   const previousNativeEvent = window.lifeRouteNativeEvent;
   window.lifeRouteNativeEvent = function lifeRouteNativeEventWithReliableHome(evt) {

@@ -1,4 +1,5 @@
 from pathlib import Path
+import runpy
 
 home = Path("LifeRoute/Web/home-location-v3.js").read_text()
 smart = Path("LifeRoute/Web/smart-context.js").read_text()
@@ -43,3 +44,8 @@ if failed:
     for label in failed: print("FAIL:", label)
     raise SystemExit(1)
 print("Home persistence, repopulation, saved-place synchronization, simple UI, and single-handler ownership passed.")
+
+# The Home audit is an established deterministic release gate. Chain the unified
+# experience audit here so the newer interaction layers cannot accidentally ship
+# without their own contract checks even as prepare_build evolves.
+runpy.run_path("scripts/audit_experience_release_v1.py", run_name="__main__")

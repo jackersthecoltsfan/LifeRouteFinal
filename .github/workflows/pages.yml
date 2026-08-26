@@ -8,6 +8,7 @@ on:
       - 'LifeRoute/Web/**'
       - 'scripts/**'
       - '!scripts/audit_release_isolation.py'
+      - '!scripts/audit_workflow_efficiency.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 

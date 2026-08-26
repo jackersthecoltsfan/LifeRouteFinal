@@ -23,7 +23,7 @@ checks = {
     "top nav includes Session Tools": "label: 'Session Tools'" in script,
     "top nav includes Resources": "label: 'Resources'" in script,
     "top nav includes Setup": "label: 'Setup'" in script,
-    "session tools uses puzzle icon": "lrPuzzleIcon" in script and "🧩" in script,
+    "session tools uses refined vector icon": "icon('briefcase', '◈', 19)" in script and "🧩" not in script,
     "session tools includes Visual Timer": "label: 'Visual Timer'" in script,
     "session tools includes Visuals Generator": "label: 'Visuals Generator'" in script,
     "session tools includes Documentation Tools": "label: 'Documentation Tools'" in script,
@@ -45,4 +45,4 @@ if failed:
     for name in failed:
         print(f"FAIL: {name}")
     raise SystemExit(1)
-print("LifeRoute top navigation, Session Tools, Setup hierarchy, and Saved Places categories passed.")
+print("LifeRoute top navigation, refined vector iconography, Session Tools, Setup hierarchy, and Saved Places categories passed.")

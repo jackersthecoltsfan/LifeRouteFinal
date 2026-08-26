@@ -19,18 +19,29 @@ Then inspect live GitHub/Actions state before acting on recorded workflow status
 
 Repository: `jackersthecoltsfan/LifeRouteFinal`
 
-Current `main` product commit:
+v0.4.0 product merge commit:
 `b59f9c244419786d92d9c898d9430c0f92ff3d70`
 (`Merge LifeRoute v0.4.0 direct startup`)
 
 PR `#13` (`LifeRoute v0.4.0 — remove local login gate`) was merged after its branch validations succeeded.
 
-The previous TestFlight release remains SHA:
-`0fb4c1b5e3873030295617f04577c254e1bc55d7`
+v0.4.0 was released to TestFlight from SHA:
+`3d7993804ad008fbbd8993afae066eed314fcb74`
 
-TestFlight workflow `LifeRoute → TestFlight` run `#68` / ID `33003904725` completed successfully, including the actual `Upload to TestFlight` step.
+That SHA differs from the product merge only by the documentation-only handoff update `Update handoff after v0.4.0 merge validation`; no app/runtime files changed between the validated product merge and the released SHA.
 
-**No TestFlight workflow was triggered for v0.4.0 merge SHA `b59f9c...`. Do not upload v0.4.0 until Brandon explicitly authorizes release.**
+TestFlight workflow `LifeRoute → TestFlight` run `#70` / ID `33006131821` completed successfully, including:
+
+- exact-SHA release-source verification;
+- deterministic LifeRoute preparation;
+- full LifeRoute regression audit;
+- Apple connection and bundle-ID validation;
+- archive and signed IPA export;
+- the actual `Upload to TestFlight` step;
+- IPA artifact save;
+- temporary signing-asset cleanup.
+
+The first release request for merge SHA `b59f9c...` was safely rejected after `main` advanced by the documentation-only handoff commit. A second exact-current-main request (`#15`) was accepted and produced successful TestFlight run `#70`. Release-request issues `#14` and `#15` are closed.
 
 ## v0.4.0 direct-startup decision
 
@@ -52,9 +63,10 @@ The deterministic path remains rooted in `scripts/prepare_build.sh`; the v0.4.0 
 
 Branch/runtime validation:
 
-- iOS Build Check `#614` / run ID `33005423883` — success
 - confirmation iOS Build Check `#616` / run ID `33005620839` — success
-- umbrella regression audit: `577 checks passed, 0 failed`
+- preparation — success
+- full LifeRoute regression audit — success
+- iOS Simulator build — success
 
 Merged-main validation for SHA `b59f9c244419786d92d9c898d9430c0f92ff3d70`:
 
@@ -62,6 +74,15 @@ Merged-main validation for SHA `b59f9c244419786d92d9c898d9430c0f92ff3d70`:
 - `Prepare the same features used by TestFlight` — success
 - `Full LifeRoute regression audit` — success
 - `Build LifeRoute for iOS Simulator` — success
+
+Release validation for TestFlight run `#70` / ID `33006131821`:
+
+- release-source guard — success
+- prepare — success
+- full regression audit — success
+- archive — success
+- signed IPA export — success
+- TestFlight upload — success
 
 Validated areas include auth direct-startup/no-touch-blocking behavior, Google OAuth scope preservation, client profiles/pickers, navigation, Day/Week/Month immediate selected state, routing/gap planning, Live Day/Live Activity, address/home/current/live location, stop/place search and duration, Tools and visual timer, First/Then/session-planning/visual tools, categorized themes, premium haptics/motion/accessibility, AI journeys/runtime safety, external-service limits, state invariants, and no legacy programmatic document scrolling.
 
@@ -80,6 +101,6 @@ Preserve immediate tactile response, lightweight spring motion/haptics, reduced-
 
 ## Next action
 
-v0.4.0 direct-startup work is complete and validated on `main`. Wait for the next v0.4.0 feature request.
+v0.4.0 direct-startup work is complete, validated, and uploaded to TestFlight. The next step is physical-device testing of TestFlight build `#70`, especially launch responsiveness, absence of the local login overlay, Day/Week/Month response, navigation/touch feel, themes, routing/location, provider connections, and the most-used ABA/Tools workflows.
 
-For the next substantial development task, branch from current `main` into a fresh isolated feature branch. Before any eventual TestFlight release, rerun deterministic preparation, the full regression suite, performance/smoothness gates, and iOS Simulator build against the final release candidate, then require Brandon's explicit release authorization.
+For the next substantial development task, inspect current `main` and branch into a fresh isolated feature branch. Before any eventual later TestFlight release, rerun deterministic preparation, the full regression suite, performance/smoothness gates, and iOS Simulator build against the final release candidate, then require Brandon's explicit release authorization.

@@ -41,6 +41,8 @@ jobs:
         run: python3 scripts/audit_v0_5_0_client_visual_supports.py
       - name: Audit checkpoint 04A client visual persistence
         run: python3 scripts/audit_v0_5_0_client_visual_persistence.py
+      - name: Audit checkpoint 04B routing calendar persistence
+        run: python3 scripts/audit_v0_5_0_routing_calendar_persistence.py
       - name: Build LifeRoute for iOS Simulator
         run: |
           set -euo pipefail

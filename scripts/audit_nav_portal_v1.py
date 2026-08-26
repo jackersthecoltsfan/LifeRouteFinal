@@ -1,43 +1,46 @@
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "LifeRoute" / "Web"
-PORTAL = WEB / "nav-portal-v1.js"
 INDEX = WEB / "index.html"
+TOOLBAR = WEB / "toolbar-cleanup-v1.js"
+TAIL = WEB / "delight-tail-v1.js"
+NAV_CLEANUP = WEB / "nav-cleanup.js"
+DELIGHT = WEB / "delight-ui-v1.js"
 
 checks = []
-
 def check(name: str, ok: bool) -> None:
     checks.append((name, bool(ok)))
 
-portal = PORTAL.read_text() if PORTAL.exists() else ""
 index = INDEX.read_text() if INDEX.exists() else ""
+toolbar = TOOLBAR.read_text() if TOOLBAR.exists() else ""
+tail = TAIL.read_text() if TAIL.exists() else ""
+nav_cleanup = NAV_CLEANUP.read_text() if NAV_CLEANUP.exists() else ""
+delight = DELIGHT.read_text() if DELIGHT.exists() else ""
 
-check("navigation portal exists", PORTAL.exists() and len(portal) > 1200)
-check("single reusable portal node", portal.count("document.createElement('div')") == 1 and "lifeRouteNavPortal" in portal)
-check("portal ignores pointer events", "pointer-events:none" in portal)
-check("portal uses transform and opacity", "transform:translate3d" in portal and "opacity:" in portal)
-check("portal animation stays under half second", ".46s" in portal)
-check("portal cleanup is bounded", "540" in portal and "portalTimer" in portal)
-check("portal resets on pointer cancel", "pointercancel" in portal and "classList.remove('lrPortalOpen')" in portal)
-check("portal resets when hidden", "visibilitychange" in portal and "document.hidden" in portal)
-check("portal pointerup listener is passive", "pointerup" in portal and "passive:true" in portal)
-check("portal has no pointermove tracking", "pointermove" not in portal and "mousemove" not in portal and "touchmove" not in portal)
-check("portal has no polling", "setInterval(" not in portal)
-check("portal uses at most one RAF", portal.count("requestAnimationFrame(") <= 1)
-check("portal has no recursive RAF", not re.search(r"function\s+(\w+)[^{]*\{[^}]*requestAnimationFrame\(\1\)", portal, re.S))
-check("portal has no blur workload", "filter:blur(" not in portal and "backdrop-filter" not in portal)
-check("portal has no network work", not re.search(r"\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource", portal))
-programmatic_scroll_tokens = ["scrollIntoView(", "scrollTo(", "scrollBy("]
-check("portal has no programmatic scrolling", all(token not in portal for token in programmatic_scroll_tokens))
-check("portal respects reduced motion", "prefers-reduced-motion:reduce" in portal and "animation:none!important" in portal)
-check("portal targets navigation only", ".tabs .tab,.lrContextTab,.lrPlaceCategory,.lrDayPager button" in portal)
-check("portal is loaded deferred", 'defer src="nav-portal-v1.js"' in index)
+# The animated nav portal is deliberately retired in v0.4.0. Navigation has one
+# direct owner so taps cannot be intercepted or retargeted by decorative handlers.
+check("retired navigation portal is not loaded", 'nav-portal-v1.js' not in index)
+check("top navigation has exactly four canonical destinations", all(f"view: '{view}'" in toolbar for view in ['today','tools','resources','setup']))
+check("top navigation has a direct click owner", "button.onclick = event =>" in toolbar and "navigateTop(button.dataset.view || 'today')" in toolbar)
+check("navigation click owner prevents only default action", "event.preventDefault();" in toolbar)
+check("legacy cleanup does not stop sibling handlers", "stopImmediatePropagation" not in nav_cleanup)
+check("top navigation uses four equal tracks", "grid-template-columns:repeat(4,minmax(0,1fr))!important" in delight)
+check("top navigation preserves immediate active styling", ".tabs .tab.active" in delight)
+check("navigation targets stay touch-sized", "min-height:55px!important" in delight or "min-height:51px!important" in delight)
+check("navigation touch hint is enabled", "touch-action:manipulation" in delight)
+check("navigation feedback waits for click", "decorative work happens only after" in delight)
+check("no broad pointerdown nav owner", "document.addEventListener('pointerdown', event =>" not in delight)
+check("no broad pointerup nav owner", "document.addEventListener('pointerup', event =>" not in delight)
+check("delayed nav rewrite is removed", "setTimeout(finalize, 280)" not in tail)
+check("final icon sync is guarded", "if (!hasVector || label !== item[1])" in tail)
+check("final icon sync is frame-bounded", "requestAnimationFrame(finalize)" in tail)
+check("navigation layer owns no polling interval", "setInterval(" not in delight and "setInterval(" not in toolbar)
+check("reduced motion remains supported", "prefers-reduced-motion:reduce" in delight)
 
 failed = [name for name, ok in checks if not ok]
 for name, ok in checks:
     print(f"{'PASS' if ok else 'FAIL'}: {name}")
-print(f"LifeRoute navigation portal audit: {len(checks) - len(failed)} passed, {len(failed)} failed")
+print(f"LifeRoute v0.4.0 direct navigation audit: {len(checks) - len(failed)} passed, {len(failed)} failed")
 if failed:
-    raise SystemExit("Navigation portal audit failed: " + "; ".join(failed))
+    raise SystemExit("Direct navigation audit failed: " + "; ".join(failed))

@@ -56,7 +56,8 @@ check("button animation remains fast", "INTERACTION_MS = 125" in aesthetic)
 check("navigation glass remains centered", "width:min(100%,590px)!important" in delight and "margin:9px auto 12px!important" in delight)
 check("navigation targets remain tall", "min-height:55px!important" in delight or "min-height:51px!important" in delight)
 check("reduced motion block exists", "prefers-reduced-motion:reduce" in play)
-check("no programmatic scrolling", all(token not in play for token in ["scrollIntoView(", "scrollTo(", "scrollBy("])) )
+programmatic_scroll_tokens = ["scrollIntoView(", "scrollTo(", "scrollBy("]
+check("no programmatic scrolling", all(token not in play for token in programmatic_scroll_tokens))
 check("no network work", not re.search(r"\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource", play))
 
 failed = [name for name, ok in checks if not ok]

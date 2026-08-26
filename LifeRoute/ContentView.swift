@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var router = AppRouter()
     @StateObject private var calendarState = CalendarCoreState()
+    @StateObject private var providerState = CalendarProviderCore()
     @StateObject private var routingState = RoutingLocationCore()
     @StateObject private var clientState = ClientProfileCore()
     @StateObject private var toolsState = SessionToolsCore()
@@ -19,7 +20,7 @@ struct ContentView: View {
             .tag(AppSection.today)
 
             NavigationStack(path: $router.schedulePath) {
-                ScheduleCoreView(router: router, calendarState: calendarState)
+                ScheduleCoreView(router: router, calendarState: calendarState, providerState: providerState)
                     .navigationDestination(for: AppRoute.self) { route in
                         RouteDetailView(route: route, router: router)
                     }
@@ -63,11 +64,8 @@ private struct CoreHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.largeTitle.bold())
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            Text(title).font(.largeTitle.bold())
+            Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -81,15 +79,11 @@ private struct TodayCoreView: View {
 
     var body: some View {
         List {
-            Section {
-                CoreHeader(title: "LifeRoute", subtitle: "v0.5.0 native functional core")
-            }
-
+            Section { CoreHeader(title: "LifeRoute", subtitle: "v0.5.0 native functional core") }
             Section("Interaction test") {
                 Button("Test primary action") { tapCount += 1 }
                 Text("Successful taps: \(tapCount)").foregroundStyle(.secondary)
             }
-
             Section("Location & routes") {
                 Text(routingState.locationMessage).foregroundStyle(.secondary)
                 Button("Use current location") { routingState.requestCurrentLocation() }
@@ -104,42 +98,36 @@ private struct TodayCoreView: View {
                             Text(place.name).font(.headline)
                             Text(place.address).font(.caption).foregroundStyle(.secondary)
                             if let estimate = routingState.routeEstimates[place.id] {
-                                Text("\(estimate.durationLabel) · \(estimate.distanceLabel) · \(estimate.mode.rawValue)")
-                                    .font(.subheadline)
+                                Text("\(estimate.durationLabel) · \(estimate.distanceLabel) · \(estimate.mode.rawValue)").font(.subheadline)
                             }
                             HStack {
                                 Button("Estimate") { Task { await routingState.calculateRoute(to: place, mode: routeMode) } }
                                 Button("Open in Maps") { Task { await routingState.openInAppleMaps(place, mode: routeMode) } }
                             }
-                        }
-                        .padding(.vertical, 3)
+                        }.padding(.vertical, 3)
                     }
                 }
-                if let routeMessage = routingState.routeMessage {
-                    Text(routeMessage).foregroundStyle(.secondary)
-                }
+                if let routeMessage = routingState.routeMessage { Text(routeMessage).foregroundStyle(.secondary) }
             }
-
             Section("Navigation ownership") {
                 NavigationLink("Open Today detail", value: AppRoute.todayDetails)
                 Button("Open Schedule detail") { router.open(.scheduleDetails, in: .schedule) }
                 Button("Open Setup detail") { router.open(.setupDetails, in: .setup) }
             }
-
             Section("Current rebuild state") {
                 Label("Direct launch", systemImage: "checkmark.circle")
                 Label("One native router", systemImage: "checkmark.circle")
                 Label("No login gate", systemImage: "checkmark.circle")
                 Label("Legacy WebView runtime quarantined", systemImage: "checkmark.circle")
             }
-        }
-        .navigationTitle("Today")
+        }.navigationTitle("Today")
     }
 }
 
 private struct ScheduleCoreView: View {
     @ObservedObject var router: AppRouter
     @ObservedObject var calendarState: CalendarCoreState
+    @ObservedObject var providerState: CalendarProviderCore
     @State private var selectedRange: LifeRouteCalendarRange = .day
     @State private var draftTitle = ""
     @State private var draftDate = Date()
@@ -151,7 +139,38 @@ private struct ScheduleCoreView: View {
 
     var body: some View {
         Form {
-            Section { CoreHeader(title: "Schedule", subtitle: "Native calendar core. Provider connections and persistence return in later checkpoints.") }
+            Section { CoreHeader(title: "Schedule", subtitle: "Native calendar core with direct read-only provider connections.") }
+            Section("Calendar providers") {
+                LabeledContent("Apple Calendar", value: providerState.appleStatus)
+                Button(providerState.appleConnected ? "Refresh Apple Calendar" : "Connect Apple Calendar") {
+                    Task {
+                        if let events = await providerState.connectOrRefreshApple() {
+                            calendarState.replaceProviderEvents(events, source: .apple)
+                        }
+                    }
+                }
+                .disabled(providerState.appleBusy)
+
+                LabeledContent("Google Calendar", value: providerState.googleStatus)
+                Button(providerState.googleConnected ? "Refresh Google Calendar" : "Connect Google Calendar") {
+                    Task {
+                        if let events = await providerState.connectOrRefreshGoogle() {
+                            calendarState.replaceProviderEvents(events, source: .google)
+                        }
+                    }
+                }
+                .disabled(providerState.googleBusy)
+
+                if providerState.googleConnected {
+                    Button("Disconnect Google Calendar", role: .destructive) {
+                        providerState.disconnectGoogle()
+                        calendarState.removeProviderEvents(source: .google)
+                    }
+                }
+                Text("Providers refresh only when you request it. Google access is read-only and its refresh token is stored in Keychain.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("Range") {
                 Picker("Schedule range", selection: $selectedRange) {
                     ForEach(LifeRouteCalendarRange.allCases) { range in Text(range.rawValue).tag(range) }
@@ -186,8 +205,7 @@ private struct ScheduleCoreView: View {
                 NavigationLink("Open Schedule detail", value: AppRoute.scheduleDetails)
                 Button("Return to Today tab") { router.select(.today) }
             }
-        }
-        .navigationTitle("Schedule")
+        }.navigationTitle("Schedule")
     }
 
     private func addAppointment() {
@@ -203,7 +221,6 @@ private struct ScheduleCoreView: View {
 private struct CalendarEventsView: View {
     let range: LifeRouteCalendarRange
     @ObservedObject var calendarState: CalendarCoreState
-
     var body: some View {
         switch range {
         case .day:
@@ -230,7 +247,6 @@ private struct CalendarEventsView: View {
             }
         }
     }
-
     @ViewBuilder private func eventRows(_ events: [LifeRouteCalendarEvent]) -> some View {
         if events.isEmpty { Text("No events on this day").foregroundStyle(.secondary) }
         else { ForEach(events) { event in CalendarEventRow(event: event) } }
@@ -298,13 +314,8 @@ private struct SetupCoreView: View {
                 if !routingState.homeAddress.isEmpty { Text(routingState.homeAddress).foregroundStyle(.secondary) }
             }
             Section("Clients") {
-                NavigationLink {
-                    ClientProfilesView(clientState: clientState)
-                } label: {
-                    Label("Manage clients", systemImage: "person.2")
-                }
-                Text("\(clientState.clients.count) client profiles · ABA-style initials only")
-                    .foregroundStyle(.secondary)
+                NavigationLink { ClientProfilesView(clientState: clientState) } label: { Label("Manage clients", systemImage: "person.2") }
+                Text("\(clientState.clients.count) client profiles · ABA-style initials only").foregroundStyle(.secondary)
             }
             Section("Saved places") {
                 TextField("Place name", text: $placeName)

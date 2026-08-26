@@ -121,8 +121,24 @@ final class CalendarCoreState: ObservableObject {
         selectedDate = date
     }
 
+    func replaceProviderEvents(_ incoming: [LifeRouteCalendarEvent], source: LifeRouteCalendarSource) {
+        guard source != .manual else { return }
+        events.removeAll { $0.source == source }
+        events.append(contentsOf: incoming.filter { $0.source == source })
+        events.sort(by: Self.eventSort)
+    }
+
+    func removeProviderEvents(source: LifeRouteCalendarSource) {
+        guard source != .manual else { return }
+        events.removeAll { $0.source == source }
+    }
+
+    func eventCount(source: LifeRouteCalendarSource) -> Int {
+        events.filter { $0.source == source }.count
+    }
+
     func removeEvent(id: LifeRouteCalendarEvent.ID) {
-        events.removeAll { $0.id == id }
+        events.removeAll { $0.id == id && $0.source == .manual }
     }
 
     func events(on date: Date) -> [LifeRouteCalendarEvent] {

@@ -76,4 +76,27 @@ if new_save not in text:
     text = text.replace(old_save, new_save, 1)
 
 path.write_text(text)
-print("Local login now verifies every Keychain write and rolls back partial credential saves.")
+
+# Cross-platform PIN-entry reliability. Some browser/WKWebView combinations can
+# swallow keystrokes in dynamically inserted password fields. Keep the PIN masked
+# with WebKit text security while using a numeric telephone field that reliably
+# accepts touch-keyboard input in both Safari/browser preview and WKWebView.
+web_path = Path("LifeRoute/Web/auth-gate.js")
+web = web_path.read_text()
+web = web.replace(
+    'class="lrAuthPin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="4"',
+    'class="lrAuthPin" type="tel" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="4"'
+)
+web = web.replace(
+    'class="lrAuthPin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="4"',
+    'class="lrAuthPin" type="tel" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="4"'
+)
+old_pin_css = '.lrAuthPin{letter-spacing:.42em;text-align:center;font-size:24px!important;padding-left:calc(13px + .42em)!important}'
+new_pin_css = '.lrAuthPin{letter-spacing:.42em;text-align:center;font-size:24px!important;padding-left:calc(13px + .42em)!important;-webkit-text-security:disc;caret-color:#fff;pointer-events:auto!important;touch-action:manipulation;-webkit-user-select:text!important;user-select:text!important}'
+if old_pin_css in web:
+    web = web.replace(old_pin_css, new_pin_css, 1)
+elif new_pin_css not in web:
+    raise SystemExit("Could not harden LifeRoute PIN input CSS")
+
+web_path.write_text(web)
+print("Local login now verifies every Keychain write, rolls back partial saves, and uses reliable masked numeric PIN inputs.")

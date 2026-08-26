@@ -3,66 +3,46 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 WEB = ROOT / "LifeRoute" / "Web"
-PLAY = WEB / "touch-playground-v1.js"
 DELIGHT = WEB / "delight-ui-v1.js"
 AESTHETIC = WEB / "aesthetic-polish-v1.js"
+TAIL = WEB / "delight-tail-v1.js"
+INDEX = WEB / "index.html"
 
 checks = []
-
 def check(name: str, ok: bool) -> None:
     checks.append((name, bool(ok)))
 
-play = PLAY.read_text() if PLAY.exists() else ""
 delight = DELIGHT.read_text() if DELIGHT.exists() else ""
 aesthetic = AESTHETIC.read_text() if AESTHETIC.exists() else ""
+tail = TAIL.read_text() if TAIL.exists() else ""
+index = INDEX.read_text() if INDEX.exists() else ""
 
-# Reward feedback should be finite, reusable, and cheap.
-check("single reusable reward halo exists", "lifeRouteRewardHalo" in play and "document.createElement('div')" in play)
-check("reward halo is pointer transparent", "#lifeRouteRewardHalo" in play and "pointer-events:none" in play)
-check("reward halo is transform-opacity animated", "@keyframes lrRewardPulse" in play and "transform:translate3d" in play and "opacity:" in play)
-check("reward pulse is under 600ms", ".52s" in play)
-check("reward class is cleared", "rewardHalo.classList.remove('lrRewardPulse')" in play)
-check("reward timeout is bounded", "620" in play and "rewardTimer" in play)
-
-# Screen transitions should create delight without layout tracking.
-check("screen arrival sweep exists", "lrScreenArrivalSweep" in play)
-check("screen arrival is short", ".58s" in play)
-check("screen arrival uses translate3d", "skewX(-14deg) translate3d" in play)
-check("no geometry polling for screen arrival", "ResizeObserver" not in play and "IntersectionObserver" not in play)
-
-# Focus should feel premium and remain keyboard-accessible.
-check("focus-visible ring exists", ":focus-visible" in play)
-check("focus-visible has outline", "outline:2px solid" in play and "outline-offset:3px" in play)
-check("form focus halo exists", "input:focus,select:focus,textarea:focus" in play)
-check("form focus animation is short", ".16s" in play)
-check("reduced motion cancels focus movement", "input:focus,select:focus,textarea:focus{transform:none!important}" in play)
-
-# Hover richness must never create iPhone pointer churn.
-check("depth hover is fine-pointer only", "@media(hover:hover) and (pointer:fine)" in play)
-check("no global pointermove", "pointermove" not in play)
-check("no mousemove tracking", "mousemove" not in play)
-check("no touchmove tracking", "touchmove" not in play)
-
-# Continuous animation budget is intentionally tiny and pausable.
-check("no interval loops", "setInterval(" not in play)
-check("requestAnimationFrame calls stay bounded", play.count("requestAnimationFrame(") <= 2)
-check("no recursive RAF function", not re.search(r"function\s+(\w+)[^{]*\{[^}]*requestAnimationFrame\(\1\)", play, re.S))
-check("ambient brand breath pauses on scroll", "html.lrUserScrolling .mark::after" in play)
-check("ambient selected tab pauses on scroll", "html.lrUserScrolling .tabs .tab.active::after" in play)
-check("ambient work pauses when hidden", "html.lrDocumentHidden" in play)
-
-# Existing primary interaction contracts remain intact.
-check("button animation remains fast", "INTERACTION_MS = 125" in aesthetic)
+# Premium feel comes from bounded CSS motion and glass, not a second DOM-mutating
+# pointer runtime. This keeps the web preview aligned with the iPhone hotfix.
 check("navigation glass remains centered", "width:min(100%,590px)!important" in delight and "margin:9px auto 12px!important" in delight)
 check("navigation targets remain tall", "min-height:55px!important" in delight or "min-height:51px!important" in delight)
-check("reduced motion block exists", "prefers-reduced-motion:reduce" in play)
-programmatic_scroll_tokens = ["scrollIntoView(", "scrollTo(", "scrollBy("]
-check("no programmatic scrolling", all(token not in play for token in programmatic_scroll_tokens))
-check("no network work", not re.search(r"\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource", play))
+check("button tactile compression remains", 'button:active,[role="button"]:active{' in delight and "scale(.945)" in delight)
+check("fast tactile timing remains", "transition:transform .055s" in delight)
+check("page entry remains transform-opacity based", "lrViewFlowIn" in delight and "translate3d" in delight and "opacity:" in delight)
+check("context navigation entry remains lightweight", "lrContextFlowIn" in delight)
+check("reduced motion exists", "prefers-reduced-motion:reduce" in delight and "prefers-reduced-motion:reduce" in aesthetic)
+check("touch targets retain minimum size", "min-height:44px!important" in aesthetic)
+check("no global pointermove", "pointermove" not in delight)
+check("no mousemove tracking", "mousemove" not in delight)
+check("no touchmove tracking", "touchmove" not in delight)
+check("no interaction polling interval", "setInterval(" not in delight)
+check("no interaction network work", not re.search(r"\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource", delight))
+check("no synchronous interaction geometry", "offsetWidth" not in delight and "getBoundingClientRect" not in delight)
+check("delayed nav rewrite removed", "setTimeout(finalize, 280)" not in tail)
+check("nav rewrite is idempotently guarded", "if (!hasVector || label !== item[1])" in tail)
+check("retired touch playground is not loaded", 'touch-playground-v1.js' not in index)
+check("retired nav portal is not loaded", 'nav-portal-v1.js' not in index)
+check("retired premium duplicate owner is not loaded", 'premium-interactions-v1.js' not in index)
+check("retired liquid duplicate owner is not loaded", 'interaction-liquid-v4.js' not in index)
 
 failed = [name for name, ok in checks if not ok]
 for name, ok in checks:
     print(f"{'PASS' if ok else 'FAIL'}: {name}")
-print(f"LifeRoute immersive UI audit: {len(checks) - len(failed)} passed, {len(failed)} failed")
+print(f"LifeRoute v0.4.0 immersive UI audit: {len(checks) - len(failed)} passed, {len(failed)} failed")
 if failed:
     raise SystemExit("Immersive UI audit failed: " + "; ".join(failed))

@@ -177,9 +177,10 @@ for loader in CORE_FILES:
     require(f'loadPreviewScript("{loader}")' not in preview, f"Web preview does not duplicate shared feature: {loader}")
 
 # Authentication / security.
-require("username + 4-digit PIN" in auth, "Authentication implementation remains recoverable")
-require("PBKDF2" in auth, "Browser PIN uses PBKDF2 derivation")
-require("liferoute_auth_browser_v2" in auth, "Current local auth storage version present")
+require("__lifeRouteAuthGateDisabledV040" in auth and "const AUTH_GATE_ENABLED = 0" in auth, "LifeRoute local auth gate is disabled for v0.4.0")
+require('document.createElement("div")' not in auth and "document.body.appendChild" not in auth, "Disabled auth stub cannot create a blocking overlay")
+require("PBKDF2" not in auth and "crypto.subtle" not in auth and "setInterval(" not in auth, "Disabled auth stub performs no PIN derivation or polling")
+require("authSetCredentials" in swift and "kSecAttrAccessibleWhenUnlockedThisDeviceOnly" in swift, "Native auth foundation remains recoverable")
 all_code = "\n".join(text(path) for path in sorted(WEB.rglob("*.js"))) + "\n" + preview + "\n" + swift
 require("PREVIEW_CODE" not in all_code and "246810" not in all_code, "Obsolete SMS preview code absent")
 require(not re.search(r"client_secret\s*[:=]", all_code, flags=re.I), "No OAuth client secret embedded in app code")

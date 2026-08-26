@@ -12,6 +12,8 @@ Branch base: `64b0c2fef3172a101885e9bdaf4eb7860cc41997`
 
 Draft validation PR: `#20` — `LifeRoute v0.5.0 functional-core rebuild`.
 
+Current branch / PR head at handoff: `61ce2de0755eb871876d7665742f081ba72415d1`.
+
 Keep the PR draft/unmerged until the rebuild reaches the exact-SHA release checkpoint.
 
 The last v0.4.0 interaction hotfix reached TestFlight, but physical-device testing still showed unusable buttons. Treat that as the final signal that the old active interaction architecture must remain quarantined rather than patched further.
@@ -67,11 +69,12 @@ Implemented in audited batches:
 Provider access remains read-only. Google refresh credentials stay in Keychain. Provider refresh is explicit/bounded rather than polled.
 
 ### Layer 4 — persistence / data cleanup
-In progress.
+04A and 04B are green. 04C is implemented and awaiting corrected exact-head Simulator validation.
 
-Completed persistence slices:
-- 04A: clients + client visual-support data;
-- 04B: manual LifeRoute appointments + home address + saved places.
+Completed / implemented persistence slices:
+- 04A: clients + client visual-support data — green;
+- 04B: manual LifeRoute appointments + home address + saved places — green;
+- 04C: pure-native v0.4 legacy mapper/merge boundary — implemented; audit passed on the first validation attempt, but the first Swift compile found isolated mapper compiler errors. Those errors were fixed. The corrected head has not yet received a new GitHub Actions run because PR event delivery has been delayed.
 
 Persistence uses one versioned native JSON snapshot in protected Application Support, atomic writes, tolerant decoding, corruption backup/recovery, and deterministic sanitization.
 
@@ -82,17 +85,32 @@ Do not persist:
 - calculated route estimates;
 - transient Session Tool scratch state unless deliberately added later.
 
-Next persistence work is 04C: legacy v0.4 data migration/cleanup policy and any safe one-time migration boundary. Do not boot the legacy UI/runtime just to recover data.
+04C deliberately does **not** activate a WebKit/localStorage reader at startup. It only provides a reviewed native JSON mapping/merge boundary that can accept known legacy data later. Old WebKit website data remains untouched for a possible explicit migration-only reader after the native build is proven reliable on physical hardware.
 
 ### Layer 5 — performance
-After Layer 4 is green:
-- inspect startup work and synchronous disk/image work;
-- eliminate unnecessary scans/tasks/timers;
-- verify repeated navigation does not grow handlers/tasks/memory;
-- keep expensive provider/location work off interaction-critical paths.
+Initial code-first inventory is complete; implementation has **not** started yet.
+
+Highest-priority performance targets found:
+1. `LifeRoutePersistenceStore` is `@MainActor` and synchronously reads/encodes/writes the entire JSON snapshot, including visual-photo bytes. Every save currently serializes the whole state on the interaction thread.
+2. `loadClientVisualSupports()` and `loadRoutingState()` call full-state sanitization again on reads even though state is already sanitized at load/save boundaries.
+3. visual-support getters repeatedly filter/sort broad arrays during view rendering (`icons(for:)`, `choiceBoards(for:)`, `schedules(for:)`, repeated `icon(id:for:)` lookups).
+4. `ClientVisualIconThumbnail` performs `UIImage(data:)` decoding inside SwiftUI `body`, meaning image decode can repeat during view invalidation/scrolling.
+5. calendar view code performs repeated event filtering for Day/Week/Month rendering. This is acceptable at tiny data sizes but should be reviewed/precomputed before provider calendars scale event counts.
+6. broad `ObservableObject` ownership is currently manageable because state is split by domain, but avoid adding any new mega-observable/global environment object that would widen invalidation fan-out.
+
+Recommended first performance checkpoint (`05A`):
+- keep the same feature/domain ownership;
+- eliminate redundant persistence sanitization on read;
+- move full snapshot encoding/disk writes off the interaction-critical path while preserving ordered/atomic writes and crash safety;
+- keep visual image bytes out of repeated JSON work where practical, or at minimum avoid re-encoding unchanged large image blobs per unrelated state mutation;
+- cache/downsample decoded visual thumbnails outside SwiftUI `body`;
+- add stable per-client visual indexes/lookups so views are not repeatedly filtering and sorting entire arrays;
+- add a focused performance-architecture audit before making cosmetic changes.
+
+Do not optimize by reintroducing timers, global observers, polling loops, or hidden caches whose invalidation rules are unclear.
 
 ### Layer 6 — stability
-Verify one owner per interaction, deterministic foreground/background/relaunch behavior, provider failures that degrade gracefully, and no overlay/pointer/race regressions.
+After Layer 5 is green, verify one owner per interaction, deterministic foreground/background/relaunch behavior, provider failures that degrade gracefully, no overlay/pointer/race regressions, and no lifecycle-created duplicate tasks.
 
 ### Layer 7 — second full functionality pass
 Repeat critical workflows after performance/stability work. This must be green before the first v0.5.0 TestFlight release.
@@ -118,26 +136,36 @@ Known legacy v0.4 durable data:
 - `liferoute_home_address_v3`: dedicated home-address fallback;
 - feature-specific stores such as the old global `liferoute_visual_tools_v2` library.
 
-Retain/migrate when safely mappable:
-- client profiles;
-- manual schedule data;
+04C currently maps only reviewed fields:
+- client profiles, including known old field aliases;
+- manual schedule events only;
 - saved places;
-- home address;
-- non-sensitive provider preferences only when still meaningful.
+- home address.
 
-Review before migration:
-- selected calendar view/date;
-- route/gap selections;
-- tool/mileage/session state.
+04C merge rules:
+- existing v0.5 native client records win on duplicate ABA code/ID;
+- existing v0.5 saved places win on normalized name+address identity;
+- existing v0.5 home address wins when already populated;
+- existing native manual events win on duplicate imported ID;
+- imported IDs are deterministic/restart-safe;
+- malformed data fails closed / is skipped;
+- Apple/Google/provider event caches are not imported;
+- old visual libraries are not imported or guessed into client ownership;
+- no auth/theme/overlay/interaction-runtime state is mapped;
+- mapper code imports Foundation only and does not import WebKit.
 
-Reset/quarantine:
-- auth/welcome gate state;
-- cosmetic/theme runtime flags;
-- interaction-rebinding markers;
-- stale overlay/navigation state;
-- old global visual-library assignment (must never be guessed).
+The first 04C validation attempt used head `12e991c37c61a9fd2610379ba0b2e3dece9b52a5`. Its 04C audit passed, but the Simulator compile found three isolated mapper issues:
+1. calling a `@MainActor` client normalization helper from nonisolated parsing;
+2. an overly dense deterministic UUID expression that Swift's compiler rejected;
+3. a `@MainActor` `.shared` singleton used as a default argument.
 
-Malformed legacy data must never block launch or taps. Do not clear Keychain credentials except through explicit disconnect/reset behavior.
+Fixes were committed through `d4fb77f13fb9194618ddd0ce475dddc31c52f5fe` and then documented/retriggered. The current exact head is `61ce2de0755eb871876d7665742f081ba72415d1`.
+
+As of this handoff, GitHub has **not yet emitted a pull-request workflow run or status check for `61ce2de…`**, despite the branch/PR head being correct and a close/reopen retrigger. Therefore:
+- do **not** mark 04C green yet;
+- first action in the next chat is to inspect Actions for `61ce2de…`;
+- if no run exists, trigger validation using the available GitHub workflow/PR mechanism without changing runtime behavior;
+- only after the corrected 04C audit + iOS Simulator compile are green should Layer 5 code changes begin.
 
 ## Checkpoint table
 
@@ -155,7 +183,8 @@ Malformed legacy data must never block launch or taps. Do not clear Keychain cre
 | 03F — client-specific visual supports | `431c2db03b4786f5b84d513e11a04a187f551177` | Green | Client-scoped icons, boards, First/Then and schedules; iOS 16-compatible native UI. Policy #22; CI #639. |
 | 04A — client + visual persistence | `d2fff00154954fc21f55d22ab247d3c0c2a8e3aa` | Green | Protected Application Support snapshot, atomic writes, corruption recovery, client UUID visual ownership. Policy #35; CI #652 / run `33019810261`. |
 | 04B — routing + manual calendar persistence | `dcfb886150ce7316ab83723b2c151b47849ba3d0` | Green | Manual appointments, home, saved places persist; provider events/GPS/route estimates remain transient. Policy #37; CI #654 / run `33020305153`. |
-| 04C — legacy data migration/cleanup | — | Next | Define/implement safe one-time mapping without reactivating legacy UI/runtime. |
+| 04C — legacy data mapper/cleanup boundary | feature/compile-fix through `d4fb77f13fb9194618ddd0ce475dddc31c52f5fe`; current exact head `61ce2de0755eb871876d7665742f081ba72415d1` | Pending corrected build | Pure native mapper/merge implemented. First audit passed; first compile exposed isolated mapper errors, now fixed. Corrected exact-head Actions run has not emitted yet. |
+| 05A — performance architecture | — | Next after 04C green | Initial inventory complete; no performance code changes committed yet. |
 
 ## Cosmetic chunks preserved for later
 
@@ -188,11 +217,21 @@ For every remaining layer/slice:
 2. Read `AGENTS.md`.
 3. Read `LIFEROUTE_V0_5_0_CHECKPOINT_00_INVENTORY.md` when migration/quarantine context matters.
 4. Inspect the live `rebuild/v0.5.0-functional-core` branch, PR #20, and current Actions state.
-5. Continue from the first incomplete checkpoint in the table.
-6. Never return to v0.4 interaction-hotfix layering.
+5. Confirm whether exact head `61ce2de0755eb871876d7665742f081ba72415d1` has received a green 04C iOS CI run.
+6. If 04C is green, update this table and begin `05A` from the performance findings above.
+7. Never return to v0.4 interaction-hotfix layering.
 
 ## Immediate next action
 
-Begin **Checkpoint 04C — legacy data migration / cleanup**.
+**Finish 04C validation, then begin Checkpoint 05A — performance architecture.**
 
-Inventory the exact old keys and schemas that map cleanly to the new native store. Preserve old WebKit data until migration is proven. Do not load the old LifeRoute UI or its JavaScript startup graph. Do not guess client ownership for the old global visual library. Add a deterministic migration policy/audit before introducing any migration executor. After Layer 4 is complete and green, proceed to the performance layer.
+Do not add a startup WebKit migration reader before the first physical-device reliability checkpoint. Preserve old WebKit data untouched. Keep the old global visual library quarantined.
+
+For 05A, start with persistence/image/derived-state costs rather than adding UI polish:
+- remove redundant read-time full-state sanitization;
+- design ordered background persistence that preserves atomicity and data safety;
+- stop decoding visual images directly in SwiftUI `body`;
+- introduce stable per-client lookup/indexing or derived collections for visual supports;
+- audit calendar derived-work scaling;
+- add focused regression/performance audits;
+- run full accumulated audits and an exact-head Simulator build before proceeding to Layer 6.

@@ -279,7 +279,6 @@ for glyph in ["🚙", "🚗", "🚘"]:
 pages = text(PAGES)
 ios_ci = text(IOS_CI)
 testflight = text(TESTFLIGHT)
-auto_testflight = text(AUTO_TESTFLIGHT)
 
 require("python3 scripts/audit_liferoute_build.py" in pages, "Pages runs full regression audit")
 require("python3 scripts/audit_liferoute_build.py" in ios_ci, "iOS CI runs full regression audit")
@@ -289,15 +288,9 @@ automatic_triggers = ["workflow_run:", "repository_dispatch:", "schedule:", "pus
 require(all(trigger not in testflight for trigger in automatic_triggers), "TestFlight has no automatic trigger")
 
 # Manual-only release policy: validation and Pages may run automatically, but
-# neither this guard workflow nor the dedicated TestFlight workflow may upload
-# or dispatch without an explicit workflow_dispatch initiated after user consent.
-require(AUTO_TESTFLIGHT.is_file(), "TestFlight policy guard exists")
-require("workflow_dispatch:" in auto_testflight, "TestFlight policy guard is manual-only")
-require(all(trigger not in auto_testflight for trigger in automatic_triggers), "TestFlight policy guard has no automatic trigger")
-require("gh workflow" not in auto_testflight.lower(), "TestFlight policy guard contains no GitHub CLI dispatch")
-require("/dispatches" not in auto_testflight.lower(), "TestFlight policy guard contains no REST workflow dispatch")
-require("actions: write" not in auto_testflight, "TestFlight policy guard has no Actions write permission")
-require("contents: read" in auto_testflight, "TestFlight policy guard keeps read-only repository permission")
+# the dedicated TestFlight workflow may only upload after explicit dispatch.
+# The obsolete automatic TestFlight workflow must remain deleted.
+require(not AUTO_TESTFLIGHT.exists(), "Legacy auto-TestFlight workflow is removed")
 
 try:
     json.loads((WEB / "manifest.webmanifest").read_text(encoding="utf-8"))

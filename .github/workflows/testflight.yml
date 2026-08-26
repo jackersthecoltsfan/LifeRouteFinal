@@ -3,6 +3,15 @@ run-name: LifeRoute → TestFlight #${{ github.run_number }}
 
 on:
   workflow_dispatch:
+    inputs:
+      authorized_sha:
+        description: Optional exact main SHA authorized by the guarded assistant bridge
+        required: false
+        type: string
+      request_issue:
+        description: Optional release-request issue number for traceability
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -21,10 +30,25 @@ jobs:
       PROJECT: LifeRoute.xcodeproj
       BUNDLE_ID: Com.Brandongood.LifeRoute
       LIVE_ACTIVITY_BUNDLE_ID: Com.Brandongood.LifeRoute.LiveActivity
+      AUTHORIZED_SHA: ${{ inputs.authorized_sha }}
+      REQUEST_ISSUE: ${{ inputs.request_issue }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Verify authorized release source
+        run: |
+          set -euo pipefail
+          if [ -n "$AUTHORIZED_SHA" ]; then
+            test "$GITHUB_SHA" = "$AUTHORIZED_SHA" || {
+              echo "Refusing release: dispatched SHA $GITHUB_SHA does not match authorized SHA $AUTHORIZED_SHA."
+              exit 1
+            }
+            echo "Exact-SHA release guard passed for $AUTHORIZED_SHA (request issue ${REQUEST_ISSUE:-n/a})."
+          else
+            echo "Manual workflow dispatch: no assistant exact-SHA input supplied."
+          fi
 
       - name: Prepare LifeRoute features
         run: bash scripts/prepare_build.sh

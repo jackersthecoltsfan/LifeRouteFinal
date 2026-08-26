@@ -113,11 +113,12 @@ Do not import:
 
 Native v0.5 data always wins over legacy data when both represent the same logical record.
 
-A migration import must be idempotent:
+A migration import must be idempotent and restart-safe:
 - deterministic IDs for imported clients/places;
 - preserve manual event legacy IDs with a migration namespace;
 - dedupe by client code / saved-place normalized identity / event ID;
-- one atomic native snapshot write after sanitization.
+- write through the existing protected client, routing, and manual-calendar persistence owners rather than adding a second persistence owner;
+- each category write remains atomic, and an interrupted import can be rerun safely to complete remaining categories without duplicating earlier ones.
 
 Malformed legacy JSON must produce an empty/no-op migration result. It must never block app launch, navigation, text entry, calendar providers, routing, or Session Tools.
 

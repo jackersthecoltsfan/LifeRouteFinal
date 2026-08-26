@@ -5,6 +5,7 @@ set -euo pipefail
 PATCHES=(
   patch_route_times.py
   patch_location_context.py
+  patch_address_autocomplete_v1.py
   patch_transport_mode.py
   patch_store_route_guard.py
   patch_store_routing_resilience.py
@@ -23,7 +24,7 @@ PATCHES=(
   patch_provider_selection.py
   patch_day_navigation.py
   patch_auth_gate.py
-  patch_disable_auth_gate_v1.py
+  patch_home_location_v3.py
   patch_stability.py
   patch_theme_settings.py
   patch_release_hardening_v1.py
@@ -62,6 +63,8 @@ core = [
     "route-times.js",
     "smart-context.js",
     "live-location-v2.js",
+    "address-autocomplete-v1.js",
+    "home-location-v3.js",
     "todos.js",
     "grocery-stores.js",
     "transport-mode.js",
@@ -79,6 +82,7 @@ core = [
     "mileage-tracker-web.js",
     "resources-hub-web.js",
     "toolbar-cleanup-v1.js",
+    "schedule-simplify-v1.js",
     "visual-timer-v2.js",
     "delight-ui-v1.js",
     "timer-native-audio-v1.js",
@@ -129,10 +133,11 @@ plutil -lint LifeRouteLiveActivity/Info.plist
 
 CORE_JS=(
   global-bridge.js interaction-stability-v3.js calendar-hub.js auth-gate.js icons.js route-times.js smart-context.js live-location-v2.js
+  address-autocomplete-v1.js home-location-v3.js
   todos.js grocery-stores.js transport-mode.js sleek-ui.js store-sleek-ui.js
   selected-gap-routes.js saved-place-gap-options.js live-day.js end-home-route-web.js day-controls-v5.js
   rbt-tools.js client-picker-sync-v1.js client-profiles-v1.js client-profile-tools-v1.js
-  mileage-tracker-web.js resources-hub-web.js toolbar-cleanup-v1.js visual-timer-v2.js
+  mileage-tracker-web.js resources-hub-web.js toolbar-cleanup-v1.js schedule-simplify-v1.js visual-timer-v2.js
   delight-ui-v1.js timer-native-audio-v1.js first-then-back.js
   visual-resolver.js ai-assistant-v1.js visual-resolver-ai-v2.js visual-quality-web.js visual-tools.js
   photo-source-picker-web.js visual-object-focus-v2.js image-playground-v1.js visual-resolver-bridge.js
@@ -170,13 +175,15 @@ python3 scripts/audit_theme_catalog.py
 python3 scripts/audit_runtime_polish.py
 python3 scripts/audit_visual_timer.py
 python3 scripts/audit_tools_section.py
-python3 scripts/audit_auth_disabled_v1.py
+python3 scripts/audit_auth_enabled_v2.py
+python3 scripts/audit_address_setup_v1.py
+python3 scripts/audit_schedule_simplify_v1.py
 python3 scripts/audit_appearance.py
 python3 scripts/audit_stability.py
 python3 scripts/audit_feature_parity_performance_ai.py
 python3 scripts/audit_interaction_performance_v3.py
 
-# New AI-specific independent review angles.
+# AI-specific independent review angles.
 python3 scripts/audit_ai_user_journeys_v2.py
 python3 scripts/audit_ai_runtime_release_v2.py
 
@@ -191,11 +198,12 @@ python3 scripts/audit_state_invariants.py
 # Critical native bridge contracts.
 for marker in \
   requestRouteTimes searchStoreLocations requestCurrentLocation startLiveLocation stopLiveLocation CLLocationManagerDelegate \
+  addressAutocomplete MKLocalSearchCompleterDelegate \
   openRoute openExternalURL analyzeVisualSubject VNGenerateObjectnessBasedSaliencyImageRequest routeTransportType \
   aiGenerateText LanguageModelSession segmentVisualSubject VNGenerateForegroundInstanceMaskRequest openImagePlayground ImagePlaygroundViewController \
   recognizeVisualText VNRecognizeTextRequest \
   scheduleDayNotifications startLiveDayActivity endLiveDayActivity \
-  authSetCredentials authVerifyCredentials; do
+  authSetCredentials authVerifyCredentials authBiometricUnlock LocalAuthentication; do
   grep -q "$marker" LifeRoute/LifeRouteWebView.swift
 done
 
@@ -244,7 +252,7 @@ grep -q 'LifeRouteAIPlanning' LifeRoute/Web/ai-planning-v1.js
 grep -q 'LifeRouteABAAINote' LifeRoute/Web/aba-ai-note-v1.js
 grep -q 'wikimedia-ai-semantic' LifeRoute/Web/visual-resolver-ai-v2.js
 
-# Toolbar + timer + appearance contracts.
+# Toolbar + timer + appearance + auth contracts.
 grep -q 'LifeRouteToolbarCleanupV1' LifeRoute/Web/toolbar-cleanup-v1.js
 grep -q "child.dataset?.view === 'month'" LifeRoute/Web/toolbar-cleanup-v1.js
 grep -q "Preserve the user's scroll position" LifeRoute/Web/toolbar-cleanup-v1.js
@@ -259,8 +267,9 @@ grep -q "action:'haptic'" LifeRoute/Web/delight-ui-v1.js
 grep -q 'grid-template-columns:repeat(4,minmax(0,1fr))!important' LifeRoute/Web/delight-ui-v1.js
 grep -q 'window.scrollTo = noProgrammaticScroll' LifeRoute/Web/interaction-stability-v3.js
 ! grep -q 'DIRECT SESSION TOOLKIT' LifeRoute/Web/rbt-tools.js
-grep -q 'const AUTH_GATE_ENABLED = false' LifeRoute/Web/auth-gate.js
+! grep -q 'const AUTH_GATE_ENABLED = false' LifeRoute/Web/auth-gate.js
+grep -q 'NSFaceIDUsageDescription' LifeRoute/Info.plist
 grep -q 'lifeRouteAestheticPolishV1Styles' LifeRoute/Web/aesthetic-polish-v1.js
 grep -q 'min-height:44px!important' LifeRoute/Web/aesthetic-polish-v1.js
 
-echo "LifeRoute feature preflight + AI multi-angle release audits passed."
+echo "LifeRoute feature preflight + login/address/schedule + AI multi-angle release audits passed."

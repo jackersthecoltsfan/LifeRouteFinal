@@ -239,6 +239,9 @@ Maintain a compact checkpoint table in this handoff as work progresses.
 | Checkpoint | Commit | Status | Notes |
 |---|---|---|---|
 | Rebuild baseline | `64b0c2fef3172a101885e9bdaf4eb7860cc41997` | Baseline only | v0.4.0 runtime; buttons still unusable on physical device. Do not treat as functional core. |
+| Checkpoint 00 — inventory/quarantine | `558c649dfa501a4317d7bdc0aeb4ed6c4ef90e53` | Complete | Architecture/quarantine inventory saved; legacy interaction layers classified; cache policy preserves useful product data. Version guard work began at `2523331faa2d67c5d4e1a2a750267987cb50c80d`. |
+| Checkpoint 01 — minimal interaction shell | `5656d380345f6ca4b54f3dcb6a3030c9d9d9dde7` | Green | Native SwiftUI shell; legacy `LifeRouteWebView.swift` removed from active Sources and `LifeRoute/Web` removed from Resources; v0.4 patch stack no longer runs. CI run #627 / `33015560338` passed preparation, focused audit, and iOS Simulator build. |
+| Checkpoint 02 — core navigation | `066455a54a3552fe756a3da8877ec263faa6cd0a` | Green | Root `AppRouter`, five native NavigationStacks, typed routes, semantic NavigationLinks, native dismiss/back, centralized cross-tab navigation. Core code introduced at `4bb3cd809d2802f3ec69674a2b901a9e169fb679`; audit/workflow alignment finalized at this SHA. Policy run #12 / `33016029524` and iOS CI run #629 / `33016029523` passed. |
 
 ## Safety / compatibility constraints
 
@@ -262,13 +265,11 @@ At the beginning of the next thread:
 2. read `AGENTS.md`;
 3. read `LIFEROUTE_HANDOFF.md` for historical context;
 4. inspect the live `rebuild/v0.5.0-functional-core` branch and current Actions state;
-5. start with **Layer 0 inventory/quarantine**, not cosmetics and not another interaction hotfix;
+5. continue from the first incomplete checkpoint in the table; do not return to v0.4.0 hotfix layering;
 6. create/update the checkpoint table after every completed layer.
 
 ## Immediate next action
 
-Begin **v0.5.0 checkpoint 00 — inventory/quarantine**.
+Begin **v0.5.0 checkpoint 03A — calendar core**.
 
-Map the existing architecture before deleting or migrating anything. Specifically inventory startup scripts, event ownership, overlays, observers, timers, persistence keys, generated patch layering, native bridges, functional feature modules, and all cosmetic modules that should be preserved as optional chunks.
-
-Then produce a proposed minimal v0.5.0 startup/runtime graph and only after that begin checkpoint 01, the minimal interaction shell.
+Build a native, side-effect-free calendar domain layer first: normalized event/source models, deterministic Day/Week/Month calculations, and in-memory manual appointment behavior. Keep provider OAuth/EventKit hookup, persistence migration, routing, and cosmetic calendar effects out of this checkpoint so failures remain attributable to one layer.

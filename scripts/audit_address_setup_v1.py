@@ -14,6 +14,7 @@ def require(condition, message):
 
 autocomplete = (WEB / "address-autocomplete-v1.js").read_text()
 home = (WEB / "home-location-v3.js").read_text()
+schedule = (WEB / "schedule-simplify-v1.js").read_text()
 smart = (WEB / "smart-context.js").read_text()
 swift = SWIFT.read_text()
 prepare = PREPARE.read_text()
@@ -30,8 +31,9 @@ for marker in ["liferoute_home_address_v3", "persistHome", "upsertHomePlace", "s
     require(marker in home, f"Home/location reliability marker missing: {marker}")
 require("MapKit route intelligence" not in smart, "Obsolete MapKit route intelligence pill still present")
 require("Commute intelligence" not in smart, "Old Commute intelligence heading still present")
-require("smartContextStrip") in smart, "Smart-strip cleanup contract missing")
-require("document.getElementById(\"smartContextStrip\")?.remove();" in smart, "Redundant smart strip is not removed")
+require("smartContextStrip" in smart, "Location hardening still has its smart-context hook")
+require("document.getElementById(\"smartContextStrip\")?.remove();" in home, "Home runtime does not remove the redundant smart strip")
+require("document.getElementById(\"smartContextStrip\")?.remove();" in schedule, "Schedule runtime does not suppress the redundant smart strip")
 
 if errors:
     print("Address/setup audit failed:")

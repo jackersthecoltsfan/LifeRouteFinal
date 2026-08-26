@@ -34,7 +34,14 @@ enum ClientProfileCoreError: LocalizedError {
 
 @MainActor
 final class ClientProfileCore: ObservableObject {
-    @Published private(set) var clients: [LifeRouteClientProfile] = []
+    @Published private(set) var clients: [LifeRouteClientProfile]
+
+    init(clients: [LifeRouteClientProfile]? = nil) {
+        let restored = clients ?? LifeRoutePersistenceStore.shared.loadClients()
+        self.clients = restored.sorted {
+            $0.code.localizedCaseInsensitiveCompare($1.code) == .orderedAscending
+        }
+    }
 
     func saveProfile(
         id: UUID?,
@@ -79,11 +86,13 @@ final class ClientProfileCore: ObservableObject {
             clients.append(profile)
         }
         clients.sort { $0.code.localizedCaseInsensitiveCompare($1.code) == .orderedAscending }
+        LifeRoutePersistenceStore.shared.saveClients(clients)
         return profile
     }
 
     func removeClient(id: UUID) {
         clients.removeAll { $0.id == id }
+        LifeRoutePersistenceStore.shared.saveClients(clients)
     }
 
     func client(code: String) -> LifeRouteClientProfile? {

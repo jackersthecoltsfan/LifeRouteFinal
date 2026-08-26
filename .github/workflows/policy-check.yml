@@ -8,12 +8,14 @@ on:
       - 'TESTFLIGHT_SETUP.md'
       - 'APP_CREATION_PLAYBOOK.md'
       - 'scripts/audit_release_isolation.py'
+      - 'scripts/audit_workflow_efficiency.py'
       - '.github/workflows/**'
   pull_request:
     paths:
       - 'TESTFLIGHT_SETUP.md'
       - 'APP_CREATION_PLAYBOOK.md'
       - 'scripts/audit_release_isolation.py'
+      - 'scripts/audit_workflow_efficiency.py'
       - '.github/workflows/**'
   workflow_dispatch:
 
@@ -34,3 +36,6 @@ jobs:
 
       - name: Audit release isolation
         run: python3 scripts/audit_release_isolation.py
+
+      - name: Audit workflow efficiency
+        run: python3 scripts/audit_workflow_efficiency.py

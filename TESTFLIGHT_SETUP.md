@@ -26,12 +26,12 @@ A request is eligible only when:
 
 - it is a newly opened GitHub issue;
 - the issue author is the repository owner;
-- the issue title is exactly `LifeRoute TestFlight release @ <current event SHA>`;
+- the issue title is exactly `LifeRoute TestFlight release @ <current main SHA>`, binding the request to an exact-SHA release target;
 - the body is exactly one of:
   - `AUTHORIZED_TESTFLIGHT_RELEASE=YES`
   - `AUTHORIZED_TESTFLIGHT_RELEASE=YES;REQUIRE_WEB_PREVIEW=YES`
 
-The bridge rechecks current `main`, requires a completed successful release-equivalent iOS validation, requires a completed successful release-equivalent web preview when requested, then dispatches `testflight.yml`.
+The bridge rechecks that exact main SHA before validation and again before dispatch, requires a completed successful release-equivalent iOS validation, requires a completed successful release-equivalent web preview when requested, then dispatches `testflight.yml` with the same authorized SHA.
 
 A feature request, successful build, request to continue, request to launch, or web-preview request does **not** authorize TestFlight.
 

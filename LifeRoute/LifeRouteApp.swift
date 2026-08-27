@@ -216,10 +216,10 @@ struct LifeRoutePrimaryButtonStyle: ButtonStyle {
             .padding(.horizontal, 16)
             .background(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).fill(palette.accentGradient))
             .overlay { RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).stroke(Color.white.opacity(0.23), lineWidth: 0.8) }
-            .shadow(color: palette.accent.opacity(0.22), radius: 16, y: 6)
-            .opacity(configuration.isPressed ? 0.84 : 1)
-            .scaleEffect(configuration.isPressed ? 0.975 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+            .shadow(color: palette.accent.opacity(configuration.isPressed ? 0.14 : 0.24), radius: configuration.isPressed ? 10 : 16, y: configuration.isPressed ? 3 : 6)
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .scaleEffect(configuration.isPressed ? 0.972 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.78), value: configuration.isPressed)
     }
 }
 
@@ -233,10 +233,11 @@ struct LifeRouteSecondaryButtonStyle: ButtonStyle {
             .foregroundStyle(palette.textPrimary)
             .frame(maxWidth: .infinity, minHeight: 46)
             .padding(.horizontal, 14)
-            .background(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).fill(palette.panelElevated.opacity(configuration.isPressed ? 0.92 : 0.68)))
-            .overlay { RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).stroke(palette.accent.opacity(0.28), lineWidth: 1) }
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.11), value: configuration.isPressed)
+            .background(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).fill(palette.panelElevated.opacity(configuration.isPressed ? 0.94 : 0.68)))
+            .overlay { RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).stroke(palette.accent.opacity(configuration.isPressed ? 0.46 : 0.28), lineWidth: 1) }
+            .shadow(color: palette.accent.opacity(configuration.isPressed ? 0.04 : 0.09), radius: 8, y: 3)
+            .scaleEffect(configuration.isPressed ? 0.978 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.2, dampingFraction: 0.82), value: configuration.isPressed)
     }
 }
 
@@ -250,7 +251,7 @@ private struct LifeRouteChromeModifier: ViewModifier {
             RadialGradient(colors: [palette.accentSecondary.opacity(0.10), .clear], center: .bottomLeading, startRadius: 20, endRadius: 380).ignoresSafeArea()
             content.scrollContentBackground(.hidden)
         }
-        .environment(\.defaultMinListRowHeight, 50)
+        .environment(\.defaultMinListRowHeight, 52)
         .tint(palette.accent)
         .preferredColorScheme(.dark)
     }
@@ -266,6 +267,7 @@ enum LifeRouteAppearance {
         let palette = theme.palette
         let background = UIColor(palette.backgroundTop)
         let panel = UIColor(palette.panel)
+        let elevated = UIColor(palette.panelElevated)
         let accent = UIColor(palette.accent)
         let secondary = UIColor.white.withAlphaComponent(0.58)
 
@@ -280,6 +282,7 @@ enum LifeRouteAppearance {
         UINavigationBar.appearance().scrollEdgeAppearance = nav
         UINavigationBar.appearance().compactAppearance = nav
         UINavigationBar.appearance().tintColor = accent
+        UIBarButtonItem.appearance().tintColor = accent
 
         let tab = UITabBarAppearance()
         tab.configureWithTransparentBackground()
@@ -294,18 +297,37 @@ enum LifeRouteAppearance {
         UITabBar.appearance().tintColor = accent
         UITabBar.appearance().unselectedItemTintColor = secondary
 
-        UISegmentedControl.appearance().backgroundColor = panel.withAlphaComponent(0.72)
-        UISegmentedControl.appearance().selectedSegmentTintColor = accent
+        let segmented = UISegmentedControl.appearance()
+        segmented.backgroundColor = panel.withAlphaComponent(0.72)
+        segmented.selectedSegmentTintColor = accent
+        segmented.setTitleTextAttributes([
+            .foregroundColor: UIColor.white.withAlphaComponent(0.68),
+            .font: UIFont.systemFont(ofSize: 13, weight: .semibold)
+        ], for: .normal)
+        segmented.setTitleTextAttributes([
+            .foregroundColor: UIColor.black.withAlphaComponent(0.78),
+            .font: UIFont.systemFont(ofSize: 13, weight: .bold)
+        ], for: .selected)
+
         UISwitch.appearance().onTintColor = accent
         UIStepper.appearance().tintColor = accent
         UIDatePicker.appearance().tintColor = accent
         UITextField.appearance().tintColor = accent
+        UITextField.appearance().backgroundColor = elevated.withAlphaComponent(0.24)
         UITextView.appearance().tintColor = accent
+        UITextView.appearance().backgroundColor = panel.withAlphaComponent(0.28)
         UIActivityIndicatorView.appearance().color = accent
         UIProgressView.appearance().progressTintColor = accent
-        UITableView.appearance().backgroundColor = .clear
-        UITableView.appearance().separatorColor = UIColor.white.withAlphaComponent(0.08)
-        UITableViewCell.appearance().backgroundColor = panel.withAlphaComponent(0.58)
+
+        let table = UITableView.appearance()
+        table.backgroundColor = .clear
+        table.separatorColor = UIColor.white.withAlphaComponent(0.07)
+        table.sectionHeaderTopPadding = 18
+
+        let cell = UITableViewCell.appearance()
+        cell.backgroundColor = panel.withAlphaComponent(0.54)
+        cell.tintColor = accent
+
         UICollectionView.appearance().backgroundColor = .clear
     }
 

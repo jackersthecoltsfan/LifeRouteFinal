@@ -40,9 +40,9 @@ The first 04C audit passed. The first Simulator compile then found three isolate
 
 Do not add an automatic startup WebKit/localStorage reader. Preserve old WebKit data untouched until native physical-device reliability is proven.
 
-## Immediate next action — Layer 6 stability
+## Immediate next action — validate Layer 6 stability
 
-Inspect the live branch, draft PR #20, and Actions state first. Then verify one interaction owner per action, deterministic foreground/background/relaunch behavior, graceful provider failures, no overlay/pointer/race regressions, and no lifecycle-created duplicate tasks.
+Checkpoint 06 is implemented and awaiting exact-runtime validation. Inspect the live branch, draft PR #20, and Actions state first. Run the full accumulated audits and require an actual iOS Simulator build before marking stability green or beginning Layer 7.
 
 Do not change product behavior, add cosmetics, reactivate legacy WebView/JavaScript code, merge PR #20, or upload to TestFlight.
 

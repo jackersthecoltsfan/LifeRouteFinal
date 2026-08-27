@@ -113,7 +113,20 @@ Checkpoint 05A implementation:
 Do not optimize by reintroducing timers, global observers, polling loops, or hidden caches whose invalidation rules are unclear.
 
 ### Layer 6 — stability
-After Layer 5 is green, verify one owner per interaction, deterministic foreground/background/relaunch behavior, provider failures that degrade gracefully, no overlay/pointer/race regressions, and no lifecycle-created duplicate tasks.
+Checkpoint 06 is implemented and in validation.
+
+The stability slice:
+- removes fire-and-forget interaction tasks from `ContentView` and gives persistence, provider refresh, routing, Maps, and photo loading explicit owners;
+- coalesces scene-transition persistence flushes and follows writes queued during an active flush;
+- cancels routing/location work only on a true background transition so transient inactive phases do not abort system permission or authenticated sign-in flows;
+- makes Google refresh/auth/network work single-flight, cancellable, generation-checked, timeout-bounded, and pagination-bounded;
+- preserves the last successful provider event cache on refresh failure or cancellation;
+- makes route/location/Maps operations single-flight and rejects stale completions after cancellation, place deletion, or newer messages;
+- avoids automatic location work from unrelated authorization callbacks;
+- publishes provider calendar replacements through one coherent observable mutation;
+- adds `scripts/audit_v0_5_0_stability_architecture.py` and exposes it before the Simulator build in iOS CI.
+
+Do not mark Checkpoint 06 green until the accumulated audit suite and actual iOS Simulator build pass on the same runtime commit.
 
 ### Layer 7 — second full functionality pass
 Repeat critical workflows after performance/stability work. This must be green before the first v0.5.0 TestFlight release.
@@ -184,6 +197,7 @@ GitHub Actions run `33021676527` completed successfully. It passed preparation, 
 | 04B — routing + manual calendar persistence | `dcfb886150ce7316ab83723b2c151b47849ba3d0` | Green | Manual appointments, home, saved places persist; provider events/GPS/route estimates remain transient. Policy #37; CI #654 / run `33020305153`. |
 | 04C — legacy data mapper/cleanup boundary | runtime-equivalent head `5295d93141b9a3e45af6dd4cc21855308999da3a` | Green | Pure native mapper/merge; accumulated audits + Simulator build passed in run `33021676527`. |
 | 05A — performance architecture | `c63bf974daf65dbffca2e8210962a16ad0cdb25c` | Green | Ordered off-main snapshot writer, external protected image blobs, visual indexes/downsample cache, calendar presentation indexes; accumulated audits + Simulator build passed in run `33024385161`. |
+| 06 — stability architecture | Pending validation | In validation | Owned/cancellable async work, stale-completion guards, lifecycle flush closure, provider failure preservation, bounded network/pagination, and focused stability audit. |
 
 ## Cosmetic chunks preserved for later
 
@@ -217,13 +231,13 @@ For every remaining layer/slice:
 3. Read `LIFEROUTE_V0_5_0_CHECKPOINT_00_INVENTORY.md` when migration/quarantine context matters.
 4. Inspect the live `rebuild/v0.5.0-functional-core` branch, PR #20, and current Actions state.
 5. Confirm the live head still contains the green Checkpoint 05A runtime commit and inspect current Actions state.
-6. Begin Layer 6 stability without changing product behavior or reactivating quarantined runtime/cosmetic code.
+6. Complete Checkpoint 06 validation without changing product behavior or reactivating quarantined runtime/cosmetic code.
 7. Never return to v0.4 interaction-hotfix layering.
 
 ## Immediate next action
 
-**Begin Layer 6 stability from the green Checkpoint 05A runtime.**
+**Validate Checkpoint 06 on the exact runtime commit, then begin Layer 7 only after its accumulated audits and actual iOS Simulator build are green.**
 
 Do not add a startup WebKit migration reader before the first physical-device reliability checkpoint. Preserve old WebKit data untouched. Keep the old global visual library quarantined.
 
-For Layer 6, audit one interaction owner per action, foreground/background/relaunch behavior, graceful provider failures, overlay/pointer/race regressions, and lifecycle-created duplicate tasks. Keep PR #20 draft/unmerged and TestFlight untouched.
+Keep PR #20 draft/unmerged and TestFlight untouched. Do not mix Layer 7 functionality validation into the Checkpoint 06 runtime commit.

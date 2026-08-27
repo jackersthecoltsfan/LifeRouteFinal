@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var lifecycleState = AppLifecycleCore()
     @StateObject private var router = AppRouter()
     @StateObject private var calendarState = CalendarCoreState()
     @StateObject private var providerState = CalendarProviderCore()
@@ -58,7 +59,10 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { phase in
             guard phase != .active else { return }
-            Task { await LifeRoutePersistenceStore.shared.flushPendingWrites() }
+            lifecycleState.flushPersistenceForSceneTransition()
+            if phase == .background {
+                routingState.cancelPendingOperations()
+            }
         }
     }
 }
@@ -92,6 +96,7 @@ private struct TodayCoreView: View {
             Section("Location & routes") {
                 Text(routingState.locationMessage).foregroundStyle(.secondary)
                 Button("Use current location") { routingState.requestCurrentLocation() }
+                    .disabled(routingState.locationRequestInFlight)
                 Picker("Travel mode", selection: $routeMode) {
                     ForEach(LifeRouteTransportMode.allCases) { mode in Text(mode.rawValue).tag(mode) }
                 }
@@ -106,8 +111,10 @@ private struct TodayCoreView: View {
                                 Text("\(estimate.durationLabel) · \(estimate.distanceLabel) · \(estimate.mode.rawValue)").font(.subheadline)
                             }
                             HStack {
-                                Button("Estimate") { Task { await routingState.calculateRoute(to: place, mode: routeMode) } }
-                                Button("Open in Maps") { Task { await routingState.openInAppleMaps(place, mode: routeMode) } }
+                                Button("Estimate") { routingState.calculateRoute(to: place, mode: routeMode) }
+                                    .disabled(routingState.routeRequestsInFlight.contains(place.id))
+                                Button("Open in Maps") { routingState.openInAppleMaps(place, mode: routeMode) }
+                                    .disabled(routingState.mapsOpenInFlight)
                             }
                         }.padding(.vertical, 3)
                     }
@@ -150,20 +157,16 @@ private struct ScheduleCoreView: View {
             Section("Calendar providers") {
                 LabeledContent("Apple Calendar", value: providerState.appleStatus)
                 Button(providerState.appleConnected ? "Refresh Apple Calendar" : "Connect Apple Calendar") {
-                    Task {
-                        if let events = await providerState.connectOrRefreshApple() {
-                            calendarState.replaceProviderEvents(events, source: .apple)
-                        }
+                    providerState.connectOrRefreshApple { events in
+                        calendarState.replaceProviderEvents(events, source: .apple)
                     }
                 }
                 .disabled(providerState.appleBusy)
 
                 LabeledContent("Google Calendar", value: providerState.googleStatus)
                 Button(providerState.googleConnected ? "Refresh Google Calendar" : "Connect Google Calendar") {
-                    Task {
-                        if let events = await providerState.connectOrRefreshGoogle() {
-                            calendarState.replaceProviderEvents(events, source: .google)
-                        }
+                    providerState.connectOrRefreshGoogle { events in
+                        calendarState.replaceProviderEvents(events, source: .google)
                     }
                 }
                 .disabled(providerState.googleBusy)
@@ -312,6 +315,7 @@ private struct SetupCoreView: View {
             Section("Location") {
                 Text(routingState.locationMessage).foregroundStyle(.secondary)
                 Button("Request current location") { routingState.requestCurrentLocation() }
+                    .disabled(routingState.locationRequestInFlight)
             }
             Section("Home") {
                 TextField("Home address", text: $homeDraft).textContentType(.fullStreetAddress)

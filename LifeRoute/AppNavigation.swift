@@ -85,11 +85,14 @@ final class AppRouter: ObservableObject {
     @Published var setupPath = NavigationPath()
 
     func select(_ section: AppSection) {
+        guard selectedSection != section else { return }
         selectedSection = section
     }
 
     func open(_ route: AppRoute, in section: AppSection) {
-        selectedSection = section
+        if selectedSection != section {
+            selectedSection = section
+        }
         switch section {
         case .today:
             todayPath.append(route)
@@ -117,6 +120,26 @@ final class AppRouter: ObservableObject {
         case .setup:
             setupPath = NavigationPath()
         }
+    }
+}
+
+// Checkpoint 06: scene transitions share one bounded persistence-flush task.
+// A second inactive/background transition joins the work already in flight
+// instead of creating another lifecycle-owned task.
+@MainActor
+final class AppLifecycleCore: ObservableObject {
+    private var persistenceFlushTask: Task<Void, Never>?
+
+    func flushPersistenceForSceneTransition() {
+        guard persistenceFlushTask == nil else { return }
+        persistenceFlushTask = Task { @MainActor [weak self] in
+            await LifeRoutePersistenceStore.shared.flushPendingWrites()
+            self?.persistenceFlushTask = nil
+        }
+    }
+
+    deinit {
+        persistenceFlushTask?.cancel()
     }
 }
 

@@ -113,8 +113,18 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
     @Published private(set) var routeEstimates: [UUID: LifeRouteRouteEstimate] = [:]
     @Published private(set) var routeMessage: String?
     @Published private(set) var homeAddress = ""
+    @Published private(set) var locationRequestInFlight = false
+    @Published private(set) var routeRequestsInFlight: Set<UUID> = []
+    @Published private(set) var mapsOpenInFlight = false
 
     private let locationManager = CLLocationManager()
+    private var locationRequestPendingAuthorization = false
+    private var routeTasks: [UUID: Task<Void, Never>] = [:]
+    private var routeGenerationByPlace: [UUID: UInt64] = [:]
+    private var routeMessageTokenByPlace: [UUID: UInt64] = [:]
+    private var mapsOpenTask: Task<Void, Never>?
+    private var mapsOpenGeneration: UInt64 = 0
+    private var routeMessageGeneration: UInt64 = 0
 
     override init() {
         let restored = LifeRoutePersistenceStore.shared.loadRoutingState()
@@ -128,19 +138,26 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
     }
 
     func requestCurrentLocation() {
+        guard !locationRequestInFlight else { return }
         authorizationStatus = locationManager.authorizationStatus
         switch authorizationStatus {
         case .notDetermined:
+            locationRequestInFlight = true
+            locationRequestPendingAuthorization = true
             locationMessage = "Requesting location permission…"
             locationManager.requestWhenInUseAuthorization()
         case .authorizedAlways, .authorizedWhenInUse:
+            locationRequestInFlight = true
             locationMessage = "Updating current location…"
             locationManager.requestLocation()
         case .denied:
+            locationRequestPendingAuthorization = false
             locationMessage = "Location access is denied. You can enable it in iPhone Settings."
         case .restricted:
+            locationRequestPendingAuthorization = false
             locationMessage = "Location access is restricted on this iPhone."
         @unknown default:
+            locationRequestPendingAuthorization = false
             locationMessage = "Location status is unavailable."
         }
     }
@@ -150,7 +167,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
         guard !cleaned.isEmpty else { throw RoutingLocationCoreError.missingAddress }
         homeAddress = cleaned
         persistRoutingInputs()
-        routeMessage = "Home address saved locally."
+        publishRouteMessage("Home address saved locally.")
     }
 
     func addSavedPlace(
@@ -176,26 +193,95 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
         )
         savedPlaces.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         persistRoutingInputs()
-        routeMessage = "Saved place stored locally."
+        publishRouteMessage("Saved place stored locally.")
     }
 
     func removeSavedPlace(id: UUID) {
+        cancelRouteOperation(for: id)
         savedPlaces.removeAll { $0.id == id }
         routeEstimates[id] = nil
         persistRoutingInputs()
     }
 
-    func calculateRoute(to place: LifeRouteSavedPlace, mode: LifeRouteTransportMode) async {
-        routeMessage = "Calculating route…"
+    func calculateRoute(to place: LifeRouteSavedPlace, mode: LifeRouteTransportMode) {
+        guard routeTasks[place.id] == nil,
+              savedPlaces.contains(where: { $0.id == place.id }) else { return }
+
+        let generation = routeGenerationByPlace[place.id, default: 0] &+ 1
+        routeGenerationByPlace[place.id] = generation
+        routeRequestsInFlight.insert(place.id)
+        let messageToken = publishRouteMessage("Calculating route…")
+        routeMessageTokenByPlace[place.id] = messageToken
+        routeTasks[place.id] = Task { @MainActor [weak self] in
+            await self?.performRouteCalculation(
+                to: place,
+                mode: mode,
+                generation: generation,
+                messageToken: messageToken
+            )
+        }
+    }
+
+    func openInAppleMaps(_ place: LifeRouteSavedPlace, mode: LifeRouteTransportMode) {
+        guard mapsOpenTask == nil,
+              savedPlaces.contains(where: { $0.id == place.id }) else { return }
+
+        mapsOpenGeneration &+= 1
+        let generation = mapsOpenGeneration
+        mapsOpenInFlight = true
+        let messageToken = publishRouteMessage("Opening Apple Maps…")
+        mapsOpenTask = Task { @MainActor [weak self] in
+            await self?.performMapsOpen(
+                place,
+                mode: mode,
+                generation: generation,
+                messageToken: messageToken
+            )
+        }
+    }
+
+    func cancelPendingOperations() {
+        let hadPendingWork = !routeTasks.isEmpty || mapsOpenTask != nil
+        for task in routeTasks.values { task.cancel() }
+        for placeID in Array(routeGenerationByPlace.keys) {
+            routeGenerationByPlace[placeID, default: 0] &+= 1
+        }
+        routeTasks.removeAll()
+        routeMessageTokenByPlace.removeAll()
+        routeRequestsInFlight.removeAll()
+
+        mapsOpenTask?.cancel()
+        mapsOpenTask = nil
+        mapsOpenGeneration &+= 1
+        mapsOpenInFlight = false
+
+        locationRequestPendingAuthorization = false
+        locationRequestInFlight = false
+        locationManager.stopUpdatingLocation()
+
+        if hadPendingWork {
+            _ = publishRouteMessage(nil)
+        }
+    }
+
+    private func performRouteCalculation(
+        to place: LifeRouteSavedPlace,
+        mode: LifeRouteTransportMode,
+        generation: UInt64,
+        messageToken: UInt64
+    ) async {
         do {
             let source = try await originMapItem()
+            try validateRouteOperation(for: place.id, generation: generation)
             let destination = try await mapItem(for: place.address)
+            try validateRouteOperation(for: place.id, generation: generation)
             let request = MKDirections.Request()
             request.source = source
             request.destination = destination
             request.transportType = mode.mapKitType
 
             let response = try await MKDirections(request: request).calculate()
+            try validateRouteOperation(for: place.id, generation: generation)
             guard let route = response.routes.first else { throw RoutingLocationCoreError.routeUnavailable }
             routeEstimates[place.id] = LifeRouteRouteEstimate(
                 placeID: place.id,
@@ -203,42 +289,118 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
                 distanceMeters: route.distance,
                 travelTimeSeconds: route.expectedTravelTime
             )
-            routeMessage = "Route estimate updated."
+            setRouteMessage("Route estimate updated.", token: messageToken)
+        } catch is CancellationError {
+            setRouteMessage(nil, token: messageToken)
         } catch {
-            routeMessage = error.localizedDescription
+            setRouteMessage(error.localizedDescription, token: messageToken)
         }
+        finishRouteOperation(for: place.id, generation: generation)
     }
 
-    func openInAppleMaps(_ place: LifeRouteSavedPlace, mode: LifeRouteTransportMode) async {
-        routeMessage = "Opening Apple Maps…"
+    private func performMapsOpen(
+        _ place: LifeRouteSavedPlace,
+        mode: LifeRouteTransportMode,
+        generation: UInt64,
+        messageToken: UInt64
+    ) async {
         do {
             let destination = try await mapItem(for: place.address)
+            try validateMapsOpen(placeID: place.id, generation: generation)
             destination.name = place.name
             destination.openInMaps(launchOptions: [
                 MKLaunchOptionsDirectionsModeKey: mode.mapsLaunchMode
             ])
-            routeMessage = nil
+            setRouteMessage(nil, token: messageToken)
+        } catch is CancellationError {
+            setRouteMessage(nil, token: messageToken)
         } catch {
-            routeMessage = error.localizedDescription
+            setRouteMessage(error.localizedDescription, token: messageToken)
         }
+        finishMapsOpen(generation: generation)
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
         updateLocationMessage(for: authorizationStatus)
-        if authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse {
+        let shouldRequestLocation = locationRequestPendingAuthorization
+        locationRequestPendingAuthorization = false
+        if shouldRequestLocation,
+           (authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse) {
+            locationRequestInFlight = true
+            locationMessage = "Updating current location…"
             manager.requestLocation()
+        } else if authorizationStatus != .notDetermined {
+            locationRequestInFlight = false
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last else { return }
+        guard locationRequestInFlight else { return }
+        locationRequestInFlight = false
+        guard let location = locations.last else {
+            locationMessage = "Location unavailable; no position was returned."
+            return
+        }
         currentLocation = location
         locationMessage = "Current location ready"
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        guard locationRequestInFlight else { return }
+        locationRequestInFlight = false
         locationMessage = "Location unavailable: \(error.localizedDescription)"
+    }
+
+    @discardableResult
+    private func publishRouteMessage(_ message: String?) -> UInt64 {
+        routeMessageGeneration &+= 1
+        routeMessage = message
+        return routeMessageGeneration
+    }
+
+    private func setRouteMessage(_ message: String?, token: UInt64) {
+        guard token == routeMessageGeneration else { return }
+        routeMessage = message
+    }
+
+    private func validateRouteOperation(for placeID: UUID, generation: UInt64) throws {
+        try Task.checkCancellation()
+        guard routeGenerationByPlace[placeID] == generation,
+              savedPlaces.contains(where: { $0.id == placeID }) else {
+            throw CancellationError()
+        }
+    }
+
+    private func finishRouteOperation(for placeID: UUID, generation: UInt64) {
+        guard routeGenerationByPlace[placeID] == generation else { return }
+        routeTasks[placeID] = nil
+        routeMessageTokenByPlace[placeID] = nil
+        routeRequestsInFlight.remove(placeID)
+    }
+
+    private func cancelRouteOperation(for placeID: UUID) {
+        routeTasks.removeValue(forKey: placeID)?.cancel()
+        routeGenerationByPlace[placeID, default: 0] &+= 1
+        routeRequestsInFlight.remove(placeID)
+        if let token = routeMessageTokenByPlace.removeValue(forKey: placeID),
+           token == routeMessageGeneration {
+            _ = publishRouteMessage(nil)
+        }
+    }
+
+    private func validateMapsOpen(placeID: UUID, generation: UInt64) throws {
+        try Task.checkCancellation()
+        guard mapsOpenGeneration == generation,
+              savedPlaces.contains(where: { $0.id == placeID }) else {
+            throw CancellationError()
+        }
+    }
+
+    private func finishMapsOpen(generation: UInt64) {
+        guard mapsOpenGeneration == generation else { return }
+        mapsOpenTask = nil
+        mapsOpenInFlight = false
     }
 
     private func persistRoutingInputs() {

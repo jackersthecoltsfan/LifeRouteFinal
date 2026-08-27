@@ -318,18 +318,17 @@ struct ClientVisualIconLibraryView: View {
         }
         .navigationTitle("\(clientCode) Icons")
         .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: selectedPhotoItem) { newItem in
-            Task {
-                guard let newItem else {
-                    photoData = nil
-                    photoPreviewID = UUID()
-                    return
-                }
-                let loadedData = try? await newItem.loadTransferable(type: Data.self)
-                guard !Task.isCancelled else { return }
+        .task(id: selectedPhotoItem) {
+            guard let selectedPhotoItem else {
+                photoData = nil
                 photoPreviewID = UUID()
-                photoData = loadedData
+                return
             }
+            let loadedData = try? await selectedPhotoItem.loadTransferable(type: Data.self)
+            guard !Task.isCancelled,
+                  selectedPhotoItem == self.selectedPhotoItem else { return }
+            photoPreviewID = UUID()
+            photoData = loadedData
         }
     }
 

@@ -446,7 +446,11 @@ final class LifeRoutePersistenceStore {
     }
 
     func flushPendingWrites() async {
-        await persistenceTask?.value
+        while true {
+            let revisionAtStart = persistenceRevision
+            await persistenceTask?.value
+            guard revisionAtStart != persistenceRevision else { return }
+        }
     }
 
     private static func sanitized(_ input: NativeState) -> NativeState {

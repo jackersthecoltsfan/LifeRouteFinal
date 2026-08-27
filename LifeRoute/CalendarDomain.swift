@@ -145,15 +145,20 @@ final class CalendarCoreState: ObservableObject {
 
     func replaceProviderEvents(_ incoming: [LifeRouteCalendarEvent], source: LifeRouteCalendarSource) {
         guard source != .manual else { return }
-        events.removeAll { $0.source == source }
-        events.append(contentsOf: incoming.filter { $0.source == source })
-        events.sort(by: Self.eventSort)
+        let nextEvents = (
+            events.filter { $0.source != source }
+                + incoming.filter { $0.source == source }
+        ).sorted(by: Self.eventSort)
+        guard nextEvents != events else { return }
+        events = nextEvents
         rebuildEventIndexes()
     }
 
     func removeProviderEvents(source: LifeRouteCalendarSource) {
         guard source != .manual else { return }
-        events.removeAll { $0.source == source }
+        let nextEvents = events.filter { $0.source != source }
+        guard nextEvents != events else { return }
+        events = nextEvents
         rebuildEventIndexes()
     }
 

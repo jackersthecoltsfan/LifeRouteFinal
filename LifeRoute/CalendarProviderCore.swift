@@ -47,6 +47,10 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
     private var googleAuthSession: ASWebAuthenticationSession?
     private var googleAccessToken: String?
     private var googleAccessTokenExpiry: Date?
+    private var appleRefreshTask: Task<Void, Never>?
+    private var googleRefreshTask: Task<Void, Never>?
+    private var appleOperationGeneration: UInt64 = 0
+    private var googleOperationGeneration: UInt64 = 0
 
     private let googleScope = "https://www.googleapis.com/auth/calendar.readonly"
     private let googleAuthorizationEndpoint = URL(string: "https://accounts.google.com/o/oauth2/v2/auth")!
@@ -64,14 +68,28 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
         }
     }
 
-    func connectOrRefreshApple() async -> [LifeRouteCalendarEvent]? {
-        guard !appleBusy else { return nil }
+    func connectOrRefreshApple(
+        onEvents: @escaping @MainActor ([LifeRouteCalendarEvent]) -> Void
+    ) {
+        guard appleRefreshTask == nil else { return }
+        appleOperationGeneration &+= 1
+        let generation = appleOperationGeneration
         appleBusy = true
-        defer { appleBusy = false }
+        appleRefreshTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let events = await self.performAppleRefresh(generation: generation)
+            guard self.appleOperationGeneration == generation else { return }
+            if let events { onEvents(events) }
+            self.appleRefreshTask = nil
+            self.appleBusy = false
+        }
+    }
 
+    private func performAppleRefresh(generation: UInt64) async -> [LifeRouteCalendarEvent]? {
         if !hasAppleCalendarReadAccess {
             appleStatus = "Requesting calendar access…"
             let granted = await requestAppleCalendarAccess()
+            guard isCurrentAppleOperation(generation) else { return nil }
             guard granted else {
                 appleConnected = false
                 refreshAppleAuthorizationLabel()
@@ -79,34 +97,58 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
             }
         }
 
+        guard isCurrentAppleOperation(generation) else { return nil }
         let events = fetchAppleCalendarEvents()
         appleConnected = true
         appleStatus = "Connected · \(events.count) events"
         return events
     }
 
-    func connectOrRefreshGoogle() async -> [LifeRouteCalendarEvent]? {
-        guard !googleBusy else { return nil }
+    func connectOrRefreshGoogle(
+        onEvents: @escaping @MainActor ([LifeRouteCalendarEvent]) -> Void
+    ) {
+        guard googleRefreshTask == nil else { return }
         guard googleCalendarConfigured else {
             googleConnected = false
             googleStatus = "Setup needed"
-            return nil
+            return
         }
 
+        googleOperationGeneration &+= 1
+        let generation = googleOperationGeneration
         googleBusy = true
-        defer { googleBusy = false }
+        googleRefreshTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let events = await self.performGoogleRefresh(generation: generation)
+            guard self.googleOperationGeneration == generation else { return }
+            if let events { onEvents(events) }
+            self.googleRefreshTask = nil
+            self.googleBusy = false
+        }
+    }
 
+    private func performGoogleRefresh(generation: UInt64) async -> [LifeRouteCalendarEvent]? {
         do {
             if readGoogleRefreshToken() == nil && googleAccessToken == nil {
                 googleStatus = "Opening Google sign-in…"
-                try await authorizeGoogle()
+                try await authorizeGoogle(generation: generation)
             }
+            try validateGoogleOperation(generation)
             googleStatus = "Refreshing Google Calendar…"
-            let events = try await fetchGoogleCalendarEvents()
+            let events = try await fetchGoogleCalendarEvents(generation: generation)
+            try validateGoogleOperation(generation)
             googleConnected = true
             googleStatus = "Connected · \(events.count) events"
             return events
+        } catch is CancellationError {
+            guard googleOperationGeneration == generation else { return nil }
+            googleConnected = readGoogleRefreshToken() != nil || googleAccessToken != nil
+            googleStatus = googleConnected
+                ? "Connected · refresh cancelled"
+                : "Refresh cancelled"
+            return nil
         } catch {
+            guard googleOperationGeneration == generation else { return nil }
             if case GoogleCalendarProviderError.authorizationCancelled = error {
                 googleStatus = "Sign-in cancelled"
             } else {
@@ -118,11 +160,15 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
     }
 
     func disconnectGoogle() {
+        googleOperationGeneration &+= 1
+        googleRefreshTask?.cancel()
+        googleRefreshTask = nil
         googleAuthSession?.cancel()
         googleAuthSession = nil
         googleAccessToken = nil
         googleAccessTokenExpiry = nil
         deleteGoogleRefreshToken()
+        googleBusy = false
         googleConnected = false
         googleStatus = "Not connected"
     }
@@ -134,6 +180,17 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
             }
         }
         return UIWindow()
+    }
+
+    private func isCurrentAppleOperation(_ generation: UInt64) -> Bool {
+        !Task.isCancelled && appleOperationGeneration == generation
+    }
+
+    private func validateGoogleOperation(_ generation: UInt64) throws {
+        try Task.checkCancellation()
+        guard googleOperationGeneration == generation else {
+            throw CancellationError()
+        }
     }
 
     private func requestAppleCalendarAccess() async -> Bool {
@@ -243,7 +300,7 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
         googleClientID != nil && googleRedirectScheme != nil
     }
 
-    private func authorizeGoogle() async throws {
+    private func authorizeGoogle(generation: UInt64) async throws {
         guard let clientID = googleClientID,
               let redirectScheme = googleRedirectScheme,
               let redirectURI = googleRedirectURI else {
@@ -270,50 +327,62 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
             throw GoogleCalendarProviderError.invalidAuthorizationResponse
         }
 
-        let code: String = try await withCheckedThrowingContinuation { continuation in
-            let session = ASWebAuthenticationSession(url: authorizationURL, callbackURLScheme: redirectScheme) { callbackURL, error in
-                if let error {
-                    let authError = error as NSError
-                    if authError.domain == ASWebAuthenticationSessionError.errorDomain,
-                       authError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
-                        continuation.resume(throwing: GoogleCalendarProviderError.authorizationCancelled)
-                    } else {
-                        continuation.resume(throwing: error)
+        let code: String = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let session = ASWebAuthenticationSession(url: authorizationURL, callbackURLScheme: redirectScheme) { callbackURL, error in
+                    if let error {
+                        let authError = error as NSError
+                        if authError.domain == ASWebAuthenticationSessionError.errorDomain,
+                           authError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
+                            continuation.resume(throwing: GoogleCalendarProviderError.authorizationCancelled)
+                        } else {
+                            continuation.resume(throwing: error)
+                        }
+                        return
                     }
-                    return
-                }
 
-                guard let callbackURL,
-                      let callback = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false) else {
+                    guard let callbackURL,
+                          let callback = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false) else {
+                        continuation.resume(throwing: GoogleCalendarProviderError.invalidAuthorizationResponse)
+                        return
+                    }
+                    let params = Dictionary(
+                        (callback.queryItems ?? []).compactMap { item in
+                            item.value.map { (item.name, $0) }
+                        },
+                        uniquingKeysWith: { first, _ in first }
+                    )
+                    if let oauthError = params["error"] {
+                        continuation.resume(throwing: GoogleCalendarProviderError.oauth(oauthError))
+                        return
+                    }
+                    guard params["state"] == state else {
+                        continuation.resume(throwing: GoogleCalendarProviderError.stateMismatch)
+                        return
+                    }
+                    guard let code = params["code"] else {
+                        continuation.resume(throwing: GoogleCalendarProviderError.invalidAuthorizationResponse)
+                        return
+                    }
+                    continuation.resume(returning: code)
+                }
+                session.presentationContextProvider = self
+                session.prefersEphemeralWebBrowserSession = false
+                googleAuthSession = session
+                if !session.start() {
+                    googleAuthSession = nil
                     continuation.resume(throwing: GoogleCalendarProviderError.invalidAuthorizationResponse)
-                    return
                 }
-                let params = Dictionary(uniqueKeysWithValues: (callback.queryItems ?? []).compactMap { item in
-                    item.value.map { (item.name, $0) }
-                })
-                if let oauthError = params["error"] {
-                    continuation.resume(throwing: GoogleCalendarProviderError.oauth(oauthError))
-                    return
-                }
-                guard params["state"] == state else {
-                    continuation.resume(throwing: GoogleCalendarProviderError.stateMismatch)
-                    return
-                }
-                guard let code = params["code"] else {
-                    continuation.resume(throwing: GoogleCalendarProviderError.invalidAuthorizationResponse)
-                    return
-                }
-                continuation.resume(returning: code)
             }
-            session.presentationContextProvider = self
-            session.prefersEphemeralWebBrowserSession = false
-            googleAuthSession = session
-            if !session.start() {
-                googleAuthSession = nil
-                continuation.resume(throwing: GoogleCalendarProviderError.invalidAuthorizationResponse)
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                guard let self,
+                      self.googleOperationGeneration == generation else { return }
+                self.googleAuthSession?.cancel()
             }
         }
         googleAuthSession = nil
+        try validateGoogleOperation(generation)
 
         let payload = try await postGoogleTokenForm([
             "code": code,
@@ -322,12 +391,15 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
             "grant_type": "authorization_code",
             "code_verifier": codeVerifier
         ])
+        try validateGoogleOperation(generation)
         try applyGoogleTokenResponse(payload)
     }
 
-    private func fetchGoogleCalendarEvents() async throws -> [LifeRouteCalendarEvent] {
-        let accessToken = try await validGoogleAccessToken()
+    private func fetchGoogleCalendarEvents(generation: UInt64) async throws -> [LifeRouteCalendarEvent] {
+        let accessToken = try await validGoogleAccessToken(generation: generation)
+        try validateGoogleOperation(generation)
         let calendars = try await fetchGoogleCalendars(accessToken: accessToken)
+        try validateGoogleOperation(generation)
         let now = Date()
         let calendar = Calendar.current
         let start = calendar.date(byAdding: .day, value: -1, to: now) ?? now
@@ -342,8 +414,19 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
                 ?? "Google Calendar"
             let calendarTimeZone = calendarEntry["timeZone"] as? String
             var pageToken: String?
+            var seenPageTokens = Set<String>()
+            var pageCount = 0
 
             repeat {
+                try validateGoogleOperation(generation)
+                if let pageToken,
+                   !seenPageTokens.insert(pageToken).inserted {
+                    throw GoogleCalendarProviderError.invalidServerResponse
+                }
+                pageCount += 1
+                guard pageCount <= 100 else {
+                    throw GoogleCalendarProviderError.invalidServerResponse
+                }
                 let encodedID = calendarID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? calendarID
                 var components = URLComponents(string: "\(googleCalendarBaseURL)/calendars/\(encodedID)/events")!
                 var query = [
@@ -358,6 +441,7 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
                 components.queryItems = query
 
                 let payload = try await googleGET(url: components.url!, accessToken: accessToken)
+                try validateGoogleOperation(generation)
                 for item in payload["items"] as? [[String: Any]] ?? [] {
                     guard (item["status"] as? String) != "cancelled",
                           let eventID = item["id"] as? String,
@@ -396,7 +480,7 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
         }
     }
 
-    private func validGoogleAccessToken() async throws -> String {
+    private func validGoogleAccessToken(generation: UInt64) async throws -> String {
         if let token = googleAccessToken,
            let expiry = googleAccessTokenExpiry,
            expiry.timeIntervalSinceNow > 90 {
@@ -414,6 +498,7 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
                 "refresh_token": refreshToken,
                 "grant_type": "refresh_token"
             ])
+            try validateGoogleOperation(generation)
             try applyGoogleTokenResponse(payload)
         } catch {
             if case GoogleCalendarProviderError.oauth(let message) = error,
@@ -434,6 +519,7 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
 
     private func postGoogleTokenForm(_ fields: [String: String]) async throws -> [String: Any] {
         var request = URLRequest(url: googleTokenEndpoint)
+        request.timeoutInterval = 30
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpBody = formEncoded(fields).data(using: .utf8)
@@ -466,6 +552,7 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
 
     private func googleGET(url: URL, accessToken: String) async throws -> [String: Any] {
         var request = URLRequest(url: url)
+        request.timeoutInterval = 30
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (data, response) = try await URLSession.shared.data(for: request)

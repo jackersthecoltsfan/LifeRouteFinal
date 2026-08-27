@@ -4,58 +4,96 @@ import UIKit
 import ImageIO
 
 struct SessionToolsNativeView: View {
+    @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var router: AppRouter
     @ObservedObject var toolsState: SessionToolsCore
     @ObservedObject var clientState: ClientProfileCore
     @StateObject private var visualState = ClientVisualSupportCore()
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ]
+
     var body: some View {
-        List {
-            Section {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Session Tools")
-                        .font(.largeTitle.bold())
-                    Text("Native, deterministic tools for direct session work. No AI or cosmetic runtime is required for these controls.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
+        ScrollView {
+            LazyVStack(spacing: 17) {
+                toolsHero
 
-            Section("Tools") {
-                NavigationLink(value: SessionToolRoute.visualTimer) {
-                    Label("Visual Timer", systemImage: "timer")
-                }
-                NavigationLink(value: SessionToolRoute.quickNotes) {
-                    Label("Quick Session Notes", systemImage: "note.text")
-                }
-                NavigationLink {
-                    ClientVisualSupportCenter(visualState: visualState, clientState: clientState)
-                } label: {
-                    Label("Client Visual Supports", systemImage: "square.grid.2x2")
-                }
-                NavigationLink(value: SessionToolRoute.firstThen) {
-                    Label("First / Then", systemImage: "arrow.right")
-                }
-                NavigationLink(value: SessionToolRoute.sessionPlan) {
-                    Label("Session Plan Organizer", systemImage: "list.bullet.rectangle")
-                }
-            }
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Session command center")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(palette.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-            Section("Client context") {
-                Text("\(clientState.clients.count) saved client profiles available to session tools")
-                    .foregroundStyle(.secondary)
-                Button("Manage clients in Setup") {
-                    router.select(.setup)
-                }
-            }
+                    LazyVGrid(columns: columns, spacing: 10) {
+                        NavigationLink(value: SessionToolRoute.visualTimer) {
+                            SessionToolCard(
+                                title: "Visual Timer",
+                                subtitle: "Fast, reliable session timing",
+                                systemImage: "timer",
+                                accent: palette.accent
+                            )
+                        }
+                        .buttonStyle(.plain)
 
-            Section {
+                        NavigationLink(value: SessionToolRoute.quickNotes) {
+                            SessionToolCard(
+                                title: "Quick Notes",
+                                subtitle: "Capture session scratch notes",
+                                systemImage: "note.text",
+                                accent: palette.accentSecondary
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink {
+                            ClientVisualSupportCenter(visualState: visualState, clientState: clientState)
+                        } label: {
+                            SessionToolCard(
+                                title: "Visual Supports",
+                                subtitle: "Icons, boards, and schedules",
+                                systemImage: "square.grid.2x2.fill",
+                                accent: palette.accent
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink(value: SessionToolRoute.firstThen) {
+                            SessionToolCard(
+                                title: "First / Then",
+                                subtitle: "Build a clear visual sequence",
+                                systemImage: "arrow.right.circle.fill",
+                                accent: palette.accentSecondary
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink(value: SessionToolRoute.sessionPlan) {
+                            SessionToolCard(
+                                title: "Session Plan",
+                                subtitle: "Organize approved priorities",
+                                systemImage: "list.bullet.clipboard.fill",
+                                accent: palette.accent
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+                clientContextCard
+
                 Text("Visual supports are client-specific and saved locally on this iPhone.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 2)
             }
+            .padding(18)
+            .padding(.bottom, 24)
         }
         .navigationTitle("Tools")
+        .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: SessionToolRoute.self) { route in
             switch route {
             case .visualTimer:
@@ -74,6 +112,132 @@ struct SessionToolsNativeView: View {
         .onReceive(clientState.$clients) { clients in
             visualState.retainClients(clients)
         }
+    }
+
+    private var toolsHero: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [palette.panelElevated.opacity(0.92), palette.panel.opacity(0.78)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            Circle()
+                .fill(palette.accent.opacity(0.20))
+                .frame(width: 190, height: 190)
+                .offset(x: 190, y: -72)
+
+            VStack(alignment: .leading, spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        .fill(palette.accent.opacity(0.16))
+                    Image(systemName: "wrench.and.screwdriver.fill")
+                        .font(.system(size: 21, weight: .bold))
+                        .foregroundStyle(palette.accent)
+                }
+                .frame(width: 50, height: 50)
+
+                Text("Ready for session.")
+                    .font(.system(size: 30, weight: .black, design: .rounded))
+                    .foregroundStyle(palette.textPrimary)
+
+                Text("Everything you need in the moment, without digging through setup screens.")
+                    .font(.subheadline)
+                    .foregroundStyle(palette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(21)
+        }
+        .frame(minHeight: 210)
+        .overlay {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
+                .stroke(palette.accent.opacity(0.30), lineWidth: 1)
+        }
+        .shadow(color: palette.accent.opacity(0.10), radius: 24, y: 10)
+    }
+
+    private var clientContextCard: some View {
+        HStack(spacing: 13) {
+            ZStack {
+                Circle().fill(palette.accent.opacity(0.14))
+                Image(systemName: "person.2.fill")
+                    .foregroundStyle(palette.accent)
+            }
+            .frame(width: 46, height: 46)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Client context")
+                    .font(.headline)
+                    .foregroundStyle(palette.textPrimary)
+                Text("\(clientState.clients.count) saved client profiles available to session tools")
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+            }
+
+            Spacer(minLength: 8)
+
+            Button("Manage") {
+                router.select(.setup)
+            }
+            .font(.caption.weight(.bold))
+            .foregroundStyle(palette.accent)
+        }
+        .lifeRouteCard()
+    }
+}
+
+private struct SessionToolCard: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    let accent: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(accent.opacity(0.15))
+                Image(systemName: systemImage)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(accent)
+            }
+            .frame(width: 46, height: 46)
+
+            Spacer(minLength: 0)
+
+            Text(title)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(palette.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(subtitle)
+                .font(.caption2)
+                .foregroundStyle(palette.textSecondary)
+                .multilineTextAlignment(.leading)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, minHeight: 130, alignment: .leading)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 19, style: .continuous)
+                .fill(palette.panelGradient)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 19, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [accent.opacity(0.30), Color.white.opacity(0.06)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        }
+        .shadow(color: Color.black.opacity(0.16), radius: 14, y: 7)
     }
 }
 

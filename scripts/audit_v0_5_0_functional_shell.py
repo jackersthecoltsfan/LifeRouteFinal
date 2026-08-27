@@ -51,7 +51,10 @@ require("TextField(" in content, "Functional shell contains a semantic native Te
 require("Toggle(" in content, "Functional shell contains semantic native state controls")
 require("LifeRouteWebView()" not in content, "Functional shell does not instantiate legacy WKWebView")
 require("WKWebView" not in content and "JavaScript" not in content, "Functional shell has no WebView/JavaScript dependency")
-require("No PIN or password gate" in content, "Setup explicitly documents direct-launch/no-PIN behavior")
+require(
+    "No account gate is required to open the app." in content,
+    "Setup explicitly documents direct-launch/no-account-gate behavior",
+)
 
 # Active Xcode target must compile only the reviewed native core and assets.
 require("LifeRouteWebView.swift in Sources" not in project, "Legacy LifeRouteWebView is quarantined from Sources")
@@ -62,13 +65,13 @@ require("AppNavigation.swift in Sources" in project, "Central native navigation 
 require("Assets.xcassets in Resources" in project, "App assets remain bundled")
 
 versions = [version.strip() for version in re.findall(r"MARKETING_VERSION = ([^;]+);", project)]
-allowed_marketing_versions = {"0.5.0", "0.5.1", "0.5.2"}
+allowed_marketing_versions = {"0.5.0", "0.5.1", "0.5.2", "0.5.3"}
 require(bool(versions), "Project contains marketing-version settings")
 require(
     bool(versions)
     and len(set(versions)) == 1
     and versions[0] in allowed_marketing_versions,
-    "Every active shipping target uses one approved v0.5 marketing version (0.5.0, 0.5.1, or 0.5.2)",
+    "Every active shipping target uses one approved v0.5 marketing version (0.5.0 through 0.5.3)",
 )
 
 # Preparation must not resurrect the quarantined v0.4 runtime.

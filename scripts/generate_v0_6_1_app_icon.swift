@@ -8,12 +8,12 @@ guard let bitmap = NSBitmapImageRep(
     pixelsWide: canvasSize,
     pixelsHigh: canvasSize,
     bitsPerSample: 8,
-    samplesPerPixel: 4,
+    samplesPerPixel: 3,
     hasAlpha: false,
     isPlanar: false,
     colorSpaceName: .deviceRGB,
     bytesPerRow: 0,
-    bitsPerPixel: 32
+    bitsPerPixel: 24
 ), let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
     fatalError("Could not create LifeRoute icon drawing context")
 }

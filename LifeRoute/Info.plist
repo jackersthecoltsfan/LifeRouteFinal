@@ -31,8 +31,18 @@
                 <string>com.googleusercontent.apps.601974933090-8tah9eh7ur883j0oaenimgs556et7psk</string>
             </array>
         </dict>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>liferoute</string>
+            </array>
+        </dict>
     </array>
 
+    <key>NSSupportsLiveActivities</key>
+    <true/>
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>LifeRoute reads the calendars you choose so it can combine appointments, find usable gaps, and plan routes. LifeRoute does not edit or delete your calendar events.</string>
     <key>NSCalendarsUsageDescription</key>

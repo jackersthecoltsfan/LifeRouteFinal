@@ -58,7 +58,17 @@ require("func resetPath(for section: AppSection)" in s["navigation"], "Navigatio
 require("routingState.requestCurrentLocation()" in s["today"] and "routingState.stopLiveLocation()" in s["today"], "Today retains explicit live-location start/stop")
 require("startUpdatingLocation()" in s["routing"] and "allowsBackgroundLocationUpdates = false" in s["routing"], "Live GPS remains continuous while foreground-only")
 require("MKLocalSearchCompleter" in s["routing"], "Native address autocomplete remains available")
-require("saveRoutingState(homeAddress: homeAddress, savedPlaces: savedPlaces)" in s["routing"], "Home and saved-place mutations persist through one owner")
+# v0.7.0 reviewed superset: Home and Saved Places still mutate through one helper;
+# the same protected snapshot now also carries restored weekly To-Dos. Keep the
+# original mutation ownership strict instead of accepting arbitrary direct writes.
+require(
+    "private func persistRoutingInputs()" in s["routing"]
+    and s["routing"].count("persistRoutingInputs()") == 4
+    and "homeAddress: homeAddress" in s["routing"]
+    and "savedPlaces: savedPlaces" in s["routing"]
+    and "todos: todos" in s["routing"],
+    "Home and saved-place mutations persist through one owner, with reviewed To-Dos in the same protected routing snapshot",
+)
 require("currentLocation" not in s["persistence"] and "routeEstimates" not in s["persistence"], "Live coordinates and calculated routes remain transient")
 require("case before" in s["day_route"] and "case after" in s["day_route"] and "if returnHome" in s["day_route"], "Day routing supports before stops, after stops, and Return Home")
 

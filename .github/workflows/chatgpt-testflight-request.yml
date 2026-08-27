@@ -56,17 +56,22 @@ jobs:
               break
             fi
 
-            COMPARE=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${candidate_sha}...${RELEASE_SHA}" 2>/dev/null || true)
-            [ "$(jq -r '.merge_base_commit.sha // empty' <<<"${COMPARE:-{}}")" = "$candidate_sha" ] || continue
+            MERGE_BASE=$(gh api \
+              "repos/${GITHUB_REPOSITORY}/compare/${candidate_sha}...${RELEASE_SHA}" \
+              --jq '.merge_base_commit.sha // empty' 2>/dev/null || true)
+            [ "$MERGE_BASE" = "$candidate_sha" ] || continue
 
             SAFE=true
             while IFS= read -r file; do
+              [ -n "$file" ] || continue
               case "$file" in
-                *.md|ReusableAppWorkflow/*|ReusableAppWorkflow/**/*|.github/workflows/chatgpt-testflight-request.yml|.github/workflows/testflight.yml|.github/workflows/policy-check.yml)
+                *.md|ReusableAppWorkflow/*|ReusableAppWorkflow/**/*|.github/workflows/chatgpt-testflight-request.yml|.github/workflows/testflight.yml|.github/workflows/policy-check.yml|.github/workflows/pages.yml)
                   ;;
                 *) SAFE=false; break ;;
               esac
-            done < <(jq -r '.files[].filename' <<<"$COMPARE")
+            done < <(gh api \
+              "repos/${GITHUB_REPOSITORY}/compare/${candidate_sha}...${RELEASE_SHA}" \
+              --jq '.files[].filename' 2>/dev/null || true)
             [ "$SAFE" = true ] && { FOUND="$candidate_id"; break; }
           done < <(jq -r '.workflow_runs[] | select(.status == "completed" and .conclusion == "success") | [.id, .head_sha] | @tsv' <<<"$RUNS")
 
@@ -90,17 +95,22 @@ jobs:
               break
             fi
 
-            COMPARE=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${candidate_sha}...${RELEASE_SHA}" 2>/dev/null || true)
-            [ "$(jq -r '.merge_base_commit.sha // empty' <<<"${COMPARE:-{}}")" = "$candidate_sha" ] || continue
+            MERGE_BASE=$(gh api \
+              "repos/${GITHUB_REPOSITORY}/compare/${candidate_sha}...${RELEASE_SHA}" \
+              --jq '.merge_base_commit.sha // empty' 2>/dev/null || true)
+            [ "$MERGE_BASE" = "$candidate_sha" ] || continue
 
             SAFE=true
             while IFS= read -r file; do
+              [ -n "$file" ] || continue
               case "$file" in
-                *.md|ReusableAppWorkflow/*|ReusableAppWorkflow/**/*|.github/workflows/chatgpt-testflight-request.yml|.github/workflows/testflight.yml|.github/workflows/policy-check.yml)
+                *.md|ReusableAppWorkflow/*|ReusableAppWorkflow/**/*|.github/workflows/chatgpt-testflight-request.yml|.github/workflows/testflight.yml|.github/workflows/policy-check.yml|.github/workflows/ios-ci.yml)
                   ;;
                 *) SAFE=false; break ;;
               esac
-            done < <(jq -r '.files[].filename' <<<"$COMPARE")
+            done < <(gh api \
+              "repos/${GITHUB_REPOSITORY}/compare/${candidate_sha}...${RELEASE_SHA}" \
+              --jq '.files[].filename' 2>/dev/null || true)
             [ "$SAFE" = true ] && { FOUND="$candidate_id"; break; }
           done < <(jq -r '.workflow_runs[] | select(.status == "completed" and .conclusion == "success") | [.id, .head_sha] | @tsv' <<<"$RUNS")
 

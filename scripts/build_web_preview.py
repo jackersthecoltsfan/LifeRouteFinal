@@ -7,11 +7,29 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "LifeRoute" / "Web"
 DIST = ROOT / "dist"
 PREVIEW = ROOT / "scripts" / "web-preview.js"
+TOOLS = SOURCE / "rbt-tools.js"
 
 if not SOURCE.is_dir():
     raise SystemExit("LifeRoute/Web is missing")
 if not PREVIEW.is_file():
     raise SystemExit("scripts/web-preview.js is missing")
+if not TOOLS.is_file():
+    raise SystemExit("LifeRoute/Web/rbt-tools.js is missing")
+
+preview_source = PREVIEW.read_text(encoding="utf-8")
+tools_source = TOOLS.read_text(encoding="utf-8")
+if 'loadPreviewScript("rbt-tools.js")' not in preview_source:
+    raise SystemExit("Web preview Tools regression: rbt-tools.js is not loaded by the browser bootstrap")
+for marker in [
+    '.tab[data-view="tools"]',
+    'section.id = "tools"',
+    'Visual timer',
+    'Quick session notes',
+    'First / Then',
+    'Session plan builder',
+]:
+    if marker not in tools_source:
+        raise SystemExit(f"Web preview Tools regression: missing contract marker {marker}")
 
 if DIST.exists():
     shutil.rmtree(DIST)
@@ -51,4 +69,4 @@ else:
     raise SystemExit("Could not add LifeRoute web build marker: </head> not found")
 
 index.write_text(html)
-print(f"LifeRoute browser preview built for {sha} at {DIST}")
+print(f"LifeRoute browser preview built for {sha} at {DIST}; Session Tools navigation contract verified")

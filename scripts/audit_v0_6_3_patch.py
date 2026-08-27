@@ -76,7 +76,7 @@ require_all(
 require("bellThird" not in timer, "sharp third harmonic must be removed from timer ticks")
 require_all(timer_view, ["Timer sound", "timer.setVolume", "5 dB digital crescendo", "432 Hz to 1728 Hz"], "timer UI regression")
 
-# Core is exactly the ten requested user-facing polished color systems, in intentional order.
+# Core is exactly the ten requested user-facing color systems, in intentional order.
 core_order = "[.royal, .cobaltShine, .golden, .sunflare, .noir, .kaleidoscope, .light, .dark, .classic, .accessible]"
 require(core_order in theme_center, "Core must expose exactly the requested ten themes in the v0.6.3 order")
 require_all(
@@ -103,7 +103,7 @@ require_all(
     cinematic,
     [
         'case .core: return "Polished Metallic"',
-        "v0.6.3 polished Core treatment",
+        "v0.6.3 Core color-scheme-only cleanup",
         "theme == .accessible",
         "theme == .kaleidoscope",
         "colors: [.red, .orange, .yellow, .green, .cyan, .blue, .purple, .pink]",
@@ -114,8 +114,11 @@ require_all(
         "case .forest:",
         "case .sunshine:",
     ],
-    "polished Core and six Scenery treatments",
+    "Core color schemes and six Scenery treatments",
 )
+core_block = cinematic.split("        case .core:", 1)[1].split("        case .scenery:", 1)[0]
+require("LifeRouteThemeArtwork" not in core_block, "Core themes must not contain artwork or symbol imprints")
+require("ForEach(" not in core_block, "Core themes must not contain decorative band imprints")
 
 # Scenery must now be the true app-wide chrome, not merely a hero thumbnail/backdrop.
 chrome_block = theme_model.split("private struct LifeRouteChromeModifier", 1)[1].split("private struct LifeRouteThemeBackdrop", 1)[0]
@@ -139,6 +142,10 @@ require_all(
         "@State private var selectedDay = Calendar.current.startOfDay(for: Date())",
         "private var daySelector: some View",
         'DatePicker("Choose day", selection: $selectedDay, displayedComponents: .date)',
+        "v0.6.3 responsive day selector layout",
+        'Label("Choose date", systemImage: "calendar")',
+        ".layoutPriority(1)",
+        ".fixedSize()",
         "shiftSelectedDay(by: -1)",
         "shiftSelectedDay(by: 1)",
         "calendarState.events(on: selectedDay)",
@@ -185,4 +192,4 @@ require("LifeRouteWebView.swift in Sources" not in project, "legacy WebView sour
 require("Web in Resources" not in project, "legacy Web runtime must stay out of native resources")
 require("LifeRouteLiveActivityWidget.appex in Embed App Extensions" in project, "Live Activity extension embedding must remain intact")
 
-print("LifeRoute v0.6.3 native audit passed: bounded session-note model requests, persistent scenery across app chrome, ten ordered polished Core themes, selected-day generation/routing/Live Activity launch, gentle click-free timer releases, and TestFlight/native isolation guards.")
+print("LifeRoute v0.6.3 native audit passed: bounded session-note model requests, Core color schemes without imprints, persistent scenery chrome contract, responsive selected-day generation/routing/Live Activity launch, gentle click-free timer releases, and TestFlight/native isolation guards.")

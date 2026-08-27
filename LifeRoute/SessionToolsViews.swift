@@ -400,6 +400,7 @@ struct VisualTimerView: View {
 }
 
 struct QuickSessionNotesView: View {
+    @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var toolsState: SessionToolsCore
     @ObservedObject var clientState: ClientProfileCore
     @State private var selectedClientCode = ""
@@ -407,41 +408,137 @@ struct QuickSessionNotesView: View {
     @State private var message: String?
 
     var body: some View {
-        Form {
-            Section("New scratch note") {
-                Picker("Client", selection: $selectedClientCode) {
-                    Text("General / no client").tag("")
-                    ForEach(clientState.clients) { client in Text(client.code).tag(client.code) }
-                }
-                TextEditor(text: $noteText).frame(minHeight: 100)
-                Button("Save note") {
-                    do {
-                        try toolsState.addNote(text: noteText, clientCode: selectedClientCode)
-                        noteText = ""
-                        message = "Scratch note saved for this app session."
-                    } catch { message = error.localizedDescription }
-                }
-                if let message { Text(message).foregroundStyle(.secondary) }
-            }
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                HStack(alignment: .top, spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(palette.accent.opacity(0.16))
+                        Image(systemName: "note.text.badge.plus")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(palette.accent)
+                    }
+                    .frame(width: 54, height: 54)
 
-            Section("Recent notes") {
-                if toolsState.notes.isEmpty {
-                    Text("No scratch notes yet").foregroundStyle(.secondary)
-                } else {
-                    ForEach(toolsState.notes.reversed()) { note in
-                        VStack(alignment: .leading, spacing: 5) {
-                            HStack {
-                                Text(note.clientCode ?? "General").font(.caption.bold())
-                                Spacer()
-                                Text(note.createdAt.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                            Text(note.text)
-                            Button("Delete note", role: .destructive) { toolsState.removeNote(id: note.id) }
-                        }.padding(.vertical, 3)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Quick capture")
+                            .font(.system(size: 28, weight: .black, design: .rounded))
+                            .foregroundStyle(palette.textPrimary)
+                        Text("Hold onto session details without interrupting the flow of your work.")
+                            .font(.subheadline)
+                            .foregroundStyle(palette.textSecondary)
+                    }
+
+                    Spacer(minLength: 0)
+                }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("New scratch note")
+                            .font(.headline)
+                            .foregroundStyle(palette.textPrimary)
+                        Spacer()
+                        Text(selectedClientCode.isEmpty ? "GENERAL" : selectedClientCode)
+                            .font(.caption2.weight(.black))
+                            .tracking(1.1)
+                            .foregroundStyle(palette.accent)
+                    }
+
+                    Picker("Client", selection: $selectedClientCode) {
+                        Text("General / no client").tag("")
+                        ForEach(clientState.clients) { client in Text(client.code).tag(client.code) }
+                    }
+                    .pickerStyle(.menu)
+
+                    TextEditor(text: $noteText)
+                        .frame(minHeight: 130)
+                        .scrollContentBackground(.hidden)
+                        .padding(10)
+                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+                        }
+
+                    Button("Save note") {
+                        do {
+                            try toolsState.addNote(text: noteText, clientCode: selectedClientCode)
+                            noteText = ""
+                            message = "Scratch note saved for this app session."
+                        } catch { message = error.localizedDescription }
+                    }
+                    .buttonStyle(LifeRoutePrimaryButtonStyle())
+
+                    if let message {
+                        Label(message, systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 11) {
+                    HStack {
+                        Text("Recent notes")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(palette.textPrimary)
+                        Spacer()
+                        Text("\(toolsState.notes.count)")
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(palette.accent)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(palette.accent.opacity(0.12), in: Capsule())
+                    }
+
+                    if toolsState.notes.isEmpty {
+                        VStack(spacing: 9) {
+                            Image(systemName: "note.text")
+                                .font(.title2)
+                                .foregroundStyle(palette.accent)
+                            Text("No scratch notes yet")
+                                .font(.headline)
+                                .foregroundStyle(palette.textPrimary)
+                            Text("Your newest session observations will collect here.")
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
+                                .foregroundStyle(palette.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                    } else {
+                        ForEach(toolsState.notes.reversed()) { note in
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Label(note.clientCode ?? "General", systemImage: "person.crop.circle")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(palette.accentSecondary)
+                                    Spacer()
+                                    Text(note.createdAt.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.caption2)
+                                        .foregroundStyle(palette.textSecondary)
+                                }
+
+                                Text(note.text)
+                                    .font(.body)
+                                    .foregroundStyle(palette.textPrimary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                                Button("Delete note", role: .destructive) {
+                                    toolsState.removeNote(id: note.id)
+                                }
+                                .font(.caption.weight(.semibold))
+                            }
+                            .padding(13)
+                            .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                    }
+                }
+                .lifeRouteCard()
             }
+            .padding(18)
+            .padding(.bottom, 24)
         }
         .navigationTitle("Quick Notes")
         .navigationBarTitleDisplayMode(.inline)
@@ -802,6 +899,7 @@ struct ClientChoiceBoardBuilderView: View {
 }
 
 struct ClientFirstThenVisualView: View {
+    @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var visualState: ClientVisualSupportCore
     @ObservedObject var clientState: ClientProfileCore
     @State private var selectedClientCode: String
@@ -817,45 +915,132 @@ struct ClientFirstThenVisualView: View {
     }
 
     var body: some View {
-        Form {
-            if clientState.clients.isEmpty {
-                Section { Text("Add a client in Setup before using client visual supports.").foregroundStyle(.secondary) }
-            } else {
-                Section("Client") {
-                    Picker("Client", selection: $selectedClientCode) {
-                        ForEach(clientState.clients) { client in Text(client.code).tag(client.code) }
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                HStack(alignment: .top, spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(palette.accent.opacity(0.16))
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.system(size: 23, weight: .bold))
+                            .foregroundStyle(palette.accent)
                     }
+                    .frame(width: 54, height: 54)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("First → Then")
+                            .font(.system(size: 28, weight: .black, design: .rounded))
+                            .foregroundStyle(palette.textPrimary)
+                        Text("Build a clear two-step visual using text or the selected client’s saved icons.")
+                            .font(.subheadline)
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                    Spacer(minLength: 0)
                 }
+                .lifeRouteCard()
 
-                if !selectedClientCode.isEmpty {
-                    Section("Build") {
+                if clientState.clients.isEmpty {
+                    ContentUnavailableView(
+                        "Add a client first",
+                        systemImage: "person.crop.circle.badge.plus",
+                        description: Text("Add a client in Setup before using client visual supports.")
+                    )
+                    .lifeRouteCard()
+                } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Client")
+                            .font(.headline)
+                            .foregroundStyle(palette.textPrimary)
+                        Picker("Client", selection: $selectedClientCode) {
+                            ForEach(clientState.clients) { client in Text(client.code).tag(client.code) }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                    .lifeRouteCard()
+
+                    if !selectedClientCode.isEmpty {
                         let icons = visualState.icons(for: selectedClientCode)
-                        TextField("First activity", text: $firstText)
-                        Picker("First visual", selection: $firstIconID) {
-                            Text("Text only").tag("")
-                            ForEach(icons) { icon in Text(icon.label).tag(icon.id.uuidString) }
-                        }
-                        TextField("Then activity", text: $thenText)
-                        Picker("Then visual", selection: $thenIconID) {
-                            Text("Text only").tag("")
-                            ForEach(icons) { icon in Text(icon.label).tag(icon.id.uuidString) }
-                        }
-                        Button("Swap First / Then") {
-                            (firstText, thenText) = (thenText, firstText)
-                            (firstIconID, thenIconID) = (thenIconID, firstIconID)
-                        }
-                        Text("Only icons saved to \(selectedClientCode) are available here.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
 
-                    Section("FIRST") {
-                        VisualSupportPreviewCard(icon: selectedIcon(idString: firstIconID), fallbackText: firstText.isEmpty ? "First activity" : firstText)
-                    }
-                    Section("THEN") {
-                        VisualSupportPreviewCard(icon: selectedIcon(idString: thenIconID), fallbackText: thenText.isEmpty ? "Then activity" : thenText)
+                        VStack(alignment: .leading, spacing: 13) {
+                            HStack {
+                                Text("Build sequence")
+                                    .font(.headline)
+                                    .foregroundStyle(palette.textPrimary)
+                                Spacer()
+                                Text(selectedClientCode)
+                                    .font(.caption2.weight(.black))
+                                    .tracking(1)
+                                    .foregroundStyle(palette.accent)
+                            }
+
+                            VStack(alignment: .leading, spacing: 7) {
+                                Text("FIRST")
+                                    .font(.caption2.weight(.black))
+                                    .tracking(1.4)
+                                    .foregroundStyle(palette.accentSecondary)
+                                TextField("First activity", text: $firstText)
+                                Picker("First visual", selection: $firstIconID) {
+                                    Text("Text only").tag("")
+                                    ForEach(icons) { icon in Text(icon.label).tag(icon.id.uuidString) }
+                                }
+                                .pickerStyle(.menu)
+                            }
+                            .padding(12)
+                            .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+                            VStack(alignment: .leading, spacing: 7) {
+                                Text("THEN")
+                                    .font(.caption2.weight(.black))
+                                    .tracking(1.4)
+                                    .foregroundStyle(palette.accentSecondary)
+                                TextField("Then activity", text: $thenText)
+                                Picker("Then visual", selection: $thenIconID) {
+                                    Text("Text only").tag("")
+                                    ForEach(icons) { icon in Text(icon.label).tag(icon.id.uuidString) }
+                                }
+                                .pickerStyle(.menu)
+                            }
+                            .padding(12)
+                            .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+                            Button("Swap First / Then") {
+                                (firstText, thenText) = (thenText, firstText)
+                                (firstIconID, thenIconID) = (thenIconID, firstIconID)
+                            }
+                            .buttonStyle(LifeRouteSecondaryButtonStyle())
+
+                            Text("Only icons saved to \(selectedClientCode) are available here.")
+                                .font(.caption)
+                                .foregroundStyle(palette.textSecondary)
+                        }
+                        .lifeRouteCard()
+
+                        VStack(alignment: .leading, spacing: 11) {
+                            Text("Live preview")
+                                .font(.title3.weight(.bold))
+                                .foregroundStyle(palette.textPrimary)
+
+                            VStack(spacing: 10) {
+                                VisualSupportPreviewCard(
+                                    label: "FIRST",
+                                    icon: selectedIcon(idString: firstIconID),
+                                    fallbackText: firstText.isEmpty ? "First activity" : firstText
+                                )
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(palette.accent)
+                                VisualSupportPreviewCard(
+                                    label: "THEN",
+                                    icon: selectedIcon(idString: thenIconID),
+                                    fallbackText: thenText.isEmpty ? "Then activity" : thenText
+                                )
+                            }
+                        }
                     }
                 }
             }
+            .padding(18)
+            .padding(.bottom, 24)
         }
         .navigationTitle("First / Then")
         .navigationBarTitleDisplayMode(.inline)
@@ -1084,25 +1269,44 @@ private struct ClientVisualIconThumbnail: View {
 }
 
 private struct VisualSupportPreviewCard: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    let label: String
     let icon: ClientVisualIcon?
     let fallbackText: String
 
     var body: some View {
         VStack(spacing: 12) {
+            Text(label)
+                .font(.caption2.weight(.black))
+                .tracking(1.6)
+                .foregroundStyle(palette.accent)
+
             if let icon {
-                ClientVisualIconThumbnail(icon: icon, size: 170)
+                ClientVisualIconThumbnail(icon: icon, size: 150)
                 Text(fallbackText == "First activity" || fallbackText == "Then activity" ? icon.label : fallbackText)
-                    .font(.title.bold())
+                    .font(.title2.weight(.black))
+                    .foregroundStyle(palette.textPrimary)
             } else {
-                Text(fallbackText).font(.title.bold())
+                Image(systemName: "rectangle.dashed")
+                    .font(.system(size: 30, weight: .medium))
+                    .foregroundStyle(palette.textSecondary)
+                Text(fallbackText)
+                    .font(.title2.weight(.black))
+                    .foregroundStyle(palette.textPrimary)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 160)
-        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, minHeight: 190)
+        .padding(16)
+        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(palette.accent.opacity(0.22), lineWidth: 1)
+        }
     }
 }
 
 struct SessionPlanOrganizerView: View {
+    @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var toolsState: SessionToolsCore
     @ObservedObject var clientState: ClientProfileCore
     @State private var selectedClientCode = ""
@@ -1112,63 +1316,163 @@ struct SessionPlanOrganizerView: View {
     @State private var message: String?
 
     var body: some View {
-        Form {
-            Section("Session context") {
-                Picker("Client", selection: $selectedClientCode) {
-                    Text("General / no client").tag("")
-                    ForEach(clientState.clients) { client in Text(client.code).tag(client.code) }
-                }
-                Picker("Session length", selection: $durationMinutes) {
-                    Text("1 hour").tag(60)
-                    Text("1.5 hours").tag(90)
-                    Text("2 hours").tag(120)
-                    Text("3 hours").tag(180)
-                    Text("4 hours").tag(240)
-                }
-                if !selectedClientCode.isEmpty {
-                    Button("Load saved client profile") { loadClientProfile() }
-                }
-            }
-
-            Section("Supervisor-approved targets / priorities") {
-                TextEditor(text: $targetsText).frame(minHeight: 110)
-            }
-
-            Section("Known reinforcers / useful activities") {
-                TextEditor(text: $reinforcersText).frame(minHeight: 90)
-            }
-
-            Section {
-                Button("Build plan") {
-                    do {
-                        _ = try toolsState.buildPlan(
-                            clientCode: selectedClientCode,
-                            durationMinutes: durationMinutes,
-                            targetsText: targetsText,
-                            reinforcersText: reinforcersText
-                        )
-                        message = "Plan organized from the information you supplied."
-                    } catch { message = error.localizedDescription }
-                }
-                Text("This tool only organizes information you enter or load from the client profile. Follow the supervising clinician’s approved prompting, reinforcement, behavior, and treatment procedures.")
-                    .font(.caption).foregroundStyle(.secondary)
-                if let message { Text(message).foregroundStyle(.secondary) }
-            }
-
-            if let plan = toolsState.lastPlan {
-                Section("Current plan") {
-                    LabeledContent("Client", value: plan.clientCode ?? "General")
-                    LabeledContent("Session length", value: "\(plan.durationMinutes) min")
-                    ForEach(Array(plan.targets.enumerated()), id: \.offset) { index, target in
-                        LabeledContent("Target \(index + 1)", value: target)
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                HStack(alignment: .top, spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(palette.accent.opacity(0.16))
+                        Image(systemName: "list.bullet.clipboard.fill")
+                            .font(.system(size: 22, weight: .bold))
+                            .foregroundStyle(palette.accent)
                     }
-                    if !plan.reinforcers.isEmpty {
-                        ForEach(Array(plan.reinforcers.enumerated()), id: \.offset) { index, reinforcer in
-                            LabeledContent("Reinforcer \(index + 1)", value: reinforcer)
+                    .frame(width: 54, height: 54)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Shape the session")
+                            .font(.system(size: 28, weight: .black, design: .rounded))
+                            .foregroundStyle(palette.textPrimary)
+                        Text("Organize approved targets and known reinforcers into one clean working view.")
+                            .font(.subheadline)
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Session context")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+
+                    Picker("Client", selection: $selectedClientCode) {
+                        Text("General / no client").tag("")
+                        ForEach(clientState.clients) { client in Text(client.code).tag(client.code) }
+                    }
+                    .pickerStyle(.menu)
+
+                    Picker("Session length", selection: $durationMinutes) {
+                        Text("1 hour").tag(60)
+                        Text("1.5 hours").tag(90)
+                        Text("2 hours").tag(120)
+                        Text("3 hours").tag(180)
+                        Text("4 hours").tag(240)
+                    }
+                    .pickerStyle(.segmented)
+
+                    if !selectedClientCode.isEmpty {
+                        Button("Load saved client profile") { loadClientProfile() }
+                            .buttonStyle(LifeRouteSecondaryButtonStyle())
+                    }
+                }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 9) {
+                    Label("Supervisor-approved targets / priorities", systemImage: "target")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    TextEditor(text: $targetsText)
+                        .frame(minHeight: 120)
+                        .scrollContentBackground(.hidden)
+                        .padding(10)
+                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 9) {
+                    Label("Known reinforcers / useful activities", systemImage: "sparkles")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    TextEditor(text: $reinforcersText)
+                        .frame(minHeight: 100)
+                        .scrollContentBackground(.hidden)
+                        .padding(10)
+                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 11) {
+                    Button("Build plan") {
+                        do {
+                            _ = try toolsState.buildPlan(
+                                clientCode: selectedClientCode,
+                                durationMinutes: durationMinutes,
+                                targetsText: targetsText,
+                                reinforcersText: reinforcersText
+                            )
+                            message = "Plan organized from the information you supplied."
+                        } catch { message = error.localizedDescription }
+                    }
+                    .buttonStyle(LifeRoutePrimaryButtonStyle())
+
+                    Text("This tool only organizes information you enter or load from the client profile. Follow the supervising clinician’s approved prompting, reinforcement, behavior, and treatment procedures.")
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+
+                    if let message {
+                        Label(message, systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                }
+                .lifeRouteCard()
+
+                if let plan = toolsState.lastPlan {
+                    VStack(alignment: .leading, spacing: 13) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Current plan")
+                                    .font(.title3.weight(.bold))
+                                    .foregroundStyle(palette.textPrimary)
+                                Text(plan.clientCode ?? "General")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(palette.accent)
+                            }
+                            Spacer()
+                            Label("\(plan.durationMinutes) min", systemImage: "clock.fill")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(palette.accentSecondary)
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("TARGETS")
+                                .font(.caption2.weight(.black))
+                                .tracking(1.4)
+                                .foregroundStyle(palette.textSecondary)
+                            ForEach(Array(plan.targets.enumerated()), id: \.offset) { index, target in
+                                HStack(alignment: .top, spacing: 9) {
+                                    Text("\(index + 1)")
+                                        .font(.caption2.weight(.black))
+                                        .foregroundStyle(Color.black.opacity(0.78))
+                                        .frame(width: 24, height: 24)
+                                        .background(palette.accent, in: Circle())
+                                    Text(target)
+                                        .foregroundStyle(palette.textPrimary)
+                                    Spacer()
+                                }
+                            }
+                        }
+
+                        if !plan.reinforcers.isEmpty {
+                            Divider().overlay(Color.white.opacity(0.08))
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("REINFORCERS")
+                                    .font(.caption2.weight(.black))
+                                    .tracking(1.4)
+                                    .foregroundStyle(palette.textSecondary)
+                                ForEach(Array(plan.reinforcers.enumerated()), id: \.offset) { index, reinforcer in
+                                    Label(reinforcer, systemImage: "star.fill")
+                                        .font(.subheadline)
+                                        .foregroundStyle(palette.textPrimary)
+                                }
+                            }
                         }
                     }
+                    .lifeRouteCard()
                 }
             }
+            .padding(18)
+            .padding(.bottom, 24)
         }
         .navigationTitle("Session Plan")
         .navigationBarTitleDisplayMode(.inline)

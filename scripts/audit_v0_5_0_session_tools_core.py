@@ -34,7 +34,20 @@ require("@Published private(set) var deadline: Date?" in domain, "Visual timer u
 require("func remainingSeconds(at now: Date = Date())" in domain, "Timer derives remaining time from the deadline")
 require("TimelineView(.periodic(from: .now, by: 1))" in views, "Timer rendering uses system-driven one-second TimelineView ticks")
 require("ProgressView(value: timer.progress" in views, "Visual timer exposes deterministic progress")
-require("Alerts and haptics are intentionally deferred" in views, "Timer core does not smuggle cosmetic feedback into interaction delivery")
+require("Alerts and haptics are intentionally deferred" in views, "Timer still defers notification and haptic delivery")
+
+# v0.5.2 native audible timer feedback: audio follows the deadline-driven timer
+# but never owns countdown accuracy or introduces a repeating Foundation timer.
+require("import AVFoundation" in domain, "Timer audio uses native AVFoundation")
+require("private final class VisualTimerToneEngine" in domain, "Timer audio has one explicit native engine owner")
+require("AVAudioEngine()" in domain and "AVAudioPlayerNode()" in domain, "Timer pulses are synthesized locally without bundled/network audio")
+require("audioPulseNanoseconds: UInt64 = 250_000_000" in domain, "Audible pulse cadence is exactly 0.25 seconds")
+require("startFrequency = 220.0" in domain and "endFrequency = 1_320.0" in domain, "Rising timer tone spans 220 Hz to 1320 Hz")
+require("pow(elapsedFraction, 1.18)" in domain and "pow(Self.endFrequency / Self.startFrequency, eased)" in domain, "Timer pitch rises smoothly and exponentially with elapsed progress")
+require("completionBuffer()" in domain and "(0.25, 1_430)" in domain, "Timer has a distinct synthesized three-tone completion chime")
+require("private var audioTask: Task<Void, Never>?" in domain and "audioTask?.cancel()" in domain, "Quarter-second audio work has an explicit cancellable owner")
+require("stopAudioLoop()" in domain and "toneEngine.stop()" in domain, "Pause/reset paths can stop timer audio promptly")
+require("setCategory(.ambient" in domain and ".mixWithOthers" in domain, "Timer audio respects iOS ambient-audio behavior and mixes with other audio")
 
 require("struct QuickSessionNote: Identifiable, Hashable" in domain, "Quick notes use a plain native value model")
 require("func addNote(text: String, clientCode: String?)" in domain, "Quick-note mutation has one owner")

@@ -99,23 +99,26 @@ struct V054TodayView: View {
                     quickAction("Plan Route", "arrow.triangle.turn.up.right.diamond.fill", palette.accentSecondary)
                 }
                 .buttonStyle(.plain)
+                .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
 
                 Button {
+                    LifeRouteHaptics.primaryAction()
                     if routingState.liveLocationEnabled {
                         routingState.stopLiveLocation()
                     } else {
                         routingState.requestCurrentLocation()
                     }
                 } label: {
-                    quickAction("Current Location", "location.fill", .blue)
+                    quickAction("Current Location", "location.fill", palette.accent)
                 }
                 .buttonStyle(.plain)
                 .disabled(routingState.locationRequestInFlight)
 
                 Button {
+                    LifeRouteHaptics.selection()
                     router.select(.schedule)
                 } label: {
-                    quickAction("Open Schedule", "calendar", .purple)
+                    quickAction("Open Schedule", "calendar", palette.accentSecondary)
                 }
                 .buttonStyle(.plain)
 
@@ -125,6 +128,7 @@ struct V054TodayView: View {
                     quickAction("Add Stop", "plus", palette.accentSecondary)
                 }
                 .buttonStyle(.plain)
+                .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
             }
         }
     }
@@ -156,7 +160,7 @@ struct V054TodayView: View {
                             Text(timeRemaining(to: event.start <= context.date ? event.end : event.start, now: context.date))
                                 .font(.title3.weight(.black))
                                 .monospacedDigit()
-                                .foregroundStyle(.blue)
+                                .foregroundStyle(palette.accent)
                         }
                     }
                     .padding(12)
@@ -211,6 +215,7 @@ struct V054TodayView: View {
 
                 HStack(spacing: 9) {
                     Button {
+                        LifeRouteHaptics.primaryAction()
                         Task {
                             await liveActivity.update(
                                 events: todayEvents,
@@ -225,6 +230,7 @@ struct V054TodayView: View {
                     .buttonStyle(LifeRouteSecondaryButtonStyle())
 
                     Button {
+                        LifeRouteHaptics.selection()
                         liveDayEnabled = false
                         Task { await liveActivity.end() }
                     } label: {
@@ -269,8 +275,9 @@ struct V054TodayView: View {
                 } label: {
                     Text("Plan")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(palette.accent)
                 }
+                .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
             }
 
             let suggestions = routingState.savedPlaces.filter(\.useInGapSuggestions)
@@ -307,6 +314,7 @@ struct V054TodayView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
                     .lifeRouteCard()
                 }
             }

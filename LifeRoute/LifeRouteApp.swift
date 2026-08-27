@@ -40,6 +40,25 @@ enum LifeRouteDesign {
         startRadius: 10,
         endRadius: 420
     )
+
+    static let accentGlow = RadialGradient(
+        colors: [ColorToken.gold.opacity(0.10), ColorToken.midnight.opacity(0)],
+        center: .bottomLeading,
+        startRadius: 20,
+        endRadius: 360
+    )
+
+    static let cardGradient = LinearGradient(
+        colors: [Color.white.opacity(0.085), ColorToken.navy.opacity(0.22)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
+    static let cardStroke = LinearGradient(
+        colors: [ColorToken.softGold.opacity(0.24), ColorToken.hairline, ColorToken.gold.opacity(0.10)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 }
 
 struct LifeRouteCardModifier: ViewModifier {
@@ -48,16 +67,19 @@ struct LifeRouteCardModifier: ViewModifier {
             .padding(LifeRouteDesign.Spacing.comfortable)
             .background(
                 RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
-                    .fill(LifeRouteDesign.ColorToken.cardFill)
+                    .fill(LifeRouteDesign.cardGradient)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
-                    .stroke(LifeRouteDesign.ColorToken.hairline, lineWidth: 1)
+                    .stroke(LifeRouteDesign.cardStroke, lineWidth: 1)
             }
+            .shadow(color: Color.black.opacity(0.22), radius: 18, y: 8)
     }
 }
 
 struct LifeRoutePrimaryButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.body.weight(.semibold))
@@ -74,9 +96,14 @@ struct LifeRoutePrimaryButtonStyle: ButtonStyle {
                         )
                     )
             )
+            .overlay {
+                RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous)
+                    .stroke(Color.white.opacity(0.18), lineWidth: 0.75)
+            }
             .shadow(color: LifeRouteDesign.ColorToken.gold.opacity(0.16), radius: 14, y: 5)
             .opacity(configuration.isPressed ? 0.82 : 1)
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -87,8 +114,12 @@ private struct LifeRouteChromeModifier: ViewModifier {
                 .ignoresSafeArea()
             LifeRouteDesign.ambientGlow
                 .ignoresSafeArea()
+            LifeRouteDesign.accentGlow
+                .ignoresSafeArea()
             content
+                .scrollContentBackground(.hidden)
         }
+        .environment(\.defaultMinListRowHeight, 50)
         .tint(LifeRouteDesign.ColorToken.gold)
         .preferredColorScheme(.dark)
     }
@@ -180,6 +211,7 @@ private enum LifeRouteAppearance {
         UISwitch.appearance().thumbTintColor = UIColor.white
         UIStepper.appearance().tintColor = gold
         UIDatePicker.appearance().tintColor = gold
+        UISlider.appearance().minimumTrackTintColor = gold
         UITextField.appearance().tintColor = softGold
         UITextView.appearance().tintColor = softGold
         UIRefreshControl.appearance().tintColor = gold
@@ -188,9 +220,14 @@ private enum LifeRouteAppearance {
     }
 
     private static func configureScrollableSurfaces() {
-        UITableView.appearance().backgroundColor = .clear
-        UITableView.appearance().separatorColor = hairline
-        UITableViewCell.appearance().backgroundColor = deepNavy.withAlphaComponent(0.72)
+        let table = UITableView.appearance()
+        table.backgroundColor = .clear
+        table.separatorColor = hairline
+        table.sectionHeaderTopPadding = 12
+
+        UITableViewCell.appearance().backgroundColor = deepNavy.withAlphaComponent(0.60)
+        UITableViewHeaderFooterView.appearance().tintColor = .clear
+        UILabel.appearance(whenContainedInInstancesOf: [UITableViewHeaderFooterView.self]).textColor = secondary
 
         UICollectionView.appearance().backgroundColor = .clear
         UICollectionViewCell.appearance().backgroundColor = .clear

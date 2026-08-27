@@ -73,6 +73,7 @@
     loadPreviewScript("web-store-panel-persistence.js");
     loadPreviewScript("welcome.js");
     loadPreviewScript("nav-cleanup.js");
+    loadPreviewScript("rbt-tools.js");
     loadPreviewScript("icloud-calendar-web.js");
     loadPreviewScript("google-calendar-web.js");
     loadPreviewScript("google-calendar-stability.js");

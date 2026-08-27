@@ -51,7 +51,8 @@ def main() -> None:
         shell,
         [
             "v0.7.0 Build A shell",
-            "LifeRoutePageBackground()",
+            "LifeRouteCinematicBackdrop(",
+            ".background(Color.clear) // v0.6.3 keep cinematic scenery visible",
             "TabView(selection: $router.selectedSection)",
             "UITabBarItemAppearance()",
             "tabItems.normal.iconColor = secondary",

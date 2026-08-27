@@ -235,6 +235,7 @@ struct LifeRouteCardModifier: ViewModifier {
 
 struct LifeRoutePrimaryButtonStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
     @Environment(\.lifeRoutePalette) private var palette
 
     func makeBody(configuration: Configuration) -> some View {
@@ -246,14 +247,15 @@ struct LifeRoutePrimaryButtonStyle: ButtonStyle {
             .background(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).fill(palette.accentGradient))
             .overlay { RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).stroke(Color.white.opacity(0.23), lineWidth: 0.8) }
             .shadow(color: palette.accent.opacity(configuration.isPressed ? 0.14 : 0.24), radius: configuration.isPressed ? 10 : 16, y: configuration.isPressed ? 3 : 6)
-            .opacity(configuration.isPressed ? 0.86 : 1)
+            .opacity(configuration.isPressed ? 0.86 : (isEnabled ? 1 : 0.48))
             .scaleEffect(configuration.isPressed ? 0.972 : 1)
             .animation(reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.78), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { isPressed in
-                if isPressed {
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    guard isEnabled else { return }
                     LifeRouteHaptics.primaryAction()
                 }
-            }
+            )
     }
 }
 

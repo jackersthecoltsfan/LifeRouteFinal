@@ -64,18 +64,32 @@ require_all(
 )
 
 calendar = read("LifeRoute/CalendarDomain.swift")
+persistence = read("LifeRoute/PersistenceCore.swift")
 require_all(
     calendar,
     [
-        'providerSnapshotKey = "liferoute.calendar.providerSnapshot.v1"',
-        "let providerEvents = Self.loadProviderSnapshot()",
+        "LifeRoutePersistenceStore.shared.loadProviderCalendarEvents()",
         "persistProviderEvents()",
-        "private static func loadProviderSnapshot()",
-        "events.filter { $0.source != .manual }",
+        "LifeRoutePersistenceStore.shared.saveProviderCalendarEvents(events.filter { $0.source != .manual })",
     ],
     "calendar provider relaunch persistence",
 )
-require(calendar.count("persistProviderEvents()") >= 3, "provider snapshots must persist after replace and removal")
+require("UserDefaults" not in calendar, "calendar provider persistence must not bypass the protected persistence owner")
+require(calendar.count("persistProviderEvents()") == 3, "provider snapshots must persist after replace and removal")
+require_all(
+    persistence,
+    [
+        "schemaVersion: Int = 4",
+        "providerCalendarEvents: [LifeRouteCalendarEvent]",
+        "decodeIfPresent([LifeRouteCalendarEvent].self, forKey: .providerCalendarEvents) ?? []",
+        "func loadProviderCalendarEvents() -> [LifeRouteCalendarEvent]",
+        "func saveProviderCalendarEvents(_ events: [LifeRouteCalendarEvent])",
+        "sanitizedProviderCalendarEvents",
+        "providerCalendarEventLimit = 1_500",
+        "FileProtectionType.completeUntilFirstUserAuthentication",
+    ],
+    "protected provider calendar snapshot",
+)
 
 ai_views = read("LifeRoute/AIClinicalToolsViews.swift")
 require_all(
@@ -149,4 +163,4 @@ project = read("LifeRoute.xcodeproj/project.pbxproj")
 require("LifeRouteWebView.swift in Sources" not in project, "legacy WebView runtime was reactivated")
 require("Web in Resources" not in project, "legacy Web bundle was reactivated")
 
-print("LifeRoute v0.6.0 regression audit passed: resources, persistence, narrative notes, AI visuals, themes, feedback, icon contract, and native runtime isolation.")
+print("LifeRoute v0.6.0 regression audit passed: resources, protected persistence, narrative notes, AI visuals, themes, feedback, icon contract, and native runtime isolation.")

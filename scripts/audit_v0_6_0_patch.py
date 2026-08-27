@@ -28,7 +28,7 @@ def png_dimensions(path: str) -> tuple[int, int]:
 
 resource = read("LifeRoute/ResourcePortalDomain.swift")
 builtins = resource.split("let builtInPortals: [LifeRoutePortalLink] = [", 1)[1].split("\n    ]", 1)[0]
-require(builtins.count("LifeRoutePortalLink(") == 26, "Resource Hub must retain all 26 built-in portals")
+require(builtins.count("LifeRoutePortalLink(") == 27, "Resource Hub must retain all 27 additive built-in portals")
 require_all(
     builtins,
     [
@@ -39,7 +39,8 @@ require_all(
         'title: "Theralytics"',
         'title: "Hi Rasmus"',
         'title: "AlohaABA"',
-        'title: "ADP"',
+        'title: "ADP Workforce Now"',
+        'title: "ADP / MyADP"',
         'title: "BambooHR"',
         'title: "Gusto"',
         'title: "Paycom"',

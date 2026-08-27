@@ -88,6 +88,9 @@ final class CalendarCoreState: ObservableObject {
     @Published var selectedDate: Date
     @Published private(set) var events: [LifeRouteCalendarEvent]
 
+    private static let providerSnapshotKey = "liferoute.calendar.providerSnapshot.v1"
+    private static let providerSnapshotLimit = 1_500
+
     private var calendar: Calendar
     private var eventIndicesByDay: [Date: [Int]] = [:]
     private var eventCountsBySource: [LifeRouteCalendarSource: Int] = [:]
@@ -100,8 +103,14 @@ final class CalendarCoreState: ObservableObject {
         configured.minimumDaysInFirstWeek = 4
         self.calendar = configured
         self.selectedDate = now
-        let restoredEvents = events ?? LifeRoutePersistenceStore.shared.loadManualCalendarEvents()
-        self.events = restoredEvents.sorted(by: Self.eventSort)
+
+        if let events {
+            self.events = events.sorted(by: Self.eventSort)
+        } else {
+            let manualEvents = LifeRoutePersistenceStore.shared.loadManualCalendarEvents()
+            let providerEvents = Self.loadProviderSnapshot()
+            self.events = (manualEvents + providerEvents).sorted(by: Self.eventSort)
+        }
         rebuildEventIndexes()
     }
 
@@ -152,6 +161,7 @@ final class CalendarCoreState: ObservableObject {
         guard nextEvents != events else { return }
         events = nextEvents
         rebuildEventIndexes()
+        persistProviderEvents()
     }
 
     func removeProviderEvents(source: LifeRouteCalendarSource) {
@@ -160,6 +170,7 @@ final class CalendarCoreState: ObservableObject {
         guard nextEvents != events else { return }
         events = nextEvents
         rebuildEventIndexes()
+        persistProviderEvents()
     }
 
     func eventCount(source: LifeRouteCalendarSource) -> Int {
@@ -267,6 +278,35 @@ final class CalendarCoreState: ObservableObject {
 
     private func persistManualEvents() {
         LifeRoutePersistenceStore.shared.saveManualCalendarEvents(events.filter { $0.source == .manual })
+    }
+
+    private func persistProviderEvents() {
+        let snapshot = Array(
+            events
+                .filter { $0.source != .manual }
+                .prefix(Self.providerSnapshotLimit)
+        )
+
+        guard !snapshot.isEmpty else {
+            UserDefaults.standard.removeObject(forKey: Self.providerSnapshotKey)
+            return
+        }
+
+        guard let data = try? JSONEncoder().encode(snapshot) else { return }
+        UserDefaults.standard.set(data, forKey: Self.providerSnapshotKey)
+    }
+
+    private static func loadProviderSnapshot() -> [LifeRouteCalendarEvent] {
+        guard let data = UserDefaults.standard.data(forKey: providerSnapshotKey),
+              let decoded = try? JSONDecoder().decode([LifeRouteCalendarEvent].self, from: data) else {
+            return []
+        }
+
+        return Array(
+            decoded
+                .filter { $0.source != .manual && $0.end >= $0.start }
+                .prefix(providerSnapshotLimit)
+        )
     }
 
     private func rebuildEventIndexes() {

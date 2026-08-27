@@ -160,10 +160,19 @@ private struct LifeRouteThemePaletteKey: EnvironmentKey {
     static let defaultValue = LifeRouteTheme.royal.palette
 }
 
+private struct LifeRouteThemeKey: EnvironmentKey {
+    static let defaultValue = LifeRouteTheme.royal
+}
+
 extension EnvironmentValues {
     var lifeRoutePalette: LifeRouteThemePalette {
         get { self[LifeRouteThemePaletteKey.self] }
         set { self[LifeRouteThemePaletteKey.self] = newValue }
+    }
+
+    var lifeRouteTheme: LifeRouteTheme {
+        get { self[LifeRouteThemeKey.self] }
+        set { self[LifeRouteThemeKey.self] = newValue }
     }
 }
 
@@ -243,17 +252,163 @@ struct LifeRouteSecondaryButtonStyle: ButtonStyle {
 
 private struct LifeRouteChromeModifier: ViewModifier {
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.lifeRouteTheme) private var theme
 
     func body(content: Content) -> some View {
         ZStack {
             palette.backgroundGradient.ignoresSafeArea()
-            RadialGradient(colors: [palette.accent.opacity(0.22), .clear], center: .topTrailing, startRadius: 8, endRadius: 430).ignoresSafeArea()
-            RadialGradient(colors: [palette.accentSecondary.opacity(0.10), .clear], center: .bottomLeading, startRadius: 20, endRadius: 380).ignoresSafeArea()
+            LifeRouteThemeBackdrop(theme: theme, palette: palette)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+            RadialGradient(colors: [palette.accent.opacity(0.20), .clear], center: .topTrailing, startRadius: 8, endRadius: 430).ignoresSafeArea()
+            RadialGradient(colors: [palette.accentSecondary.opacity(0.09), .clear], center: .bottomLeading, startRadius: 20, endRadius: 380).ignoresSafeArea()
             content.scrollContentBackground(.hidden)
         }
         .environment(\.defaultMinListRowHeight, 52)
         .tint(palette.accent)
         .preferredColorScheme(.dark)
+    }
+}
+
+private struct LifeRouteThemeBackdrop: View {
+    let theme: LifeRouteTheme
+    let palette: LifeRouteThemePalette
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                switch theme.category {
+                case .core:
+                    coreBackdrop(size: proxy.size)
+                case .metallic:
+                    metallicBackdrop(size: proxy.size)
+                case .scenery:
+                    sceneryBackdrop(size: proxy.size)
+                case .dynamic:
+                    dynamicBackdrop(size: proxy.size)
+                case .fluid:
+                    fluidBackdrop(size: proxy.size)
+                }
+            }
+            .clipped()
+        }
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func coreBackdrop(size: CGSize) -> some View {
+        Image(systemName: "mountain.2.fill")
+            .font(.system(size: max(180, size.width * 0.72), weight: .black))
+            .foregroundStyle(palette.accentSecondary.opacity(0.035))
+            .offset(x: size.width * 0.22, y: size.height * 0.25)
+
+        ForEach(0..<5, id: \.self) { index in
+            Circle()
+                .fill(palette.accent.opacity(index.isMultiple(of: 2) ? 0.08 : 0.045))
+                .frame(width: CGFloat(4 + index * 2), height: CGFloat(4 + index * 2))
+                .position(
+                    x: size.width * CGFloat(0.14 + Double(index) * 0.17),
+                    y: size.height * CGFloat(0.10 + Double(index % 3) * 0.08)
+                )
+        }
+    }
+
+    @ViewBuilder
+    private func metallicBackdrop(size: CGSize) -> some View {
+        ForEach(0..<5, id: \.self) { index in
+            Image(systemName: "hexagon.fill")
+                .font(.system(size: CGFloat(92 + index * 28), weight: .ultraLight))
+                .foregroundStyle(index.isMultiple(of: 2) ? palette.accent.opacity(0.035) : palette.accentSecondary.opacity(0.028))
+                .rotationEffect(.degrees(Double(index * 12)))
+                .position(
+                    x: size.width * CGFloat(index.isMultiple(of: 2) ? 0.82 : 0.18),
+                    y: size.height * CGFloat(0.10 + Double(index) * 0.19)
+                )
+        }
+
+        LinearGradient(
+            colors: [.clear, palette.accentSecondary.opacity(0.055), .clear],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .rotationEffect(.degrees(-14))
+        .offset(x: size.width * 0.25)
+    }
+
+    @ViewBuilder
+    private func sceneryBackdrop(size: CGSize) -> some View {
+        Circle()
+            .fill(palette.accentSecondary.opacity(0.09))
+            .frame(width: size.width * 0.42, height: size.width * 0.42)
+            .blur(radius: 18)
+            .position(x: size.width * 0.82, y: size.height * 0.16)
+
+        Image(systemName: scenerySymbol)
+            .font(.system(size: max(220, size.width * 0.92), weight: .black))
+            .foregroundStyle(palette.accent.opacity(0.05))
+            .offset(x: size.width * 0.12, y: size.height * 0.28)
+
+        if isAurora {
+            Capsule()
+                .fill(palette.accentSecondary.opacity(0.055))
+                .frame(width: size.width * 1.2, height: 54)
+                .blur(radius: 24)
+                .rotationEffect(.degrees(-24))
+                .offset(x: -size.width * 0.10, y: -size.height * 0.18)
+        }
+    }
+
+    @ViewBuilder
+    private func dynamicBackdrop(size: CGSize) -> some View {
+        ForEach(0..<4, id: \.self) { index in
+            Capsule()
+                .fill(index.isMultiple(of: 2) ? palette.accent.opacity(0.055) : palette.accentSecondary.opacity(0.045))
+                .frame(width: size.width * 0.95, height: CGFloat(20 + index * 8))
+                .blur(radius: CGFloat(8 + index * 2))
+                .rotationEffect(.degrees(-32))
+                .offset(x: CGFloat(index - 2) * 42, y: CGFloat(index - 1) * 170)
+        }
+
+        Image(systemName: "bolt.fill")
+            .font(.system(size: max(160, size.width * 0.52), weight: .black))
+            .foregroundStyle(palette.accentSecondary.opacity(0.035))
+            .position(x: size.width * 0.82, y: size.height * 0.30)
+    }
+
+    @ViewBuilder
+    private func fluidBackdrop(size: CGSize) -> some View {
+        Ellipse()
+            .fill(palette.accent.opacity(0.07))
+            .frame(width: size.width * 1.05, height: size.width * 0.52)
+            .blur(radius: 28)
+            .rotationEffect(.degrees(-18))
+            .offset(x: size.width * 0.32, y: -size.height * 0.18)
+
+        Ellipse()
+            .stroke(palette.accentSecondary.opacity(0.07), lineWidth: 22)
+            .frame(width: size.width * 1.15, height: size.width * 0.58)
+            .blur(radius: 8)
+            .rotationEffect(.degrees(16))
+            .offset(x: -size.width * 0.36, y: size.height * 0.24)
+
+        Image(systemName: "water.waves")
+            .font(.system(size: max(190, size.width * 0.72), weight: .bold))
+            .foregroundStyle(palette.accentSecondary.opacity(0.04))
+            .position(x: size.width * 0.72, y: size.height * 0.72)
+    }
+
+    private var scenerySymbol: String {
+        switch theme {
+        case .ocean: return "water.waves"
+        default: return "mountain.2.fill"
+        }
+    }
+
+    private var isAurora: Bool {
+        switch theme {
+        case .aurora: return true
+        default: return false
+        }
     }
 }
 
@@ -377,6 +532,7 @@ struct LifeRouteApp: App {
                 .lifeRouteChrome()
                 .environmentObject(themeStore)
                 .environment(\.lifeRoutePalette, themeStore.palette)
+                .environment(\.lifeRouteTheme, themeStore.selectedTheme)
         }
     }
 }

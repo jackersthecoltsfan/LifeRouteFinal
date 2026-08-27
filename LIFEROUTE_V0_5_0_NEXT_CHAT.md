@@ -11,7 +11,7 @@ Use this only as the quick entrypoint. The full source of truth is `LIFEROUTE_V0
 
 ## Current functional state
 
-Green through Checkpoint 06:
+Green through Checkpoint 07:
 - native SwiftUI shell/navigation;
 - Day/Week/Month calendar core;
 - Apple + Google read-only calendar providers;
@@ -40,11 +40,13 @@ The first 04C audit passed. The first Simulator compile then found three isolate
 
 Do not add an automatic startup WebKit/localStorage reader. Preserve old WebKit data untouched until native physical-device reliability is proven.
 
-## Immediate next action — validate Layer 7 second functionality pass
+## Immediate next action — request PR #20 merge authorization
 
 Checkpoint 06 is green on runtime commit `cc2b9c694147378a19e2f27d3148bfc184e8262e`; Actions run `33026667496` passed every accumulated audit and the actual Simulator build.
 
-Checkpoint 07 is implemented and awaiting exact-runtime validation. Inspect the live branch, draft PR #20, and Actions state first. Run the full accumulated audits and require an actual iOS Simulator build before marking the second functionality pass green. If it is green, stop and request explicit user authorization before merging PR #20.
+Checkpoint 07 is green on runtime commit `ea05fd8df0a3d2f365cbcbbaa45f87239a591270`; Actions run `33027155445` passed the full accumulated preparation/audit suite, the focused 129-check second functionality pass, and the actual Simulator build.
+
+Inspect the live branch, draft PR #20, and Actions state first. Then obtain explicit user authorization before merging PR #20. After an authorized merge, require exact merged-main validation before any TestFlight action.
 
 Do not change product behavior, add cosmetics, reactivate legacy WebView/JavaScript code, merge PR #20, or upload to TestFlight.
 

@@ -1,6 +1,8 @@
 # Checkpoint 07 — Second full functionality pass
 
-Status: **In validation**.
+Status: **Green** on runtime commit `ea05fd8df0a3d2f365cbcbbaa45f87239a591270`.
+
+Validation: GitHub Actions run `33027155445` passed the full accumulated v0.5.0 preparation/audit suite, the focused 129-check second functionality pass, and the actual iOS Simulator build.
 
 Checkpoint 07 repeats the native functional-core contract after the performance and stability layers. It adds no cosmetic/runtime dependency.
 

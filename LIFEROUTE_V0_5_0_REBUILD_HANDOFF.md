@@ -12,9 +12,9 @@ Branch base: `64b0c2fef3172a101885e9bdaf4eb7860cc41997`
 
 Draft validation PR: `#20` — `LifeRoute v0.5.0 functional-core rebuild`.
 
-Checkpoint 06 validated runtime head: `cc2b9c694147378a19e2f27d3148bfc184e8262e`.
+Checkpoint 07 validated runtime head: `ea05fd8df0a3d2f365cbcbbaa45f87239a591270`.
 
-GitHub Actions run `33026667496` passed the accumulated preparation/audit suite, the focused Checkpoint 06 audit, and the actual iOS Simulator build. Always inspect the live PR head before acting.
+GitHub Actions run `33027155445` passed the accumulated preparation/audit suite, the focused 129-check second functionality pass, and the actual iOS Simulator build. Always inspect the live PR head before acting.
 
 Keep the PR draft/unmerged until the rebuild reaches the exact-SHA release checkpoint.
 
@@ -129,11 +129,13 @@ The stability slice:
 Checkpoint 06 is complete. Preserve this commit as the recovery point while validating Layer 7.
 
 ### Layer 7 — second full functionality pass
-Checkpoint 07 is implemented and in validation. Its focused executable audit repeats the connected native workflows after performance/stability work: launch/navigation, calendar/providers, routing/location, clients, Session Tools, client visuals, persistence/migration, preceding performance/stability invariants, target quarantine, and version `0.5.0`.
+Checkpoint 07 is green on runtime commit `ea05fd8df0a3d2f365cbcbbaa45f87239a591270`. GitHub Actions run `33027155445` passed the full accumulated preparation/audit suite, the focused 129-check cross-domain audit, and the actual iOS Simulator build.
+
+Its executable audit repeats the connected native workflows after performance/stability work: launch/navigation, calendar/providers, routing/location, clients, Session Tools, client visuals, persistence/migration, preceding performance/stability invariants, target quarantine, and version `0.5.0`.
 
 The pass found and fixed one omission: manual appointments now expose an accessible delete action in Day/Week/Month rendering, while provider events remain read-only and calendar rows continue consuming narrow immutable presentation data.
 
-Do not mark Checkpoint 07 green until the full accumulated audit suite and actual iOS Simulator build pass on the same runtime commit. This must be green before PR #20 can be considered for merge authorization.
+Checkpoint 07 is complete. The next action requires explicit user authorization to merge PR #20; do not merge or start exact merged-main validation before that authorization.
 
 ## Client-specific visual-support product rule
 
@@ -202,7 +204,7 @@ GitHub Actions run `33021676527` completed successfully. It passed preparation, 
 | 04C — legacy data mapper/cleanup boundary | runtime-equivalent head `5295d93141b9a3e45af6dd4cc21855308999da3a` | Green | Pure native mapper/merge; accumulated audits + Simulator build passed in run `33021676527`. |
 | 05A — performance architecture | `c63bf974daf65dbffca2e8210962a16ad0cdb25c` | Green | Ordered off-main snapshot writer, external protected image blobs, visual indexes/downsample cache, calendar presentation indexes; accumulated audits + Simulator build passed in run `33024385161`. |
 | 06 — stability architecture | `cc2b9c694147378a19e2f27d3148bfc184e8262e` | Green | Owned/cancellable async work, stale-completion guards, lifecycle flush closure, provider failure preservation, bounded network/pagination; accumulated audits + Simulator build passed in run `33026667496`. |
-| 07 — second full functionality pass | Pending validation | In validation | Connected native journeys repeated after performance/stability; missing manual-appointment delete action restored without enabling provider deletion. |
+| 07 — second full functionality pass | `ea05fd8df0a3d2f365cbcbbaa45f87239a591270` | Green | Connected native journeys repeated after performance/stability; missing manual-appointment delete action restored; accumulated audits + Simulator build passed in run `33027155445`. |
 
 ## Cosmetic chunks preserved for later
 
@@ -235,13 +237,13 @@ For every remaining layer/slice:
 2. Read `AGENTS.md`.
 3. Read `LIFEROUTE_V0_5_0_CHECKPOINT_00_INVENTORY.md` when migration/quarantine context matters.
 4. Inspect the live `rebuild/v0.5.0-functional-core` branch, PR #20, and current Actions state.
-5. Confirm the live head still contains the green Checkpoint 06 runtime commit and inspect current Actions state.
-6. Complete Checkpoint 07 validation without changing product behavior or reactivating quarantined runtime/cosmetic code.
+5. Confirm the live head still contains the green Checkpoint 07 runtime commit and inspect current Actions state.
+6. Obtain explicit user authorization before merging PR #20.
 7. Never return to v0.4 interaction-hotfix layering.
 
 ## Immediate next action
 
-**Validate Checkpoint 07 on the exact runtime commit. If it is green, stop and request explicit authorization before merging PR #20.**
+**Stop and request explicit user authorization to merge PR #20.**
 
 Do not add a startup WebKit migration reader before the first physical-device reliability checkpoint. Preserve old WebKit data untouched. Keep the old global visual library quarantined.
 

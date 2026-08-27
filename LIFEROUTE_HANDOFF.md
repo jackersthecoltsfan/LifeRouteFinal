@@ -12,7 +12,7 @@ Active rebuild branch: `rebuild/v0.5.0-functional-core`
 
 Detailed rebuild handoff: `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`
 
-Current green runtime checkpoint: **06 — stability architecture**, commit `cc2b9c694147378a19e2f27d3148bfc184e8262e`; GitHub Actions run `33026667496` passed all accumulated audits and the actual iOS Simulator build.
+Current green runtime checkpoint: **07 — second full functionality pass**, commit `ea05fd8df0a3d2f365cbcbbaa45f87239a591270`; GitHub Actions run `33027155445` passed all accumulated audits, the focused cross-domain pass, and the actual iOS Simulator build.
 
 At the start of a new LifeRoute thread, read in this order:
 
@@ -59,6 +59,6 @@ The last v0.4.0 hotfix release was TestFlight workflow run #72 / run ID `3301314
 
 ## Immediate next action
 
-Validate **Layer 7 — second full functionality pass** from the green Checkpoint 06 runtime as defined in `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`.
+Obtain explicit user authorization to merge draft PR `#20` as defined in `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`.
 
-Require all accumulated audits and an actual iOS Simulator build on the exact Layer 7 runtime SHA. If green, stop for explicit PR #20 merge authorization. Keep TestFlight untouched and do not add cosmetic chunks yet.
+After an authorized merge, require exact merged-main validation before any TestFlight action. Keep TestFlight untouched and do not add cosmetic chunks yet.

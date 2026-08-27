@@ -69,28 +69,48 @@ enum LifeRouteIntelligenceCore {
         let prompting = client?.promptingNotes ?? "none"
 
         let prompt = """
-        Write one polished professional ABA session note as a natural chronological narrative using ONLY the session facts supplied below.
+        Write one polished professional ABA session note as a cohesive chronological narrative using ONLY the session facts supplied below.
 
         REQUIRED WRITING STYLE:
-        - Write like a finished RBT narrative note, not a checklist, data dump, outline, bullet list, SOAP note, or collection of disconnected statements.
-        - Use 2–4 cohesive paragraphs when enough information is available. Keep related events together and move through the session in chronological order.
-        - Begin with the setting and people present when those facts are supplied, then describe what the RBT and client did across the session, how the client responded, and how the session concluded when those facts are available.
-        - Use natural professional transitions such as "RBT then," "Following this," "During this activity," or equivalent wording when appropriate, without sounding repetitive.
-        - Weave clearly supplied quantitative data into the relevant sentence or event in the narrative. Do not isolate the data into a separate section or list.
-        - If screenshot/OCR data corresponds to a target, behavior, prompt level, frequency, duration, percentage, or trial result that is also supported by the supplied session facts, integrate it naturally where that event is described.
+        - The finished note should read like a human RBT wrote it directly after session, in the same concise chronological narrative style used for professional ABA session documentation.
+        - When enough information exists, use about 3–5 cohesive paragraphs. A shorter session may use fewer paragraphs. Never pad the note just to reach a paragraph count.
+        - Begin with where the RBT met with the client and who was present when those facts are actually supplied. Move naturally through the session in chronological order, then close with the final activity/transition and overall response only when those facts were supplied.
+        - Use "the client" rather than treating the ABA-style client code as the client's name. The saved code is an identifier/context key, not permission to write it as a personal name throughout the note.
+        - Keep related events together. Pairing, NET, FCT/manding, prompting, transitions, reinforcement, behavior events, and closing activities should appear where they occurred rather than in detached sections.
+        - Weave clearly supplied quantitative data into the relevant sentence or event. Do not isolate data into a separate section, table, bullet list, or final data dump.
+        - Prefer direct RBT documentation language such as "RBT began by...", "Throughout the session...", "RBT provided...", "The client demonstrated...", "Following this...", and "Toward the end of the session..." when those constructions fit the supplied facts.
+        - Keep the prose objective, readable, clinically appropriate, and connected. Do not turn routine facts into broad interpretations.
+
+        TARGET NARRATIVE FLOW WHEN THE FACTS SUPPORT IT:
+        - Paragraph 1: setting/participants and how the session began, including pairing/FCT/NET or the first activity.
+        - Paragraph 2: skill-acquisition work, prompting, client responding, and relevant quantitative target data.
+        - Paragraph 3: behavior/transition events, redirection or other supplied intervention, and behavior data when relevant.
+        - Paragraph 4: later reinforcement/activity work, final transition/activity, and the supplied overall response to intervention.
+        - This is a flow guide, not a template. Omit any part that is not supported by the supplied facts.
+
+        DATA / EVIDENCE PRIORITY:
+        - The user's typed/pasted SESSION NARRATIVE is the primary source of what happened.
+        - Clear SCREENSHOT OCR / DATA may supplement the narrative with recorded target/behavior values when the label and value are unambiguous.
+        - Saved client information is terminology/context only and never proves an event occurred.
+        - If a narrative fact and a compact OCR summary appear to conflict, preserve the explicit narrative event and do not erase it because of a summary metric.
+        - A behavior-reduction metric of 0.00% is never evidence that treatment failed, that a behavior "still needs work," or that treatment was unsuccessful.
+        - For an unambiguous behavior-reduction row such as biting or mouthing at 0.00%, and only when no supplied narrative fact says that behavior occurred, it is acceptable to state that the behavior was not observed/recorded during the session. Do not make that inference for skill-acquisition percentages.
+        - If the narrative explicitly says a behavior occurred (for example, one refusal event), describe that event even if a related reduction row shows 0.00%; never convert an explicitly supplied event into "no behavior observed."
         - Do not dump raw OCR text into the note. Translate only clear, supported data into readable narrative prose.
-        - When multiple pieces of data are supplied, distribute them through the narrative where they belong rather than grouping them into a final data paragraph.
-        - Favor clear clinical prose similar to a human-written ABA session note: concise, objective, chronological, and connected.
 
-        HARD RULES:
-        - Use objective, observable language.
-        - Do not invent frequencies, percentages, prompt levels, interventions, targets, behaviors, attendees, caregiver statements, locations, clinical interpretations, billing facts, or outcomes.
-        - Saved client information is CONTEXT ONLY. Do not claim a saved target or behavior occurred unless the narrative or screenshot data explicitly demonstrates it.
-        - If OCR text is unclear, ambiguous, or cannot be confidently tied to the supplied session facts, omit it.
-        - Avoid mentalistic language.
-        - Return only the finished session-note narrative. Do not add a heading, disclaimer, labels, bullets, or commentary.
+        PROHIBITED OUTPUT SHAPES AND CONTENT:
+        - NO title or heading such as "Session Narrative Note."
+        - NO Markdown headings, bold labels, bullets, numbered lists, tables, SOAP sections, or report sections.
+        - NO labels such as Date, Location, Participants, Setting, Session Overview, Behavior Data, Generalization, Assessment, Plan, or Conclusion.
+        - NO placeholders such as "[Insert Date]", "[Insert Location]", or "[Insert RBT Name]". If a detail was not supplied, simply omit it.
+        - NO invented environmental descriptions such as saying the environment was conducive to learning, calm, structured, distracting, or well-equipped unless the user explicitly supplied that fact.
+        - NO invented progress/generalization conclusions, treatment-effect claims, motivation claims, clinical interpretations, caregiver recommendations, or future-treatment plans.
+        - NO statements such as "the RBT will continue," "there is still work to be done," "plans for future interventions," or equivalent future-plan language unless the user explicitly supplied that plan as a session fact.
+        - NO fabricated frequencies, percentages, prompt levels, interventions, targets, behaviors, attendees, caregiver statements, locations, billing facts, or outcomes.
+        - Avoid mentalistic language. Use objective, observable descriptions.
+        - Return ONLY the finished narrative paragraphs. No preface, disclaimer, heading, explanation, or closing commentary.
 
-        CLIENT: \(clientCode)
+        CLIENT IDENTIFIER — context only: \(clientCode)
         SAVED TARGETS — context only: \(targets)
         SAVED BEHAVIORS — context only: \(behaviors)
         SAVED COMMUNICATION/FCT CONTEXT — context only: \(communication)
@@ -103,10 +123,38 @@ enum LifeRouteIntelligenceCore {
         \(recognized.isEmpty ? "none" : recognized)
         """
 
-        return try await generate(
-            instructions: "You are LifeRoute's factual ABA documentation assistant. Produce a cohesive human-style RBT narrative note, integrate clearly supported data naturally into the chronology, obey the supplied-facts-only rule, and never fabricate clinical details.",
-            prompt: prompt
+        let instructions = """
+        You are LifeRoute's factual ABA documentation assistant. Write only cohesive chronological RBT narrative paragraphs from supplied facts. Never use report headings, placeholders, bullets, future plans, invented interpretations, or unsupported clinical details. Treat explicit session narrative facts as primary evidence and integrate only clear supporting data.
+        """
+
+        let firstDraft = try await generate(instructions: instructions, prompt: prompt)
+        guard sessionNoteNeedsNarrativeRepair(firstDraft) else {
+            return firstDraft
+        }
+
+        let repairPrompt = """
+        \(prompt)
+
+        FORMAT CORRECTION — the prior generation shape was rejected:
+        - Start over from the supplied SESSION NARRATIVE and clear OCR data; do not reuse or preserve wording from any rejected draft.
+        - Return only plain narrative paragraphs with no title, section labels, markdown, bullets, placeholders, or future-plan language.
+        - Keep explicit session events in chronological order and integrate supported percentages/frequencies into the sentences where those targets or behaviors are discussed.
+        - Use "the client" rather than the client identifier as a personal name.
+        - Do not infer that 0.00% behavior-reduction data means failure or lack of progress. Respect explicit narrative behavior events first.
+        - Omit every environmental, progress, generalization, recommendation, and treatment-planning claim that was not explicitly supplied.
+        """
+
+        let repairedDraft = try await generate(
+            instructions: "LifeRoute rejected the prior output format. Produce only a factual, chronological ABA narrative note in plain paragraphs. No headings, labels, markdown, placeholders, lists, invented interpretations, or future plans are allowed.",
+            prompt: repairPrompt
         )
+
+        guard !sessionNoteNeedsNarrativeRepair(repairedDraft) else {
+            throw LifeRouteIntelligenceError.generationFailed(
+                "LifeRoute could not produce a clean narrative-only ABA note from this generation. Please regenerate from the same session facts."
+            )
+        }
+        return repairedDraft
     }
 
     static func generateVisualScheduleDraft(
@@ -218,6 +266,42 @@ enum LifeRouteIntelligenceCore {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return String(cleaned.prefix(90))
+    }
+
+    private static func sessionNoteNeedsNarrativeRepair(_ value: String) -> Bool {
+        let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty else { return true }
+
+        let lower = cleaned.lowercased()
+        let forbiddenTokens = [
+            "###",
+            "**",
+            "[insert ",
+            "session narrative note",
+            "\ndate:",
+            "\nlocation:",
+            "\nparticipants:",
+            "\nsetting:",
+            "\nsession overview:",
+            "\nbehavior data:",
+            "\ngeneralization:",
+            "\nassessment:",
+            "\nplan:",
+            "\nconclusion:",
+        ]
+        if forbiddenTokens.contains(where: lower.contains) {
+            return true
+        }
+
+        let lines = cleaned.split(whereSeparator: \.isNewline)
+        if lines.contains(where: { rawLine in
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            return line.hasPrefix("- ") || line.hasPrefix("• ")
+        }) {
+            return true
+        }
+
+        return false
     }
 
     private static func generate(instructions: String, prompt: String) async throws -> String {

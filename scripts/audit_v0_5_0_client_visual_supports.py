@@ -52,7 +52,10 @@ for forbidden in ["UserDefaults", "localStorage", "WebKit", "WKWebView", "Mutati
     require(forbidden not in domain, f"Visual-support domain avoids legacy storage/runtime dependency: {forbidden}")
 
 require("@StateObject private var visualState = ClientVisualSupportCore()" in views, "Session Tools owns one visual-support state object")
-require("Client Visual Supports" in views, "Session Tools exposes client visual supports")
+require(
+    'title: "Visual Supports"' in views and "ClientVisualSupportCenter(visualState: visualState, clientState: clientState)" in views,
+    "Session Tools exposes client visual supports through the restored tool card",
+)
 require("ClientVisualSupportCenter" in views, "Native client visual-support center exists")
 require("PhotosPicker" in views, "Icon maker can use an on-device selected photo")
 require("visualState.addIcon(clientCode: clientCode" in views, "Icon creation writes in the selected client context")

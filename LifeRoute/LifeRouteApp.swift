@@ -1,20 +1,182 @@
 import SwiftUI
 import UIKit
 
-enum LifeRouteDesign {
-    enum ColorToken {
-        static let midnight = Color(red: 0.025, green: 0.055, blue: 0.12)
-        static let deepNavy = Color(red: 0.035, green: 0.09, blue: 0.19)
-        static let navy = Color(red: 0.055, green: 0.14, blue: 0.28)
-        static let elevatedNavy = Color(red: 0.075, green: 0.18, blue: 0.34)
-        static let gold = Color(red: 0.93, green: 0.72, blue: 0.28)
-        static let softGold = Color(red: 0.98, green: 0.84, blue: 0.48)
-        static let primaryText = Color.white.opacity(0.96)
-        static let secondaryText = Color.white.opacity(0.68)
-        static let hairline = Color.white.opacity(0.10)
-        static let cardFill = Color.white.opacity(0.055)
+private extension Color {
+    init(hex: UInt, opacity: Double = 1) {
+        self.init(
+            .sRGB,
+            red: Double((hex >> 16) & 0xff) / 255,
+            green: Double((hex >> 8) & 0xff) / 255,
+            blue: Double(hex & 0xff) / 255,
+            opacity: opacity
+        )
+    }
+}
+
+enum LifeRouteThemeCategory: String, CaseIterable, Identifiable {
+    case core = "Core"
+    case metallic = "Metallic"
+    case scenery = "Scenery"
+    case dynamic = "Dynamic"
+    case fluid = "Fluid"
+    var id: String { rawValue }
+}
+
+struct LifeRouteThemePalette {
+    let backgroundTop: Color
+    let backgroundBottom: Color
+    let panel: Color
+    let panelElevated: Color
+    let accent: Color
+    let accentSecondary: Color
+    let textPrimary: Color
+    let textSecondary: Color
+
+    var backgroundGradient: LinearGradient {
+        LinearGradient(colors: [backgroundTop, backgroundBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
+    var panelGradient: LinearGradient {
+        LinearGradient(colors: [panelElevated.opacity(0.88), panel.opacity(0.76)], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    var accentGradient: LinearGradient {
+        LinearGradient(colors: [accentSecondary, accent], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+}
+
+private func makeThemePalette(_ bgA: UInt, _ bgB: UInt, _ panel: UInt, _ elevated: UInt, _ accent: UInt, _ accent2: UInt) -> LifeRouteThemePalette {
+    .init(
+        backgroundTop: Color(hex: bgA),
+        backgroundBottom: Color(hex: bgB),
+        panel: Color(hex: panel),
+        panelElevated: Color(hex: elevated),
+        accent: Color(hex: accent),
+        accentSecondary: Color(hex: accent2),
+        textPrimary: .white,
+        textSecondary: .white.opacity(0.70)
+    )
+}
+
+enum LifeRouteTheme: String, CaseIterable, Identifiable {
+    case royal, obsidian, carbon, midnight, navyNoir
+    case titanium, slate, moltenGold, phantomSilver
+    case ocean, aurora, forest, plum, ember
+    case solarFlare, electricStorm, ultraviolet, arcticPulse
+    case sapphireTide
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .royal: return "Royal"
+        case .obsidian: return "Obsidian"
+        case .carbon: return "Carbon"
+        case .midnight: return "Midnight"
+        case .navyNoir: return "Navy Noir"
+        case .titanium: return "Titanium"
+        case .slate: return "Slate"
+        case .moltenGold: return "Molten Gold"
+        case .phantomSilver: return "Phantom Silver"
+        case .ocean: return "Ocean"
+        case .aurora: return "Aurora"
+        case .forest: return "Forest"
+        case .plum: return "Plum"
+        case .ember: return "Ember"
+        case .solarFlare: return "Solar Flare"
+        case .electricStorm: return "Electric Storm"
+        case .ultraviolet: return "Ultraviolet"
+        case .arcticPulse: return "Arctic Pulse"
+        case .sapphireTide: return "Sapphire Tide"
+        }
+    }
+
+    var category: LifeRouteThemeCategory {
+        switch self {
+        case .royal, .obsidian, .carbon, .midnight, .navyNoir: return .core
+        case .titanium, .slate, .moltenGold, .phantomSilver: return .metallic
+        case .ocean, .aurora, .forest, .plum, .ember: return .scenery
+        case .solarFlare, .electricStorm, .ultraviolet, .arcticPulse: return .dynamic
+        case .sapphireTide: return .fluid
+        }
+    }
+
+    var symbol: String {
+        switch category {
+        case .core: return "sparkles"
+        case .metallic: return "hexagon.fill"
+        case .scenery: return "mountain.2.fill"
+        case .dynamic: return "bolt.fill"
+        case .fluid: return "drop.fill"
+        }
+    }
+
+    var palette: LifeRouteThemePalette {
+        switch self {
+        case .royal: return makeThemePalette(0x071329, 0x05284f, 0x0d2038, 0x143f68, 0xedb847, 0xfbdc80)
+        case .obsidian: return makeThemePalette(0x07080a, 0x17120b, 0x111116, 0x242019, 0xd69d38, 0xffdfa0)
+        case .carbon: return makeThemePalette(0x0e1114, 0x1c2228, 0x1a2026, 0x343d46, 0xb8c6d4, 0xe9f0f7)
+        case .midnight: return makeThemePalette(0x080924, 0x24113f, 0x171333, 0x32265c, 0x7b68ff, 0xb8a5ff)
+        case .navyNoir: return makeThemePalette(0x04101d, 0x08293d, 0x091d2c, 0x103b54, 0xd4a547, 0x63b0ff)
+        case .titanium: return makeThemePalette(0x171c21, 0x2d3842, 0x292f36, 0x4a555f, 0xb4d1ef, 0xebf3fb)
+        case .slate: return makeThemePalette(0x10171f, 0x263440, 0x1b2530, 0x384859, 0x96b2cc, 0xd2e0ee)
+        case .moltenGold: return makeThemePalette(0x1f1002, 0x4c2503, 0x2e1906, 0x573008, 0xffbd19, 0xffe86b)
+        case .phantomSilver: return makeThemePalette(0x101419, 0x242e38, 0x1a2028, 0x3c4a57, 0xc1d5e7, 0xf2f9ff)
+        case .ocean: return makeThemePalette(0x031a29, 0x00465c, 0x052d3d, 0x085162, 0x35d8ef, 0x72f5df)
+        case .aurora: return makeThemePalette(0x051a21, 0x162d49, 0x0a252d, 0x164c4b, 0x54f2d1, 0x7e8cff)
+        case .forest: return makeThemePalette(0x061a12, 0x123821, 0x0b2519, 0x16442d, 0x79d889, 0xbfe66b)
+        case .plum: return makeThemePalette(0x18081f, 0x41114d, 0x27102f, 0x511c5f, 0xe060eb, 0xff9bc7)
+        case .ember: return makeThemePalette(0x211006, 0x4c1908, 0x301209, 0x5b210f, 0xff7a40, 0xffc54d)
+        case .solarFlare: return makeThemePalette(0x29060a, 0x5c1405, 0x35100c, 0x6b1f0b, 0xff4f2b, 0xffc23d)
+        case .electricStorm: return makeThemePalette(0x05071f, 0x220a48, 0x111235, 0x2a195b, 0x00dcff, 0x7f46ff)
+        case .ultraviolet: return makeThemePalette(0x15052b, 0x430d52, 0x241037, 0x531c65, 0xb73dff, 0xff66ba)
+        case .arcticPulse: return makeThemePalette(0x06172a, 0x123050, 0x0c253c, 0x1f455f, 0x5ce7e5, 0x91adff)
+        case .sapphireTide: return makeThemePalette(0x00142a, 0x00506b, 0x00283f, 0x055163, 0x0782ff, 0x59f0d2)
+        }
+    }
+}
+
+final class LifeRouteThemeStore: ObservableObject {
+    private static let storageKey = "liferoute.selectedTheme"
+
+    @Published var selectedTheme: LifeRouteTheme {
+        didSet {
+            UserDefaults.standard.set(selectedTheme.rawValue, forKey: Self.storageKey)
+            LifeRouteAppearance.configure(theme: selectedTheme)
+        }
+    }
+
+    init() {
+        let saved = UserDefaults.standard.string(forKey: Self.storageKey)
+        let theme = saved.flatMap(LifeRouteTheme.init(rawValue:)) ?? .royal
+        selectedTheme = theme
+        LifeRouteAppearance.configure(theme: theme)
+    }
+
+    var palette: LifeRouteThemePalette { selectedTheme.palette }
+}
+
+private struct LifeRouteThemePaletteKey: EnvironmentKey {
+    static let defaultValue = LifeRouteTheme.royal.palette
+}
+
+private struct LifeRouteThemeKey: EnvironmentKey {
+    static let defaultValue = LifeRouteTheme.royal
+}
+
+extension EnvironmentValues {
+    var lifeRoutePalette: LifeRouteThemePalette {
+        get { self[LifeRouteThemePaletteKey.self] }
+        set { self[LifeRouteThemePaletteKey.self] = newValue }
+    }
+
+    var lifeRouteTheme: LifeRouteTheme {
+        get { self[LifeRouteThemeKey.self] }
+        set { self[LifeRouteThemeKey.self] = newValue }
+    }
+}
+
+enum LifeRouteDesign {
     enum Spacing {
         static let compact: CGFloat = 8
         static let standard: CGFloat = 12
@@ -23,242 +185,403 @@ enum LifeRouteDesign {
     }
 
     enum Radius {
-        static let control: CGFloat = 12
-        static let card: CGFloat = 18
-        static let hero: CGFloat = 24
+        static let control: CGFloat = 14
+        static let card: CGFloat = 22
+        static let hero: CGFloat = 30
+    }
+}
+
+enum LifeRouteHaptics {
+    static func primaryAction() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        generator.impactOccurred(intensity: 0.78)
     }
 
-    static let screenGradient = LinearGradient(
-        colors: [ColorToken.midnight, ColorToken.deepNavy],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static func selection() {
+        let generator = UISelectionFeedbackGenerator()
+        generator.prepare()
+        generator.selectionChanged()
+    }
 
-    static let ambientGlow = RadialGradient(
-        colors: [ColorToken.navy.opacity(0.48), ColorToken.midnight.opacity(0)],
-        center: .topTrailing,
-        startRadius: 10,
-        endRadius: 420
-    )
-
-    static let accentGlow = RadialGradient(
-        colors: [ColorToken.gold.opacity(0.10), ColorToken.midnight.opacity(0)],
-        center: .bottomLeading,
-        startRadius: 20,
-        endRadius: 360
-    )
-
-    static let cardGradient = LinearGradient(
-        colors: [Color.white.opacity(0.085), ColorToken.navy.opacity(0.22)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    static let cardStroke = LinearGradient(
-        colors: [ColorToken.softGold.opacity(0.24), ColorToken.hairline, ColorToken.gold.opacity(0.10)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static func success() {
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(.success)
+    }
 }
 
 struct LifeRouteCardModifier: ViewModifier {
+    @Environment(\.lifeRoutePalette) private var palette
+
     func body(content: Content) -> some View {
         content
             .padding(LifeRouteDesign.Spacing.comfortable)
-            .background(
-                RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
-                    .fill(LifeRouteDesign.cardGradient)
-            )
+            .background(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous).fill(palette.panelGradient))
             .overlay {
                 RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
-                    .stroke(LifeRouteDesign.cardStroke, lineWidth: 1)
+                    .stroke(
+                        LinearGradient(
+                            colors: [palette.accentSecondary.opacity(0.24), Color.white.opacity(0.08), palette.accent.opacity(0.12)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
             }
-            .shadow(color: Color.black.opacity(0.22), radius: 18, y: 8)
+            .shadow(color: Color.black.opacity(0.24), radius: 20, y: 10)
     }
 }
 
 struct LifeRoutePrimaryButtonStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.lifeRoutePalette) private var palette
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.body.weight(.semibold))
-            .foregroundStyle(LifeRouteDesign.ColorToken.midnight)
-            .frame(maxWidth: .infinity, minHeight: 46)
-            .padding(.horizontal, LifeRouteDesign.Spacing.comfortable)
-            .background(
-                RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [LifeRouteDesign.ColorToken.softGold, LifeRouteDesign.ColorToken.gold],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+            .font(.body.weight(.bold))
+            .foregroundStyle(Color.black.opacity(0.78))
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .padding(.horizontal, 16)
+            .background(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).fill(palette.accentGradient))
+            .overlay { RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).stroke(Color.white.opacity(0.23), lineWidth: 0.8) }
+            .shadow(color: palette.accent.opacity(configuration.isPressed ? 0.14 : 0.24), radius: configuration.isPressed ? 10 : 16, y: configuration.isPressed ? 3 : 6)
+            .opacity(configuration.isPressed ? 0.86 : (isEnabled ? 1 : 0.48))
+            .scaleEffect(configuration.isPressed ? 0.972 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.78), value: configuration.isPressed)
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    guard isEnabled else { return }
+                    LifeRouteHaptics.primaryAction()
+                }
             )
-            .overlay {
-                RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 0.75)
-            }
-            .shadow(color: LifeRouteDesign.ColorToken.gold.opacity(0.16), radius: 14, y: 5)
-            .opacity(configuration.isPressed ? 0.82 : 1)
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+}
+
+struct LifeRouteSecondaryButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.lifeRoutePalette) private var palette
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(palette.textPrimary)
+            .frame(maxWidth: .infinity, minHeight: 46)
+            .padding(.horizontal, 14)
+            .background(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).fill(palette.panelElevated.opacity(configuration.isPressed ? 0.94 : 0.68)))
+            .overlay { RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).stroke(palette.accent.opacity(configuration.isPressed ? 0.46 : 0.28), lineWidth: 1) }
+            .shadow(color: palette.accent.opacity(configuration.isPressed ? 0.04 : 0.09), radius: 8, y: 3)
+            .scaleEffect(configuration.isPressed ? 0.978 : 1)
+            .animation(reduceMotion ? nil : .spring(response: 0.2, dampingFraction: 0.82), value: configuration.isPressed)
     }
 }
 
 private struct LifeRouteChromeModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.lifeRouteTheme) private var theme
+
     func body(content: Content) -> some View {
         ZStack {
-            LifeRouteDesign.screenGradient
+            palette.backgroundGradient.ignoresSafeArea()
+            LifeRouteThemeBackdrop(theme: theme, palette: palette)
                 .ignoresSafeArea()
-            LifeRouteDesign.ambientGlow
-                .ignoresSafeArea()
-            LifeRouteDesign.accentGlow
-                .ignoresSafeArea()
-            content
-                .scrollContentBackground(.hidden)
+                .allowsHitTesting(false)
+            RadialGradient(colors: [palette.accent.opacity(0.20), .clear], center: .topTrailing, startRadius: 8, endRadius: 430).ignoresSafeArea()
+            RadialGradient(colors: [palette.accentSecondary.opacity(0.09), .clear], center: .bottomLeading, startRadius: 20, endRadius: 380).ignoresSafeArea()
+            content.scrollContentBackground(.hidden)
         }
-        .environment(\.defaultMinListRowHeight, 50)
-        .tint(LifeRouteDesign.ColorToken.gold)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: theme)
+        .environment(\.defaultMinListRowHeight, 52)
+        .tint(palette.accent)
         .preferredColorScheme(.dark)
     }
 }
 
-extension View {
-    func lifeRouteCard() -> some View {
-        modifier(LifeRouteCardModifier())
+private struct LifeRouteThemeBackdrop: View {
+    let theme: LifeRouteTheme
+    let palette: LifeRouteThemePalette
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                switch theme.category {
+                case .core:
+                    coreBackdrop(size: proxy.size)
+                case .metallic:
+                    metallicBackdrop(size: proxy.size)
+                case .scenery:
+                    sceneryBackdrop(size: proxy.size)
+                case .dynamic:
+                    dynamicBackdrop(size: proxy.size)
+                case .fluid:
+                    fluidBackdrop(size: proxy.size)
+                }
+            }
+            .clipped()
+        }
+        .accessibilityHidden(true)
     }
 
-    func lifeRouteChrome() -> some View {
-        modifier(LifeRouteChromeModifier())
+    @ViewBuilder
+    private func coreBackdrop(size: CGSize) -> some View {
+        Image(systemName: "mountain.2.fill")
+            .font(.system(size: max(180, size.width * 0.72), weight: .black))
+            .foregroundStyle(palette.accentSecondary.opacity(0.035))
+            .offset(x: size.width * 0.22, y: size.height * 0.25)
+
+        ForEach(0..<5, id: \.self) { index in
+            Circle()
+                .fill(palette.accent.opacity(index.isMultiple(of: 2) ? 0.08 : 0.045))
+                .frame(width: CGFloat(4 + index * 2), height: CGFloat(4 + index * 2))
+                .position(
+                    x: size.width * CGFloat(0.14 + Double(index) * 0.17),
+                    y: size.height * CGFloat(0.10 + Double(index % 3) * 0.08)
+                )
+        }
+    }
+
+    @ViewBuilder
+    private func metallicBackdrop(size: CGSize) -> some View {
+        ForEach(0..<5, id: \.self) { index in
+            Image(systemName: "hexagon.fill")
+                .font(.system(size: CGFloat(92 + index * 28), weight: .ultraLight))
+                .foregroundStyle(index.isMultiple(of: 2) ? palette.accent.opacity(0.035) : palette.accentSecondary.opacity(0.028))
+                .rotationEffect(.degrees(Double(index * 12)))
+                .position(
+                    x: size.width * CGFloat(index.isMultiple(of: 2) ? 0.82 : 0.18),
+                    y: size.height * CGFloat(0.10 + Double(index) * 0.19)
+                )
+        }
+
+        LinearGradient(
+            colors: [.clear, palette.accentSecondary.opacity(0.055), .clear],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .rotationEffect(.degrees(-14))
+        .offset(x: size.width * 0.25)
+    }
+
+    @ViewBuilder
+    private func sceneryBackdrop(size: CGSize) -> some View {
+        Circle()
+            .fill(palette.accentSecondary.opacity(0.09))
+            .frame(width: size.width * 0.42, height: size.width * 0.42)
+            .blur(radius: 18)
+            .position(x: size.width * 0.82, y: size.height * 0.16)
+
+        Image(systemName: scenerySymbol)
+            .font(.system(size: max(220, size.width * 0.92), weight: .black))
+            .foregroundStyle(palette.accent.opacity(0.05))
+            .offset(x: size.width * 0.12, y: size.height * 0.28)
+
+        if isAurora {
+            Capsule()
+                .fill(palette.accentSecondary.opacity(0.055))
+                .frame(width: size.width * 1.2, height: 54)
+                .blur(radius: 24)
+                .rotationEffect(.degrees(-24))
+                .offset(x: -size.width * 0.10, y: -size.height * 0.18)
+        }
+    }
+
+    @ViewBuilder
+    private func dynamicBackdrop(size: CGSize) -> some View {
+        ForEach(0..<4, id: \.self) { index in
+            Capsule()
+                .fill(index.isMultiple(of: 2) ? palette.accent.opacity(0.055) : palette.accentSecondary.opacity(0.045))
+                .frame(width: size.width * 0.95, height: CGFloat(20 + index * 8))
+                .blur(radius: CGFloat(8 + index * 2))
+                .rotationEffect(.degrees(-32))
+                .offset(x: CGFloat(index - 2) * 42, y: CGFloat(index - 1) * 170)
+        }
+
+        Image(systemName: "bolt.fill")
+            .font(.system(size: max(160, size.width * 0.52), weight: .black))
+            .foregroundStyle(palette.accentSecondary.opacity(0.035))
+            .position(x: size.width * 0.82, y: size.height * 0.30)
+    }
+
+    @ViewBuilder
+    private func fluidBackdrop(size: CGSize) -> some View {
+        Ellipse()
+            .fill(palette.accent.opacity(0.07))
+            .frame(width: size.width * 1.05, height: size.width * 0.52)
+            .blur(radius: 28)
+            .rotationEffect(.degrees(-18))
+            .offset(x: size.width * 0.32, y: -size.height * 0.18)
+
+        Ellipse()
+            .stroke(palette.accentSecondary.opacity(0.07), lineWidth: 22)
+            .frame(width: size.width * 1.15, height: size.width * 0.58)
+            .blur(radius: 8)
+            .rotationEffect(.degrees(16))
+            .offset(x: -size.width * 0.36, y: size.height * 0.24)
+
+        Image(systemName: "water.waves")
+            .font(.system(size: max(190, size.width * 0.72), weight: .bold))
+            .foregroundStyle(palette.accentSecondary.opacity(0.04))
+            .position(x: size.width * 0.72, y: size.height * 0.72)
+    }
+
+    private var scenerySymbol: String {
+        switch theme {
+        case .ocean: return "water.waves"
+        default: return "mountain.2.fill"
+        }
+    }
+
+    private var isAurora: Bool {
+        switch theme {
+        case .aurora: return true
+        default: return false
+        }
     }
 }
 
-private enum LifeRouteAppearance {
-    private static let midnight = UIColor(red: 0.025, green: 0.055, blue: 0.12, alpha: 1)
-    private static let deepNavy = UIColor(red: 0.035, green: 0.09, blue: 0.19, alpha: 1)
-    private static let elevatedNavy = UIColor(red: 0.075, green: 0.18, blue: 0.34, alpha: 1)
-    private static let gold = UIColor(red: 0.93, green: 0.72, blue: 0.28, alpha: 1)
-    private static let softGold = UIColor(red: 0.98, green: 0.84, blue: 0.48, alpha: 1)
-    private static let secondary = UIColor.white.withAlphaComponent(0.58)
-    private static let hairline = UIColor.white.withAlphaComponent(0.08)
+extension View {
+    func lifeRouteCard() -> some View { modifier(LifeRouteCardModifier()) }
+    func lifeRouteChrome() -> some View { modifier(LifeRouteChromeModifier()) }
+}
 
-    static func configure() {
-        configureNavigation()
-        configureTabs()
-        configureControls()
-        configureScrollableSurfaces()
-    }
+enum LifeRouteAppearance {
+    static func configure(theme: LifeRouteTheme) {
+        let palette = theme.palette
+        let background = UIColor(palette.backgroundTop)
+        let panel = UIColor(palette.panel)
+        let elevated = UIColor(palette.panelElevated)
+        let accent = UIColor(palette.accent)
+        let secondary = UIColor.white.withAlphaComponent(0.58)
 
-    private static func configureNavigation() {
-        let navigation = UINavigationBarAppearance()
-        navigation.configureWithTransparentBackground()
-        navigation.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-        navigation.backgroundColor = deepNavy.withAlphaComponent(0.78)
-        navigation.shadowColor = gold.withAlphaComponent(0.10)
-        navigation.titleTextAttributes = [
-            .foregroundColor: UIColor.white,
-            .font: UIFont.systemFont(ofSize: 17, weight: .semibold)
+        let nav = UINavigationBarAppearance()
+        nav.configureWithTransparentBackground()
+        nav.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
+        nav.backgroundColor = background.withAlphaComponent(0.78)
+        nav.shadowColor = accent.withAlphaComponent(0.10)
+        nav.titleTextAttributes = [.foregroundColor: UIColor.white, .font: UIFont.systemFont(ofSize: 17, weight: .semibold)]
+        nav.largeTitleTextAttributes = [.foregroundColor: UIColor.white, .font: UIFont.systemFont(ofSize: 34, weight: .bold)]
+
+        let navButton = UIBarButtonItemAppearance(style: .plain)
+        navButton.normal.titleTextAttributes = [
+            .foregroundColor: accent,
+            .font: UIFont.systemFont(ofSize: 16, weight: .semibold)
         ]
-        navigation.largeTitleTextAttributes = [
-            .foregroundColor: UIColor.white,
-            .font: UIFont.systemFont(ofSize: 34, weight: .bold)
+        navButton.highlighted.titleTextAttributes = [
+            .foregroundColor: accent.withAlphaComponent(0.68),
+            .font: UIFont.systemFont(ofSize: 16, weight: .semibold)
         ]
+        nav.buttonAppearance = navButton
+        nav.backButtonAppearance = navButton
 
-        let navigationBar = UINavigationBar.appearance()
-        navigationBar.standardAppearance = navigation
-        navigationBar.scrollEdgeAppearance = navigation
-        navigationBar.compactAppearance = navigation
-        navigationBar.tintColor = gold
+        let doneButton = UIBarButtonItemAppearance(style: .done)
+        doneButton.normal.titleTextAttributes = [
+            .foregroundColor: accent,
+            .font: UIFont.systemFont(ofSize: 16, weight: .bold)
+        ]
+        nav.doneButtonAppearance = doneButton
 
-        let barButton = UIBarButtonItem.appearance()
-        barButton.tintColor = gold
-        barButton.setTitleTextAttributes([.foregroundColor: gold], for: .normal)
-    }
+        UINavigationBar.appearance().standardAppearance = nav
+        UINavigationBar.appearance().scrollEdgeAppearance = nav
+        UINavigationBar.appearance().compactAppearance = nav
+        UINavigationBar.appearance().tintColor = accent
+        UIBarButtonItem.appearance().tintColor = accent
 
-    private static func configureTabs() {
         let tab = UITabBarAppearance()
         tab.configureWithTransparentBackground()
         tab.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-        tab.backgroundColor = midnight.withAlphaComponent(0.86)
-        tab.shadowColor = gold.withAlphaComponent(0.09)
-        configure(tab.stackedLayoutAppearance)
-        configure(tab.inlineLayoutAppearance)
-        configure(tab.compactInlineLayoutAppearance)
-
+        tab.backgroundColor = background.withAlphaComponent(0.88)
+        tab.shadowColor = accent.withAlphaComponent(0.09)
+        configure(tab.stackedLayoutAppearance, accent: accent, secondary: secondary)
+        configure(tab.inlineLayoutAppearance, accent: accent, secondary: secondary)
+        configure(tab.compactInlineLayoutAppearance, accent: accent, secondary: secondary)
         let tabBar = UITabBar.appearance()
         tabBar.standardAppearance = tab
         tabBar.scrollEdgeAppearance = tab
-        tabBar.tintColor = gold
+        tabBar.tintColor = accent
         tabBar.unselectedItemTintColor = secondary
-    }
+        tabBar.itemPositioning = .fill
+        tabBar.selectionIndicatorImage = makeTabSelectionIndicator(accent: accent)
 
-    private static func configureControls() {
         let segmented = UISegmentedControl.appearance()
-        segmented.backgroundColor = elevatedNavy.withAlphaComponent(0.62)
-        segmented.selectedSegmentTintColor = gold
+        segmented.backgroundColor = panel.withAlphaComponent(0.72)
+        segmented.selectedSegmentTintColor = accent
         segmented.setTitleTextAttributes([
-            .foregroundColor: UIColor.white.withAlphaComponent(0.78),
-            .font: UIFont.systemFont(ofSize: 13, weight: .medium)
+            .foregroundColor: UIColor.white.withAlphaComponent(0.68),
+            .font: UIFont.systemFont(ofSize: 13, weight: .semibold)
         ], for: .normal)
         segmented.setTitleTextAttributes([
-            .foregroundColor: midnight,
-            .font: UIFont.systemFont(ofSize: 13, weight: .semibold)
+            .foregroundColor: UIColor.black.withAlphaComponent(0.78),
+            .font: UIFont.systemFont(ofSize: 13, weight: .bold)
         ], for: .selected)
 
-        UISwitch.appearance().onTintColor = gold
-        UISwitch.appearance().thumbTintColor = UIColor.white
-        UIStepper.appearance().tintColor = gold
-        UIDatePicker.appearance().tintColor = gold
-        UISlider.appearance().minimumTrackTintColor = gold
-        UITextField.appearance().tintColor = softGold
-        UITextView.appearance().tintColor = softGold
-        UIRefreshControl.appearance().tintColor = gold
-        UIActivityIndicatorView.appearance().color = gold
-        UIProgressView.appearance().progressTintColor = gold
-    }
+        UISwitch.appearance().onTintColor = accent
+        UIStepper.appearance().tintColor = accent
+        UIDatePicker.appearance().tintColor = accent
+        UITextField.appearance().tintColor = accent
+        UITextField.appearance().backgroundColor = elevated.withAlphaComponent(0.24)
+        UITextView.appearance().tintColor = accent
+        UITextView.appearance().backgroundColor = panel.withAlphaComponent(0.28)
+        UIActivityIndicatorView.appearance().color = accent
+        UIProgressView.appearance().progressTintColor = accent
 
-    private static func configureScrollableSurfaces() {
         let table = UITableView.appearance()
         table.backgroundColor = .clear
-        table.separatorColor = hairline
+        table.separatorStyle = .none
         table.sectionHeaderTopPadding = 12
 
-        UITableViewCell.appearance().backgroundColor = deepNavy.withAlphaComponent(0.60)
-        UITableViewHeaderFooterView.appearance().tintColor = .clear
-        UILabel.appearance(whenContainedInInstancesOf: [UITableViewHeaderFooterView.self]).textColor = secondary
+        let cell = UITableViewCell.appearance()
+        cell.backgroundColor = panel.withAlphaComponent(0.42)
+        cell.tintColor = accent
+
+        let sectionLabel = UILabel.appearance(whenContainedInInstancesOf: [UITableViewHeaderFooterView.self])
+        sectionLabel.textColor = accent.withAlphaComponent(0.84)
+        sectionLabel.font = UIFont.systemFont(ofSize: 12, weight: .bold)
+
+        let tableButton = UIButton.appearance(whenContainedInInstancesOf: [UITableViewCell.self])
+        tableButton.tintColor = accent
 
         UICollectionView.appearance().backgroundColor = .clear
-        UICollectionViewCell.appearance().backgroundColor = .clear
-
-        UIScrollView.appearance().indicatorStyle = .white
     }
 
-    private static func configure(_ item: UITabBarItemAppearance) {
+    private static func makeTabSelectionIndicator(accent: UIColor) -> UIImage {
+        let size = CGSize(width: 64, height: 46)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { _ in
+            let rect = CGRect(x: 3, y: 3, width: 58, height: 40)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: 20)
+            accent.withAlphaComponent(0.13).setFill()
+            path.fill()
+            accent.withAlphaComponent(0.20).setStroke()
+            path.lineWidth = 1
+            path.stroke()
+        }
+        return image.resizableImage(
+            withCapInsets: UIEdgeInsets(top: 22, left: 31, bottom: 22, right: 31),
+            resizingMode: .stretch
+        )
+    }
+
+    private static func configure(_ item: UITabBarItemAppearance, accent: UIColor, secondary: UIColor) {
         item.normal.iconColor = secondary
-        item.normal.titleTextAttributes = [
-            .foregroundColor: secondary,
-            .font: UIFont.systemFont(ofSize: 10, weight: .medium)
-        ]
-        item.selected.iconColor = gold
-        item.selected.titleTextAttributes = [
-            .foregroundColor: gold,
-            .font: UIFont.systemFont(ofSize: 10, weight: .semibold)
-        ]
+        item.normal.titleTextAttributes = [.foregroundColor: secondary, .font: UIFont.systemFont(ofSize: 10, weight: .medium)]
+        item.selected.iconColor = accent
+        item.selected.titleTextAttributes = [.foregroundColor: accent, .font: UIFont.systemFont(ofSize: 10, weight: .bold)]
     }
 }
 
 @main
 struct LifeRouteApp: App {
-    init() {
-        LifeRouteAppearance.configure()
-    }
+    @StateObject private var themeStore = LifeRouteThemeStore()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .lifeRouteChrome()
+                .environmentObject(themeStore)
+                .environment(\.lifeRoutePalette, themeStore.palette)
+                .environment(\.lifeRouteTheme, themeStore.selectedTheme)
         }
     }
 }

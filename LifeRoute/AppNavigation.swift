@@ -41,36 +41,36 @@ enum AppRoute: Hashable {
 
     var title: String {
         switch self {
-        case .todayDetails: return "Today navigation"
-        case .scheduleDetails: return "Schedule navigation"
-        case .toolsDetails: return "Session Tools navigation"
-        case .resourcesDetails: return "Resources navigation"
-        case .setupDetails: return "Setup navigation"
+        case .todayDetails: return "Today"
+        case .scheduleDetails: return "Schedule"
+        case .toolsDetails: return "Session Tools"
+        case .resourcesDetails: return "Resources"
+        case .setupDetails: return "Setup"
         }
     }
 
     var subtitle: String {
         switch self {
         case .todayDetails:
-            return "This destination is owned by Today’s native NavigationStack."
+            return "Keep your routes, saved places, and daily flow close at hand."
         case .scheduleDetails:
-            return "Day, Week, and Month functionality will be migrated into this native stack."
+            return "Move between your day, week, and month while keeping calendar context together."
         case .toolsDetails:
-            return "ABA and session tools will return here in audited feature batches."
+            return "Open focused tools for timing, notes, visual supports, and session planning."
         case .resourcesDetails:
-            return "External resources will be restored without taking over app navigation."
+            return "Jump quickly to the parts of LifeRoute you use throughout the workday."
         case .setupDetails:
-            return "Setup state will be migrated without reintroducing a login gate."
+            return "Manage your appearance, clients, home location, and saved places."
         }
     }
 
     var systemImage: String {
         switch self {
-        case .todayDetails: return "checkmark.circle"
+        case .todayDetails: return "sun.max.fill"
         case .scheduleDetails: return "calendar.badge.checkmark"
-        case .toolsDetails: return "wrench.and.screwdriver"
-        case .resourcesDetails: return "books.vertical"
-        case .setupDetails: return "gearshape"
+        case .toolsDetails: return "wrench.and.screwdriver.fill"
+        case .resourcesDetails: return "books.vertical.fill"
+        case .setupDetails: return "gearshape.fill"
         }
     }
 }
@@ -147,6 +147,8 @@ final class AppLifecycleCore: ObservableObject {
 // functional-core rebuild. SwiftUI's system ContentUnavailableView starts at
 // iOS 17, while LifeRoute still supports iOS 16 during this rebuild.
 struct ContentUnavailableView: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
     let title: String
     let systemImage: String
     let description: Text
@@ -158,18 +160,41 @@ struct ContentUnavailableView: View {
     }
 
     var body: some View {
-        VStack(spacing: 10) {
-            Image(systemName: systemImage)
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-            Text(title)
-                .font(.headline)
-            description
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        VStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [palette.accent.opacity(0.20), palette.accentSecondary.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                Image(systemName: systemImage)
+                    .font(.system(size: 27, weight: .bold))
+                    .foregroundStyle(palette.accent)
+            }
+            .frame(width: 64, height: 64)
+            .shadow(color: palette.accent.opacity(0.12), radius: 14)
+
+            VStack(spacing: 6) {
+                Text(title)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(palette.textPrimary)
+                description
+                    .font(.subheadline)
+                    .foregroundStyle(palette.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
+        .padding(.vertical, 22)
+        .padding(.horizontal, 14)
+        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
+                .stroke(palette.accent.opacity(0.18), lineWidth: 1)
+        }
     }
 }

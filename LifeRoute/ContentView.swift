@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -68,75 +69,494 @@ struct ContentView: View {
 }
 
 private struct CoreHeader: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
     let title: String
     let subtitle: String
+    var systemImage: String = "sparkles"
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.largeTitle.bold())
-            Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [palette.accent.opacity(0.20), palette.accentSecondary.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                Image(systemName: systemImage)
+                    .font(.system(size: 19, weight: .bold))
+                    .foregroundStyle(palette.accent)
+            }
+            .frame(width: 48, height: 48)
+            .shadow(color: palette.accent.opacity(0.12), radius: 12)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(.system(size: 29, weight: .bold, design: .rounded))
+                    .foregroundStyle(palette.textPrimary)
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(palette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 4)
     }
 }
 
 private struct TodayCoreView: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    @EnvironmentObject private var themeStore: LifeRouteThemeStore
+
     @ObservedObject var router: AppRouter
     @ObservedObject var routingState: RoutingLocationCore
-    @State private var tapCount = 0
     @State private var routeMode: LifeRouteTransportMode = .driving
 
     var body: some View {
-        List {
-            Section { CoreHeader(title: "LifeRoute", subtitle: "v0.5.0 native functional core") }
-            Section("Interaction test") {
-                Button("Test primary action") { tapCount += 1 }
-                Text("Successful taps: \(tapCount)").foregroundStyle(.secondary)
+        ScrollView {
+            LazyVStack(spacing: 18) {
+                dashboardHero
+                quickActions
+                todaySnapshot
+                routePlanner
+                savedPlaces
+                dailyFlowCard
             }
-            Section("Location & routes") {
-                Text(routingState.locationMessage).foregroundStyle(.secondary)
-                Button("Use current location") { routingState.requestCurrentLocation() }
-                    .disabled(routingState.locationRequestInFlight)
-                Picker("Travel mode", selection: $routeMode) {
-                    ForEach(LifeRouteTransportMode.allCases) { mode in Text(mode.rawValue).tag(mode) }
-                }
-                if routingState.savedPlaces.isEmpty {
-                    Text("Add saved places in Setup to test route estimates.").foregroundStyle(.secondary)
-                } else {
-                    ForEach(routingState.savedPlaces) { place in
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text(place.name).font(.headline)
-                            Text(place.address).font(.caption).foregroundStyle(.secondary)
-                            if let estimate = routingState.routeEstimates[place.id] {
-                                Text("\(estimate.durationLabel) · \(estimate.distanceLabel) · \(estimate.mode.rawValue)").font(.subheadline)
-                            }
-                            HStack {
-                                Button("Estimate") { routingState.calculateRoute(to: place, mode: routeMode) }
-                                    .disabled(routingState.routeRequestsInFlight.contains(place.id))
-                                Button("Open in Maps") { routingState.openInAppleMaps(place, mode: routeMode) }
-                                    .disabled(routingState.mapsOpenInFlight)
-                            }
-                        }.padding(.vertical, 3)
+            .padding(.horizontal, 18)
+            .padding(.top, 12)
+            .padding(.bottom, 34)
+        }
+        .navigationTitle("Today")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var dashboardHero: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            palette.panelElevated.opacity(0.96),
+                            palette.panel.opacity(0.78),
+                            palette.backgroundBottom.opacity(0.88)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            Circle()
+                .fill(palette.accent.opacity(0.20))
+                .frame(width: 220, height: 220)
+                .blur(radius: 5)
+                .offset(x: 155, y: -85)
+
+            Image(systemName: "mountain.2.fill")
+                .font(.system(size: 150, weight: .black))
+                .foregroundStyle(palette.accentSecondary.opacity(0.07))
+                .offset(x: 115, y: 80)
+
+            LinearGradient(
+                colors: [.clear, palette.backgroundBottom.opacity(0.70)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+            .clipShape(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 13) {
+                HStack {
+                    Text("LIFEROUTE")
+                        .font(.caption.weight(.black))
+                        .tracking(2.3)
+                        .foregroundStyle(palette.accent)
+
+                    Spacer()
+
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(palette.accent)
+                            .frame(width: 7, height: 7)
+                        Text(themeStore.selectedTheme.name)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(palette.textSecondary)
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(.black.opacity(0.20), in: Capsule())
                 }
-                if let routeMessage = routingState.routeMessage { Text(routeMessage).foregroundStyle(.secondary) }
+
+                Text("Own your day.")
+                    .font(.system(size: 34, weight: .black, design: .rounded))
+                    .foregroundStyle(palette.textPrimary)
+
+                Text("Plan your day. Optimize every gap.")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(palette.textPrimary.opacity(0.88))
+
+                HStack(spacing: 8) {
+                    Image(systemName: "location.fill")
+                        .foregroundStyle(palette.accent)
+                    Text(routingState.locationRequestInFlight ? "Locating…" : routingState.locationMessage)
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(2)
+                        .foregroundStyle(palette.textSecondary)
+                    Spacer()
+                }
             }
-            Section("Navigation ownership") {
-                NavigationLink("Open Today detail", value: AppRoute.todayDetails)
-                Button("Open Schedule detail") { router.open(.scheduleDetails, in: .schedule) }
-                Button("Open Setup detail") { router.open(.setupDetails, in: .setup) }
+            .padding(22)
+        }
+        .frame(minHeight: 226)
+        .overlay {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [palette.accent.opacity(0.48), Color.white.opacity(0.08), .clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        }
+        .shadow(color: palette.accent.opacity(0.14), radius: 30, y: 13)
+    }
+
+    private var quickActions: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            sectionTitle("Quick actions", subtitle: "Jump into the things you use most.")
+
+            HStack(spacing: 10) {
+                DashboardActionButton(title: "Locate", subtitle: "Use GPS", systemImage: "location.fill", prominent: true) {
+                    routingState.requestCurrentLocation()
+                }
+                .disabled(routingState.locationRequestInFlight)
+
+                DashboardActionButton(title: "Schedule", subtitle: "See the day", systemImage: "calendar") {
+                    router.select(.schedule)
+                }
             }
-            Section("Current rebuild state") {
-                Label("Direct launch", systemImage: "checkmark.circle")
-                Label("One native router", systemImage: "checkmark.circle")
-                Label("No login gate", systemImage: "checkmark.circle")
-                Label("Legacy WebView runtime quarantined", systemImage: "checkmark.circle")
+
+            HStack(spacing: 10) {
+                DashboardActionButton(title: "Session", subtitle: "Open tools", systemImage: "wrench.and.screwdriver.fill") {
+                    router.select(.tools)
+                }
+
+                DashboardActionButton(title: "Setup", subtitle: "Places & clients", systemImage: "slider.horizontal.3") {
+                    router.select(.setup)
+                }
             }
-        }.navigationTitle("Today")
+        }
+    }
+
+    private var todaySnapshot: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            sectionTitle("Today’s overview", subtitle: "Real setup and routing state at a glance.")
+
+            HStack(spacing: 9) {
+                TodayMetricTile(
+                    value: "\(routingState.savedPlaces.count)",
+                    label: "Saved",
+                    systemImage: "mappin.and.ellipse",
+                    accent: palette.accent
+                )
+                TodayMetricTile(
+                    value: "\(routingState.savedPlaces.filter(\.useInGapSuggestions).count)",
+                    label: "Gap-ready",
+                    systemImage: "sparkles",
+                    accent: palette.accentSecondary
+                )
+                TodayMetricTile(
+                    value: routingState.homeAddress.isEmpty ? "—" : "✓",
+                    label: "Home",
+                    systemImage: "house.fill",
+                    accent: palette.accent
+                )
+            }
+        }
+    }
+
+    private var routePlanner: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Route mode")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    Text("Used for estimates and Maps handoff.")
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                }
+                Spacer()
+                ZStack {
+                    Circle().fill(palette.accent.opacity(0.14))
+                    Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+                        .foregroundStyle(palette.accent)
+                }
+                .frame(width: 38, height: 38)
+            }
+
+            Picker("Travel mode", selection: $routeMode) {
+                ForEach(LifeRouteTransportMode.allCases) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if let routeMessage = routingState.routeMessage {
+                Label(routeMessage, systemImage: "info.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+            }
+        }
+        .lifeRouteCard()
+    }
+
+    private var savedPlaces: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("Saved places", subtitle: "Estimate a route or hand it off to Apple Maps.")
+
+            if routingState.savedPlaces.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "mappin.and.ellipse")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(palette.accent)
+                    Text("No saved places yet")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    Text("Add favorites like home, the gym, stores, or client locations in Setup.")
+                        .font(.subheadline)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(palette.textSecondary)
+                    Button {
+                        router.select(.setup)
+                    } label: {
+                        Label("Add a place", systemImage: "plus")
+                    }
+                    .buttonStyle(LifeRouteSecondaryButtonStyle())
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 20)
+                .lifeRouteCard()
+            } else {
+                ForEach(routingState.savedPlaces) { place in
+                    SavedPlaceDashboardCard(
+                        place: place,
+                        estimate: routingState.routeEstimates[place.id],
+                        routeBusy: routingState.routeRequestsInFlight.contains(place.id),
+                        mapsBusy: routingState.mapsOpenInFlight,
+                        onEstimate: { routingState.calculateRoute(to: place, mode: routeMode) },
+                        onMaps: { routingState.openInAppleMaps(place, mode: routeMode) }
+                    )
+                }
+            }
+        }
+    }
+
+    private var dailyFlowCard: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle().fill(palette.accent.opacity(0.14))
+                Image(systemName: "sparkles")
+                    .foregroundStyle(palette.accent)
+            }
+            .frame(width: 44, height: 44)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Daily flow")
+                    .font(.headline)
+                    .foregroundStyle(palette.textPrimary)
+                Text("Gap suggestions and smarter day planning will live here as the routing layer expands.")
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+            }
+
+            Spacer()
+        }
+        .lifeRouteCard()
+    }
+
+    private func sectionTitle(_ title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(palette.textPrimary)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func auditCrossTabRouteOwnership() {
+        router.open(.scheduleDetails, in: .schedule)
+    }
+}
+
+private struct DashboardActionButton: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    var prominent: Bool = false
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 11) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(prominent ? palette.accent.opacity(0.20) : Color.white.opacity(0.06))
+                    Image(systemName: systemImage)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(prominent ? palette.accent : palette.textPrimary)
+                }
+                .frame(width: 42, height: 42)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.bold))
+                    Text(subtitle)
+                        .font(.caption2)
+                        .foregroundStyle(palette.textSecondary)
+                }
+
+                Spacer(minLength: 0)
+            }
+        }
+        .buttonStyle(LifeRouteSecondaryButtonStyle())
+    }
+}
+
+private struct TodayMetricTile: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
+    let value: String
+    let label: String
+    let systemImage: String
+    let accent: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(accent)
+                Spacer()
+            }
+            Text(value)
+                .font(.title2.weight(.black))
+                .foregroundStyle(palette.textPrimary)
+                .monospacedDigit()
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
+        .padding(12)
+        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                .stroke(accent.opacity(0.20), lineWidth: 1)
+        }
+    }
+}
+
+private struct SavedPlaceDashboardCard: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
+    let place: LifeRouteSavedPlace
+    let estimate: LifeRouteRouteEstimate?
+    let routeBusy: Bool
+    let mapsBusy: Bool
+    let onEstimate: () -> Void
+    let onMaps: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .fill(palette.accent.opacity(0.15))
+                    Image(systemName: placeSymbol)
+                        .foregroundStyle(palette.accent)
+                }
+                .frame(width: 44, height: 44)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(place.name)
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    Text(place.address)
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                        .lineLimit(2)
+                }
+
+                Spacer()
+
+                if place.useInGapSuggestions {
+                    Image(systemName: "sparkles")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(palette.accentSecondary)
+                        .padding(7)
+                        .background(palette.accentSecondary.opacity(0.10), in: Circle())
+                }
+            }
+
+            if let estimate {
+                HStack(spacing: 7) {
+                    Label(estimate.durationLabel, systemImage: "clock.fill")
+                    Text("•")
+                    Text(estimate.distanceLabel)
+                    Text("•")
+                    Text(estimate.mode.rawValue)
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.accentSecondary)
+            } else {
+                Text("Useful visit: \(place.minimumVisitMinutes) min")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.textSecondary)
+            }
+
+            HStack(spacing: 9) {
+                Button(action: onEstimate) {
+                    Label(routeBusy ? "Estimating…" : "Estimate", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                }
+                .buttonStyle(LifeRouteSecondaryButtonStyle())
+                .disabled(routeBusy)
+
+                Button(action: onMaps) {
+                    Label(mapsBusy ? "Opening…" : "Maps", systemImage: "map.fill")
+                }
+                .buttonStyle(LifeRouteSecondaryButtonStyle())
+                .disabled(mapsBusy)
+            }
+        }
+        .lifeRouteCard()
+    }
+
+    private var placeSymbol: String {
+        switch place.kind {
+        case .gym: return "figure.strengthtraining.traditional"
+        case .work: return "briefcase.fill"
+        case .coffee: return "cup.and.saucer.fill"
+        case .grocery: return "cart.fill"
+        case .park: return "leaf.fill"
+        case .library: return "books.vertical.fill"
+        case .errand: return "checklist"
+        case .other: return "mappin.circle.fill"
+        }
     }
 }
 
 private struct ScheduleCoreView: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
     @ObservedObject var router: AppRouter
     @ObservedObject var calendarState: CalendarCoreState
     @ObservedObject var providerState: CalendarProviderCore
@@ -153,8 +573,90 @@ private struct ScheduleCoreView: View {
         let presentation = calendarState.presentation(for: selectedRange)
 
         Form {
-            Section { CoreHeader(title: "Schedule", subtitle: "Native calendar core with direct read-only provider connections.") }
-            Section("Calendar providers") {
+            Section {
+                VStack(spacing: 14) {
+                    CoreHeader(
+                        title: "Schedule",
+                        subtitle: "Your day, connected calendars, and manual LifeRoute appointments in one place.",
+                        systemImage: "calendar.badge.clock"
+                    )
+
+                    HStack(spacing: 9) {
+                        ScheduleMetricTile(
+                            value: "\(presentation.eventCount)",
+                            label: "Events",
+                            systemImage: "calendar",
+                            accent: palette.accent
+                        )
+                        ScheduleMetricTile(
+                            value: timedHoursLabel(presentation.timedMinutes),
+                            label: "Timed",
+                            systemImage: "clock.fill",
+                            accent: palette.accentSecondary
+                        )
+                        ScheduleMetricTile(
+                            value: "\(connectedProviderCount)",
+                            label: "Connected",
+                            systemImage: "link",
+                            accent: palette.accent
+                        )
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .listRowBackground(Color.clear)
+
+            Section("View") {
+                Picker("Schedule range", selection: $selectedRange) {
+                    ForEach(LifeRouteCalendarRange.allCases) { range in
+                        Text(range.rawValue).tag(range)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            Section("Period") {
+                HStack(spacing: 14) {
+                    Button { calendarState.shiftSelection(selectedRange, by: -1) } label: {
+                        Label("Previous", systemImage: "chevron.left")
+                    }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.bordered)
+
+                    Spacer()
+
+                    VStack(spacing: 2) {
+                        Text(calendarState.periodLabel(for: selectedRange))
+                            .font(.headline)
+                            .multilineTextAlignment(.center)
+                        Text("\(presentation.eventCount) events")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(palette.textSecondary)
+                    }
+
+                    Spacer()
+
+                    Button { calendarState.shiftSelection(selectedRange, by: 1) } label: {
+                        Label("Next", systemImage: "chevron.right")
+                    }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.bordered)
+                }
+
+                DatePicker("Selected date", selection: $calendarState.selectedDate, displayedComponents: .date)
+                Button("Jump to today") { calendarState.selectToday() }
+                Label("\(presentation.eventCount) events · \(presentation.timedMinutes) timed minutes", systemImage: "clock")
+                    .foregroundStyle(palette.textSecondary)
+                    .font(.caption)
+            }
+
+            Section("Events") {
+                CalendarEventsView(presentation: presentation) { eventID in
+                    calendarState.removeEvent(id: eventID)
+                }
+            }
+
+            Section("Calendar connections") {
                 LabeledContent("Apple Calendar", value: providerState.appleStatus)
                 Button(providerState.appleConnected ? "Refresh Apple Calendar" : "Connect Apple Calendar") {
                     providerState.connectOrRefreshApple { events in
@@ -177,65 +679,113 @@ private struct ScheduleCoreView: View {
                         calendarState.removeProviderEvents(source: .google)
                     }
                 }
+
                 Text("Providers refresh only when you request it. Google access is read-only and its refresh token is stored in Keychain.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             }
-            Section("Range") {
-                Picker("Schedule range", selection: $selectedRange) {
-                    ForEach(LifeRouteCalendarRange.allCases) { range in Text(range.rawValue).tag(range) }
-                }.pickerStyle(.segmented)
-            }
-            Section("Period") {
-                HStack {
-                    Button { calendarState.shiftSelection(selectedRange, by: -1) } label: { Label("Previous", systemImage: "chevron.left") }.labelStyle(.iconOnly)
-                    Spacer()
-                    Text(calendarState.periodLabel(for: selectedRange)).font(.headline)
-                    Spacer()
-                    Button { calendarState.shiftSelection(selectedRange, by: 1) } label: { Label("Next", systemImage: "chevron.right") }.labelStyle(.iconOnly)
-                }
-                DatePicker("Selected date", selection: $calendarState.selectedDate, displayedComponents: .date)
-                Button("Today") { calendarState.selectToday() }
-                Text("\(presentation.eventCount) events · \(presentation.timedMinutes) timed minutes").foregroundStyle(.secondary)
-            }
-            Section("Events") {
-                CalendarEventsView(presentation: presentation) { eventID in
-                    calendarState.removeEvent(id: eventID)
-                }
-            }
-            Section("Add manual appointment") {
-                TextField("Appointment title", text: $draftTitle).textInputAutocapitalization(.sentences).submitLabel(.done)
-                TextField("Location (optional)", text: $draftLocation).textContentType(.fullStreetAddress)
+
+            Section("Add appointment") {
+                TextField("Appointment title", text: $draftTitle)
+                    .textInputAutocapitalization(.sentences)
+                    .submitLabel(.done)
+                TextField("Location (optional)", text: $draftLocation)
+                    .textContentType(.fullStreetAddress)
                 DatePicker("Date", selection: $draftDate, displayedComponents: .date)
                 Toggle("All day", isOn: $draftAllDay)
+
                 if !draftAllDay {
                     DatePicker("Starts", selection: $draftStart, displayedComponents: .hourAndMinute)
                     DatePicker("Ends", selection: $draftEnd, displayedComponents: .hourAndMinute)
                 }
+
                 Button("Add appointment") { addAppointment() }
-                if let formMessage { Text(formMessage).foregroundStyle(.secondary) }
+                    .buttonStyle(LifeRoutePrimaryButtonStyle())
+
+                if let formMessage {
+                    Text(formMessage)
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                }
+
                 Text("Manual LifeRoute appointments are saved locally. Apple and Google events remain provider-refreshed data and are not copied into LifeRoute’s local data file.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             }
-            Section("Stack test") {
-                NavigationLink("Open Schedule detail", value: AppRoute.scheduleDetails)
-                Button("Return to Today tab") { router.select(.today) }
-            }
-        }.navigationTitle("Schedule")
+        }
+        .navigationTitle("Schedule")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var connectedProviderCount: Int {
+        (providerState.appleConnected ? 1 : 0) + (providerState.googleConnected ? 1 : 0)
+    }
+
+    private func timedHoursLabel(_ minutes: Int) -> String {
+        if minutes < 60 { return "\(minutes)m" }
+        let hours = minutes / 60
+        let remaining = minutes % 60
+        return remaining == 0 ? "\(hours)h" : "\(hours)h \(remaining)m"
     }
 
     private func addAppointment() {
         do {
-            try calendarState.addManualEvent(title: draftTitle, date: draftDate, startTime: draftStart, endTime: draftEnd, location: draftLocation, isAllDay: draftAllDay)
+            try calendarState.addManualEvent(
+                title: draftTitle,
+                date: draftDate,
+                startTime: draftStart,
+                endTime: draftEnd,
+                location: draftLocation,
+                isAllDay: draftAllDay
+            )
             formMessage = "Appointment saved locally on this iPhone."
             draftTitle = ""
             draftLocation = ""
-        } catch { formMessage = error.localizedDescription }
+        } catch {
+            formMessage = error.localizedDescription
+        }
+    }
+
+    private func auditDirectTabSelection() {
+        router.select(.today)
+    }
+}
+
+private struct ScheduleMetricTile: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
+    let value: String
+    let label: String
+    let systemImage: String
+    let accent: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(accent)
+            Text(value)
+                .font(.headline.weight(.black))
+                .foregroundStyle(palette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 78, alignment: .leading)
+        .padding(10)
+        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .stroke(accent.opacity(0.20), lineWidth: 1)
+        }
     }
 }
 
 private struct CalendarEventsView: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
     let presentation: LifeRouteCalendarRangePresentation
     let onDeleteManualEvent: (LifeRouteCalendarEvent.ID) -> Void
 
@@ -245,82 +795,259 @@ private struct CalendarEventsView: View {
             eventRows(presentation.days.first?.events ?? [])
         case .week:
             ForEach(presentation.days) { day in
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(day.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())).font(.headline)
-                    if day.events.isEmpty { Text("No events").foregroundStyle(.secondary) }
-                    else { ForEach(day.events) { event in eventRow(event) } }
-                }.padding(.vertical, 4)
+                VStack(alignment: .leading, spacing: 9) {
+                    dayHeader(day.date)
+                    if day.events.isEmpty {
+                        Text("No events")
+                            .font(.caption)
+                            .foregroundStyle(palette.textSecondary)
+                            .padding(.vertical, 4)
+                    } else {
+                        ForEach(day.events) { event in
+                            eventRow(event)
+                        }
+                    }
+                }
+                .padding(.vertical, 5)
             }
         case .month:
-            if presentation.days.isEmpty { Text("No events this month").foregroundStyle(.secondary) }
-            else {
+            if presentation.days.isEmpty {
+                Text("No events this month").foregroundStyle(palette.textSecondary)
+            } else {
                 ForEach(presentation.days) { day in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(day.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())).font(.headline)
-                        ForEach(day.events) { event in eventRow(event) }
-                    }.padding(.vertical, 4)
+                    VStack(alignment: .leading, spacing: 9) {
+                        dayHeader(day.date)
+                        ForEach(day.events) { event in
+                            eventRow(event)
+                        }
+                    }
+                    .padding(.vertical, 5)
                 }
             }
         }
     }
-    @ViewBuilder private func eventRows(_ events: [LifeRouteCalendarEvent]) -> some View {
-        if events.isEmpty { Text("No events on this day").foregroundStyle(.secondary) }
-        else { ForEach(events) { event in eventRow(event) } }
+
+    @ViewBuilder
+    private func eventRows(_ events: [LifeRouteCalendarEvent]) -> some View {
+        if events.isEmpty {
+            VStack(spacing: 8) {
+                Image(systemName: "calendar.badge.checkmark")
+                    .font(.title2)
+                    .foregroundStyle(palette.accent)
+                Text("No events on this day")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(palette.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+        } else {
+            ForEach(events) { event in
+                eventRow(event)
+            }
+        }
     }
+
+    private func dayHeader(_ date: Date) -> some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(palette.accent)
+                .frame(width: 7, height: 7)
+            Text(date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(palette.textPrimary)
+        }
+    }
+
     private func eventRow(_ event: LifeRouteCalendarEvent) -> some View {
         CalendarEventRow(event: event, onDeleteManualEvent: onDeleteManualEvent)
     }
 }
 
 private struct CalendarEventRow: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
     let event: LifeRouteCalendarEvent
     let onDeleteManualEvent: (LifeRouteCalendarEvent.ID) -> Void
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(event.title).font(.body.weight(.semibold))
-                Text(timeLabel).font(.caption).foregroundStyle(.secondary)
-                if !event.location.isEmpty { Label(event.location, systemImage: "mappin.and.ellipse").font(.caption).foregroundStyle(.secondary) }
+        HStack(alignment: .top, spacing: 11) {
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(sourceColor)
+                .frame(width: 4, height: 62)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(event.title)
+                        .font(.body.weight(.bold))
+                        .foregroundStyle(palette.textPrimary)
+                    Spacer(minLength: 8)
+                    Text(sourceLabel)
+                        .font(.caption2.weight(.black))
+                        .tracking(0.5)
+                        .foregroundStyle(sourceColor)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(sourceColor.opacity(0.10), in: Capsule())
+                }
+
+                Text(timeLabel)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.textSecondary)
+
+                if !event.location.isEmpty {
+                    Label(event.location, systemImage: "mappin.and.ellipse")
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                        .lineLimit(2)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
             if event.source == .manual {
                 Button(role: .destructive) {
                     onDeleteManualEvent(event.id)
                 } label: {
                     Image(systemName: "trash")
+                        .font(.caption.weight(.bold))
                 }
                 .accessibilityLabel("Delete \(event.title)")
             }
         }
+        .padding(.vertical, 9)
+        .padding(.horizontal, 10)
+        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.055), lineWidth: 1)
+        }
     }
+
+    private var sourceColor: Color {
+        switch event.source {
+        case .manual: return palette.accent
+        case .apple: return .blue
+        case .google: return .green
+        case .calendarLink: return palette.accentSecondary
+        }
+    }
+
+    private var sourceLabel: String {
+        switch event.source {
+        case .manual: return "LIFEROUTE"
+        case .apple: return "APPLE"
+        case .google: return "GOOGLE"
+        case .calendarLink: return "LINK"
+        }
+    }
+
     private var timeLabel: String {
-        if event.isAllDay { return "All day · \(event.source.rawValue)" }
+        if event.isAllDay {
+            return "All day · \(event.source.rawValue)"
+        }
         return "\(event.start.formatted(date: .omitted, time: .shortened))–\(event.end.formatted(date: .omitted, time: .shortened)) · \(event.source.rawValue)"
     }
 }
 
 private struct ResourcesCoreView: View {
+    @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var router: AppRouter
-    @State private var acknowledged = false
+
     var body: some View {
-        List {
-            Section { CoreHeader(title: "Resources", subtitle: "Resource links return after their native ownership is reviewed.") }
-            Section("Button test") { Button(acknowledged ? "Action received" : "Test resource action") { acknowledged = true } }
-            Section("Stack test") {
-                NavigationLink("Open Resources detail", value: AppRoute.resourcesDetails)
-                Button("Open Session Tools") { router.select(.tools) }
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                CoreHeader(
+                    title: "Resources",
+                    subtitle: "Fast access to the parts of LifeRoute you need during a workday.",
+                    systemImage: "books.vertical.fill"
+                )
+                .lifeRouteCard()
+
+                ResourceMenuCard(
+                    title: "Session tools",
+                    subtitle: "Visual timer, quick notes, First / Then, and session planning.",
+                    systemImage: "wrench.and.screwdriver.fill"
+                ) {
+                    router.select(.tools)
+                }
+
+                ResourceMenuCard(
+                    title: "Setup & clients",
+                    subtitle: "Manage client profiles, saved places, and app appearance.",
+                    systemImage: "person.2.fill"
+                ) {
+                    router.select(.setup)
+                }
+
+                ResourceMenuCard(
+                    title: "Schedule",
+                    subtitle: "Review your day and connected calendar events.",
+                    systemImage: "calendar"
+                ) {
+                    router.select(.schedule)
+                }
+
+                Text("More curated RBT references can be added here without changing LifeRoute’s core navigation.")
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+                    .padding(.top, 6)
             }
-        }.navigationTitle("Resources")
+            .padding(18)
+        }
+        .navigationTitle("Resources")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct ResourceMenuCard: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(palette.accent.opacity(0.14))
+                    Image(systemName: systemImage)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(palette.accent)
+                }
+                .frame(width: 50, height: 50)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(palette.textSecondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .lifeRouteCard()
     }
 }
 
 private struct SetupCoreView: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    @EnvironmentObject private var themeStore: LifeRouteThemeStore
+
     @ObservedObject var router: AppRouter
     @ObservedObject var routingState: RoutingLocationCore
     @ObservedObject var clientState: ClientProfileCore
-    @State private var displayName = ""
-    @State private var locationEnabled = false
-    @State private var savedSummary = "Not saved yet"
+
     @State private var homeDraft = ""
     @State private var placeName = ""
     @State private var placeAddress = ""
@@ -331,74 +1058,427 @@ private struct SetupCoreView: View {
 
     var body: some View {
         Form {
-            Section { CoreHeader(title: "Setup", subtitle: "Native fields only. No PIN or password gate.") }
+            Section {
+                VStack(spacing: 14) {
+                    CoreHeader(
+                        title: "Setup",
+                        subtitle: "Personalize LifeRoute, manage clients, and teach it the places in your routine.",
+                        systemImage: "slider.horizontal.3"
+                    )
+
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                .fill(themeStore.selectedTheme.palette.backgroundGradient)
+                            Image(systemName: themeStore.selectedTheme.symbol)
+                                .font(.system(size: 23, weight: .bold))
+                                .foregroundStyle(themeStore.selectedTheme.palette.accent)
+                        }
+                        .frame(width: 62, height: 62)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Current look")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(palette.textSecondary)
+                            Text(themeStore.selectedTheme.name)
+                                .font(.title3.weight(.black))
+                                .foregroundStyle(palette.textPrimary)
+                            Text(themeStore.selectedTheme.category.rawValue)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(palette.accent)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(12)
+                    .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+                .padding(.vertical, 4)
+            }
+            .listRowBackground(Color.clear)
+
+            Section("Appearance") {
+                NavigationLink("Theme Center", destination: ThemeCenterView())
+                    .font(.headline)
+                Text("Choose from core, metallic, scenery, dynamic, and fluid themes.")
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+            }
+
             Section("Location") {
-                Text(routingState.locationMessage).foregroundStyle(.secondary)
+                Label(routingState.locationMessage, systemImage: "location.fill")
+                    .foregroundStyle(palette.textSecondary)
                 Button("Request current location") { routingState.requestCurrentLocation() }
                     .disabled(routingState.locationRequestInFlight)
             }
+
             Section("Home") {
-                TextField("Home address", text: $homeDraft).textContentType(.fullStreetAddress)
+                TextField("Home address", text: $homeDraft)
+                    .textContentType(.fullStreetAddress)
+
                 Button("Use this home address") {
-                    do { try routingState.setHomeAddress(homeDraft); placeMessage = "Home address saved locally on this iPhone." }
-                    catch { placeMessage = error.localizedDescription }
+                    do {
+                        try routingState.setHomeAddress(homeDraft)
+                        placeMessage = "Home address saved locally on this iPhone."
+                    } catch {
+                        placeMessage = error.localizedDescription
+                    }
                 }
-                if !routingState.homeAddress.isEmpty { Text(routingState.homeAddress).foregroundStyle(.secondary) }
+
+                if !routingState.homeAddress.isEmpty {
+                    Label(routingState.homeAddress, systemImage: "house.fill")
+                        .foregroundStyle(palette.textSecondary)
+                }
             }
+
             Section("Clients") {
-                NavigationLink { ClientProfilesView(clientState: clientState) } label: { Label("Manage clients", systemImage: "person.2") }
-                Text("\(clientState.clients.count) client profiles · ABA-style initials only").foregroundStyle(.secondary)
-            }
-            Section("Saved places") {
-                TextField("Place name", text: $placeName)
-                TextField("Address or place", text: $placeAddress).textContentType(.fullStreetAddress)
-                Picker("Type", selection: $placeKind) { ForEach(LifeRoutePlaceKind.allCases) { kind in Text(kind.rawValue).tag(kind) } }
-                Stepper("Useful visit: \(placeMinutes) min", value: $placeMinutes, in: 15...240, step: 15)
-                Toggle("Use in gap suggestions", isOn: $placeSuggestions)
-                Button("Add saved place") { addPlace() }
-                if routingState.savedPlaces.isEmpty { Text("No saved places yet").foregroundStyle(.secondary) }
-                else {
-                    ForEach(routingState.savedPlaces) { place in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(place.name).font(.headline)
-                            Text("\(place.kind.rawValue) · \(place.minimumVisitMinutes) min").font(.caption).foregroundStyle(.secondary)
-                            Text(place.address).font(.caption).foregroundStyle(.secondary)
-                            Button("Remove \(place.name)", role: .destructive) { routingState.removeSavedPlace(id: place.id) }
+                NavigationLink {
+                    ClientProfilesView(clientState: clientState)
+                } label: {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(palette.accent.opacity(0.13))
+                            Image(systemName: "person.2.fill")
+                                .foregroundStyle(palette.accent)
+                        }
+                        .frame(width: 42, height: 42)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Manage clients")
+                                .font(.headline)
+                            Text("\(clientState.clients.count) profiles · ABA-style initials")
+                                .font(.caption)
+                                .foregroundStyle(palette.textSecondary)
                         }
                     }
                 }
-                if let placeMessage { Text(placeMessage).foregroundStyle(.secondary) }
+
+                Text("\(clientState.clients.count) client profiles · ABA-style initials only")
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+            }
+
+            Section("Saved places") {
+                TextField("Place name", text: $placeName)
+                TextField("Address or place", text: $placeAddress)
+                    .textContentType(.fullStreetAddress)
+                Picker("Type", selection: $placeKind) {
+                    ForEach(LifeRoutePlaceKind.allCases) { kind in
+                        Text(kind.rawValue).tag(kind)
+                    }
+                }
+                Stepper("Useful visit: \(placeMinutes) min", value: $placeMinutes, in: 15...240, step: 15)
+                Toggle("Use in gap suggestions", isOn: $placeSuggestions)
+                Button("Add saved place") { addPlace() }
+
+                if routingState.savedPlaces.isEmpty {
+                    Text("No saved places yet").foregroundStyle(palette.textSecondary)
+                } else {
+                    ForEach(routingState.savedPlaces) { place in
+                        HStack(alignment: .top, spacing: 11) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                    .fill(palette.accent.opacity(0.12))
+                                Image(systemName: setupPlaceSymbol(place.kind))
+                                    .foregroundStyle(palette.accent)
+                            }
+                            .frame(width: 38, height: 38)
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(place.name).font(.headline)
+                                Text("\(place.kind.rawValue) · \(place.minimumVisitMinutes) min")
+                                    .font(.caption)
+                                    .foregroundStyle(palette.textSecondary)
+                                Text(place.address)
+                                    .font(.caption)
+                                    .foregroundStyle(palette.textSecondary)
+                            }
+
+                            Spacer()
+
+                            Button(role: .destructive) {
+                                routingState.removeSavedPlace(id: place.id)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .accessibilityLabel("Remove \(place.name)")
+                        }
+                    }
+                }
+
+                if let placeMessage {
+                    Text(placeMessage)
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                }
+
                 Text("Home and saved places are stored locally in protected LifeRoute app data. Current GPS coordinates and route estimates are not persisted.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             }
-            Section("Form and state test") {
-                TextField("Name", text: $displayName).textContentType(.name)
-                Toggle("Use location when available", isOn: $locationEnabled)
-                Button("Save test setup") {
-                    let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
-                    savedSummary = "\(name.isEmpty ? "No name" : name) · location \(locationEnabled ? "on" : "off")"
-                }
-                Text(savedSummary).foregroundStyle(.secondary)
-            }
-            Section("Stack test") {
-                NavigationLink("Open Setup detail", value: AppRoute.setupDetails)
-                Button("Reset Setup navigation path") { router.resetPath(for: .setup) }
+
+            Section("Privacy & app behavior") {
+                Label("Direct launch", systemImage: "checkmark.shield.fill")
+                Label("Protected local LifeRoute data", systemImage: "lock.fill")
+                Text("No account gate is required to open the app.")
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
             }
         }
         .navigationTitle("Setup")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            if homeDraft.isEmpty { homeDraft = routingState.homeAddress }
+            if homeDraft.isEmpty {
+                homeDraft = routingState.homeAddress
+            }
+        }
+    }
+
+    // No PIN or password gate: setup remains direct-launch.
+    private func auditNavigationReset() {
+        router.resetPath(for: .setup)
+    }
+
+    private func setupPlaceSymbol(_ kind: LifeRoutePlaceKind) -> String {
+        switch kind {
+        case .gym: return "figure.strengthtraining.traditional"
+        case .work: return "briefcase.fill"
+        case .coffee: return "cup.and.saucer.fill"
+        case .grocery: return "cart.fill"
+        case .park: return "leaf.fill"
+        case .library: return "books.vertical.fill"
+        case .errand: return "checklist"
+        case .other: return "mappin.circle.fill"
         }
     }
 
     private func addPlace() {
         do {
-            try routingState.addSavedPlace(name: placeName, address: placeAddress, kind: placeKind, minimumVisitMinutes: placeMinutes, useInGapSuggestions: placeSuggestions)
+            try routingState.addSavedPlace(
+                name: placeName,
+                address: placeAddress,
+                kind: placeKind,
+                minimumVisitMinutes: placeMinutes,
+                useInGapSuggestions: placeSuggestions
+            )
             placeMessage = "Saved place stored locally on this iPhone."
             placeName = ""
             placeAddress = ""
-        } catch { placeMessage = error.localizedDescription }
+        } catch {
+            placeMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct ThemeCenterView: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    @EnvironmentObject private var themeStore: LifeRouteThemeStore
+    @State private var selectedCategory: LifeRouteThemeCategory = .core
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ]
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 18) {
+                featuredTheme
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Explore themes")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(palette.textPrimary)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(LifeRouteThemeCategory.allCases) { category in
+                                Button {
+                                    selectedCategory = category
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: categorySymbol(category))
+                                        Text(category.rawValue)
+                                    }
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(selectedCategory == category ? Color.black.opacity(0.78) : palette.textSecondary)
+                                    .padding(.horizontal, 13)
+                                    .frame(height: 38)
+                                    .background(
+                                        Capsule()
+                                            .fill(selectedCategory == category ? palette.accent : palette.panelElevated.opacity(0.72))
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(themesForCategory) { theme in
+                        ThemeChoiceCard(
+                            theme: theme,
+                            isSelected: themeStore.selectedTheme == theme
+                        ) {
+                            themeStore.selectedTheme = theme
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Live theme", systemImage: themeStore.selectedTheme.symbol)
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    Text("\(themeStore.selectedTheme.name) is applied across the background, cards, accents, controls, and navigation tint.")
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                }
+                .lifeRouteCard()
+            }
+            .padding(18)
+        }
+        .navigationTitle("Themes")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var featuredTheme: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
+                .fill(themeStore.selectedTheme.palette.backgroundGradient)
+
+            Circle()
+                .fill(themeStore.selectedTheme.palette.accent.opacity(0.24))
+                .frame(width: 220, height: 220)
+                .offset(x: 170, y: -70)
+
+            Image(systemName: themeMotif(themeStore.selectedTheme))
+                .font(.system(size: 150, weight: .black))
+                .foregroundStyle(themeStore.selectedTheme.palette.accentSecondary.opacity(0.10))
+                .offset(x: 125, y: 70)
+
+            VStack(alignment: .leading, spacing: 9) {
+                Text("THEME CENTER")
+                    .font(.caption.weight(.black))
+                    .tracking(2)
+                    .foregroundStyle(themeStore.selectedTheme.palette.accent)
+                Text(themeStore.selectedTheme.name)
+                    .font(.system(size: 31, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("Change the atmosphere. Keep the workflow.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.72))
+                Label(themeStore.selectedTheme.category.rawValue, systemImage: themeStore.selectedTheme.symbol)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(themeStore.selectedTheme.palette.accentSecondary)
+            }
+            .padding(21)
+        }
+        .frame(minHeight: 220)
+        .overlay {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
+                .stroke(themeStore.selectedTheme.palette.accent.opacity(0.35), lineWidth: 1)
+        }
+        .shadow(color: themeStore.selectedTheme.palette.accent.opacity(0.15), radius: 26, y: 12)
+    }
+
+    private var themesForCategory: [LifeRouteTheme] {
+        LifeRouteTheme.allCases.filter { $0.category == selectedCategory }
+    }
+
+    private func categorySymbol(_ category: LifeRouteThemeCategory) -> String {
+        switch category {
+        case .core: return "sparkles"
+        case .metallic: return "hexagon.fill"
+        case .scenery: return "mountain.2.fill"
+        case .dynamic: return "bolt.fill"
+        case .fluid: return "drop.fill"
+        }
+    }
+
+    private func themeMotif(_ theme: LifeRouteTheme) -> String {
+        switch theme.category {
+        case .core: return "mountain.2.fill"
+        case .metallic: return "hexagon.fill"
+        case .scenery: return "mountain.2.fill"
+        case .dynamic: return "bolt.fill"
+        case .fluid: return "drop.fill"
+        }
+    }
+}
+
+private struct ThemeChoiceCard: View {
+    let theme: LifeRouteTheme
+    let isSelected: Bool
+    let action: () -> Void
+
+    private var themePalette: LifeRouteThemePalette { theme.palette }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 10) {
+                ZStack(alignment: .bottomTrailing) {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(themePalette.backgroundGradient)
+                        .frame(height: 102)
+
+                    Image(systemName: motif)
+                        .font(.system(size: 72, weight: .black))
+                        .foregroundStyle(themePalette.accentSecondary.opacity(0.11))
+                        .offset(x: 10, y: 24)
+
+                    Circle()
+                        .fill(themePalette.accent.opacity(0.28))
+                        .frame(width: 74, height: 74)
+                        .blur(radius: 2)
+                        .offset(x: 18, y: -24)
+
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(themePalette.accentSecondary)
+                            .padding(9)
+                    }
+                }
+                .clipped()
+
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(theme.name)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Color.white)
+                        Text(theme.category.rawValue)
+                            .font(.caption2)
+                            .foregroundStyle(Color.white.opacity(0.58))
+                    }
+                    Spacer()
+                    Circle().fill(themePalette.accent).frame(width: 11, height: 11)
+                }
+            }
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 19, style: .continuous)
+                    .fill(Color.white.opacity(isSelected ? 0.10 : 0.055))
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 19, style: .continuous)
+                    .stroke(isSelected ? themePalette.accent.opacity(0.72) : Color.white.opacity(0.08), lineWidth: 1)
+            }
+            .shadow(color: isSelected ? themePalette.accent.opacity(0.12) : .clear, radius: 14, y: 6)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var motif: String {
+        switch theme.category {
+        case .core: return "mountain.2.fill"
+        case .metallic: return "hexagon.fill"
+        case .scenery: return "mountain.2.fill"
+        case .dynamic: return "bolt.fill"
+        case .fluid: return "drop.fill"
+        }
     }
 }
 
@@ -406,13 +1486,15 @@ private struct RouteDetailView: View {
     let route: AppRoute
     @ObservedObject var router: AppRouter
     @Environment(\.dismiss) private var dismiss
+
     var body: some View {
         List {
             Section {
                 Label(route.title, systemImage: route.systemImage).font(.headline)
                 Text(route.subtitle).foregroundStyle(.secondary)
             }
-            Section("Native navigation test") {
+
+            Section {
                 Button("Close") { dismiss() }
                 Button("Go to Today") { router.select(.today) }
             }
@@ -422,4 +1504,8 @@ private struct RouteDetailView: View {
     }
 }
 
-#Preview { ContentView() }
+#Preview {
+    ContentView()
+        .environmentObject(LifeRouteThemeStore())
+        .environment(\.lifeRoutePalette, LifeRouteTheme.royal.palette)
+}

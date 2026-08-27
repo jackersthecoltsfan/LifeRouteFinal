@@ -34,7 +34,8 @@ require("@Published private(set) var deadline: Date?" in domain, "Visual timer u
 require("func remainingSeconds(at now: Date = Date())" in domain, "Timer derives remaining time from the deadline")
 require("TimelineView(.periodic(from: .now, by: 1))" in views, "Timer rendering uses system-driven one-second TimelineView ticks")
 require("ProgressView(value: timer.progress" in views, "Visual timer exposes deterministic progress")
-require("Alerts and haptics are intentionally deferred" in views, "Timer still defers notification and haptic delivery")
+require("0.25-second rising chime" in views and "completion chime and haptic at zero" in views, "Timer UI accurately describes native audible and tactile completion feedback")
+require("UINotificationFeedbackGenerator().notificationOccurred(.success)" in views, "Timer completion provides native success haptic feedback")
 
 # v0.5.2 native audible timer feedback: audio follows the deadline-driven timer
 # but never owns countdown accuracy or introduces a repeating Foundation timer.

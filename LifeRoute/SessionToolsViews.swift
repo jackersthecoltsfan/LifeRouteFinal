@@ -736,6 +736,7 @@ private struct VisualLibraryMetric: View {
 }
 
 struct ClientVisualIconLibraryView: View {
+    @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var visualState: ClientVisualSupportCore
     let clientCode: String
     @State private var label = ""
@@ -745,47 +746,134 @@ struct ClientVisualIconLibraryView: View {
     @State private var message: String?
 
     var body: some View {
-        Form {
-            Section("New \(clientCode) icon") {
-                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                    Label(photoData == nil ? "Choose photo" : "Change photo", systemImage: "photo")
-                }
-                if let photoData {
-                    ClientVisualDraftPhotoPreview(
-                        imageData: photoData,
-                        requestID: photoPreviewID,
-                        maximumHeight: 220
-                    )
-                }
-                TextField("Icon label", text: $label)
-                    .textInputAutocapitalization(.words)
-                Button("Save icon to \(clientCode)") { saveIcon() }
-                if let message { Text(message).foregroundStyle(.secondary) }
-                Text("A photo is optional; a text-only visual card can also be saved. Selected photos are stored locally in LifeRoute’s protected app data and are not uploaded.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                VisualBuilderHero(
+                    title: "Icon Library",
+                    subtitle: "Create reusable photo or text visuals for \(clientCode).",
+                    clientCode: clientCode,
+                    systemImage: "photo.on.rectangle.angled"
+                )
 
-            Section("\(clientCode) icon library") {
-                let icons = visualState.icons(for: clientCode)
-                if icons.isEmpty {
-                    Text("No icons saved for \(clientCode) yet.").foregroundStyle(.secondary)
-                } else {
-                    ForEach(icons) { icon in
-                        HStack(spacing: 12) {
-                            ClientVisualIconThumbnail(icon: icon, size: 58)
-                            VStack(alignment: .leading) {
-                                Text(icon.label).font(.headline)
-                                Text(icon.imageData == nil ? "Text visual" : "Photo visual")
-                                    .font(.caption).foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 13) {
+                    HStack {
+                        Text("Create visual")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(palette.textPrimary)
+                        Spacer()
+                        Text(photoData == nil ? "TEXT OR PHOTO" : "PHOTO READY")
+                            .font(.caption2.weight(.black))
+                            .tracking(0.8)
+                            .foregroundStyle(photoData == nil ? palette.textSecondary : palette.accentSecondary)
+                    }
+
+                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                        HStack(spacing: 11) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(palette.accent.opacity(0.14))
+                                Image(systemName: photoData == nil ? "photo.badge.plus" : "photo.fill")
+                                    .foregroundStyle(palette.accent)
+                            }
+                            .frame(width: 44, height: 44)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(photoData == nil ? "Choose photo" : "Change photo")
+                                    .font(.subheadline.weight(.bold))
+                                    .foregroundStyle(palette.textPrimary)
+                                Text("Optional · stored only on this iPhone")
+                                    .font(.caption2)
+                                    .foregroundStyle(palette.textSecondary)
                             }
                             Spacer()
-                            Button(role: .destructive) { visualState.removeIcon(id: icon.id) } label: {
-                                Image(systemName: "trash")
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(palette.textSecondary)
+                        }
+                        .padding(12)
+                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+
+                    if let photoData {
+                        ClientVisualDraftPhotoPreview(
+                            imageData: photoData,
+                            requestID: photoPreviewID,
+                            maximumHeight: 220
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(palette.accent.opacity(0.22), lineWidth: 1)
+                        }
+                    }
+
+                    TextField("Icon label", text: $label)
+                        .textInputAutocapitalization(.words)
+                        .padding(12)
+                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                    Button("Save icon to \(clientCode)") { saveIcon() }
+                        .buttonStyle(LifeRoutePrimaryButtonStyle())
+
+                    if let message {
+                        Label(message, systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(palette.textSecondary)
+                    }
+
+                    Text("A photo is optional; a text-only visual card can also be saved. Selected photos are stored locally in LifeRoute’s protected app data and are not uploaded.")
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 11) {
+                    HStack {
+                        Text("\(clientCode) icon library")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(palette.textPrimary)
+                        Spacer()
+                        Text("\(visualState.icons(for: clientCode).count)")
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(palette.accent)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(palette.accent.opacity(0.12), in: Capsule())
+                    }
+
+                    let icons = visualState.icons(for: clientCode)
+                    if icons.isEmpty {
+                        VisualBuilderEmptyState(
+                            title: "No icons yet",
+                            subtitle: "Create the first reusable visual for \(clientCode).",
+                            systemImage: "photo.on.rectangle.angled"
+                        )
+                    } else {
+                        ForEach(icons) { icon in
+                            HStack(spacing: 12) {
+                                ClientVisualIconThumbnail(icon: icon, size: 64)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(icon.label)
+                                        .font(.headline)
+                                        .foregroundStyle(palette.textPrimary)
+                                    Label(icon.imageData == nil ? "Text visual" : "Photo visual", systemImage: icon.imageData == nil ? "textformat" : "photo.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(palette.textSecondary)
+                                }
+                                Spacer()
+                                Button(role: .destructive) { visualState.removeIcon(id: icon.id) } label: {
+                                    Image(systemName: "trash")
+                                        .font(.caption.weight(.bold))
+                                }
+                                .accessibilityLabel("Delete \(icon.label)")
                             }
+                            .padding(12)
+                            .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
                     }
                 }
+                .lifeRouteCard()
             }
+            .padding(18)
+            .padding(.bottom, 24)
         }
         .navigationTitle("\(clientCode) Icons")
         .navigationBarTitleDisplayMode(.inline)
@@ -815,6 +903,7 @@ struct ClientVisualIconLibraryView: View {
 }
 
 struct ClientChoiceBoardBuilderView: View {
+    @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var visualState: ClientVisualSupportCore
     let clientCode: String
     @State private var boardTitle = "Choices"
@@ -822,59 +911,156 @@ struct ClientChoiceBoardBuilderView: View {
     @State private var selectedIconIDs = Set<UUID>()
     @State private var message: String?
 
-    var body: some View {
-        Form {
-            Section("Board") {
-                TextField("Board title", text: $boardTitle)
-                Picker("Columns", selection: $columns) {
-                    Text("2 columns · up to 8").tag(2)
-                    Text("3 columns · up to 9").tag(3)
-                }
-            }
+    private var selectionColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
+    }
 
-            Section("Choose from \(clientCode)’s icons") {
-                let icons = visualState.icons(for: clientCode)
-                if icons.isEmpty {
-                    Text("Create icons for \(clientCode) first. No other client’s icons are shown here.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(icons) { icon in
-                        Button {
-                            toggle(icon.id)
-                        } label: {
-                            HStack(spacing: 12) {
-                                ClientVisualIconThumbnail(icon: icon, size: 52)
-                                Text(icon.label).foregroundStyle(.primary)
-                                Spacer()
-                                Image(systemName: selectedIconIDs.contains(icon.id) ? "checkmark.circle.fill" : "circle")
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                VisualBuilderHero(
+                    title: "Choice Boards",
+                    subtitle: "Turn \(clientCode)’s saved icons into a clean session-ready choice grid.",
+                    clientCode: clientCode,
+                    systemImage: "square.grid.2x2.fill"
+                )
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Board setup")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(palette.textPrimary)
+
+                    TextField("Board title", text: $boardTitle)
+                        .padding(12)
+                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                    Picker("Columns", selection: $columns) {
+                        Text("2 columns · up to 8").tag(2)
+                        Text("3 columns · up to 9").tag(3)
+                    }
+                    .pickerStyle(.segmented)
+
+                    HStack {
+                        Label("\(selectedIconIDs.count) selected", systemImage: "checkmark.circle.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(palette.accentSecondary)
+                        Spacer()
+                        Text("Max \(columns == 3 ? 9 : 8)")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 11) {
+                    Text("Choose from \(clientCode)’s icons")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(palette.textPrimary)
+
+                    let icons = visualState.icons(for: clientCode)
+                    if icons.isEmpty {
+                        VisualBuilderEmptyState(
+                            title: "No icons available",
+                            subtitle: "Create icons for \(clientCode) first. No other client’s icons are shown here.",
+                            systemImage: "square.grid.2x2"
+                        )
+                    } else {
+                        LazyVGrid(columns: selectionColumns, spacing: 10) {
+                            ForEach(icons) { icon in
+                                Button {
+                                    toggle(icon.id)
+                                } label: {
+                                    VStack(spacing: 8) {
+                                        ZStack(alignment: .topTrailing) {
+                                            ClientVisualIconThumbnail(icon: icon, size: 92)
+                                            Image(systemName: selectedIconIDs.contains(icon.id) ? "checkmark.circle.fill" : "circle")
+                                                .font(.title3)
+                                                .foregroundStyle(selectedIconIDs.contains(icon.id) ? palette.accent : palette.textSecondary)
+                                                .background(Color.black.opacity(0.38), in: Circle())
+                                                .offset(x: 5, y: -5)
+                                        }
+                                        Text(icon.label)
+                                            .font(.caption.weight(.bold))
+                                            .foregroundStyle(palette.textPrimary)
+                                            .lineLimit(2)
+                                            .multilineTextAlignment(.center)
+                                    }
+                                    .frame(maxWidth: .infinity, minHeight: 132)
+                                    .padding(10)
+                                    .background(
+                                        (selectedIconIDs.contains(icon.id) ? palette.accent.opacity(0.12) : palette.panelElevated.opacity(0.30)),
+                                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    )
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .stroke(selectedIconIDs.contains(icon.id) ? palette.accent.opacity(0.56) : Color.white.opacity(0.06), lineWidth: 1)
+                                    }
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
-                        .buttonStyle(.plain)
                     }
-                }
-                Text("\(selectedIconIDs.count) selected")
-                    .font(.caption).foregroundStyle(.secondary)
-                Button("Save board to \(clientCode)") { saveBoard() }
-                if let message { Text(message).foregroundStyle(.secondary) }
-            }
 
-            Section("Saved \(clientCode) boards") {
-                let boards = visualState.choiceBoards(for: clientCode)
-                if boards.isEmpty {
-                    Text("No choice boards saved for \(clientCode) yet.").foregroundStyle(.secondary)
-                } else {
-                    ForEach(boards) { board in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(board.title).font(.headline)
-                            Text(board.iconIDs.compactMap { visualState.icon(id: $0, for: clientCode)?.label }.joined(separator: " · "))
-                                .font(.caption).foregroundStyle(.secondary)
-                            Text("\(board.columns) columns · \(board.iconIDs.count) icons")
-                                .font(.caption2).foregroundStyle(.secondary)
-                            Button("Delete board", role: .destructive) { visualState.removeChoiceBoard(id: board.id) }
-                        }.padding(.vertical, 3)
+                    Button("Save board to \(clientCode)") { saveBoard() }
+                        .buttonStyle(LifeRoutePrimaryButtonStyle())
+
+                    if let message {
+                        Label(message, systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(palette.textSecondary)
                     }
                 }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 11) {
+                    HStack {
+                        Text("Saved \(clientCode) boards")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(palette.textPrimary)
+                        Spacer()
+                        Text("\(visualState.choiceBoards(for: clientCode).count)")
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(palette.accent)
+                    }
+
+                    let boards = visualState.choiceBoards(for: clientCode)
+                    if boards.isEmpty {
+                        VisualBuilderEmptyState(
+                            title: "No choice boards yet",
+                            subtitle: "Your saved boards will appear here.",
+                            systemImage: "square.grid.2x2"
+                        )
+                    } else {
+                        ForEach(boards) { board in
+                            VStack(alignment: .leading, spacing: 9) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(board.title)
+                                            .font(.headline)
+                                            .foregroundStyle(palette.textPrimary)
+                                        Text("\(board.columns) columns · \(board.iconIDs.count) icons")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(palette.accentSecondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "square.grid.2x2.fill")
+                                        .foregroundStyle(palette.accent)
+                                }
+                                Text(board.iconIDs.compactMap { visualState.icon(id: $0, for: clientCode)?.label }.joined(separator: " · "))
+                                    .font(.caption)
+                                    .foregroundStyle(palette.textSecondary)
+                                Button("Delete board", role: .destructive) { visualState.removeChoiceBoard(id: board.id) }
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .padding(13)
+                            .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                    }
+                }
+                .lifeRouteCard()
             }
+            .padding(18)
+            .padding(.bottom, 24)
         }
         .navigationTitle("Choice Boards")
         .navigationBarTitleDisplayMode(.inline)
@@ -1064,6 +1250,7 @@ struct ClientFirstThenVisualView: View {
 }
 
 struct ClientVisualScheduleBuilderView: View {
+    @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var visualState: ClientVisualSupportCore
     let clientCode: String
     @State private var title = "Visual Schedule"
@@ -1073,53 +1260,144 @@ struct ClientVisualScheduleBuilderView: View {
     @State private var message: String?
 
     var body: some View {
-        Form {
-            Section("Schedule") {
-                TextField("Schedule title", text: $title)
-                let icons = visualState.icons(for: clientCode)
-                TextField("Next step", text: $draftLabel)
-                Picker("Visual", selection: $selectedIconID) {
-                    Text("Text only").tag("")
-                    ForEach(icons) { icon in Text(icon.label).tag(icon.id.uuidString) }
-                }
-                Button("Add step") { addStep() }
-            }
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                VisualBuilderHero(
+                    title: "Visual Schedules",
+                    subtitle: "Build a clear sequence of visual steps for \(clientCode).",
+                    clientCode: clientCode,
+                    systemImage: "list.number"
+                )
 
-            Section("Steps") {
-                if steps.isEmpty {
-                    Text("Add the first step. The visual picker only contains \(clientCode)’s icons.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(steps) { step in
-                        HStack(spacing: 10) {
-                            if let iconID = step.iconID, let icon = visualState.icon(id: iconID, for: clientCode) {
-                                ClientVisualIconThumbnail(icon: icon, size: 48)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Build schedule")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(palette.textPrimary)
+
+                    TextField("Schedule title", text: $title)
+                        .padding(12)
+                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                    let icons = visualState.icons(for: clientCode)
+                    TextField("Next step", text: $draftLabel)
+                        .padding(12)
+                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                    Picker("Visual", selection: $selectedIconID) {
+                        Text("Text only").tag("")
+                        ForEach(icons) { icon in Text(icon.label).tag(icon.id.uuidString) }
+                    }
+                    .pickerStyle(.menu)
+
+                    Button("Add step") { addStep() }
+                        .buttonStyle(LifeRouteSecondaryButtonStyle())
+                }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 11) {
+                    HStack {
+                        Text("Draft sequence")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(palette.textPrimary)
+                        Spacer()
+                        Text("\(steps.count) steps")
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(palette.accent)
+                    }
+
+                    if steps.isEmpty {
+                        VisualBuilderEmptyState(
+                            title: "Add the first step",
+                            subtitle: "The visual picker only contains \(clientCode)’s icons.",
+                            systemImage: "list.number"
+                        )
+                    } else {
+                        ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
+                            HStack(spacing: 11) {
+                                Text("\(index + 1)")
+                                    .font(.caption2.weight(.black))
+                                    .foregroundStyle(Color.black.opacity(0.78))
+                                    .frame(width: 28, height: 28)
+                                    .background(palette.accent, in: Circle())
+
+                                if let iconID = step.iconID, let icon = visualState.icon(id: iconID, for: clientCode) {
+                                    ClientVisualIconThumbnail(icon: icon, size: 48)
+                                }
+
+                                Text(step.label)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(palette.textPrimary)
+                                Spacer()
+                                Button(role: .destructive) { steps.removeAll { $0.id == step.id } } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .accessibilityLabel("Remove step \(step.label)")
                             }
-                            Text(step.label)
-                            Spacer()
-                            Button(role: .destructive) { steps.removeAll { $0.id == step.id } } label: { Image(systemName: "trash") }
+                            .padding(10)
+                            .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                        }
+                    }
+
+                    Button("Save schedule to \(clientCode)") { saveSchedule() }
+                        .buttonStyle(LifeRoutePrimaryButtonStyle())
+
+                    if let message {
+                        Label(message, systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 11) {
+                    HStack {
+                        Text("Saved \(clientCode) schedules")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(palette.textPrimary)
+                        Spacer()
+                        Text("\(visualState.schedules(for: clientCode).count)")
+                            .font(.caption.weight(.black))
+                            .foregroundStyle(palette.accent)
+                    }
+
+                    let saved = visualState.schedules(for: clientCode)
+                    if saved.isEmpty {
+                        VisualBuilderEmptyState(
+                            title: "No saved schedules yet",
+                            subtitle: "Completed visual schedules will collect here.",
+                            systemImage: "list.bullet.rectangle"
+                        )
+                    } else {
+                        ForEach(saved) { schedule in
+                            VStack(alignment: .leading, spacing: 9) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(schedule.title)
+                                            .font(.headline)
+                                            .foregroundStyle(palette.textPrimary)
+                                        Text("\(schedule.steps.count) steps")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(palette.accentSecondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "list.number")
+                                        .foregroundStyle(palette.accent)
+                                }
+                                Text(schedule.steps.map(\.label).joined(separator: " → "))
+                                    .font(.caption)
+                                    .foregroundStyle(palette.textSecondary)
+                                Button("Delete schedule", role: .destructive) { visualState.removeSchedule(id: schedule.id) }
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .padding(13)
+                            .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
                     }
                 }
-                Button("Save schedule to \(clientCode)") { saveSchedule() }
-                if let message { Text(message).foregroundStyle(.secondary) }
+                .lifeRouteCard()
             }
-
-            Section("Saved \(clientCode) schedules") {
-                let saved = visualState.schedules(for: clientCode)
-                if saved.isEmpty {
-                    Text("No visual schedules saved for \(clientCode) yet.").foregroundStyle(.secondary)
-                } else {
-                    ForEach(saved) { schedule in
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(schedule.title).font(.headline)
-                            Text(schedule.steps.map(\.label).joined(separator: " → "))
-                                .font(.caption).foregroundStyle(.secondary)
-                            Button("Delete schedule", role: .destructive) { visualState.removeSchedule(id: schedule.id) }
-                        }.padding(.vertical, 3)
-                    }
-                }
-            }
+            .padding(18)
+            .padding(.bottom, 24)
         }
         .navigationTitle("Visual Schedules")
         .navigationBarTitleDisplayMode(.inline)
@@ -1145,6 +1423,82 @@ struct ClientVisualScheduleBuilderView: View {
             steps.removeAll()
             message = "Visual schedule saved to \(clientCode)."
         } catch { message = error.localizedDescription }
+    }
+}
+
+private struct VisualBuilderHero: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    let title: String
+    let subtitle: String
+    let clientCode: String
+    let systemImage: String
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
+                .fill(palette.panelGradient)
+            Circle()
+                .fill(palette.accent.opacity(0.18))
+                .frame(width: 170, height: 170)
+                .offset(x: 195, y: -65)
+            VStack(alignment: .leading, spacing: 9) {
+                HStack {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(palette.accent.opacity(0.16))
+                        Image(systemName: systemImage)
+                            .font(.system(size: 21, weight: .bold))
+                            .foregroundStyle(palette.accent)
+                    }
+                    .frame(width: 48, height: 48)
+                    Spacer()
+                    Text(clientCode)
+                        .font(.caption2.weight(.black))
+                        .tracking(1)
+                        .foregroundStyle(palette.accentSecondary)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 6)
+                        .background(.black.opacity(0.18), in: Capsule())
+                }
+                Text(title)
+                    .font(.system(size: 28, weight: .black, design: .rounded))
+                    .foregroundStyle(palette.textPrimary)
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(palette.textSecondary)
+            }
+            .padding(20)
+        }
+        .frame(minHeight: 190)
+        .overlay {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
+                .stroke(palette.accent.opacity(0.26), lineWidth: 1)
+        }
+        .shadow(color: palette.accent.opacity(0.09), radius: 22, y: 9)
+    }
+}
+
+private struct VisualBuilderEmptyState: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    let title: String
+    let subtitle: String
+    let systemImage: String
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.title2)
+                .foregroundStyle(palette.accent)
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(palette.textPrimary)
+            Text(subtitle)
+                .font(.caption)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 18)
     }
 }
 

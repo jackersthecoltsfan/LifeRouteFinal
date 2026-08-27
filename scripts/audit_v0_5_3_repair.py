@@ -115,10 +115,17 @@ require("LifeRouteCinematicThemeThumbnail" in theme_views or "ThemeChoiceCard" i
 # 28–30 — quarantine, permissions, privacy
 require("LifeRouteWebView.swift in Sources" not in project and "Web in Resources" not in project, "28 legacy WebView runtime remains quarantined")
 require("NSFaceIDUsageDescription" not in plist, "29 stale unlock/Face ID permission copy is removed")
+# v0.7.0 reviewed superset: routing persistence may include durable weekly To-Dos,
+# but live GPS coordinates and calculated route estimates must remain runtime-only.
 require(
-    "saveRoutingState(homeAddress: homeAddress, savedPlaces: savedPlaces)" in routing
-    and "saveRoutingState(homeAddress: homeAddress, savedPlaces: savedPlaces, currentLocation:" not in routing,
-    "30 routing persistence remains limited to home address and saved places, not live coordinates",
+    "private func persistRoutingInputs()" in routing
+    and "homeAddress: homeAddress" in routing
+    and "savedPlaces: savedPlaces" in routing
+    and "todos: todos" in routing
+    and "saveRoutingState(homeAddress: homeAddress, savedPlaces: savedPlaces, currentLocation:" not in routing
+    and "currentLocation" not in (ROOT / "LifeRoute" / "PersistenceCore.swift").read_text(encoding="utf-8")
+    and "routeEstimates" not in (ROOT / "LifeRoute" / "PersistenceCore.swift").read_text(encoding="utf-8"),
+    "30 routing persistence remains limited to durable routing inputs and reviewed To-Dos, never live coordinates or calculated routes",
 )
 
 if errors:

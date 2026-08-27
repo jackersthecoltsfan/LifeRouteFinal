@@ -32,6 +32,7 @@ python3 scripts/patch_v0_7_0_todos_restore_b1.py
 python3 scripts/patch_v0_7_0_build_b2.py
 python3 scripts/patch_v0_7_0_build_b3_pre.py
 python3 scripts/patch_v0_7_0_build_b3.py
+python3 scripts/patch_v0_7_0_build_b3_compat.py
 
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
@@ -67,6 +68,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_build_b2.py \
   scripts/patch_v0_7_0_build_b3_pre.py \
   scripts/patch_v0_7_0_build_b3.py \
+  scripts/patch_v0_7_0_build_b3_compat.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \

@@ -67,6 +67,11 @@ struct V054ContentView: View {
                 .tabItem { Label(AppSection.setup.title, systemImage: AppSection.setup.systemImage) }
                 .tag(AppSection.setup)
             }
+            .tint(themeStore.palette.accent)
+        }
+        .animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)
+        .onChange(of: router.selectedSection) { _ in
+            LifeRouteHaptics.selection()
         }
         .onOpenURL { url in
             if url.scheme?.lowercased() == "liferoute" {

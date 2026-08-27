@@ -87,7 +87,14 @@ def main() -> None:
     require("LifeRouteThemeArtwork" not in core_block, "Core themes must remain color schemes without artwork")
     require("ForEach(" not in core_block, "Core themes must remain free of decorative band imprints")
 
-    require("True app-wide Scenery architecture is reserved for **Build F**" in contract, "Scenery work must remain deferred to Build F")
+    require_all(
+        contract,
+        [
+            "True persistent Scenery architecture is reserved for **Build F**",
+            "Build A preserves current theme persistence/backdrop behavior and shell transparency.",
+        ],
+        "Scenery deferral contract",
+    )
     require("python3 scripts/patch_v0_7_0_build_a.py" in prepare, "canonical preparation must materialize Build A")
     require("python3 scripts/audit_v0_7_0_checkpoint_0.py" in prepare, "Checkpoint 0 audit must remain accumulated")
     require("python3 scripts/audit_v0_7_0_build_a.py" in prepare, "canonical preparation must run Build A audit")

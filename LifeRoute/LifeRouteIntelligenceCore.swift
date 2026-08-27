@@ -109,6 +109,51 @@ enum LifeRouteIntelligenceCore {
         )
     }
 
+    static func generateVisualScheduleDraft(
+        description: String,
+        client: LifeRouteClientProfile?
+    ) async throws -> [String] {
+        let cleanDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanDescription.isEmpty else { throw LifeRouteIntelligenceError.emptyInput }
+
+        let clientCode = client?.code ?? "General / no client"
+        let communication = client?.communicationNotes ?? "none"
+
+        let prompt = """
+        Turn the user's requested routine into a simple visual schedule that can be shown one step at a time.
+
+        RULES:
+        - Preserve the user's intended order whenever an order is supplied.
+        - Return between 2 and 12 short, concrete, observable steps.
+        - Each step should usually be 1–6 words and understandable as a visual-card label.
+        - Split compound actions only when doing so makes the sequence clearer.
+        - Do not add treatment targets, prompting procedures, behavior protocols, diagnoses, consequences, reinforcement schedules, or other clinical instructions that the user did not supply.
+        - Saved client context is terminology context only; do not invent client-specific actions from it.
+        - Return ONLY one step per line. No numbering, bullets, heading, explanation, or closing sentence.
+
+        CLIENT: \(clientCode)
+        SAVED COMMUNICATION CONTEXT — terminology only: \(communication)
+
+        ROUTINE / REQUEST:
+        \(cleanDescription)
+        """
+
+        let generatedText = try await generate(
+            instructions: "You create concise, concrete visual-schedule labels from the user's supplied routine without inventing clinical procedures.",
+            prompt: prompt
+        )
+
+        let steps = generatedText
+            .split(whereSeparator: \.isNewline)
+            .map { sanitizeVisualScheduleLine(String($0)) }
+            .filter { !$0.isEmpty }
+
+        guard !steps.isEmpty else {
+            throw LifeRouteIntelligenceError.generationFailed("LifeRoute could not create visual-schedule steps from that description.")
+        }
+        return Array(steps.prefix(12))
+    }
+
     static func generateSessionPlan(
         client: LifeRouteClientProfile?,
         durationMinutes: Int,
@@ -158,6 +203,21 @@ enum LifeRouteIntelligenceCore {
             instructions: "You are LifeRoute's session-planning assistant for an RBT. Organize only supervisor-approved information and never invent treatment procedures.",
             prompt: prompt
         )
+    }
+
+    private static func sanitizeVisualScheduleLine(_ value: String) -> String {
+        var cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        while let first = cleaned.first, "•-*–—".contains(first) {
+            cleaned.removeFirst()
+            cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        if let separatorIndex = cleaned.firstIndex(where: { $0 == "." || $0 == ")" }),
+           cleaned[..<separatorIndex].allSatisfy(\.isNumber) {
+            cleaned = String(cleaned[cleaned.index(after: separatorIndex)...])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return String(cleaned.prefix(90))
     }
 
     private static func generate(instructions: String, prompt: String) async throws -> String {

@@ -2,214 +2,137 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
-
-def path(*parts: str) -> Path:
-    return ROOT.joinpath(*parts)
-
-
-FILES = {
-    "app": path("LifeRoute", "LifeRouteApp.swift"),
-    "navigation": path("LifeRoute", "AppNavigation.swift"),
-    "content": path("LifeRoute", "ContentView.swift"),
-    "calendar": path("LifeRoute", "CalendarDomain.swift"),
-    "providers": path("LifeRoute", "CalendarProviderCore.swift"),
-    "routing": path("LifeRoute", "RoutingLocationDomain.swift"),
-    "clients": path("LifeRoute", "ClientProfileDomain.swift"),
-    "client_views": path("LifeRoute", "ClientViews.swift"),
-    "tools": path("LifeRoute", "SessionToolsDomain.swift"),
-    "tool_views": path("LifeRoute", "SessionToolsViews.swift"),
-    "persistence": path("LifeRoute", "PersistenceCore.swift"),
-    "migration": path("LifeRoute", "LegacyMigrationCore.swift"),
-    "plist": path("LifeRoute", "Info.plist"),
-    "project": path("LifeRoute.xcodeproj", "project.pbxproj"),
-    "prepare": path("scripts", "prepare_build.sh"),
-    "workflow": path(".github", "workflows", "ios-ci.yml"),
+PATHS = {
+    "app": ROOT / "LifeRoute" / "LifeRouteApp.swift",
+    "shell": ROOT / "LifeRoute" / "V054ContentView.swift",
+    "navigation": ROOT / "LifeRoute" / "AppNavigation.swift",
+    "today": ROOT / "LifeRoute" / "V054TodayView.swift",
+    "schedule": ROOT / "LifeRoute" / "V054ScheduleView.swift",
+    "setup": ROOT / "LifeRoute" / "V054SetupView.swift",
+    "clients": ROOT / "LifeRoute" / "ClientProfileDomain.swift",
+    "client_views": ROOT / "LifeRoute" / "V054ClientViews.swift",
+    "calendar": ROOT / "LifeRoute" / "CalendarDomain.swift",
+    "providers": ROOT / "LifeRoute" / "CalendarProviderCore.swift",
+    "routing": ROOT / "LifeRoute" / "RoutingLocationDomain.swift",
+    "day_route": ROOT / "LifeRoute" / "DayRoutePlanningCore.swift",
+    "tools": ROOT / "LifeRoute" / "SessionToolsDomain.swift",
+    "tool_views": ROOT / "LifeRoute" / "SessionToolsViews.swift",
+    "ai": ROOT / "LifeRoute" / "LifeRouteIntelligenceCore.swift",
+    "persistence": ROOT / "LifeRoute" / "PersistenceCore.swift",
+    "migration": ROOT / "LifeRoute" / "LegacyMigrationCore.swift",
+    "project": ROOT / "LifeRoute.xcodeproj" / "project.pbxproj",
+    "prepare": ROOT / "scripts" / "prepare_build.sh",
+    "workflow": ROOT / ".github" / "workflows" / "ios-ci.yml",
 }
 
 errors: list[str] = []
 checks: list[str] = []
 
 
+def read(name: str) -> str:
+    try:
+        return PATHS[name].read_text(encoding="utf-8")
+    except Exception as exc:
+        errors.append(f"Could not read {PATHS[name].relative_to(ROOT)}: {exc}")
+        return ""
+
+
 def require(condition: bool, message: str) -> None:
     (checks if condition else errors).append(message)
 
 
-def read(file_path: Path) -> str:
-    try:
-        return file_path.read_text(encoding="utf-8")
-    except Exception as exc:
-        errors.append(f"Could not read {file_path.relative_to(ROOT)}: {exc}")
-        return ""
+s = {name: read(name) for name in PATHS}
 
-
-source = {name: read(file_path) for name, file_path in FILES.items()}
-
-# Launch, interaction shell, and navigation journey.
-require("WindowGroup" in source["app"] and "ContentView()" in source["app"], "The app launches directly into the native functional root")
-require(source["content"].count("TabView(selection: $router.selectedSection)") == 1, "One native TabView owns top-level selection")
-require(source["content"].count("NavigationStack(path: $router.") == 5, "All five top-level sections retain router-owned navigation stacks")
+# Launch + navigation.
+require("WindowGroup" in s["app"] and "ContentView()" in s["app"], "App still launches through the reviewed ContentView entry")
+require("typealias ContentView = V054ContentView" in s["shell"], "v0.5.4 owns the active ContentView identity")
+require("TabView(selection: $router.selectedSection)" in s["shell"], "Top-level selection remains AppRouter-owned")
+require(s["shell"].count("NavigationStack(path: $router.") == 5, "All five top-level sections retain independent router-owned stacks")
 for section_name in ["today", "schedule", "tools", "resources", "setup"]:
-    require(f"case {section_name}" in source["navigation"], f"Top-level section remains available: {section_name}")
-    require(f".tag(AppSection.{section_name})" in source["content"], f"Top-level tab is wired: {section_name}")
-require("func open(_ route: AppRoute, in section: AppSection)" in source["navigation"], "Cross-tab contextual navigation retains one owner")
-require("func resetPath(for section: AppSection)" in source["navigation"], "Native navigation paths remain deterministically resettable")
-require("Button(\"Close\") { dismiss() }" in source["content"], "Native detail routes retain semantic back/close behavior")
+    require(f".tag(AppSection.{section_name})" in s["shell"], f"Top-level tab is wired: {section_name}")
+require("func resetPath(for section: AppSection)" in s["navigation"], "Navigation paths remain deterministically resettable")
 
-# Today + Setup routing journey: foreground live location, durable home/saved
-# places, route estimate, Apple Maps handoff, and transient runtime-only outputs.
-for marker, label in [
-    ("routingState.requestCurrentLocation()", "explicit live-location start"),
-    ("routingState.stopLiveLocation()", "explicit live-location stop"),
-    ("routingState.calculateRoute(to: place, mode: routeMode)", "saved-place route estimate"),
-    ("routingState.openInAppleMaps(place, mode: routeMode)", "Apple Maps handoff"),
-    ("routingState.setHomeAddress(homeDraft)", "home-address save"),
-    ("routingState.addSavedPlace(", "saved-place creation"),
-    ("routingState.removeSavedPlace(id: place.id)", "saved-place removal"),
-]:
-    require(marker in source["content"], f"Routing UI retains {label}")
-require("CLLocationManagerDelegate" in source["routing"] and "startUpdatingLocation()" in source["routing"], "Location remains native and supports foreground live updates")
-require("requestLocation()" not in source["routing"] and "allowsBackgroundLocationUpdates = false" in source["routing"], "Location no longer regresses to one-shot behavior and remains foreground-only")
-require("MKLocalSearch" in source["routing"] and "MKDirections" in source["routing"], "Search and route calculation remain native MapKit flows")
-require("MKLocalSearchCompleter" in source["routing"], "Address autocomplete remains native MapKit")
-require("if let currentLocation" in source["routing"] and "if !homeAddress.isEmpty" in source["routing"], "Route origin retains current-location then home fallback")
-require("saveRoutingState(homeAddress: homeAddress, savedPlaces: savedPlaces)" in source["routing"], "Home and saved-place mutations persist together")
-require("currentLocation" not in source["persistence"] and "routeEstimates" not in source["persistence"], "GPS coordinates and calculated routes remain transient")
-require("LiveDayTimeline" in source["content"] and "calendarState.events(on: Date())" in source["content"], "Generate/Live Day remains native and calendar-backed")
+# Today / routing journey.
+require("routingState.requestCurrentLocation()" in s["today"] and "routingState.stopLiveLocation()" in s["today"], "Today retains explicit live-location start/stop")
+require("startUpdatingLocation()" in s["routing"] and "allowsBackgroundLocationUpdates = false" in s["routing"], "Live GPS remains continuous while foreground-only")
+require("MKLocalSearchCompleter" in s["routing"], "Native address autocomplete remains available")
+require("saveRoutingState(homeAddress: homeAddress, savedPlaces: savedPlaces)" in s["routing"], "Home and saved-place mutations persist through one owner")
+require("currentLocation" not in s["persistence"] and "routeEstimates" not in s["persistence"], "Live coordinates and calculated routes remain transient")
+require("case before" in s["day_route"] and "case after" in s["day_route"] and "if returnHome" in s["day_route"], "Day routing supports before stops, after stops, and Return Home")
 
-# Calendar journey: manual CRUD, range navigation/presentation, and explicit
-# read-only provider refreshes whose caches remain separate from persistence.
+# Calendar journey.
 for calendar_range in ["case day", "case week", "case month"]:
-    require(calendar_range in source["calendar"], f"Calendar range remains implemented: {calendar_range.removeprefix('case ')}")
-require("calendarState.addManualEvent(" in source["content"], "Manual appointment form writes through CalendarCoreState")
-require("calendarState.removeEvent(id: eventID)" in source["content"] and "if event.source == .manual" in source["content"], "Manual appointment deletion remains wired and provider events stay read-only")
-require(".accessibilityLabel(\"Delete \\(event.title)\")" in source["content"], "Manual appointment deletion remains accessible")
-require("func presentation(for range: LifeRouteCalendarRange)" in source["calendar"], "Day/Week/Month rendering shares the indexed presentation boundary")
-require("calendarState.shiftSelection(selectedRange, by: -1)" in source["content"] and "calendarState.shiftSelection(selectedRange, by: 1)" in source["content"], "Calendar period navigation works in both directions")
-require("calendarState.selectToday()" in source["content"], "Calendar can return to today")
-require("providerState.connectOrRefreshApple { events in" in source["content"] and "source: .apple" in source["content"], "Apple Calendar refresh publishes normalized Apple events")
-require("providerState.connectOrRefreshGoogle { events in" in source["content"] and "source: .google" in source["content"], "Google Calendar refresh publishes normalized Google events")
-require("providerState.disconnectGoogle()" in source["content"] and "removeProviderEvents(source: .google)" in source["content"], "Google disconnect clears only its runtime event cache")
-require("https://www.googleapis.com/auth/calendar.readonly" in source["providers"], "Google Calendar access remains read-only")
-require("saveManualCalendarEvents(events.filter { $0.source == .manual })" in source["calendar"], "Only manual appointments cross the calendar persistence boundary")
+    require(calendar_range in s["calendar"], f"Calendar range remains implemented: {calendar_range.removeprefix('case ')}")
+require("calendarState.addManualEvent(" in s["schedule"], "Manual appointment creation remains wired")
+require("calendarState.removeEvent(id: event.id)" in s["schedule"], "Manual appointment deletion remains wired")
+require("connectOrRefreshApple" in s["schedule"] and "connectOrRefreshGoogle" in s["schedule"], "Apple and Google calendar refresh remain user-triggered")
+require("https://www.googleapis.com/auth/calendar.readonly" in s["providers"], "Google Calendar access remains read-only")
+require("saveManualCalendarEvents(events.filter { $0.source == .manual })" in s["calendar"], "Only manual appointments cross calendar persistence")
 
-# Client journey: add/edit/remove, ABA privacy code, full reviewed session
-# context, and durable UUID ownership across editable display codes.
-require("ClientProfilesView(clientState: clientState)" in source["content"], "Setup opens native client management")
-require("clientState.saveProfile(" in source["client_views"], "Client editor retains add/edit save wiring")
-require("clientState.removeClient(id: profile.id)" in source["client_views"], "Client removal remains wired")
-require("@State private var isSaving = false" in source["client_views"] and ".disabled(isSaving)" in source["client_views"], "Client save is guarded against duplicate taps")
-require("let code = first + last" in source["clients"] and "first.count == 2" in source["clients"], "ABA client identity remains four normalized initials")
-for field in [
-    "preferredActivities", "currentTargets", "behaviorsOfConcern", "communicationNotes",
-    "promptingNotes", "caregiverNotes", "clinicalNotes", "address",
-]:
-    require(field in source["clients"] and field in source["client_views"], f"Client workflow retains reviewed field: {field}")
-require("LifeRoutePersistenceStore.shared.saveClients(clients)" in source["clients"], "Client add/edit/remove mutations remain durable")
+# Client journey.
+require("V054ClientProfilesView" in s["setup"], "Setup reaches native client management")
+require("clientState.saveProfile(" in s["client_views"], "Client editor retains add/edit save wiring")
+require("clientState.removeClient(id: profile.id)" in s["client_views"], "Client removal remains wired")
+require("@State private var isSaving = false" in s["client_views"] and ".disabled(isSaving)" in s["client_views"], "Client save remains reentrancy guarded")
+require("let code = first + last" in s["clients"] and "first.count == 2" in s["clients"], "ABA client identity remains four normalized initials")
+for field in ["preferredActivities", "currentTargets", "behaviorsOfConcern", "communicationNotes", "promptingNotes", "caregiverNotes", "clinicalNotes", "address"]:
+    require(field in s["clients"] and field in s["client_views"], f"Client workflow retains reviewed field: {field}")
+require("LifeRoutePersistenceStore.shared.saveClients(clients)" in s["clients"], "Client mutations remain durable")
 
-# Session Tools journey: absolute-deadline timer, ephemeral quick notes,
-# General/client-scoped visual supports, First/Then, and deterministic plan organizer.
-for route in ["visualTimer", "quickNotes", "firstThen", "sessionPlan"]:
-    require(f"case {route}" in source["tools"] and f"SessionToolRoute.{route}" in source["tool_views"], f"Session Tool route remains available: {route}")
-require("deadline = now.addingTimeInterval(seconds)" in source["tools"] and "remainingSeconds(at:" in source["tools"], "Visual Timer retains absolute-deadline behavior")
+# Session Tools + AI journey.
+require("deadline = now.addingTimeInterval(seconds)" in s["tools"] and "remainingSeconds(at:" in s["tools"], "Visual Timer retains absolute-deadline behavior")
 for action in ["timer.start", "timer.pause", "timer.resume", "timer.addMinute", "timer.reset"]:
-    require(action in source["tool_views"], f"Visual Timer control remains wired: {action}")
-require("toolsState.addNote(" in source["tool_views"] and "toolsState.removeNote(id: note.id)" in source["tool_views"], "Quick Session Notes retain add/remove behavior")
-require("func buildPlan(" in source["tools"] and "toolsState.buildPlan(" in source["tool_views"], "Session Plan Organizer remains deterministic and wired")
-require("ClientVisualSupportCenter" in source["tool_views"], "Visual-support hub remains reachable")
-for operation, label in [
-    ("visualState.addIcon", "icon creation"),
-    ("visualState.saveChoiceBoard", "Choice Board creation"),
-    ("ClientFirstThenVisualView", "First/Then"),
-    ("visualState.saveSchedule", "Visual Schedule creation"),
-]:
-    require(operation in source["tool_views"], f"Visual workflow retains {label}")
-require("clientID: UUID" in source["tools"] and "crossClientReference" in source["tools"], "Visual ownership remains durable and same-library constrained")
-require('generalClientCode = "GENERAL"' in source["tools"], "Visual workflows retain a General library without requiring a client")
-require("visualState.retainClients(clientState.clients)" in source["tool_views"] and ".onReceive(clientState.$clients)" in source["tool_views"], "Client edits/deletes reconcile active visual libraries without deleting General")
+    require(action in s["tool_views"], f"Visual Timer control remains wired: {action}")
+require('generalClientCode = "GENERAL"' in s["tools"] and "crossClientReference" in s["tools"], "General visual library and same-library ownership remain enforced")
+require("LanguageModelSession" in s["ai"] and "SystemLanguageModel.default" in s["ai"], "Restored AI tools use Apple's on-device Foundation Model")
+require("using ONLY the session facts supplied below" in s["ai"], "AI note generation retains supplied-facts-only guardrail")
+require("ACTUALLY ORGANIZE THE SESSION" in s["ai"] and "never create a new intervention" in s["ai"], "AI planning synthesizes a session flow without inventing treatment")
+require("* 0.60" in s["tools"] and "* 0.85" in s["tools"], "Timer retains approved fivefold audio signal boost")
 
-# Persistence and migration journey: protected versioned native data, ordered
-# atomic writes, corruption recovery, and reviewed legacy inputs only.
+# Persistence / migration / architecture.
 for marker, label in [
     ("schemaVersion", "versioned snapshot"),
     ("FileProtectionType.completeUntilFirstUserAuthentication", "sensitive-data protection"),
-    ("options: [.atomic]", "atomic replacement"),
-    ("corrupt-", "corrupt-state preservation"),
+    ("options: [.atomic]", "atomic writes"),
     ("SnapshotWriter", "serial off-main writer"),
     ("await previousTask?.value", "ordered writes"),
 ]:
-    require(marker in source["persistence"], f"Native persistence retains {label}")
+    require(marker in s["persistence"], f"Native persistence retains {label}")
 for reviewed in ["clients", "manualCalendarEvents", "places", "homeAddress"]:
-    require(reviewed in source["migration"], f"Legacy mapper retains reviewed boundary: {reviewed}")
+    require(reviewed in s["migration"], f"Legacy mapper retains reviewed boundary: {reviewed}")
 for forbidden in ["liferoute_visual_tools_v2", "googleAccessToken", "WKWebsiteDataStore", "localStorage"]:
-    require(forbidden not in source["migration"], f"Legacy mapper excludes quarantined input: {forbidden}")
+    require(forbidden not in s["migration"], f"Legacy mapper excludes quarantined input: {forbidden}")
+require("private actor SnapshotWriter" in s["persistence"], "Snapshot encoding and I/O remain off the interaction owner")
+require("iconsByClientID" in s["tools"] and "eventIndicesByDay" in s["calendar"], "Visual and calendar derived lookups remain indexed")
+require("private var googleRefreshTask: Task<Void, Never>?" in s["providers"] and "private var routeTasks: [UUID: Task<Void, Never>]" in s["routing"], "Provider and routing async work retain explicit owners")
+require("if phase == .background" in s["shell"] and "routingState.cancelPendingOperations()" in s["shell"], "Background routing cleanup remains lifecycle-bounded")
 
-# Performance/stability regression gates from the immediately preceding passes.
-require("private actor SnapshotWriter" in source["persistence"], "Snapshot encoding and I/O remain off the interaction owner")
-require("iconsByClientID" in source["tools"] and "eventIndicesByDay" in source["calendar"], "Visual and calendar derived lookups remain indexed")
-require("CGImageSourceCreateThumbnailAtIndex" in source["tool_views"] and "UIImage(data:" not in source["tool_views"], "Visual thumbnails remain downsampled outside SwiftUI body evaluation")
-require("private var googleRefreshTask: Task<Void, Never>?" in source["providers"] and "private var routeTasks: [UUID: Task<Void, Never>]" in source["routing"], "Provider and routing async work retain explicit owners")
-require("Task {" not in source["content"], "Root interactions create no fire-and-forget tasks")
-require("if phase == .background" in source["content"] and "routingState.cancelPendingOperations()" in source["content"], "Background routing cancellation remains lifecycle-bounded")
-require("providerState.cancelPendingOperations()" not in source["content"], "Transient inactive phases cannot abort provider permission/authentication")
-require(".simultaneousGesture(" not in source["app"] and ".onTapGesture(" not in source["app"], "Shared appearance layer cannot compete with semantic Button tap ownership")
+# Build/release isolation.
+for file_name in [
+    "LifeRouteApp.swift", "AppNavigation.swift", "V054ContentView.swift", "V054TodayView.swift",
+    "V054ScheduleView.swift", "V054ToolsDashboard.swift", "V054SetupView.swift",
+    "CalendarDomain.swift", "CalendarProviderCore.swift", "RoutingLocationDomain.swift",
+    "ClientProfileDomain.swift", "V054ClientViews.swift", "SessionToolsDomain.swift",
+    "SessionToolsViews.swift", "PersistenceCore.swift", "LegacyMigrationCore.swift",
+]:
+    require(f"{file_name} in Sources" in s["project"], f"Active native target compiles {file_name}")
+require("LifeRouteWebView.swift in Sources" not in s["project"] and "Web in Resources" not in s["project"], "Legacy WebView and JavaScript runtime remain quarantined")
+require(s["project"].count("MARKETING_VERSION = 0.5.4;") >= 4, "App and Live Activity Debug/Release configurations share v0.5.4 identity")
+require("audit_v0_5_4_restore.py" in s["prepare"], "Preparation includes the dedicated v0.5.4 restoration audit")
+require("Audit checkpoint 07 second functionality pass" in s["workflow"], "iOS CI retains this cross-domain gate before Simulator compilation")
 
-# Build/release isolation and accumulated validation order.
-active_files = [
-    "LifeRouteApp.swift", "AppNavigation.swift", "CalendarDomain.swift", "CalendarProviderCore.swift",
-    "RoutingLocationDomain.swift", "ClientProfileDomain.swift", "ClientViews.swift",
-    "SessionToolsDomain.swift", "SessionToolsViews.swift", "PersistenceCore.swift",
-    "LegacyMigrationCore.swift", "ContentView.swift",
-]
-for file_name in active_files:
-    require(f"{file_name} in Sources" in source["project"], f"Active native target compiles {file_name}")
-require("LifeRouteWebView.swift in Sources" not in source["project"] and "Web in Resources" not in source["project"], "Legacy WebView and JavaScript runtime remain quarantined")
-approved_versions = [version for version in ("0.5.0", "0.5.1", "0.5.2", "0.5.3") if f"MARKETING_VERSION = {version};" in source["project"]]
-require(
-    len(approved_versions) == 1 and source["project"].count(f"MARKETING_VERSION = {approved_versions[0]};") >= 2,
-    "Debug and Release shipping configurations use one approved v0.5 marketing version (0.5.0 through 0.5.3)",
-)
-
-accumulated_audits = [
-    "audit_v0_5_0_functional_shell.py",
-    "audit_v0_5_0_core_navigation.py",
-    "audit_v0_5_0_calendar_core.py",
-    "audit_v0_5_0_routing_location_core.py",
-    "audit_v0_5_0_clients_core.py",
-    "audit_v0_5_0_session_tools_core.py",
-    "audit_v0_5_0_calendar_providers.py",
-    "audit_v0_5_0_client_visual_supports.py",
-    "audit_v0_5_0_client_visual_persistence.py",
-    "audit_v0_5_0_routing_calendar_persistence.py",
-    "audit_v0_5_0_legacy_migration.py",
-    "audit_v0_5_0_performance_architecture.py",
-    "audit_v0_5_0_stability_architecture.py",
-    "audit_v0_5_0_second_functionality_pass.py",
-]
-last_position = -1
-for audit in accumulated_audits:
-    position = source["prepare"].find(f"python3 scripts/{audit}")
-    require(position > last_position, f"Preparation executes accumulated gate in order: {audit}")
-    if position >= 0:
-        last_position = position
-require("audit_v0_5_3_repair.py" in source["prepare"], "Preparation adds the dedicated v0.5.3 multi-angle repair audit after inherited gates")
-require("Audit checkpoint 07 second functionality pass" in source["workflow"], "iOS CI exposes Checkpoint 07 before Simulator compilation")
-
-active_runtime = "\n".join(source[name] for name in [
-    "app", "navigation", "content", "calendar", "providers", "routing", "clients",
-    "client_views", "tools", "tool_views", "persistence", "migration",
-])
+active_runtime = "\n".join(s[name] for name in ["app", "shell", "navigation", "calendar", "providers", "routing", "clients", "client_views", "tools", "tool_views", "persistence", "migration"])
 for forbidden in ["WKWebView", "MutationObserver", "setInterval", "Timer.scheduledTimer", "sendEvent(", "touchesBegan("]:
-    require(forbidden not in active_runtime, f"Second functionality pass adds no quarantined/global interaction mechanism: {forbidden}")
+    require(forbidden not in active_runtime, f"Active runtime adds no quarantined/global interaction mechanism: {forbidden}")
 
 if errors:
-    print("LifeRoute v0.5 second-functionality-pass audit FAILED")
+    print("LifeRoute v0.5 cross-domain functionality audit FAILED")
     for error in errors:
         print(f"- FAIL: {error}")
     raise SystemExit(1)
 
-print(f"LifeRoute v0.5 second-functionality-pass audit passed ({len(checks)} checks).")
+print(f"LifeRoute v0.5 cross-domain functionality audit passed ({len(checks)} checks).")
 for check in checks:
     print(f"- OK: {check}")

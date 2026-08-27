@@ -87,6 +87,8 @@ def main() -> None:
     )
 
     # The hero artwork is local SwiftUI presentation only; it does not mutate the Core-theme architecture.
+    # Build B.1 explicitly supersedes Build B's palette.accentGradient treatment with a deterministic
+    # blue/gold mountain-road treatment. Require the shared geometry plus one exact reviewed style.
     require_all(
         today,
         [
@@ -95,10 +97,22 @@ def main() -> None:
             "private func mountainMid(_ size: CGSize) -> Path",
             "private func mountainFront(_ size: CGSize) -> Path",
             "private func routePath(_ size: CGSize) -> Path",
-            "palette.accentGradient",
         ],
-        "Today hero artwork",
+        "Today hero artwork geometry",
     )
+    build_b_hero = "palette.accentGradient" in today
+    build_b1_hero = all(
+        token in today
+        for token in [
+            "v0.7.0 Build B.1 Today/Home parity",
+            "private let brandGold = Color(red: 0.96, green: 0.72, blue: 0.20)",
+            "private let brandGoldBright = Color(red: 1.00, green: 0.86, blue: 0.43)",
+            "style: StrokeStyle(lineWidth: 17",
+            "style: StrokeStyle(lineWidth: 3.8",
+            "Color.white.opacity(0.50)",
+        ]
+    )
+    require(build_b_hero or build_b1_hero, "Today hero must match the reviewed Build B gradient or its explicit Build B.1 blue/gold superseding treatment")
 
     require("LifeRouteWebView" not in today, "Today must remain native SwiftUI")
     require("WKWebView" not in today, "Today must not reactivate WebKit")

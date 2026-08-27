@@ -28,6 +28,7 @@ struct V054ScheduleView: View {
         }
         .navigationTitle("Schedule")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: selectedRange) { _ in LifeRouteHaptics.selection() }
     }
 
     private var presentation: LifeRouteCalendarRangePresentation {
@@ -61,16 +62,21 @@ struct V054ScheduleView: View {
 
             HStack(spacing: 9) {
                 Button {
+                    LifeRouteHaptics.selection()
                     calendarState.shiftSelection(selectedRange, by: -1)
                 } label: {
                     Label("Previous", systemImage: "chevron.left")
                 }
                 .buttonStyle(LifeRouteSecondaryButtonStyle())
 
-                Button("Today") { calendarState.selectToday() }
-                    .buttonStyle(LifeRouteSecondaryButtonStyle())
+                Button("Today") {
+                    LifeRouteHaptics.selection()
+                    calendarState.selectToday()
+                }
+                .buttonStyle(LifeRouteSecondaryButtonStyle())
 
                 Button {
+                    LifeRouteHaptics.selection()
                     calendarState.shiftSelection(selectedRange, by: 1)
                 } label: {
                     Label("Next", systemImage: "chevron.right")
@@ -148,6 +154,7 @@ struct V054ScheduleView: View {
 
             if event.source == .manual {
                 Button(role: .destructive) {
+                    LifeRouteHaptics.selection()
                     calendarState.removeEvent(id: event.id)
                 } label: {
                     Image(systemName: "trash")
@@ -178,6 +185,7 @@ struct V054ScheduleView: View {
             ) {
                 providerState.connectOrRefreshApple { events in
                     calendarState.replaceProviderEvents(events, source: .apple)
+                    LifeRouteHaptics.success()
                 }
             }
 
@@ -190,11 +198,13 @@ struct V054ScheduleView: View {
             ) {
                 providerState.connectOrRefreshGoogle { events in
                     calendarState.replaceProviderEvents(events, source: .google)
+                    LifeRouteHaptics.success()
                 }
             }
 
             if providerState.googleConnected {
                 Button(role: .destructive) {
+                    LifeRouteHaptics.selection()
                     providerState.disconnectGoogle()
                     calendarState.removeProviderEvents(source: .google)
                 } label: {
@@ -232,9 +242,12 @@ struct V054ScheduleView: View {
                     .foregroundStyle(palette.textSecondary)
             }
             Spacer()
-            Button(busy ? "Working…" : (connected ? "Refresh" : "Connect"), action: action)
-                .font(.caption.weight(.bold))
-                .disabled(busy)
+            Button(busy ? "Working…" : (connected ? "Refresh" : "Connect")) {
+                LifeRouteHaptics.primaryAction()
+                action()
+            }
+            .font(.caption.weight(.bold))
+            .disabled(busy)
         }
         .padding(11)
         .background(palette.panelElevated.opacity(0.28), in: RoundedRectangle(cornerRadius: 14, style: .continuous))

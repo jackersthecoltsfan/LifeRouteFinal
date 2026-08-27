@@ -95,6 +95,7 @@ struct ResourcePortalHubView: View {
     private func portalRow(_ portal: LifeRoutePortalLink) -> some View {
         Button {
             guard let url = portal.url else { return }
+            LifeRouteHaptics.primaryAction()
             openURL(url)
         } label: {
             HStack(spacing: 12) {
@@ -121,6 +122,7 @@ struct ResourcePortalHubView: View {
 
                 if portal.isCustom {
                     Button(role: .destructive) {
+                        LifeRouteHaptics.selection()
                         portalState.removeCustomPortal(id: portal.id)
                     } label: {
                         Image(systemName: "trash")

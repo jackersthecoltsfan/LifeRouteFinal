@@ -24,6 +24,7 @@ final class LifeRoutePersistenceStore {
     // though there is intentionally no synthetic client profile in Setup.
     private static let generalVisualLibraryID = UUID(uuidString: "7F164E34-BD4A-4A30-AFDB-70A4AE8C7D3E")!
     private static let generalVisualLibraryCode = "GENERAL"
+    private static let providerCalendarEventLimit = 1_500
 
     private struct PersistedVisualIcon: Codable {
         var id: UUID
@@ -126,16 +127,18 @@ final class LifeRoutePersistenceStore {
         var homeAddress: String
         var savedPlaces: [LifeRouteSavedPlace]
         var manualCalendarEvents: [LifeRouteCalendarEvent]
+        var providerCalendarEvents: [LifeRouteCalendarEvent]
 
         init(
-            schemaVersion: Int = 3,
+            schemaVersion: Int = 4,
             clients: [LifeRouteClientProfile] = [],
             visualIcons: [PersistedVisualIcon] = [],
             choiceBoards: [PersistedChoiceBoard] = [],
             visualSchedules: [PersistedVisualSchedule] = [],
             homeAddress: String = "",
             savedPlaces: [LifeRouteSavedPlace] = [],
-            manualCalendarEvents: [LifeRouteCalendarEvent] = []
+            manualCalendarEvents: [LifeRouteCalendarEvent] = [],
+            providerCalendarEvents: [LifeRouteCalendarEvent] = []
         ) {
             self.schemaVersion = schemaVersion
             self.clients = clients
@@ -145,6 +148,7 @@ final class LifeRoutePersistenceStore {
             self.homeAddress = homeAddress
             self.savedPlaces = savedPlaces
             self.manualCalendarEvents = manualCalendarEvents
+            self.providerCalendarEvents = providerCalendarEvents
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -156,6 +160,7 @@ final class LifeRoutePersistenceStore {
             case homeAddress
             case savedPlaces
             case manualCalendarEvents
+            case providerCalendarEvents
         }
 
         init(from decoder: Decoder) throws {
@@ -168,6 +173,7 @@ final class LifeRoutePersistenceStore {
             homeAddress = try container.decodeIfPresent(String.self, forKey: .homeAddress) ?? ""
             savedPlaces = try container.decodeIfPresent([LifeRouteSavedPlace].self, forKey: .savedPlaces) ?? []
             manualCalendarEvents = try container.decodeIfPresent([LifeRouteCalendarEvent].self, forKey: .manualCalendarEvents) ?? []
+            providerCalendarEvents = try container.decodeIfPresent([LifeRouteCalendarEvent].self, forKey: .providerCalendarEvents) ?? []
         }
     }
 
@@ -436,6 +442,17 @@ final class LifeRoutePersistenceStore {
         persist()
     }
 
+    func loadProviderCalendarEvents() -> [LifeRouteCalendarEvent] {
+        state.providerCalendarEvents
+    }
+
+    func saveProviderCalendarEvents(_ events: [LifeRouteCalendarEvent]) {
+        var next = state
+        next.providerCalendarEvents = Self.sanitizedProviderCalendarEvents(events)
+        state = next
+        persist()
+    }
+
     private func persist() {
         guard let snapshotWriter else { return }
         persistenceRevision &+= 1
@@ -523,16 +540,18 @@ final class LifeRoutePersistenceStore {
         let homeAddress = input.homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         let savedPlaces = sanitizedSavedPlaces(input.savedPlaces)
         let manualCalendarEvents = sanitizedManualCalendarEvents(input.manualCalendarEvents)
+        let providerCalendarEvents = sanitizedProviderCalendarEvents(input.providerCalendarEvents)
 
         return NativeState(
-            schemaVersion: max(3, input.schemaVersion),
+            schemaVersion: max(4, input.schemaVersion),
             clients: clients,
             visualIcons: icons,
             choiceBoards: boards,
             visualSchedules: schedules,
             homeAddress: homeAddress,
             savedPlaces: savedPlaces,
-            manualCalendarEvents: manualCalendarEvents
+            manualCalendarEvents: manualCalendarEvents,
+            providerCalendarEvents: providerCalendarEvents
         )
     }
 
@@ -597,6 +616,31 @@ final class LifeRoutePersistenceStore {
             if $0.start != $1.start { return $0.start < $1.start }
             return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
         }
+    }
+
+    private static func sanitizedProviderCalendarEvents(_ input: [LifeRouteCalendarEvent]) -> [LifeRouteCalendarEvent] {
+        var seenProviderEventIDs = Set<String>()
+        let sanitized = input.compactMap { event -> LifeRouteCalendarEvent? in
+            guard event.source != .manual,
+                  event.end >= event.start else { return nil }
+            let dedupeKey = "\(event.source.rawValue):\(event.id)"
+            guard seenProviderEventIDs.insert(dedupeKey).inserted else { return nil }
+            return LifeRouteCalendarEvent(
+                id: event.id,
+                title: event.title,
+                start: event.start,
+                end: event.end,
+                location: event.location,
+                calendarTitle: event.calendarTitle,
+                isAllDay: event.isAllDay,
+                source: event.source
+            )
+        }.sorted {
+            if $0.start != $1.start { return $0.start < $1.start }
+            if $0.source != $1.source { return $0.source.rawValue < $1.source.rawValue }
+            return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+        }
+        return Array(sanitized.prefix(providerCalendarEventLimit))
     }
 
     private static func sanitizedClients(_ input: [LifeRouteClientProfile]) -> [LifeRouteClientProfile] {

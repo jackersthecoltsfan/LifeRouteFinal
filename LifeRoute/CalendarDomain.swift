@@ -100,8 +100,14 @@ final class CalendarCoreState: ObservableObject {
         configured.minimumDaysInFirstWeek = 4
         self.calendar = configured
         self.selectedDate = now
-        let restoredEvents = events ?? LifeRoutePersistenceStore.shared.loadManualCalendarEvents()
-        self.events = restoredEvents.sorted(by: Self.eventSort)
+
+        if let events {
+            self.events = events.sorted(by: Self.eventSort)
+        } else {
+            let manualEvents = LifeRoutePersistenceStore.shared.loadManualCalendarEvents()
+            let providerEvents = LifeRoutePersistenceStore.shared.loadProviderCalendarEvents()
+            self.events = (manualEvents + providerEvents).sorted(by: Self.eventSort)
+        }
         rebuildEventIndexes()
     }
 
@@ -152,6 +158,7 @@ final class CalendarCoreState: ObservableObject {
         guard nextEvents != events else { return }
         events = nextEvents
         rebuildEventIndexes()
+        persistProviderEvents()
     }
 
     func removeProviderEvents(source: LifeRouteCalendarSource) {
@@ -160,6 +167,7 @@ final class CalendarCoreState: ObservableObject {
         guard nextEvents != events else { return }
         events = nextEvents
         rebuildEventIndexes()
+        persistProviderEvents()
     }
 
     func eventCount(source: LifeRouteCalendarSource) -> Int {
@@ -267,6 +275,10 @@ final class CalendarCoreState: ObservableObject {
 
     private func persistManualEvents() {
         LifeRoutePersistenceStore.shared.saveManualCalendarEvents(events.filter { $0.source == .manual })
+    }
+
+    private func persistProviderEvents() {
+        LifeRoutePersistenceStore.shared.saveProviderCalendarEvents(events.filter { $0.source != .manual })
     }
 
     private func rebuildEventIndexes() {

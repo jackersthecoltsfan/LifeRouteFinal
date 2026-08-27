@@ -1,5 +1,7 @@
 import SwiftUI
 
+typealias ContentView = V054ContentView
+
 struct V054ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var themeStore: LifeRouteThemeStore

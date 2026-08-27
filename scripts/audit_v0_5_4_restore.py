@@ -50,12 +50,13 @@ def require(condition: bool, message: str) -> None:
 
 
 s = {name: read(name) for name in FILES}
+legacy_source_entry = "\n\t\t\tA10000000000000000000002 /* ContentView.swift in Sources */,"
 
 # 01–05 — active native shell + old-shell quarantine.
 require("MARKETING_VERSION = 0.5.4" in s["project"], "01 app and extension identify as v0.5.4")
 require("V054ContentView.swift in Sources" in s["project"], "02 restored v0.5.4 shell is compiled")
 require("typealias ContentView = V054ContentView" in s["shell"], "03 LifeRoute app entry resolves to v0.5.4 shell")
-require("ContentView.swift in Sources" not in s["project"], "04 v0.5.3 ContentView is retained only as a regression reference")
+require(legacy_source_entry not in s["project"], "04 v0.5.3 ContentView is retained only as a regression reference")
 require(s["shell"].count("NavigationStack(path: $router.") == 5 and "TabView(selection: $router.selectedSection)" in s["shell"], "05 five-tab AppRouter navigation remains authoritative")
 
 # 06–11 — preview-style themes with true image-driven scenery.

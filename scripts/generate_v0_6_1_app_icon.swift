@@ -1,167 +1,127 @@
+#!/usr/bin/env swift
 import AppKit
 
-private let canvasSize = 1024
-private let outputPath = CommandLine.arguments.dropFirst().first ?? "LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+let size = CGSize(width: 1024, height: 1024)
+let output = CommandLine.arguments.dropFirst().first ?? "LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
 
-guard let bitmap = NSBitmapImageRep(
-    bitmapDataPlanes: nil,
-    pixelsWide: canvasSize,
-    pixelsHigh: canvasSize,
-    bitsPerSample: 8,
-    samplesPerPixel: 4,
-    hasAlpha: false,
-    isPlanar: false,
-    colorSpaceName: .deviceRGB,
-    bytesPerRow: 0,
-    bitsPerPixel: 32
-), let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
-    fatalError("Could not create LifeRoute icon drawing context")
+func color(_ hex: UInt32, alpha: CGFloat = 1) -> NSColor {
+    NSColor(
+        calibratedRed: CGFloat((hex >> 16) & 0xff) / 255,
+        green: CGFloat((hex >> 8) & 0xff) / 255,
+        blue: CGFloat(hex & 0xff) / 255,
+        alpha: alpha
+    )
 }
 
-NSGraphicsContext.saveGraphicsState()
-NSGraphicsContext.current = context
-context.imageInterpolation = .high
+let navyTop = color(0x020a18)
+let navyBottom = color(0x061b3a)
+let navyGrid = color(0x18325c, alpha: 0.34)
+let gold = color(0xe2ad43)
+let goldLight = color(0xffdf78)
+let goldDeep = color(0x9f6717)
 
-let canvas = NSRect(x: 0, y: 0, width: canvasSize, height: canvasSize)
-let background = NSGradient(colors: [
-    NSColor(calibratedRed: 0.010, green: 0.035, blue: 0.082, alpha: 1),
-    NSColor(calibratedRed: 0.020, green: 0.085, blue: 0.165, alpha: 1),
-    NSColor(calibratedRed: 0.015, green: 0.045, blue: 0.095, alpha: 1),
-])!
-background.draw(in: canvas, angle: 115)
+let image = NSImage(size: size)
+image.lockFocus()
+
+guard let ctx = NSGraphicsContext.current?.cgContext else { fatalError("Missing graphics context") }
+ctx.setAllowsAntialiasing(true)
+ctx.setShouldAntialias(true)
+
+let full = NSRect(origin: .zero, size: size)
+let outer = NSBezierPath(roundedRect: full.insetBy(dx: 20, dy: 20), xRadius: 118, yRadius: 118)
+ctx.saveGState()
+outer.addClip()
+let bgGradient = NSGradient(colors: [navyTop, navyBottom])!
+bgGradient.draw(in: full, angle: -90)
+ctx.restoreGState()
 
 // Subtle premium map/street texture behind the LR mark.
-let mapLine = NSColor(calibratedRed: 0.18, green: 0.43, blue: 0.72, alpha: 0.15)
-mapLine.setStroke()
-for x in stride(from: 105.0, through: 920.0, by: 135.0) {
+ctx.saveGState()
+outer.addClip()
+navyGrid.setStroke()
+for i in 0..<10 {
     let path = NSBezierPath()
-    path.move(to: NSPoint(x: x, y: 70))
-    path.line(to: NSPoint(x: x + 58, y: 954))
-    path.lineWidth = 8
-    path.lineCapStyle = .round
+    path.lineWidth = CGFloat(10 + (i % 3) * 3)
+    let y = CGFloat(90 + i * 92)
+    path.move(to: NSPoint(x: -80, y: y))
+    path.line(to: NSPoint(x: 1100, y: y + CGFloat((i % 4 - 2) * 72)))
     path.stroke()
 }
-for y in stride(from: 120.0, through: 890.0, by: 150.0) {
+for i in 0..<9 {
     let path = NSBezierPath()
-    path.move(to: NSPoint(x: 66, y: y))
-    path.curve(
-        to: NSPoint(x: 960, y: y + 35),
-        controlPoint1: NSPoint(x: 300, y: y + 55),
-        controlPoint2: NSPoint(x: 690, y: y - 45)
-    )
-    path.lineWidth = 7
-    path.lineCapStyle = .round
+    path.lineWidth = CGFloat(9 + (i % 2) * 4)
+    let x = CGFloat(70 + i * 120)
+    path.move(to: NSPoint(x: x, y: -80))
+    path.line(to: NSPoint(x: x + CGFloat((i % 3 - 1) * 150), y: 1100))
     path.stroke()
 }
+ctx.restoreGState()
 
-// Cool-blue route layer gives the icon the navigation identity of the newer LR artwork.
-let blueRoute = NSBezierPath()
-blueRoute.move(to: NSPoint(x: 95, y: 185))
-blueRoute.curve(
-    to: NSPoint(x: 510, y: 515),
-    controlPoint1: NSPoint(x: 260, y: 208),
-    controlPoint2: NSPoint(x: 340, y: 410)
-)
-blueRoute.curve(
-    to: NSPoint(x: 905, y: 780),
-    controlPoint1: NSPoint(x: 690, y: 610),
-    controlPoint2: NSPoint(x: 760, y: 742)
-)
-NSColor(calibratedRed: 0.10, green: 0.47, blue: 0.84, alpha: 0.42).setStroke()
-blueRoute.lineWidth = 34
-blueRoute.lineCapStyle = .round
-blueRoute.stroke()
+// Premium beveled gold inner rim.
+let border = NSBezierPath(roundedRect: full.insetBy(dx: 34, dy: 34), xRadius: 104, yRadius: 104)
+border.lineWidth = 24
+gold.setStroke()
+border.stroke()
+let innerBorder = NSBezierPath(roundedRect: full.insetBy(dx: 48, dy: 48), xRadius: 92, yRadius: 92)
+innerBorder.lineWidth = 4
+goldLight.setStroke()
+innerBorder.stroke()
 
-// Gold inner rim: strong at Home Screen size without competing with the monogram.
-let rim = NSBezierPath(roundedRect: NSRect(x: 42, y: 42, width: 940, height: 940), xRadius: 190, yRadius: 190)
-NSColor(calibratedRed: 0.88, green: 0.60, blue: 0.15, alpha: 0.92).setStroke()
-rim.lineWidth = 14
-rim.stroke()
-
-let darkGold = NSColor(calibratedRed: 0.56, green: 0.34, blue: 0.07, alpha: 1)
-let gold = NSColor(calibratedRed: 0.94, green: 0.67, blue: 0.18, alpha: 1)
-let brightGold = NSColor(calibratedRed: 1.00, green: 0.84, blue: 0.43, alpha: 1)
-let navy = NSColor(calibratedRed: 0.012, green: 0.040, blue: 0.085, alpha: 1)
-
-let paragraph = NSMutableParagraphStyle()
-paragraph.alignment = .center
-let monogramFont = NSFont.systemFont(ofSize: 505, weight: .black)
-let monogramRect = NSRect(x: 46, y: 212, width: 932, height: 590)
-
-let shadow = NSShadow()
-shadow.shadowColor = NSColor.black.withAlphaComponent(0.58)
-shadow.shadowOffset = NSSize(width: 0, height: -20)
-shadow.shadowBlurRadius = 24
-
-("LR" as NSString).draw(
-    in: monogramRect.offsetBy(dx: 0, dy: -10),
-    withAttributes: [
-        .font: monogramFont,
-        .foregroundColor: darkGold,
+func drawLetter(_ string: String, rect: NSRect) {
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.alignment = .center
+    let shadow = NSShadow()
+    shadow.shadowColor = NSColor.black.withAlphaComponent(0.65)
+    shadow.shadowBlurRadius = 18
+    shadow.shadowOffset = NSSize(width: 0, height: -10)
+    let font = NSFont(name: "Times New Roman Bold", size: 500) ?? NSFont.systemFont(ofSize: 500, weight: .black)
+    let attrs: [NSAttributedString.Key: Any] = [
+        .font: font,
+        .foregroundColor: goldLight,
         .paragraphStyle: paragraph,
         .shadow: shadow,
+        .strokeColor: goldDeep,
+        .strokeWidth: -1.4
     ]
-)
-("LR" as NSString).draw(
-    in: monogramRect,
-    withAttributes: [
-        .font: monogramFont,
-        .foregroundColor: gold,
-        .paragraphStyle: paragraph,
-    ]
-)
-("LR" as NSString).draw(
-    in: monogramRect.offsetBy(dx: 0, dy: 8),
-    withAttributes: [
-        .font: monogramFont,
-        .foregroundColor: brightGold.withAlphaComponent(0.32),
-        .paragraphStyle: paragraph,
-    ]
-)
-
-// Gold route ribbon rising into the center navigation pin.
-let goldRoute = NSBezierPath()
-goldRoute.move(to: NSPoint(x: 190, y: 220))
-goldRoute.curve(
-    to: NSPoint(x: 510, y: 470),
-    controlPoint1: NSPoint(x: 385, y: 255),
-    controlPoint2: NSPoint(x: 355, y: 420)
-)
-brightGold.setStroke()
-goldRoute.lineWidth = 30
-goldRoute.lineCapStyle = .round
-goldRoute.stroke()
-
-let pinCenter = NSPoint(x: 515, y: 575)
-let pinCircle = NSBezierPath(ovalIn: NSRect(x: pinCenter.x - 72, y: pinCenter.y - 25, width: 144, height: 144))
-brightGold.setFill()
-pinCircle.fill()
-
-let pinTail = NSBezierPath()
-pinTail.move(to: NSPoint(x: pinCenter.x - 52, y: pinCenter.y + 5))
-pinTail.line(to: NSPoint(x: pinCenter.x, y: pinCenter.y - 92))
-pinTail.line(to: NSPoint(x: pinCenter.x + 52, y: pinCenter.y + 5))
-pinTail.close()
-brightGold.setFill()
-pinTail.fill()
-
-let pinHole = NSBezierPath(ovalIn: NSRect(x: pinCenter.x - 27, y: pinCenter.y + 20, width: 54, height: 54))
-navy.setFill()
-pinHole.fill()
-
-// Controlled top-left sheen for a metallic, premium finish.
-let sheen = NSGradient(colors: [
-    NSColor.white.withAlphaComponent(0.10),
-    NSColor.white.withAlphaComponent(0.0),
-])!
-sheen.draw(in: NSRect(x: 86, y: 590, width: 730, height: 320), angle: 305)
-
-NSGraphicsContext.restoreGraphicsState()
-
-let outputURL = URL(fileURLWithPath: outputPath)
-try FileManager.default.createDirectory(at: outputURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-guard let png = bitmap.representation(using: .png, properties: [:]) else {
-    fatalError("Could not encode LifeRoute v0.6.1 icon as PNG")
+    NSAttributedString(string: string, attributes: attrs).draw(in: rect)
 }
-try png.write(to: outputURL, options: .atomic)
-print("Generated LifeRoute v0.6.1 premium navy/gold LR app icon at \(outputPath)")
+
+drawLetter("L", rect: NSRect(x: 105, y: 220, width: 370, height: 610))
+drawLetter("R", rect: NSRect(x: 520, y: 205, width: 410, height: 610))
+
+// Location navigation pin between L and R.
+let pin = NSBezierPath()
+pin.move(to: NSPoint(x: 510, y: 620))
+pin.curve(to: NSPoint(x: 445, y: 724), controlPoint1: NSPoint(x: 475, y: 664), controlPoint2: NSPoint(x: 445, y: 690))
+pin.curve(to: NSPoint(x: 510, y: 814), controlPoint1: NSPoint(x: 445, y: 776), controlPoint2: NSPoint(x: 472, y: 814))
+pin.curve(to: NSPoint(x: 575, y: 724), controlPoint1: NSPoint(x: 548, y: 814), controlPoint2: NSPoint(x: 575, y: 776))
+pin.curve(to: NSPoint(x: 510, y: 620), controlPoint1: NSPoint(x: 575, y: 690), controlPoint2: NSPoint(x: 545, y: 664))
+pin.close()
+gold.setFill(); pin.fill()
+goldLight.setStroke(); pin.lineWidth = 5; pin.stroke()
+let hole = NSBezierPath(ovalIn: NSRect(x: 480, y: 730, width: 60, height: 60))
+navyTop.setFill(); hole.fill()
+
+// Gold route ribbon / S-shaped road sweeping out of the pin.
+let road = NSBezierPath()
+road.move(to: NSPoint(x: 510, y: 615))
+road.curve(to: NSPoint(x: 620, y: 500), controlPoint1: NSPoint(x: 575, y: 586), controlPoint2: NSPoint(x: 653, y: 570))
+road.curve(to: NSPoint(x: 392, y: 340), controlPoint1: NSPoint(x: 572, y: 420), controlPoint2: NSPoint(x: 422, y: 444))
+road.curve(to: NSPoint(x: 265, y: 72), controlPoint1: NSPoint(x: 350, y: 220), controlPoint2: NSPoint(x: 294, y: 150))
+road.lineWidth = 48
+road.lineCapStyle = .round
+road.lineJoinStyle = .round
+gold.setStroke(); road.stroke()
+let roadHighlight = road.copy() as! NSBezierPath
+roadHighlight.lineWidth = 7
+goldLight.setStroke(); roadHighlight.stroke()
+
+image.unlockFocus()
+
+guard let tiff = image.tiffRepresentation,
+      let bitmap = NSBitmapImageRep(data: tiff),
+      let png = bitmap.representation(using: .png, properties: [.compressionFactor: 1.0]) else {
+    fatalError("Could not encode PNG")
+}
+try png.write(to: URL(fileURLWithPath: output), options: .atomic)
+print("Generated approved premium navy/gold LR AppIcon at \(output)")

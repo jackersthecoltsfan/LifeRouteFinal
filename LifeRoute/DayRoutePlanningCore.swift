@@ -2,6 +2,44 @@ import Foundation
 import Combine
 import MapKit
 import CoreLocation
+import UIKit
+
+enum LifeRouteNavigationApp: String, CaseIterable, Identifiable {
+    case appleMaps = "appleMaps"
+    case googleMaps = "googleMaps"
+    case waze = "waze"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .appleMaps: return "Apple Maps"
+        case .googleMaps: return "Google Maps"
+        case .waze: return "Waze"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .appleMaps: return "map.fill"
+        case .googleMaps: return "location.fill"
+        case .waze: return "car.fill"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .appleMaps: return "Native turn-by-turn directions on iPhone."
+        case .googleMaps: return "Open LifeRoute destinations in Google Maps."
+        case .waze: return "Open destinations in Waze for driving navigation."
+        }
+    }
+
+    static var preferred: LifeRouteNavigationApp {
+        let raw = UserDefaults.standard.string(forKey: "liferoute.preferredNavigationApp")
+        return LifeRouteNavigationApp(rawValue: raw ?? "") ?? .appleMaps
+    }
+}
 
 struct LifeRouteDayStop: Identifiable, Hashable {
     enum Position: String, CaseIterable, Identifiable {
@@ -53,6 +91,7 @@ enum DayRoutePlanningError: LocalizedError {
     case missingOrigin
     case locationNotFound(String)
     case routeUnavailable(String)
+    case navigationUnavailable(String)
 
     var errorDescription: String? {
         switch self {
@@ -64,6 +103,8 @@ enum DayRoutePlanningError: LocalizedError {
             return "LifeRoute could not find \(value)."
         case .routeUnavailable(let value):
             return "A route could not be calculated for \(value)."
+        case .navigationUnavailable(let app):
+            return "LifeRoute could not open \(app)."
         }
     }
 }
@@ -124,6 +165,18 @@ final class DayRoutePlanningCore: ObservableObject {
     }
 
     func openLegInAppleMaps(_ leg: LifeRouteDayRouteLeg, mode: LifeRouteTransportMode) {
+        let navigationApp = LifeRouteNavigationApp.preferred
+        switch navigationApp {
+        case .appleMaps:
+            openLegInAppleMapsNative(leg, mode: mode)
+        case .googleMaps:
+            openLegURL(googleMapsURL(for: leg, mode: mode), app: navigationApp)
+        case .waze:
+            openLegURL(wazeURL(for: leg), app: navigationApp)
+        }
+    }
+
+    private func openLegInAppleMapsNative(_ leg: LifeRouteDayRouteLeg, mode: LifeRouteTransportMode) {
         Task {
             do {
                 let source: MKMapItem
@@ -142,6 +195,50 @@ final class DayRoutePlanningCore: ObservableObject {
             } catch {
                 message = error.localizedDescription
             }
+        }
+    }
+
+    private func openLegURL(_ url: URL?, app: LifeRouteNavigationApp) {
+        guard let url else {
+            message = DayRoutePlanningError.navigationUnavailable(app.title).localizedDescription
+            return
+        }
+        UIApplication.shared.open(url, options: [:]) { [weak self] opened in
+            guard !opened else { return }
+            Task { @MainActor in
+                self?.message = DayRoutePlanningError.navigationUnavailable(app.title).localizedDescription
+            }
+        }
+    }
+
+    private func googleMapsURL(for leg: LifeRouteDayRouteLeg, mode: LifeRouteTransportMode) -> URL? {
+        var components = URLComponents(string: "https://www.google.com/maps/dir/")
+        var items = [
+            URLQueryItem(name: "api", value: "1"),
+            URLQueryItem(name: "destination", value: leg.toAddress),
+            URLQueryItem(name: "travelmode", value: googleTravelMode(mode))
+        ]
+        if leg.fromAddress != "Current Location" {
+            items.append(URLQueryItem(name: "origin", value: leg.fromAddress))
+        }
+        components?.queryItems = items
+        return components?.url
+    }
+
+    private func wazeURL(for leg: LifeRouteDayRouteLeg) -> URL? {
+        var components = URLComponents(string: "https://www.waze.com/ul")
+        components?.queryItems = [
+            URLQueryItem(name: "q", value: leg.toAddress),
+            URLQueryItem(name: "navigate", value: "yes")
+        ]
+        return components?.url
+    }
+
+    private func googleTravelMode(_ mode: LifeRouteTransportMode) -> String {
+        switch mode {
+        case .driving: return "driving"
+        case .walking: return "walking"
+        case .transit: return "transit"
         }
     }
 

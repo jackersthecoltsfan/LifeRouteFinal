@@ -18,12 +18,18 @@ struct V054ThemeCenterView: View {
 
         func matches(_ theme: LifeRouteTheme) -> Bool {
             switch self {
-            case .all: return true
-            case .core: return theme.category == .core
-            case .scenery: return theme.category == .scenery
-            case .metallic: return theme.category == .metallic
-            case .dynamic: return theme.category == .dynamic
-            case .fluid: return theme.category == .fluid
+            case .all:
+                return true
+            case .core:
+                return [.royal, .obsidian, .carbon, .midnight, .navyNoir].contains(theme)
+            case .scenery:
+                return [.forest, .plum, .ember].contains(theme)
+            case .metallic:
+                return [.titanium, .slate, .moltenGold, .phantomSilver].contains(theme)
+            case .dynamic:
+                return [.solarFlare, .electricStorm, .ultraviolet, .arcticPulse].contains(theme)
+            case .fluid:
+                return [.ocean, .aurora, .sapphireTide].contains(theme)
             }
         }
     }
@@ -45,7 +51,7 @@ struct V054ThemeCenterView: View {
                     }
                 }
 
-                Text("Scenery themes use full cinematic imagery. Metallic, dynamic, and fluid themes use their own material and energy treatments rather than recolored copies of the same card.")
+                Text("Core stays premium and dark. Scenery is environment-led. Metallic themes use material depth, Dynamic themes use energy treatments, and Fluid themes emphasize water, aurora, and flowing light. Every category now has at least three distinct choices.")
                     .font(.caption)
                     .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -115,19 +121,26 @@ struct V054ThemeCenterView: View {
                         selectedCategory = filter
                         LifeRouteHaptics.selection()
                     } label: {
-                        Text(filter.rawValue)
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(selectedCategory == filter ? Color.black.opacity(0.82) : palette.textPrimary)
-                            .padding(.horizontal, 13)
-                            .padding(.vertical, 9)
-                            .background(
-                                selectedCategory == filter ? palette.accent : palette.panelElevated.opacity(0.72),
-                                in: Capsule()
-                            )
-                            .overlay {
-                                Capsule()
-                                    .stroke(palette.accent.opacity(selectedCategory == filter ? 0 : 0.22), lineWidth: 1)
+                        HStack(spacing: 5) {
+                            Text(filter.rawValue)
+                            if filter != .all {
+                                Text("\(LifeRouteTheme.allCases.filter(filter.matches).count)")
+                                    .font(.caption2.weight(.black))
+                                    .opacity(0.72)
                             }
+                        }
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(selectedCategory == filter ? Color.black.opacity(0.82) : palette.textPrimary)
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 9)
+                        .background(
+                            selectedCategory == filter ? palette.accent : palette.panelElevated.opacity(0.72),
+                            in: Capsule()
+                        )
+                        .overlay {
+                            Capsule()
+                                .stroke(palette.accent.opacity(selectedCategory == filter ? 0 : 0.22), lineWidth: 1)
+                        }
                     }
                     .buttonStyle(.plain)
                 }

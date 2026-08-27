@@ -81,7 +81,11 @@ require("LifeRoute only launches these portals" in s["portal_views"], "16 Resour
 require("AISessionNoteGeneratorView" in s["ai_views"] and "AI Session Note" in s["tools"], "17 AI Session Note is reachable from Session Tools")
 require("VNRecognizeTextRequest" in s["ai_core"] and "PhotosPicker" in s["ai_views"], "18 optional screenshot OCR is local and wired")
 require("using ONLY the session facts supplied below" in s["ai_core"], "19 note generation has a supplied-facts-only instruction")
-require("Do not invent frequencies" in s["ai_core"] and "Saved client information is CONTEXT ONLY" in s["ai_core"], "20 note generator explicitly blocks invented clinical data")
+require(
+    "NO fabricated frequencies, percentages, prompt levels, interventions, targets, behaviors, attendees" in s["ai_core"]
+    and "Saved client information is terminology/context only and never proves an event occurred" in s["ai_core"],
+    "20 note generator explicitly blocks invented clinical data",
+)
 require("LanguageModelSession" in s["ai_core"] and "SystemLanguageModel.default" in s["ai_core"], "21 AI uses Apple's on-device Foundation Models when available")
 require("Editable draft" in s["ai_views"] and "Regenerate from current facts" in s["ai_views"], "22 generated note stays reviewable/editable before use")
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# LifeRoute v0.5 functional-core preparation. Never reactivate the v0.4 WebView patch stack.
+# LifeRoute v0.5 native preparation. Never reactivate the v0.4 WebView patch stack.
 rm -rf build
 
 python3 -m py_compile \
@@ -19,8 +19,11 @@ python3 -m py_compile \
   scripts/audit_v0_5_0_performance_architecture.py \
   scripts/audit_v0_5_0_stability_architecture.py \
   scripts/audit_v0_5_0_second_functionality_pass.py \
-  scripts/audit_v0_5_3_repair.py
+  scripts/audit_v0_5_3_repair.py \
+  scripts/audit_v0_5_4_restore.py
+
 plutil -lint LifeRoute/Info.plist
+plutil -lint LifeRouteLiveActivityWidget/Info.plist
 
 python3 scripts/audit_v0_5_0_functional_shell.py
 python3 scripts/audit_v0_5_0_core_navigation.py
@@ -37,5 +40,6 @@ python3 scripts/audit_v0_5_0_performance_architecture.py
 python3 scripts/audit_v0_5_0_stability_architecture.py
 python3 scripts/audit_v0_5_0_second_functionality_pass.py
 python3 scripts/audit_v0_5_3_repair.py
+python3 scripts/audit_v0_5_4_restore.py
 
-echo "LifeRoute v0.5.3 repair preparation passed with legacy WebView runtime quarantined."
+echo "LifeRoute v0.5.4 restoration preparation passed with legacy WebView runtime quarantined."

@@ -16,16 +16,19 @@ v0.5.0 TestFlight release: workflow run `#73` / run ID `33028083541` — complet
 
 Current handoff: `LIFEROUTE_V0_5_1_HANDOFF.md`
 
+Control-chat handoff: `LIFEROUTE_CODEX_CONTROL_CHAT_HANDOFF.md`
+
 At the start of a new LifeRoute development thread, read in this order:
 
 1. `LIFEROUTE_V0_5_1_HANDOFF.md`
-2. `AGENTS.md`
-3. this file for the active pointer
-4. `APP_CREATION_PLAYBOOK.md`
-5. `GITHUB_ACTIONS_RUNBOOK.md`
-6. `TESTFLIGHT_SETUP.md` when release/signing work is relevant
-7. `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md` when architecture/quarantine history matters
-8. relevant files in `ReusableAppWorkflow/`
+2. `LIFEROUTE_CODEX_CONTROL_CHAT_HANDOFF.md`
+3. `AGENTS.md`
+4. this file for the active pointer
+5. `APP_CREATION_PLAYBOOK.md`
+6. `GITHUB_ACTIONS_RUNBOOK.md`
+7. `TESTFLIGHT_SETUP.md` when release/signing work is relevant
+8. `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md` when architecture/quarantine history matters
+9. relevant files in `ReusableAppWorkflow/`
 
 Then inspect live `main`, the current development branch, PRs, and Actions before modifying code.
 

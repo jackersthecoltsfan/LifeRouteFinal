@@ -69,42 +69,56 @@ enum LifeRouteIntelligenceCore {
         let prompting = client?.promptingNotes ?? "none"
 
         let prompt = """
-        Write one polished professional ABA session note as a natural chronological narrative using ONLY the session facts supplied below.
+        Produce ONE finished professional ABA/RBT session note using ONLY facts actually supplied in SESSION FACTS and clearly readable SCREENSHOT DATA below.
 
-        REQUIRED WRITING STYLE:
-        - Write like a finished RBT narrative note, not a checklist, data dump, outline, bullet list, SOAP note, or collection of disconnected statements.
-        - Use 2–4 cohesive paragraphs when enough information is available. Keep related events together and move through the session in chronological order.
-        - Begin with the setting and people present when those facts are supplied, then describe what the RBT and client did across the session, how the client responded, and how the session concluded when those facts are available.
-        - Use natural professional transitions such as "RBT then," "Following this," "During this activity," or equivalent wording when appropriate, without sounding repetitive.
-        - Weave clearly supplied quantitative data into the relevant sentence or event in the narrative. Do not isolate the data into a separate section or list.
-        - If screenshot/OCR data corresponds to a target, behavior, prompt level, frequency, duration, percentage, or trial result that is also supported by the supplied session facts, integrate it naturally where that event is described.
-        - Do not dump raw OCR text into the note. Translate only clear, supported data into readable narrative prose.
-        - When multiple pieces of data are supplied, distribute them through the narrative where they belong rather than grouping them into a final data paragraph.
-        - Favor clear clinical prose similar to a human-written ABA session note: concise, objective, chronological, and connected.
+        OUTPUT CONTRACT — THIS OVERRIDES GENERIC REPORT FORMATTING:
+        - Return only 2–5 cohesive prose paragraphs in chronological order.
+        - Do NOT use Markdown headings, a title, section labels, bullets, numbered lists, tables, or field labels.
+        - Do NOT output sections such as Date, Location, Participants, Setting, Session Overview, Behavior Data, Generalization, Assessment, Plan, or Conclusion.
+        - Do NOT output placeholders such as [Insert Date], [Insert Location], [Insert RBT Name], or any other bracketed missing information.
+        - A strong opening is direct and factual: identify the session location and people present only when supplied, then describe how the session began.
+        - Describe pairing, NET, FCT/manding, skill acquisition, prompting, transitions, reinforcement, behavior events, environmental constraints, and session closure only when those details were supplied.
+        - Keep related events and their corresponding data in the same paragraph and move through the session as it happened.
+        - Weave quantitative data naturally into the relevant event. Never create a separate data dump or "Behavior Data" section.
+        - Preserve meaningful supplied details. Do not replace concrete events with vague summaries.
 
-        HARD RULES:
-        - Use objective, observable language.
-        - Do not invent frequencies, percentages, prompt levels, interventions, targets, behaviors, attendees, caregiver statements, locations, clinical interpretations, billing facts, or outcomes.
-        - Saved client information is CONTEXT ONLY. Do not claim a saved target or behavior occurred unless the narrative or screenshot data explicitly demonstrates it.
-        - If OCR text is unclear, ambiguous, or cannot be confidently tied to the supplied session facts, omit it.
-        - Avoid mentalistic language.
-        - Return only the finished session-note narrative. Do not add a heading, disclaimer, labels, bullets, or commentary.
+        ZERO-DATA RULES:
+        - Never interpret a zero value as evidence that a behavior "needs work," worsened, or occurred.
+        - If screenshot data clearly represents occurrence/frequency of a behavior and clearly shows zero occurrences, it may be written objectively as "No instances of [behavior] were observed/recorded during the session."
+        - If a skill-acquisition measure is 0% correct, report only the supplied 0% correct responding when relevant; do not reinterpret it as absence of the behavior or as a clinical conclusion.
+        - If the meaning of a zero or percentage is ambiguous, omit the interpretation rather than guessing.
+
+        HARD FACTUAL BOUNDARIES:
+        - Use objective, observable clinical language.
+        - Do not invent frequencies, percentages, prompt levels, interventions, targets, behaviors, attendees, caregiver statements, locations, motivations, outcomes, progress, regression, treatment efficacy, or future plans.
+        - Do not add generic filler such as "the environment was conducive to learning," "highlighting the need for additional strategies," "showed positive progress," "support the client's overall development," or "the RBT reflected on future interventions" unless those exact facts were supplied.
+        - Do not claim a behavior occurred merely because it appears in the saved client profile.
+        - Saved client information is terminology CONTEXT ONLY, never evidence that an event happened in this session.
+        - If OCR text is unclear, ambiguous, duplicated, or cannot be confidently tied to the supplied session facts, omit it.
+        - Do not infer internal states or use mentalistic language.
+        - Do not add recommendations, treatment changes, caregiver training, or plans for the next session unless explicitly supplied.
+
+        STYLE TARGET:
+        - Write like a human RBT's finalized narrative documentation: concise, objective, connected, and chronological.
+        - Prefer natural wording such as "RBT began the session by...", "Throughout the session...", "One instance of refusal was recorded...", "Toward the end of the session...", and "As the session came to a close..." when supported by the facts.
+        - Refer to the client consistently as "the client" in the narrative unless the supplied facts make another neutral phrasing clearer.
+        - Use ABA terminology supplied by the user accurately, including NET, FCT, manding, reinforcement, prompting, redirection, and transitions.
 
         CLIENT: \(clientCode)
-        SAVED TARGETS — context only: \(targets)
-        SAVED BEHAVIORS — context only: \(behaviors)
-        SAVED COMMUNICATION/FCT CONTEXT — context only: \(communication)
-        SAVED PROMPTING/REINFORCEMENT CONTEXT — context only: \(prompting)
+        SAVED TARGETS — terminology context only: \(targets)
+        SAVED BEHAVIORS — terminology context only: \(behaviors)
+        SAVED COMMUNICATION/FCT CONTEXT — terminology context only: \(communication)
+        SAVED PROMPTING/REINFORCEMENT CONTEXT — terminology context only: \(prompting)
 
-        SESSION NARRATIVE:
+        SESSION FACTS:
         \(cleanNarrative.isEmpty ? "none" : cleanNarrative)
 
-        SCREENSHOT OCR / DATA:
+        SCREENSHOT DATA / OCR:
         \(recognized.isEmpty ? "none" : recognized)
         """
 
         return try await generate(
-            instructions: "You are LifeRoute's factual ABA documentation assistant. Produce a cohesive human-style RBT narrative note, integrate clearly supported data naturally into the chronology, obey the supplied-facts-only rule, and never fabricate clinical details.",
+            instructions: "You are LifeRoute's factual ABA documentation assistant. Return only a cohesive chronological RBT session-note narrative with no headings, labels, placeholders, bullets, data sections, generic clinical filler, recommendations, or fabricated facts. Integrate only clearly supported quantitative data into the events where it belongs. Treat zero behavior-occurrence data as no observed/recorded instances when its meaning is clear, never as evidence that the behavior needs work.",
             prompt: prompt
         )
     }

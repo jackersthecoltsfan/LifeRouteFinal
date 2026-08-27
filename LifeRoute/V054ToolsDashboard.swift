@@ -24,20 +24,23 @@ struct V054ToolsDashboard: View {
                         toolCard("Visual Timer", "Reliable session timing", "timer", palette.accent)
                     }
                     .buttonStyle(.plain)
+                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
 
                     NavigationLink {
                         ClientFirstThenVisualView(visualState: visualState, clientState: clientState)
                     } label: {
-                        toolCard("First / Then", "Build a clear visual sequence", "arrow.right.circle.fill", .green)
+                        toolCard("First / Then", "Build a clear visual sequence", "arrow.right.circle.fill", palette.accentSecondary)
                     }
                     .buttonStyle(.plain)
+                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
 
                     NavigationLink {
                         ClientVisualSupportCenter(visualState: visualState, clientState: clientState)
                     } label: {
-                        toolCard("Visual Supports", "Icons, boards, and schedules", "photo.on.rectangle.angled", .purple)
+                        toolCard("Visual Supports", "Icons, boards, and schedules", "photo.on.rectangle.angled", palette.accent)
                     }
                     .buttonStyle(.plain)
+                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
 
                     NavigationLink {
                         QuickSessionNotesView(toolsState: toolsState, clientState: clientState)
@@ -45,20 +48,23 @@ struct V054ToolsDashboard: View {
                         toolCard("Quick Notes", "Capture scratch notes fast", "note.text", palette.accentSecondary)
                     }
                     .buttonStyle(.plain)
+                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
 
                     NavigationLink {
                         AISessionPlanBuilderView(clientState: clientState)
                     } label: {
-                        toolCard("AI Session Plan", "Build a real session flow", "brain.head.profile.fill", .orange)
+                        toolCard("AI Session Plan", "Build a real session flow", "brain.head.profile.fill", palette.accentSecondary)
                     }
                     .buttonStyle(.plain)
+                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
 
                     NavigationLink {
-                        AISessionNoteGeneratorView(clientState: clientState)
+                        AISessionNoteGeneratorView(clientState: clientState, toolsState: toolsState)
                     } label: {
-                        toolCard("AI Session Note", "Draft from supplied facts", "sparkles.rectangle.stack.fill", .cyan)
+                        toolCard("AI Session Note", "Draft from supplied facts", "sparkles.rectangle.stack.fill", palette.accent)
                     }
                     .buttonStyle(.plain)
+                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
                 }
 
                 clientContextCard
@@ -168,9 +174,12 @@ struct V054ToolsDashboard: View {
 
             Spacer(minLength: 8)
 
-            Button("Manage") { router.select(.setup) }
-                .font(.caption.weight(.bold))
-                .foregroundStyle(palette.accent)
+            Button("Manage") {
+                LifeRouteHaptics.selection()
+                router.select(.setup)
+            }
+            .font(.caption.weight(.bold))
+            .foregroundStyle(palette.accent)
         }
         .lifeRouteCard()
     }

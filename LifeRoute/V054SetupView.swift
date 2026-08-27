@@ -1,10 +1,16 @@
 import SwiftUI
+import UIKit
 
 struct V054SetupView: View {
     @Environment(\.lifeRoutePalette) private var palette
     @EnvironmentObject private var themeStore: LifeRouteThemeStore
     @ObservedObject var routingState: RoutingLocationCore
     @ObservedObject var clientState: ClientProfileCore
+
+    @AppStorage("liferoute.rbtProfile.name") private var rbtName = ""
+    @AppStorage("liferoute.rbtProfile.organization") private var rbtOrganization = ""
+    @AppStorage("liferoute.rbtProfile.credential") private var rbtCredential = ""
+    @AppStorage("liferoute.preferredNavigationApp") private var preferredNavigationAppRaw = LifeRouteNavigationApp.appleMaps.rawValue
 
     @State private var homeDraft = ""
     @State private var placeName = ""
@@ -18,6 +24,8 @@ struct V054SetupView: View {
         ScrollView {
             LazyVStack(spacing: 16) {
                 hero
+                rbtProfileCard
+                navigationAppCard
                 themeCard
                 clientCard
                 homeCard
@@ -56,7 +64,7 @@ struct V054SetupView: View {
                 Text("Make LifeRoute yours.")
                     .font(.system(size: 29, weight: .black, design: .rounded))
                     .foregroundStyle(.white)
-                Text("Appearance, clients, home base, and the places that shape your workday.")
+                Text("Your RBT profile, navigation app, appearance, clients, home base, and saved places — all in one place.")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.78))
             }
@@ -68,6 +76,94 @@ struct V054SetupView: View {
             RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
                 .stroke(palette.accent.opacity(0.34), lineWidth: 1)
         }
+    }
+
+    private var rbtProfileCard: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(palette.accent.opacity(0.16))
+                    Text(profileInitials)
+                        .font(.headline.weight(.black))
+                        .foregroundStyle(palette.accentSecondary)
+                }
+                .frame(width: 52, height: 52)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("RBT Profile")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(palette.textPrimary)
+                    Text(rbtName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Registered Behavior Technician" : rbtName)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(palette.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "person.crop.circle.badge.checkmark")
+                    .font(.title3)
+                    .foregroundStyle(palette.accent)
+            }
+
+            Text("Keep your own work identity separate from client profiles. These fields stay on this iPhone and can be used by future LifeRoute personalization features.")
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
+
+            profileField("Your name", text: $rbtName, contentType: .name)
+            profileField("Organization / agency (optional)", text: $rbtOrganization, contentType: .organizationName)
+            profileField("RBT credential ID (optional)", text: $rbtCredential, contentType: nil)
+
+            Label("Saved automatically", systemImage: "checkmark.circle.fill")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(palette.accentSecondary)
+        }
+        .lifeRouteCard()
+    }
+
+    private var navigationAppCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Navigation app", systemImage: "location.north.circle.fill")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(palette.textPrimary)
+                Spacer()
+                Text(preferredNavigationApp.title)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(palette.accent)
+            }
+
+            Text("Choose which app LifeRoute should use when you open a route. Route estimates still use Apple MapKit inside LifeRoute.")
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
+
+            Picker("Preferred navigation app", selection: $preferredNavigationAppRaw) {
+                ForEach(LifeRouteNavigationApp.allCases) { app in
+                    Label(app.title, systemImage: app.systemImage)
+                        .tag(app.rawValue)
+                }
+            }
+            .pickerStyle(.menu)
+            .onChange(of: preferredNavigationAppRaw) { _ in
+                LifeRouteHaptics.selection()
+            }
+
+            HStack(spacing: 9) {
+                Image(systemName: preferredNavigationApp.systemImage)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(palette.accentSecondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Open routes with \(preferredNavigationApp.title)")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(palette.textPrimary)
+                    Text(preferredNavigationApp.detail)
+                        .font(.caption2)
+                        .foregroundStyle(palette.textSecondary)
+                }
+                Spacer()
+            }
+            .padding(11)
+            .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .lifeRouteCard()
     }
 
     private var themeCard: some View {
@@ -259,11 +355,31 @@ struct V054SetupView: View {
             Label("Local-first setup", systemImage: "lock.shield.fill")
                 .font(.headline)
                 .foregroundStyle(palette.textPrimary)
-            Text("Home, saved places, client profiles, and visual supports are stored locally in protected LifeRoute app data. Current GPS coordinates and route estimates are not persisted.")
+            Text("RBT profile preferences, home, saved places, client profiles, and visual supports are stored locally in LifeRoute app data. Current GPS coordinates and route estimates are not persisted.")
                 .font(.caption)
                 .foregroundStyle(palette.textSecondary)
         }
         .lifeRouteCard()
+    }
+
+    private var preferredNavigationApp: LifeRouteNavigationApp {
+        LifeRouteNavigationApp(rawValue: preferredNavigationAppRaw) ?? .appleMaps
+    }
+
+    private var profileInitials: String {
+        let parts = rbtName
+            .split(whereSeparator: \.isWhitespace)
+            .prefix(2)
+        let initials = parts.compactMap(\.first).map(String.init).joined().uppercased()
+        return initials.isEmpty ? "RBT" : initials
+    }
+
+    private func profileField(_ placeholder: String, text: Binding<String>, contentType: UITextContentType?) -> some View {
+        TextField(placeholder, text: text)
+            .textContentType(contentType)
+            .textInputAutocapitalization(.words)
+            .padding(12)
+            .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func addPlace() {

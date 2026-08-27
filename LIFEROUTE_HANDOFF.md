@@ -4,61 +4,76 @@ This is the durable LifeRoute thread handoff.
 
 ## Current active development
 
-LifeRoute has entered a **v0.5.0 architecture rebuild** after repeated v0.4.0 physical-device failures where buttons remained unusable despite successful CI, Simulator builds, and TestFlight uploads.
+LifeRoute v0.5.0 completed the native functional-core rebuild, passed exact merged-main validation, and uploaded successfully to TestFlight.
 
 Repository: `jackersthecoltsfan/LifeRouteFinal`
 
-Active rebuild branch: `rebuild/v0.5.0-functional-core`
+v0.5.0 merged release SHA: `5c07b7d1fcfe7c2b031386bdc516230aa353ed3d`
 
-Detailed rebuild handoff: `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`
+v0.5.0 exact-main iOS validation: GitHub Actions run `33027781669` — green, including all accumulated audits through Checkpoint 07 and the actual iOS Simulator build.
 
-Current green runtime checkpoint: **07 — second full functionality pass**, commit `ea05fd8df0a3d2f365cbcbbaa45f87239a591270`; GitHub Actions run `33027155445` passed all accumulated audits, the focused cross-domain pass, and the actual iOS Simulator build.
+v0.5.0 TestFlight release: workflow run `#73` / run ID `33028083541` — completed successfully, including archive, signed IPA export, and Upload to TestFlight.
 
-At the start of a new LifeRoute thread, read in this order:
+Current handoff: `LIFEROUTE_V0_5_1_HANDOFF.md`
 
-1. `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`
+At the start of a new LifeRoute development thread, read in this order:
+
+1. `LIFEROUTE_V0_5_1_HANDOFF.md`
 2. `AGENTS.md`
 3. this file for the active pointer
 4. `APP_CREATION_PLAYBOOK.md`
-5. `TESTFLIGHT_SETUP.md`
-6. `GITHUB_ACTIONS_RUNBOOK.md`
-7. relevant files in `ReusableAppWorkflow/`
+5. `GITHUB_ACTIONS_RUNBOOK.md`
+6. `TESTFLIGHT_SETUP.md` when release/signing work is relevant
+7. `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md` when architecture/quarantine history matters
+8. relevant files in `ReusableAppWorkflow/`
 
-Then inspect the live rebuild branch and Actions state before modifying code.
+Then inspect live `main`, the current development branch, PRs, and Actions before modifying code.
 
-## v0.5.0 product decision
+## Current release gate
 
-v0.5.0 is a controlled rebuild of the active app/runtime architecture from the functional core upward. Do not continue stacking hotfixes onto the v0.4.0 interaction runtime.
+The immediate gate is **physical iPhone validation of the uploaded v0.5.0 TestFlight build**.
 
-The first goal is a minimal, deterministic, high-performance functional core that works reliably on a physical iPhone. Every rebuild layer gets its own checkpoint commit and focused audit so regressions can be traced to the exact layer that introduced them.
+CI/Simulator/TestFlight success is not enough by itself because the v0.4.0 runtime previously passed automated validation while physical-device buttons remained unusable.
 
-The first v0.5.0 TestFlight candidate is a **functionality/performance/stability** build. Full cosmetic richness comes later, after physical-device operability is confirmed.
+Minimum physical confirmation should cover launch, primary navigation/taps, calendar Day/Week/Month, manual appointment create/delete, routing/location, saved places/home address, clients, Session Tools, client-specific visual supports, representative persistence after relaunch, and absence of obvious freezes or runaway loading.
 
-Apple/TestFlight marketing version must be **0.5.0** for the app and all shipping targets; build numbers may continue increasing normally.
+If v0.5.0 has a physical-device functional or stability regression, v0.5.1 becomes fix-first and cosmetic work pauses until the device is green again.
 
-## Appearance preservation
+## v0.5.1 direction
 
-Do not discard the current visual work. Preserve/refactor it as independently enableable cosmetic chunks that sit on top of the rebuilt functional core and are not required for functionality.
+Once v0.5.0 is physically confirmed, v0.5.1 becomes the first post-rebuild polish release.
 
-Preserve as modular chunks:
+The desired direction is premium, modern, professional, streamlined, elegant, slightly futuristic, and highly legible, with the dark-blue/gold LifeRoute identity preserved.
 
-- dark-blue/gold core identity;
-- refined vector icons;
-- categorized Themes (`Classic`, `Metallic`, `Scenery`, `Dynamic`, `Fluid`, `Living`);
+Cosmetics must be reintroduced as independent, revertible layers rather than one giant rewrite:
+
+- design-system foundation;
+- app shell/navigation polish;
+- screen component polish;
+- refined vector icons and imagery;
+- categorized Themes (`Classic`, `Metallic`, `Scenery`, `Dynamic`, `Fluid`, `Living`) with additional dark options;
 - glass/material treatments;
-- motion/transitions;
-- haptics/sound feedback;
-- dynamic/scenery/living effects;
-- onboarding/premium polish.
+- motion/page transitions/button press feedback;
+- haptics and restrained sound;
+- scenery/dynamic/fluid/living backgrounds;
+- onboarding and final premium/accessibility polish.
 
-These chunks remain quarantined during the initial functional rebuild and are reintroduced one at a time only after the prior checkpoint works on a physical iPhone. If one breaks functionality, revert only that chunk and return to the last known-good checkpoint.
+Appearance must never own or become required for navigation, calendar behavior, routing, persistence, providers, clients, Session Tools, or visual-support data.
 
-## Historical release note
+## Architecture carried forward
 
-The last v0.4.0 hotfix release was TestFlight workflow run #72 / run ID `33013143643`, built from `64b0c2fef3172a101885e9bdaf4eb7860cc41997`. The workflow completed successfully, including `Upload to TestFlight`, but physical-device testing still showed unusable buttons. CI success is therefore not sufficient evidence of interaction correctness for v0.5.0; physical-device checkpoints are mandatory before cosmetics are layered back in.
+Do not return to v0.4 interaction-hotfix layering.
+
+Keep the active app native SwiftUI. Keep `LifeRouteWebView.swift` and `LifeRoute/Web` quarantined and outside the active runtime. Do not add an automatic startup WebKit/localStorage migration reader. Preserve the v0.5.0 performance/stability architecture, including ordered persistence, external visual image blobs, visual indexes/downsample behavior, calendar presentation indexes, owned/cancellable async work, stale-completion guards, and provider-failure preservation.
+
+## v0.5.1 checkpoint rule
+
+Every cosmetic/fix slice gets a clearly bounded checkpoint, accumulated v0.5.0 functional/performance/stability audits, an actual iOS Simulator build, diff review for accidental functional changes, and a recoverable prior checkpoint.
+
+Anything affecting navigation, overlays, gestures, transitions, image-heavy views, or persistent animation should also receive physical-iPhone confirmation before stacking more risky cosmetic layers.
 
 ## Immediate next action
 
-Obtain explicit user authorization to merge draft PR `#20` as defined in `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`.
+Install the processed **v0.5.0 TestFlight** build on the physical iPhone and complete the smoke test described in `LIFEROUTE_V0_5_1_HANDOFF.md`.
 
-After an authorized merge, require exact merged-main validation before any TestFlight action. Keep TestFlight untouched and do not add cosmetic chunks yet.
+If green, create a new v0.5.1 polish branch from the exact current `main` head, recommended name `polish/v0.5.1-ui-foundation`, and begin with **Design System Foundation only**.

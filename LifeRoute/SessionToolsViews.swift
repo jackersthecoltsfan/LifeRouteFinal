@@ -451,75 +451,190 @@ struct QuickSessionNotesView: View {
 // MARK: - Client-specific visual supports
 
 struct ClientVisualSupportCenter: View {
+    @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var visualState: ClientVisualSupportCore
     @ObservedObject var clientState: ClientProfileCore
     @State private var selectedClientCode = ""
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ]
+
     var body: some View {
-        Form {
-            if clientState.clients.isEmpty {
-                Section {
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                visualHero
+
+                if clientState.clients.isEmpty {
                     ContentUnavailableView(
                         "Add a client first",
                         systemImage: "person.crop.circle.badge.plus",
                         description: Text("Visual supports are always saved to a specific ABA-style client code.")
                     )
-                }
-            } else {
-                Section("Client") {
-                    Picker("Visual library", selection: $selectedClientCode) {
-                        ForEach(clientState.clients) { client in Text(client.code).tag(client.code) }
-                    }
-                    Text("Only \(selectedClientCode.isEmpty ? "the selected client’s" : selectedClientCode + "’s") icons will appear in the builders below.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
+                    .lifeRouteCard()
+                } else {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Client library")
+                            .font(.headline)
+                            .foregroundStyle(palette.textPrimary)
 
-                if !selectedClientCode.isEmpty {
-                    Section("Build") {
-                        NavigationLink {
-                            ClientVisualIconLibraryView(visualState: visualState, clientCode: selectedClientCode)
-                        } label: {
-                            Label("Icon Library", systemImage: "photo.on.rectangle")
+                        Picker("Visual library", selection: $selectedClientCode) {
+                            ForEach(clientState.clients) { client in
+                                Text(client.code).tag(client.code)
+                            }
                         }
-                        NavigationLink {
-                            ClientChoiceBoardBuilderView(visualState: visualState, clientCode: selectedClientCode)
-                        } label: {
-                            Label("Choice Boards", systemImage: "square.grid.2x2")
+                        .pickerStyle(.menu)
+
+                        Text("Only \(selectedClientCode.isEmpty ? "the selected client’s" : selectedClientCode + "’s") icons will appear in the builders below.")
+                            .font(.caption)
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                    .lifeRouteCard()
+
+                    if !selectedClientCode.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Create & use")
+                                .font(.title3.weight(.bold))
+                                .foregroundStyle(palette.textPrimary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            LazyVGrid(columns: columns, spacing: 10) {
+                                NavigationLink {
+                                    ClientVisualIconLibraryView(visualState: visualState, clientCode: selectedClientCode)
+                                } label: {
+                                    VisualWorkspaceCard(title: "Icon Library", subtitle: "Photos or text visuals", systemImage: "photo.on.rectangle.angled")
+                                }
+                                .buttonStyle(.plain)
+
+                                NavigationLink {
+                                    ClientChoiceBoardBuilderView(visualState: visualState, clientCode: selectedClientCode)
+                                } label: {
+                                    VisualWorkspaceCard(title: "Choice Boards", subtitle: "Build fast choice grids", systemImage: "square.grid.2x2.fill")
+                                }
+                                .buttonStyle(.plain)
+
+                                NavigationLink {
+                                    ClientFirstThenVisualView(visualState: visualState, clientState: clientState, initialClientCode: selectedClientCode)
+                                } label: {
+                                    VisualWorkspaceCard(title: "First / Then", subtitle: "Create a two-step visual", systemImage: "arrow.right.circle.fill")
+                                }
+                                .buttonStyle(.plain)
+
+                                NavigationLink {
+                                    ClientVisualScheduleBuilderView(visualState: visualState, clientCode: selectedClientCode)
+                                } label: {
+                                    VisualWorkspaceCard(title: "Schedules", subtitle: "Sequence visual steps", systemImage: "list.number")
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
-                        NavigationLink {
-                            ClientFirstThenVisualView(visualState: visualState, clientState: clientState, initialClientCode: selectedClientCode)
-                        } label: {
-                            Label("First / Then", systemImage: "arrow.right")
+
+                        HStack(spacing: 8) {
+                            VisualLibraryMetric(value: visualState.icons(for: selectedClientCode).count, label: "Icons")
+                            VisualLibraryMetric(value: visualState.choiceBoards(for: selectedClientCode).count, label: "Boards")
+                            VisualLibraryMetric(value: visualState.schedules(for: selectedClientCode).count, label: "Schedules")
                         }
-                        NavigationLink {
-                            ClientVisualScheduleBuilderView(visualState: visualState, clientCode: selectedClientCode)
-                        } label: {
-                            Label("Visual Schedules", systemImage: "list.number")
-                        }
+                        .lifeRouteCard()
                     }
 
-                    Section("\(selectedClientCode) library") {
-                        LabeledContent("Icons", value: "\(visualState.icons(for: selectedClientCode).count)")
-                        LabeledContent("Choice boards", value: "\(visualState.choiceBoards(for: selectedClientCode).count)")
-                        LabeledContent("Schedules", value: "\(visualState.schedules(for: selectedClientCode).count)")
-                    }
-                }
-
-                Section {
                     Text("Visual supports for \(selectedClientCode) are saved locally in protected LifeRoute app data on this iPhone.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 2)
                 }
             }
+            .padding(18)
+            .padding(.bottom, 24)
         }
         .navigationTitle("Visual Supports")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { selectDefaultClientIfNeeded() }
     }
 
+    private var visualHero: some View {
+        HStack(alignment: .top, spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(palette.accent.opacity(0.16))
+                Image(systemName: "rectangle.3.group.fill")
+                    .font(.system(size: 23, weight: .bold))
+                    .foregroundStyle(palette.accent)
+            }
+            .frame(width: 54, height: 54)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Visual workspace")
+                    .font(.system(size: 28, weight: .black, design: .rounded))
+                    .foregroundStyle(palette.textPrimary)
+                Text("Create client-specific icons, choice boards, First / Then visuals, and schedules.")
+                    .font(.subheadline)
+                    .foregroundStyle(palette.textSecondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .lifeRouteCard()
+    }
+
     private func selectDefaultClientIfNeeded() {
         if selectedClientCode.isEmpty || clientState.client(code: selectedClientCode) == nil {
             selectedClientCode = clientState.clients.first?.code ?? ""
         }
+    }
+}
+
+private struct VisualWorkspaceCard: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    let title: String
+    let subtitle: String
+    let systemImage: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .fill(palette.accent.opacity(0.14))
+                Image(systemName: systemImage)
+                    .font(.system(size: 19, weight: .bold))
+                    .foregroundStyle(palette.accent)
+            }
+            .frame(width: 44, height: 44)
+
+            Text(title)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(palette.textPrimary)
+            Text(subtitle)
+                .font(.caption2)
+                .foregroundStyle(palette.textSecondary)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, minHeight: 125, alignment: .leading)
+        .padding(14)
+        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(palette.accent.opacity(0.22), lineWidth: 1)
+        }
+    }
+}
+
+private struct VisualLibraryMetric: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    let value: Int
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 3) {
+            Text("\(value)")
+                .font(.title3.weight(.black))
+                .foregroundStyle(palette.accentSecondary)
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

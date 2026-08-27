@@ -45,7 +45,7 @@ struct LifeRouteThemePalette {
     }
 }
 
-private func palette(_ bgA: UInt, _ bgB: UInt, _ panel: UInt, _ elevated: UInt, _ accent: UInt, _ accent2: UInt) -> LifeRouteThemePalette {
+private func makeThemePalette(_ bgA: UInt, _ bgB: UInt, _ panel: UInt, _ elevated: UInt, _ accent: UInt, _ accent2: UInt) -> LifeRouteThemePalette {
     .init(
         backgroundTop: Color(hex: bgA),
         backgroundBottom: Color(hex: bgB),
@@ -113,25 +113,25 @@ enum LifeRouteTheme: String, CaseIterable, Identifiable {
 
     var palette: LifeRouteThemePalette {
         switch self {
-        case .royal: return palette(0x071329, 0x05284f, 0x0d2038, 0x143f68, 0xedb847, 0xfbdc80)
-        case .obsidian: return palette(0x07080a, 0x17120b, 0x111116, 0x242019, 0xd69d38, 0xffdfa0)
-        case .carbon: return palette(0x0e1114, 0x1c2228, 0x1a2026, 0x343d46, 0xb8c6d4, 0xe9f0f7)
-        case .midnight: return palette(0x080924, 0x24113f, 0x171333, 0x32265c, 0x7b68ff, 0xb8a5ff)
-        case .navyNoir: return palette(0x04101d, 0x08293d, 0x091d2c, 0x103b54, 0xd4a547, 0x63b0ff)
-        case .titanium: return palette(0x171c21, 0x2d3842, 0x292f36, 0x4a555f, 0xb4d1ef, 0xebf3fb)
-        case .slate: return palette(0x10171f, 0x263440, 0x1b2530, 0x384859, 0x96b2cc, 0xd2e0ee)
-        case .moltenGold: return palette(0x1f1002, 0x4c2503, 0x2e1906, 0x573008, 0xffbd19, 0xffe86b)
-        case .phantomSilver: return palette(0x101419, 0x242e38, 0x1a2028, 0x3c4a57, 0xc1d5e7, 0xf2f9ff)
-        case .ocean: return palette(0x031a29, 0x00465c, 0x052d3d, 0x085162, 0x35d8ef, 0x72f5df)
-        case .aurora: return palette(0x051a21, 0x162d49, 0x0a252d, 0x164c4b, 0x54f2d1, 0x7e8cff)
-        case .forest: return palette(0x061a12, 0x123821, 0x0b2519, 0x16442d, 0x79d889, 0xbfe66b)
-        case .plum: return palette(0x18081f, 0x41114d, 0x27102f, 0x511c5f, 0xe060eb, 0xff9bc7)
-        case .ember: return palette(0x211006, 0x4c1908, 0x301209, 0x5b210f, 0xff7a40, 0xffc54d)
-        case .solarFlare: return palette(0x29060a, 0x5c1405, 0x35100c, 0x6b1f0b, 0xff4f2b, 0xffc23d)
-        case .electricStorm: return palette(0x05071f, 0x220a48, 0x111235, 0x2a195b, 0x00dcff, 0x7f46ff)
-        case .ultraviolet: return palette(0x15052b, 0x430d52, 0x241037, 0x531c65, 0xb73dff, 0xff66ba)
-        case .arcticPulse: return palette(0x06172a, 0x123050, 0x0c253c, 0x1f455f, 0x5ce7e5, 0x91adff)
-        case .sapphireTide: return palette(0x00142a, 0x00506b, 0x00283f, 0x055163, 0x0782ff, 0x59f0d2)
+        case .royal: return makeThemePalette(0x071329, 0x05284f, 0x0d2038, 0x143f68, 0xedb847, 0xfbdc80)
+        case .obsidian: return makeThemePalette(0x07080a, 0x17120b, 0x111116, 0x242019, 0xd69d38, 0xffdfa0)
+        case .carbon: return makeThemePalette(0x0e1114, 0x1c2228, 0x1a2026, 0x343d46, 0xb8c6d4, 0xe9f0f7)
+        case .midnight: return makeThemePalette(0x080924, 0x24113f, 0x171333, 0x32265c, 0x7b68ff, 0xb8a5ff)
+        case .navyNoir: return makeThemePalette(0x04101d, 0x08293d, 0x091d2c, 0x103b54, 0xd4a547, 0x63b0ff)
+        case .titanium: return makeThemePalette(0x171c21, 0x2d3842, 0x292f36, 0x4a555f, 0xb4d1ef, 0xebf3fb)
+        case .slate: return makeThemePalette(0x10171f, 0x263440, 0x1b2530, 0x384859, 0x96b2cc, 0xd2e0ee)
+        case .moltenGold: return makeThemePalette(0x1f1002, 0x4c2503, 0x2e1906, 0x573008, 0xffbd19, 0xffe86b)
+        case .phantomSilver: return makeThemePalette(0x101419, 0x242e38, 0x1a2028, 0x3c4a57, 0xc1d5e7, 0xf2f9ff)
+        case .ocean: return makeThemePalette(0x031a29, 0x00465c, 0x052d3d, 0x085162, 0x35d8ef, 0x72f5df)
+        case .aurora: return makeThemePalette(0x051a21, 0x162d49, 0x0a252d, 0x164c4b, 0x54f2d1, 0x7e8cff)
+        case .forest: return makeThemePalette(0x061a12, 0x123821, 0x0b2519, 0x16442d, 0x79d889, 0xbfe66b)
+        case .plum: return makeThemePalette(0x18081f, 0x41114d, 0x27102f, 0x511c5f, 0xe060eb, 0xff9bc7)
+        case .ember: return makeThemePalette(0x211006, 0x4c1908, 0x301209, 0x5b210f, 0xff7a40, 0xffc54d)
+        case .solarFlare: return makeThemePalette(0x29060a, 0x5c1405, 0x35100c, 0x6b1f0b, 0xff4f2b, 0xffc23d)
+        case .electricStorm: return makeThemePalette(0x05071f, 0x220a48, 0x111235, 0x2a195b, 0x00dcff, 0x7f46ff)
+        case .ultraviolet: return makeThemePalette(0x15052b, 0x430d52, 0x241037, 0x531c65, 0xb73dff, 0xff66ba)
+        case .arcticPulse: return makeThemePalette(0x06172a, 0x123050, 0x0c253c, 0x1f455f, 0x5ce7e5, 0x91adff)
+        case .sapphireTide: return makeThemePalette(0x00142a, 0x00506b, 0x00283f, 0x055163, 0x0782ff, 0x59f0d2)
         }
     }
 }

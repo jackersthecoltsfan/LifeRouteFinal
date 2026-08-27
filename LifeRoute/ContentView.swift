@@ -79,12 +79,19 @@ private struct CoreHeader: View {
         HStack(alignment: .top, spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 15, style: .continuous)
-                    .fill(palette.accent.opacity(0.14))
+                    .fill(
+                        LinearGradient(
+                            colors: [palette.accent.opacity(0.20), palette.accentSecondary.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                 Image(systemName: systemImage)
                     .font(.system(size: 19, weight: .bold))
                     .foregroundStyle(palette.accent)
             }
             .frame(width: 48, height: 48)
+            .shadow(color: palette.accent.opacity(0.12), radius: 12)
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
@@ -114,6 +121,7 @@ private struct TodayCoreView: View {
             LazyVStack(spacing: 18) {
                 dashboardHero
                 quickActions
+                todaySnapshot
                 routePlanner
                 savedPlaces
                 dailyFlowCard
@@ -132,9 +140,9 @@ private struct TodayCoreView: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            palette.panelElevated.opacity(0.92),
+                            palette.panelElevated.opacity(0.96),
                             palette.panel.opacity(0.78),
-                            palette.backgroundBottom.opacity(0.84)
+                            palette.backgroundBottom.opacity(0.88)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -142,12 +150,24 @@ private struct TodayCoreView: View {
                 )
 
             Circle()
-                .fill(palette.accent.opacity(0.19))
+                .fill(palette.accent.opacity(0.20))
                 .frame(width: 220, height: 220)
-                .blur(radius: 4)
+                .blur(radius: 5)
                 .offset(x: 155, y: -85)
 
-            VStack(alignment: .leading, spacing: 14) {
+            Image(systemName: "mountain.2.fill")
+                .font(.system(size: 150, weight: .black))
+                .foregroundStyle(palette.accentSecondary.opacity(0.07))
+                .offset(x: 115, y: 80)
+
+            LinearGradient(
+                colors: [.clear, palette.backgroundBottom.opacity(0.70)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+            .clipShape(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 13) {
                 HStack {
                     Text("LIFEROUTE")
                         .font(.caption.weight(.black))
@@ -166,41 +186,42 @@ private struct TodayCoreView: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
-                    .background(.black.opacity(0.18), in: Capsule())
+                    .background(.black.opacity(0.20), in: Capsule())
                 }
 
                 Text("Own your day.")
                     .font(.system(size: 34, weight: .black, design: .rounded))
                     .foregroundStyle(palette.textPrimary)
 
-                Text("Routes, schedule, session tools, and the places that fit between them.")
-                    .font(.subheadline)
-                    .foregroundStyle(palette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                Text("Plan your day. Optimize every gap.")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(palette.textPrimary.opacity(0.88))
 
                 HStack(spacing: 8) {
-                    Label(routingState.locationRequestInFlight ? "Locating…" : routingState.locationMessage, systemImage: "location.fill")
+                    Image(systemName: "location.fill")
+                        .foregroundStyle(palette.accent)
+                    Text(routingState.locationRequestInFlight ? "Locating…" : routingState.locationMessage)
                         .font(.caption.weight(.semibold))
-                        .lineLimit(1)
-                        .foregroundStyle(palette.textPrimary.opacity(0.88))
+                        .lineLimit(2)
+                        .foregroundStyle(palette.textSecondary)
                     Spacer()
                 }
             }
             .padding(22)
         }
-        .frame(minHeight: 218)
+        .frame(minHeight: 226)
         .overlay {
             RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
                 .stroke(
                     LinearGradient(
-                        colors: [palette.accent.opacity(0.44), Color.white.opacity(0.08), .clear],
+                        colors: [palette.accent.opacity(0.48), Color.white.opacity(0.08), .clear],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
                     lineWidth: 1
                 )
         }
-        .shadow(color: palette.accent.opacity(0.12), radius: 28, y: 12)
+        .shadow(color: palette.accent.opacity(0.14), radius: 30, y: 13)
     }
 
     private var quickActions: some View {
@@ -230,6 +251,33 @@ private struct TodayCoreView: View {
         }
     }
 
+    private var todaySnapshot: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            sectionTitle("Today’s overview", subtitle: "Real setup and routing state at a glance.")
+
+            HStack(spacing: 9) {
+                TodayMetricTile(
+                    value: "\(routingState.savedPlaces.count)",
+                    label: "Saved",
+                    systemImage: "mappin.and.ellipse",
+                    accent: palette.accent
+                )
+                TodayMetricTile(
+                    value: "\(routingState.savedPlaces.filter(\.useInGapSuggestions).count)",
+                    label: "Gap-ready",
+                    systemImage: "sparkles",
+                    accent: palette.accentSecondary
+                )
+                TodayMetricTile(
+                    value: routingState.homeAddress.isEmpty ? "—" : "✓",
+                    label: "Home",
+                    systemImage: "house.fill",
+                    accent: palette.accent
+                )
+            }
+        }
+    }
+
     private var routePlanner: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -242,8 +290,12 @@ private struct TodayCoreView: View {
                         .foregroundStyle(palette.textSecondary)
                 }
                 Spacer()
-                Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
-                    .foregroundStyle(palette.accent)
+                ZStack {
+                    Circle().fill(palette.accent.opacity(0.14))
+                    Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+                        .foregroundStyle(palette.accent)
+                }
+                .frame(width: 38, height: 38)
             }
 
             Picker("Travel mode", selection: $routeMode) {
@@ -379,6 +431,40 @@ private struct DashboardActionButton: View {
     }
 }
 
+private struct TodayMetricTile: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
+    let value: String
+    let label: String
+    let systemImage: String
+    let accent: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(accent)
+                Spacer()
+            }
+            Text(value)
+                .font(.title2.weight(.black))
+                .foregroundStyle(palette.textPrimary)
+                .monospacedDigit()
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
+        .padding(12)
+        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                .stroke(accent.opacity(0.20), lineWidth: 1)
+        }
+    }
+}
+
 private struct SavedPlaceDashboardCard: View {
     @Environment(\.lifeRoutePalette) private var palette
 
@@ -411,6 +497,14 @@ private struct SavedPlaceDashboardCard: View {
                 }
 
                 Spacer()
+
+                if place.useInGapSuggestions {
+                    Image(systemName: "sparkles")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(palette.accentSecondary)
+                        .padding(7)
+                        .background(palette.accentSecondary.opacity(0.10), in: Circle())
+                }
             }
 
             if let estimate {
@@ -423,6 +517,10 @@ private struct SavedPlaceDashboardCard: View {
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(palette.accentSecondary)
+            } else {
+                Text("Useful visit: \(place.minimumVisitMinutes) min")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.textSecondary)
             }
 
             HStack(spacing: 9) {
@@ -457,6 +555,8 @@ private struct SavedPlaceDashboardCard: View {
 }
 
 private struct ScheduleCoreView: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
     @ObservedObject var router: AppRouter
     @ObservedObject var calendarState: CalendarCoreState
     @ObservedObject var providerState: CalendarProviderCore
@@ -474,11 +574,86 @@ private struct ScheduleCoreView: View {
 
         Form {
             Section {
-                CoreHeader(
-                    title: "Schedule",
-                    subtitle: "One place for your manual appointments and read-only calendar connections.",
-                    systemImage: "calendar.badge.clock"
-                )
+                VStack(spacing: 14) {
+                    CoreHeader(
+                        title: "Schedule",
+                        subtitle: "Your day, connected calendars, and manual LifeRoute appointments in one place.",
+                        systemImage: "calendar.badge.clock"
+                    )
+
+                    HStack(spacing: 9) {
+                        ScheduleMetricTile(
+                            value: "\(presentation.eventCount)",
+                            label: "Events",
+                            systemImage: "calendar",
+                            accent: palette.accent
+                        )
+                        ScheduleMetricTile(
+                            value: timedHoursLabel(presentation.timedMinutes),
+                            label: "Timed",
+                            systemImage: "clock.fill",
+                            accent: palette.accentSecondary
+                        )
+                        ScheduleMetricTile(
+                            value: "\(connectedProviderCount)",
+                            label: "Connected",
+                            systemImage: "link",
+                            accent: palette.accent
+                        )
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .listRowBackground(Color.clear)
+
+            Section("View") {
+                Picker("Schedule range", selection: $selectedRange) {
+                    ForEach(LifeRouteCalendarRange.allCases) { range in
+                        Text(range.rawValue).tag(range)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            Section("Period") {
+                HStack(spacing: 14) {
+                    Button { calendarState.shiftSelection(selectedRange, by: -1) } label: {
+                        Label("Previous", systemImage: "chevron.left")
+                    }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.bordered)
+
+                    Spacer()
+
+                    VStack(spacing: 2) {
+                        Text(calendarState.periodLabel(for: selectedRange))
+                            .font(.headline)
+                            .multilineTextAlignment(.center)
+                        Text("\(presentation.eventCount) events")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(palette.textSecondary)
+                    }
+
+                    Spacer()
+
+                    Button { calendarState.shiftSelection(selectedRange, by: 1) } label: {
+                        Label("Next", systemImage: "chevron.right")
+                    }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.bordered)
+                }
+
+                DatePicker("Selected date", selection: $calendarState.selectedDate, displayedComponents: .date)
+                Button("Jump to today") { calendarState.selectToday() }
+                Label("\(presentation.eventCount) events · \(presentation.timedMinutes) timed minutes", systemImage: "clock")
+                    .foregroundStyle(palette.textSecondary)
+                    .font(.caption)
+            }
+
+            Section("Events") {
+                CalendarEventsView(presentation: presentation) { eventID in
+                    calendarState.removeEvent(id: eventID)
+                }
             }
 
             Section("Calendar connections") {
@@ -507,48 +682,7 @@ private struct ScheduleCoreView: View {
 
                 Text("Providers refresh only when you request it. Google access is read-only and its refresh token is stored in Keychain.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("View") {
-                Picker("Schedule range", selection: $selectedRange) {
-                    ForEach(LifeRouteCalendarRange.allCases) { range in
-                        Text(range.rawValue).tag(range)
-                    }
-                }
-                .pickerStyle(.segmented)
-            }
-
-            Section("Period") {
-                HStack {
-                    Button { calendarState.shiftSelection(selectedRange, by: -1) } label: {
-                        Label("Previous", systemImage: "chevron.left")
-                    }
-                    .labelStyle(.iconOnly)
-
-                    Spacer()
-
-                    Text(calendarState.periodLabel(for: selectedRange))
-                        .font(.headline)
-
-                    Spacer()
-
-                    Button { calendarState.shiftSelection(selectedRange, by: 1) } label: {
-                        Label("Next", systemImage: "chevron.right")
-                    }
-                    .labelStyle(.iconOnly)
-                }
-
-                DatePicker("Selected date", selection: $calendarState.selectedDate, displayedComponents: .date)
-                Button("Jump to today") { calendarState.selectToday() }
-                Label("\(presentation.eventCount) events · \(presentation.timedMinutes) timed minutes", systemImage: "clock")
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Events") {
-                CalendarEventsView(presentation: presentation) { eventID in
-                    calendarState.removeEvent(id: eventID)
-                }
+                    .foregroundStyle(palette.textSecondary)
             }
 
             Section("Add appointment") {
@@ -566,17 +700,32 @@ private struct ScheduleCoreView: View {
                 }
 
                 Button("Add appointment") { addAppointment() }
+                    .buttonStyle(LifeRoutePrimaryButtonStyle())
 
                 if let formMessage {
-                    Text(formMessage).foregroundStyle(.secondary)
+                    Text(formMessage)
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 Text("Manual LifeRoute appointments are saved locally. Apple and Google events remain provider-refreshed data and are not copied into LifeRoute’s local data file.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             }
         }
         .navigationTitle("Schedule")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var connectedProviderCount: Int {
+        (providerState.appleConnected ? 1 : 0) + (providerState.googleConnected ? 1 : 0)
+    }
+
+    private func timedHoursLabel(_ minutes: Int) -> String {
+        if minutes < 60 { return "\(minutes)m" }
+        let hours = minutes / 60
+        let remaining = minutes % 60
+        return remaining == 0 ? "\(hours)h" : "\(hours)h \(remaining)m"
     }
 
     private func addAppointment() {
@@ -602,7 +751,41 @@ private struct ScheduleCoreView: View {
     }
 }
 
+private struct ScheduleMetricTile: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
+    let value: String
+    let label: String
+    let systemImage: String
+    let accent: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(accent)
+            Text(value)
+                .font(.headline.weight(.black))
+                .foregroundStyle(palette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 78, alignment: .leading)
+        .padding(10)
+        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                .stroke(accent.opacity(0.20), lineWidth: 1)
+        }
+    }
+}
+
 private struct CalendarEventsView: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
     let presentation: LifeRouteCalendarRangePresentation
     let onDeleteManualEvent: (LifeRouteCalendarEvent.ID) -> Void
 
@@ -612,32 +795,33 @@ private struct CalendarEventsView: View {
             eventRows(presentation.days.first?.events ?? [])
         case .week:
             ForEach(presentation.days) { day in
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(day.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                        .font(.headline)
+                VStack(alignment: .leading, spacing: 9) {
+                    dayHeader(day.date)
                     if day.events.isEmpty {
-                        Text("No events").foregroundStyle(.secondary)
+                        Text("No events")
+                            .font(.caption)
+                            .foregroundStyle(palette.textSecondary)
+                            .padding(.vertical, 4)
                     } else {
                         ForEach(day.events) { event in
                             eventRow(event)
                         }
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 5)
             }
         case .month:
             if presentation.days.isEmpty {
-                Text("No events this month").foregroundStyle(.secondary)
+                Text("No events this month").foregroundStyle(palette.textSecondary)
             } else {
                 ForEach(presentation.days) { day in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(day.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-                            .font(.headline)
+                    VStack(alignment: .leading, spacing: 9) {
+                        dayHeader(day.date)
                         ForEach(day.events) { event in
                             eventRow(event)
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 5)
                 }
             }
         }
@@ -646,11 +830,31 @@ private struct CalendarEventsView: View {
     @ViewBuilder
     private func eventRows(_ events: [LifeRouteCalendarEvent]) -> some View {
         if events.isEmpty {
-            Text("No events on this day").foregroundStyle(.secondary)
+            VStack(spacing: 8) {
+                Image(systemName: "calendar.badge.checkmark")
+                    .font(.title2)
+                    .foregroundStyle(palette.accent)
+                Text("No events on this day")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(palette.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
         } else {
             ForEach(events) { event in
                 eventRow(event)
             }
+        }
+    }
+
+    private func dayHeader(_ date: Date) -> some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(palette.accent)
+                .frame(width: 7, height: 7)
+            Text(date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(palette.textPrimary)
         }
     }
 
@@ -660,19 +864,41 @@ private struct CalendarEventsView: View {
 }
 
 private struct CalendarEventRow: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
     let event: LifeRouteCalendarEvent
     let onDeleteManualEvent: (LifeRouteCalendarEvent.ID) -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(event.title).font(.body.weight(.semibold))
-                Text(timeLabel).font(.caption).foregroundStyle(.secondary)
+        HStack(alignment: .stretch, spacing: 11) {
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(sourceColor)
+                .frame(width: 4)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(event.title)
+                        .font(.body.weight(.bold))
+                        .foregroundStyle(palette.textPrimary)
+                    Spacer(minLength: 8)
+                    Text(sourceLabel)
+                        .font(.caption2.weight(.black))
+                        .tracking(0.5)
+                        .foregroundStyle(sourceColor)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background(sourceColor.opacity(0.10), in: Capsule())
+                }
+
+                Text(timeLabel)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(palette.textSecondary)
 
                 if !event.location.isEmpty {
                     Label(event.location, systemImage: "mappin.and.ellipse")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(palette.textSecondary)
+                        .lineLimit(2)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -682,9 +908,35 @@ private struct CalendarEventRow: View {
                     onDeleteManualEvent(event.id)
                 } label: {
                     Image(systemName: "trash")
+                        .font(.caption.weight(.bold))
                 }
                 .accessibilityLabel("Delete \(event.title)")
             }
+        }
+        .padding(.vertical, 9)
+        .padding(.horizontal, 10)
+        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.055), lineWidth: 1)
+        }
+    }
+
+    private var sourceColor: Color {
+        switch event.source {
+        case .manual: return palette.accent
+        case .apple: return .blue
+        case .google: return .green
+        case .calendarLink: return palette.accentSecondary
+        }
+    }
+
+    private var sourceLabel: String {
+        switch event.source {
+        case .manual: return "LIFEROUTE"
+        case .apple: return "APPLE"
+        case .google: return "GOOGLE"
+        case .calendarLink: return "LINK"
         }
     }
 
@@ -789,6 +1041,9 @@ private struct ResourceMenuCard: View {
 }
 
 private struct SetupCoreView: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    @EnvironmentObject private var themeStore: LifeRouteThemeStore
+
     @ObservedObject var router: AppRouter
     @ObservedObject var routingState: RoutingLocationCore
     @ObservedObject var clientState: ClientProfileCore
@@ -804,22 +1059,55 @@ private struct SetupCoreView: View {
     var body: some View {
         Form {
             Section {
-                CoreHeader(
-                    title: "Setup",
-                    subtitle: "Personalize LifeRoute, manage clients, and teach it the places in your routine.",
-                    systemImage: "slider.horizontal.3"
-                )
+                VStack(spacing: 14) {
+                    CoreHeader(
+                        title: "Setup",
+                        subtitle: "Personalize LifeRoute, manage clients, and teach it the places in your routine.",
+                        systemImage: "slider.horizontal.3"
+                    )
+
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                .fill(themeStore.selectedTheme.palette.backgroundGradient)
+                            Image(systemName: themeStore.selectedTheme.symbol)
+                                .font(.system(size: 23, weight: .bold))
+                                .foregroundStyle(themeStore.selectedTheme.palette.accent)
+                        }
+                        .frame(width: 62, height: 62)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Current look")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(palette.textSecondary)
+                            Text(themeStore.selectedTheme.name)
+                                .font(.title3.weight(.black))
+                                .foregroundStyle(palette.textPrimary)
+                            Text(themeStore.selectedTheme.category.rawValue)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(palette.accent)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(12)
+                    .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+                .padding(.vertical, 4)
             }
+            .listRowBackground(Color.clear)
 
             Section("Appearance") {
                 NavigationLink("Theme Center", destination: ThemeCenterView())
+                    .font(.headline)
                 Text("Choose from core, metallic, scenery, dynamic, and fluid themes.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             }
 
             Section("Location") {
-                Text(routingState.locationMessage).foregroundStyle(.secondary)
+                Label(routingState.locationMessage, systemImage: "location.fill")
+                    .foregroundStyle(palette.textSecondary)
                 Button("Request current location") { routingState.requestCurrentLocation() }
                     .disabled(routingState.locationRequestInFlight)
             }
@@ -838,7 +1126,8 @@ private struct SetupCoreView: View {
                 }
 
                 if !routingState.homeAddress.isEmpty {
-                    Text(routingState.homeAddress).foregroundStyle(.secondary)
+                    Label(routingState.homeAddress, systemImage: "house.fill")
+                        .foregroundStyle(palette.textSecondary)
                 }
             }
 
@@ -846,11 +1135,28 @@ private struct SetupCoreView: View {
                 NavigationLink {
                     ClientProfilesView(clientState: clientState)
                 } label: {
-                    Label("Manage clients", systemImage: "person.2")
+                    HStack(spacing: 12) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(palette.accent.opacity(0.13))
+                            Image(systemName: "person.2.fill")
+                                .foregroundStyle(palette.accent)
+                        }
+                        .frame(width: 42, height: 42)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Manage clients")
+                                .font(.headline)
+                            Text("\(clientState.clients.count) profiles · ABA-style initials")
+                                .font(.caption)
+                                .foregroundStyle(palette.textSecondary)
+                        }
+                    }
                 }
 
                 Text("\(clientState.clients.count) client profiles · ABA-style initials only")
-                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
             }
 
             Section("Saved places") {
@@ -867,31 +1173,49 @@ private struct SetupCoreView: View {
                 Button("Add saved place") { addPlace() }
 
                 if routingState.savedPlaces.isEmpty {
-                    Text("No saved places yet").foregroundStyle(.secondary)
+                    Text("No saved places yet").foregroundStyle(palette.textSecondary)
                 } else {
                     ForEach(routingState.savedPlaces) { place in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(place.name).font(.headline)
-                            Text("\(place.kind.rawValue) · \(place.minimumVisitMinutes) min")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(place.address)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Button("Remove \(place.name)", role: .destructive) {
-                                routingState.removeSavedPlace(id: place.id)
+                        HStack(alignment: .top, spacing: 11) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                    .fill(palette.accent.opacity(0.12))
+                                Image(systemName: setupPlaceSymbol(place.kind))
+                                    .foregroundStyle(palette.accent)
                             }
+                            .frame(width: 38, height: 38)
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(place.name).font(.headline)
+                                Text("\(place.kind.rawValue) · \(place.minimumVisitMinutes) min")
+                                    .font(.caption)
+                                    .foregroundStyle(palette.textSecondary)
+                                Text(place.address)
+                                    .font(.caption)
+                                    .foregroundStyle(palette.textSecondary)
+                            }
+
+                            Spacer()
+
+                            Button(role: .destructive) {
+                                routingState.removeSavedPlace(id: place.id)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .accessibilityLabel("Remove \(place.name)")
                         }
                     }
                 }
 
                 if let placeMessage {
-                    Text(placeMessage).foregroundStyle(.secondary)
+                    Text(placeMessage)
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
                 }
 
                 Text("Home and saved places are stored locally in protected LifeRoute app data. Current GPS coordinates and route estimates are not persisted.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             }
 
             Section("Privacy & app behavior") {
@@ -899,10 +1223,11 @@ private struct SetupCoreView: View {
                 Label("Protected local LifeRoute data", systemImage: "lock.fill")
                 Text("No account gate is required to open the app.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
             }
         }
         .navigationTitle("Setup")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if homeDraft.isEmpty {
                 homeDraft = routingState.homeAddress
@@ -913,6 +1238,19 @@ private struct SetupCoreView: View {
     // No PIN or password gate: setup remains direct-launch.
     private func auditNavigationReset() {
         router.resetPath(for: .setup)
+    }
+
+    private func setupPlaceSymbol(_ kind: LifeRoutePlaceKind) -> String {
+        switch kind {
+        case .gym: return "figure.strengthtraining.traditional"
+        case .work: return "briefcase.fill"
+        case .coffee: return "cup.and.saucer.fill"
+        case .grocery: return "cart.fill"
+        case .park: return "leaf.fill"
+        case .library: return "books.vertical.fill"
+        case .errand: return "checklist"
+        case .other: return "mappin.circle.fill"
+        }
     }
 
     private func addPlace() {
@@ -946,33 +1284,34 @@ private struct ThemeCenterView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Theme Center")
-                        .font(.system(size: 31, weight: .black, design: .rounded))
-                        .foregroundStyle(palette.textPrimary)
-                    Text("Give LifeRoute a completely different atmosphere without changing how the app works.")
-                        .font(.subheadline)
-                        .foregroundStyle(palette.textSecondary)
-                }
-                .lifeRouteCard()
+                featuredTheme
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(LifeRouteThemeCategory.allCases) { category in
-                            Button {
-                                selectedCategory = category
-                            } label: {
-                                Text(category.rawValue)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Explore themes")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(palette.textPrimary)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(LifeRouteThemeCategory.allCases) { category in
+                                Button {
+                                    selectedCategory = category
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: categorySymbol(category))
+                                        Text(category.rawValue)
+                                    }
                                     .font(.caption.weight(.bold))
                                     .foregroundStyle(selectedCategory == category ? Color.black.opacity(0.78) : palette.textSecondary)
-                                    .padding(.horizontal, 14)
+                                    .padding(.horizontal, 13)
                                     .frame(height: 38)
                                     .background(
                                         Capsule()
                                             .fill(selectedCategory == category ? palette.accent : palette.panelElevated.opacity(0.72))
                                     )
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
@@ -1005,8 +1344,68 @@ private struct ThemeCenterView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    private var featuredTheme: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
+                .fill(themeStore.selectedTheme.palette.backgroundGradient)
+
+            Circle()
+                .fill(themeStore.selectedTheme.palette.accent.opacity(0.24))
+                .frame(width: 220, height: 220)
+                .offset(x: 170, y: -70)
+
+            Image(systemName: themeMotif(themeStore.selectedTheme))
+                .font(.system(size: 150, weight: .black))
+                .foregroundStyle(themeStore.selectedTheme.palette.accentSecondary.opacity(0.10))
+                .offset(x: 125, y: 70)
+
+            VStack(alignment: .leading, spacing: 9) {
+                Text("THEME CENTER")
+                    .font(.caption.weight(.black))
+                    .tracking(2)
+                    .foregroundStyle(themeStore.selectedTheme.palette.accent)
+                Text(themeStore.selectedTheme.name)
+                    .font(.system(size: 31, weight: .black, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("Change the atmosphere. Keep the workflow.")
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.72))
+                Label(themeStore.selectedTheme.category.rawValue, systemImage: themeStore.selectedTheme.symbol)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(themeStore.selectedTheme.palette.accentSecondary)
+            }
+            .padding(21)
+        }
+        .frame(minHeight: 220)
+        .overlay {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
+                .stroke(themeStore.selectedTheme.palette.accent.opacity(0.35), lineWidth: 1)
+        }
+        .shadow(color: themeStore.selectedTheme.palette.accent.opacity(0.15), radius: 26, y: 12)
+    }
+
     private var themesForCategory: [LifeRouteTheme] {
         LifeRouteTheme.allCases.filter { $0.category == selectedCategory }
+    }
+
+    private func categorySymbol(_ category: LifeRouteThemeCategory) -> String {
+        switch category {
+        case .core: return "sparkles"
+        case .metallic: return "hexagon.fill"
+        case .scenery: return "mountain.2.fill"
+        case .dynamic: return "bolt.fill"
+        case .fluid: return "drop.fill"
+        }
+    }
+
+    private func themeMotif(_ theme: LifeRouteTheme) -> String {
+        switch theme.category {
+        case .core: return "mountain.2.fill"
+        case .metallic: return "hexagon.fill"
+        case .scenery: return "mountain.2.fill"
+        case .dynamic: return "bolt.fill"
+        case .fluid: return "drop.fill"
+        }
     }
 }
 
@@ -1023,13 +1422,18 @@ private struct ThemeChoiceCard: View {
                 ZStack(alignment: .bottomTrailing) {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(themePalette.backgroundGradient)
-                        .frame(height: 88)
+                        .frame(height: 102)
+
+                    Image(systemName: motif)
+                        .font(.system(size: 72, weight: .black))
+                        .foregroundStyle(themePalette.accentSecondary.opacity(0.11))
+                        .offset(x: 10, y: 24)
 
                     Circle()
-                        .fill(themePalette.accent.opacity(0.32))
-                        .frame(width: 72, height: 72)
+                        .fill(themePalette.accent.opacity(0.28))
+                        .frame(width: 74, height: 74)
                         .blur(radius: 2)
-                        .offset(x: 14, y: 12)
+                        .offset(x: 18, y: -24)
 
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
@@ -1038,6 +1442,7 @@ private struct ThemeChoiceCard: View {
                             .padding(9)
                     }
                 }
+                .clipped()
 
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
@@ -1061,8 +1466,19 @@ private struct ThemeChoiceCard: View {
                 RoundedRectangle(cornerRadius: 19, style: .continuous)
                     .stroke(isSelected ? themePalette.accent.opacity(0.72) : Color.white.opacity(0.08), lineWidth: 1)
             }
+            .shadow(color: isSelected ? themePalette.accent.opacity(0.12) : .clear, radius: 14, y: 6)
         }
         .buttonStyle(.plain)
+    }
+
+    private var motif: String {
+        switch theme.category {
+        case .core: return "mountain.2.fill"
+        case .metallic: return "hexagon.fill"
+        case .scenery: return "mountain.2.fill"
+        case .dynamic: return "bolt.fill"
+        case .fluid: return "drop.fill"
+        }
     }
 }
 

@@ -84,30 +84,44 @@ final class ResourcePortalCore: ObservableObject {
         LifeRoutePortalLink(
             title: "Rethink Behavioral Health",
             subtitle: "Clinical and practice-management portal",
-            urlString: "https://www.rethinkbehavioralhealth.com/",
+            urlString: "https://webapp.rethinkbehavioralhealth.com/Home/Login",
             category: .clinical,
             systemImage: "brain.head.profile.fill"
         ),
         LifeRoutePortalLink(
-            title: "Catalyst",
-            subtitle: "ABA data collection portal",
-            urlString: "https://www.datafinch.com/catalyst/",
+            title: "Ensora Data Collection (Catalyst)",
+            subtitle: "ABA data collection portal formerly known as Catalyst",
+            urlString: "https://secure.datafinch.com/",
             category: .clinical,
             systemImage: "chart.bar.doc.horizontal.fill"
         ),
         LifeRoutePortalLink(
-            title: "ADP Workforce Now",
-            subtitle: "Payroll, time, benefits, and HR",
-            urlString: "https://workforcenow.adp.com/",
-            category: .hr,
-            systemImage: "dollarsign.circle.fill"
+            title: "Theralytics",
+            subtitle: "ABA practice and clinical management portal",
+            urlString: "https://www.theralytics.net/",
+            category: .clinical,
+            systemImage: "waveform.path.ecg.rectangle.fill"
         ),
         LifeRoutePortalLink(
-            title: "Paylocity",
-            subtitle: "Payroll and HR portal",
-            urlString: "https://access.paylocity.com/",
+            title: "Hi Rasmus",
+            subtitle: "ABA data collection and collaboration portal",
+            urlString: "https://app.hirasmus.com/",
+            category: .clinical,
+            systemImage: "person.2.wave.2.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "AlohaABA",
+            subtitle: "ABA practice-management portal",
+            urlString: "https://alohaaba.com/",
+            category: .clinical,
+            systemImage: "chart.line.uptrend.xyaxis"
+        ),
+        LifeRoutePortalLink(
+            title: "ADP",
+            subtitle: "Payroll, time, benefits, and HR",
+            urlString: "https://my.adp.com/",
             category: .hr,
-            systemImage: "building.columns.fill"
+            systemImage: "dollarsign.circle.fill"
         ),
         LifeRoutePortalLink(
             title: "BambooHR",
@@ -117,9 +131,65 @@ final class ResourcePortalCore: ObservableObject {
             systemImage: "person.text.rectangle.fill"
         ),
         LifeRoutePortalLink(
-            title: "BACB",
+            title: "Gusto",
+            subtitle: "Payroll and benefits portal",
+            urlString: "https://app.gusto.com/login",
+            category: .hr,
+            systemImage: "banknote.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "Paycom",
+            subtitle: "Payroll and workforce management portal",
+            urlString: "https://www.paycomonline.net/v4/ee/web.php/app/login",
+            category: .hr,
+            systemImage: "creditcard.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "Paylocity",
+            subtitle: "Payroll and HR portal",
+            urlString: "https://access.paylocity.com/",
+            category: .hr,
+            systemImage: "building.columns.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "UKG",
+            subtitle: "Employee login and workforce management",
+            urlString: "https://www.ukg.com/solutions/employee-login",
+            category: .hr,
+            systemImage: "person.crop.rectangle.stack.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "Rippling",
+            subtitle: "Payroll, HR, and workforce portal",
+            urlString: "https://app.rippling.com/",
+            category: .hr,
+            systemImage: "person.3.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "Workday",
+            subtitle: "HR, payroll, and employee portal",
+            urlString: "https://www.workday.com/",
+            category: .hr,
+            systemImage: "briefcase.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "QuickBooks Workforce",
+            subtitle: "Paychecks, time, and workforce portal",
+            urlString: "https://workforce.intuit.com/",
+            category: .hr,
+            systemImage: "clock.badge.checkmark.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "Viventium",
+            subtitle: "Payroll and HR portal",
+            urlString: "https://www.viventium.com/",
+            category: .hr,
+            systemImage: "building.2.crop.circle.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "BACB Portal",
             subtitle: "Certification, account, and credential resources",
-            urlString: "https://www.bacb.com/",
+            urlString: "https://portal.bacb.com/",
             category: .training,
             systemImage: "checkmark.seal.fill"
         ),
@@ -136,6 +206,48 @@ final class ResourcePortalCore: ObservableObject {
             urlString: "https://secure.therapservices.net/",
             category: .other,
             systemImage: "doc.text.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "HHAeXchange",
+            subtitle: "Home-care scheduling and EVV portal",
+            urlString: "https://hhaexchange.com/",
+            category: .other,
+            systemImage: "house.and.flag.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "Sandata",
+            subtitle: "EVV and home-care workforce portal",
+            urlString: "https://www.sandata.com/",
+            category: .other,
+            systemImage: "location.fill.viewfinder"
+        ),
+        LifeRoutePortalLink(
+            title: "Microsoft 365",
+            subtitle: "Email, files, and Microsoft work apps",
+            urlString: "https://www.office.com/",
+            category: .other,
+            systemImage: "square.grid.2x2.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "Google Workspace",
+            subtitle: "Gmail, Drive, Docs, and work apps",
+            urlString: "https://workspace.google.com/",
+            category: .other,
+            systemImage: "square.grid.3x3.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "Slack",
+            subtitle: "Workplace messaging and collaboration",
+            urlString: "https://app.slack.com/",
+            category: .other,
+            systemImage: "bubble.left.and.bubble.right.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "Microsoft Teams",
+            subtitle: "Workplace chat, meetings, and collaboration",
+            urlString: "https://teams.microsoft.com/",
+            category: .other,
+            systemImage: "person.2.fill"
         )
     ]
 

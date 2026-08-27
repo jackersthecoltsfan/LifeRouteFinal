@@ -65,6 +65,73 @@ struct LifeRouteSavedPlace: Identifiable, Codable, Hashable {
     }
 }
 
+struct LifeRouteAddressSuggestion: Identifiable, Hashable {
+    let title: String
+    let subtitle: String
+
+    var id: String { title + "\n" + subtitle }
+
+    var addressText: String {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanSubtitle = subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanSubtitle.isEmpty else { return cleanTitle }
+        guard !cleanTitle.localizedCaseInsensitiveContains(cleanSubtitle) else { return cleanTitle }
+        return "\(cleanTitle), \(cleanSubtitle)"
+    }
+}
+
+final class LifeRouteAddressAutocomplete: NSObject, ObservableObject, MKLocalSearchCompleterDelegate {
+    @Published private(set) var suggestions: [LifeRouteAddressSuggestion] = []
+    @Published private(set) var message: String?
+
+    private let completer = MKLocalSearchCompleter()
+    private var lastQuery = ""
+
+    override init() {
+        super.init()
+        completer.delegate = self
+        completer.resultTypes = [.address, .pointOfInterest]
+    }
+
+    func update(query: String) {
+        let cleaned = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cleaned != lastQuery else { return }
+        lastQuery = cleaned
+        message = nil
+
+        guard cleaned.count >= 3 else {
+            suggestions = []
+            completer.queryFragment = ""
+            return
+        }
+        completer.queryFragment = cleaned
+    }
+
+    func clear() {
+        lastQuery = ""
+        suggestions = []
+        message = nil
+        completer.queryFragment = ""
+    }
+
+    func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        let next = Array(completer.results.prefix(6)).map {
+            LifeRouteAddressSuggestion(title: $0.title, subtitle: $0.subtitle)
+        }
+        DispatchQueue.main.async { [weak self] in
+            self?.suggestions = next
+            self?.message = nil
+        }
+    }
+
+    func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+        DispatchQueue.main.async { [weak self] in
+            self?.suggestions = []
+            self?.message = "Address suggestions are temporarily unavailable. You can still type the address manually."
+        }
+    }
+}
+
 struct LifeRouteRouteEstimate: Hashable {
     let placeID: UUID
     let mode: LifeRouteTransportMode
@@ -171,7 +238,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
     func resumeForegroundLocationIfNeeded() {
         authorizationStatus = locationManager.authorizationStatus
         guard liveLocationEnabled,
-              authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse else {
+              (authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse) else {
             updateLocationMessage(for: authorizationStatus)
             return
         }
@@ -353,7 +420,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
         let shouldBeginLiveUpdates = locationRequestPendingAuthorization || liveLocationEnabled
         locationRequestPendingAuthorization = false
         if shouldBeginLiveUpdates,
-           authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse {
+           (authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse) {
             beginForegroundLocationUpdates()
         } else if authorizationStatus != .notDetermined {
             locationRequestInFlight = false

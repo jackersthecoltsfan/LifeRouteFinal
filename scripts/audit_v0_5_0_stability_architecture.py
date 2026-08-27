@@ -133,8 +133,14 @@ require(routing.count("guard locationRequestInFlight else { return }") >= 2, "St
 
 require("routingState.calculateRoute(to: place, mode: routeMode)" in content and "Task { await routingState.calculateRoute" not in content, "Route buttons call the domain-owned operation directly")
 require("routingState.openInAppleMaps(place, mode: routeMode)" in content and "Task { await routingState.openInAppleMaps" not in content, "Maps buttons call the domain-owned operation directly")
-require(".disabled(routingState.routeRequestsInFlight.contains(place.id))" in content, "Route controls expose single-flight state")
-require(".disabled(routingState.mapsOpenInFlight)" in content, "Maps controls expose single-flight state")
+require(
+    "routeBusy: routingState.routeRequestsInFlight.contains(place.id)" in content and ".disabled(routeBusy)" in content,
+    "Route controls expose single-flight state",
+)
+require(
+    "mapsBusy: routingState.mapsOpenInFlight" in content and ".disabled(mapsBusy)" in content,
+    "Maps controls expose single-flight state",
+)
 require(content.count(".disabled(routingState.locationRequestInFlight)") >= 2, "Location controls expose single-flight state")
 
 # Photo selection uses SwiftUI task identity for automatic cancellation and

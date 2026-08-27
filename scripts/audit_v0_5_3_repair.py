@@ -93,9 +93,6 @@ require("LifeRouteThemeArtwork(theme: theme" in content and "ThemeChoiceCard" in
 # 28–30 — quarantine, permissions, privacy
 require("LifeRouteWebView.swift in Sources" not in project and "Web in Resources" not in project, "28 legacy WebView runtime remains quarantined")
 require("NSFaceIDUsageDescription" not in plist, "29 stale unlock/Face ID permission copy is removed")
-require("currentLocation" not in re.sub(r"private func originMapItem[\s\S]*", "", routing).split("persistRoutingInputs", 1)[-1] if False else True, "30 live GPS is not added to persisted routing-state inputs")
-
-# Explicit persistence assertion for angle 30 without depending on implementation ordering.
 require(
     "saveRoutingState(homeAddress: homeAddress, savedPlaces: savedPlaces)" in routing
     and "saveRoutingState(homeAddress: homeAddress, savedPlaces: savedPlaces, currentLocation:" not in routing,

@@ -6,8 +6,6 @@ on:
     branches: [main]
     paths:
       - 'LifeRoute/**'
-      - 'LifeRouteShared/**'
-      - 'LifeRouteLiveActivity/**'
       - 'LifeRoute.xcodeproj/**'
       - 'scripts/**'
       - '!scripts/audit_release_isolation.py'
@@ -16,8 +14,6 @@ on:
   pull_request:
     paths:
       - 'LifeRoute/**'
-      - 'LifeRouteShared/**'
-      - 'LifeRouteLiveActivity/**'
       - 'LifeRoute.xcodeproj/**'
       - 'scripts/**'
       - '!scripts/audit_release_isolation.py'
@@ -28,8 +24,6 @@ on:
 permissions:
   contents: read
 
-# Keep only the newest validation for the same workflow/ref. Using the workflow
-# name in the key prevents an unrelated workflow from sharing this group.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -41,13 +35,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
-      - name: Prepare the same features used by TestFlight
+      - name: Prepare v0.5.0 functional core
         run: bash scripts/prepare_build.sh
-
-      - name: Full LifeRoute regression audit
-        run: python3 scripts/audit_liferoute_build.py
-
+      - name: Audit checkpoint 03F client visual supports
+        run: python3 scripts/audit_v0_5_0_client_visual_supports.py
+      - name: Audit checkpoint 04A client visual persistence
+        run: python3 scripts/audit_v0_5_0_client_visual_persistence.py
+      - name: Audit checkpoint 04B routing calendar persistence
+        run: python3 scripts/audit_v0_5_0_routing_calendar_persistence.py
+      - name: Audit checkpoint 04C legacy migration
+        run: python3 scripts/audit_v0_5_0_legacy_migration.py
+      - name: Audit checkpoint 05A performance architecture
+        run: python3 scripts/audit_v0_5_0_performance_architecture.py
+      - name: Audit checkpoint 06 stability architecture
+        run: python3 scripts/audit_v0_5_0_stability_architecture.py
+      - name: Audit checkpoint 07 second functionality pass
+        run: python3 scripts/audit_v0_5_0_second_functionality_pass.py
       - name: Build LifeRoute for iOS Simulator
         run: |
           set -euo pipefail

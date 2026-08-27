@@ -1,106 +1,64 @@
 # LifeRoute Project Handoff
 
-This file is the durable handoff between LifeRoute development threads. Keep it compact, current, and free of secrets or unrelated personal information.
+This is the durable LifeRoute thread handoff.
 
-## Resume protocol
+## Current active development
 
-At the start of a new LifeRoute thread, read:
-
-1. `LIFEROUTE_HANDOFF.md`
-2. `AGENTS.md`
-3. `APP_CREATION_PLAYBOOK.md`
-4. `TESTFLIGHT_SETUP.md`
-5. `GITHUB_ACTIONS_RUNBOOK.md`
-6. relevant files in `ReusableAppWorkflow/`
-
-Then inspect live GitHub/Actions state before acting on recorded workflow status.
-
-## Current state — 2026-08-26
+LifeRoute has entered a **v0.5.0 architecture rebuild** after repeated v0.4.0 physical-device failures where buttons remained unusable despite successful CI, Simulator builds, and TestFlight uploads.
 
 Repository: `jackersthecoltsfan/LifeRouteFinal`
 
-v0.4.0 product merge commit:
-`b59f9c244419786d92d9c898d9430c0f92ff3d70`
-(`Merge LifeRoute v0.4.0 direct startup`)
+Active rebuild branch: `rebuild/v0.5.0-functional-core`
 
-PR `#13` (`LifeRoute v0.4.0 — remove local login gate`) was merged after its branch validations succeeded.
+Detailed rebuild handoff: `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`
 
-v0.4.0 was released to TestFlight from SHA:
-`3d7993804ad008fbbd8993afae066eed314fcb74`
+Current green runtime checkpoint: **07 — second full functionality pass**, commit `ea05fd8df0a3d2f365cbcbbaa45f87239a591270`; GitHub Actions run `33027155445` passed all accumulated audits, the focused cross-domain pass, and the actual iOS Simulator build.
 
-That SHA differs from the product merge only by the documentation-only handoff update `Update handoff after v0.4.0 merge validation`; no app/runtime files changed between the validated product merge and the released SHA.
+At the start of a new LifeRoute thread, read in this order:
 
-TestFlight workflow `LifeRoute → TestFlight` run `#70` / ID `33006131821` completed successfully, including:
+1. `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`
+2. `AGENTS.md`
+3. this file for the active pointer
+4. `APP_CREATION_PLAYBOOK.md`
+5. `TESTFLIGHT_SETUP.md`
+6. `GITHUB_ACTIONS_RUNBOOK.md`
+7. relevant files in `ReusableAppWorkflow/`
 
-- exact-SHA release-source verification;
-- deterministic LifeRoute preparation;
-- full LifeRoute regression audit;
-- Apple connection and bundle-ID validation;
-- archive and signed IPA export;
-- the actual `Upload to TestFlight` step;
-- IPA artifact save;
-- temporary signing-asset cleanup.
+Then inspect the live rebuild branch and Actions state before modifying code.
 
-The first release request for merge SHA `b59f9c...` was safely rejected after `main` advanced by the documentation-only handoff commit. A second exact-current-main request (`#15`) was accepted and produced successful TestFlight run `#70`. Release-request issues `#14` and `#15` are closed.
+## v0.5.0 product decision
 
-## v0.4.0 direct-startup decision
+v0.5.0 is a controlled rebuild of the active app/runtime architecture from the functional core upward. Do not continue stacking hotfixes onto the v0.4.0 interaction runtime.
 
-Physical-device testing showed that the legacy local username/PIN login screen remained unreliable even after PIN fields accepted input. v0.4.0 therefore launches directly into LifeRoute.
+The first goal is a minimal, deterministic, high-performance functional core that works reliably on a physical iPhone. Every rebuild layer gets its own checkpoint commit and focused audit so regressions can be traced to the exact layer that introduced them.
 
-Implementation:
+The first v0.5.0 TestFlight candidate is a **functionality/performance/stability** build. Full cosmetic richness comes later, after physical-device operability is confirmed.
 
-- a deterministic early bypass returns before legacy local-auth startup work executes;
-- no PIN derivation, auth overlay/style construction, login rendering, settings polling, or native `authStatus` startup request runs on the normal v0.4.0 path;
-- stale auth overlay/styles/settings rows and auth-lock attributes are defensively removed;
-- the legacy local-auth implementation remains recoverable below the bypass for a future redesign;
-- native Keychain/biometric infrastructure remains present and hardened but dormant from normal startup;
-- Google Calendar OAuth remains separate, intact, and read-only (`calendar.readonly`);
-- no credentials, secrets, signing material, or provider tokens were exposed.
+Apple/TestFlight marketing version must be **0.5.0** for the app and all shipping targets; build numbers may continue increasing normally.
 
-The deterministic path remains rooted in `scripts/prepare_build.sh`; the v0.4.0 bypass is applied through the existing auth preparation chain.
+## Appearance preservation
 
-## Validation evidence
+Do not discard the current visual work. Preserve/refactor it as independently enableable cosmetic chunks that sit on top of the rebuilt functional core and are not required for functionality.
 
-Branch/runtime validation:
+Preserve as modular chunks:
 
-- confirmation iOS Build Check `#616` / run ID `33005620839` — success
-- preparation — success
-- full LifeRoute regression audit — success
-- iOS Simulator build — success
+- dark-blue/gold core identity;
+- refined vector icons;
+- categorized Themes (`Classic`, `Metallic`, `Scenery`, `Dynamic`, `Fluid`, `Living`);
+- glass/material treatments;
+- motion/transitions;
+- haptics/sound feedback;
+- dynamic/scenery/living effects;
+- onboarding/premium polish.
 
-Merged-main validation for SHA `b59f9c244419786d92d9c898d9430c0f92ff3d70`:
+These chunks remain quarantined during the initial functional rebuild and are reintroduced one at a time only after the prior checkpoint works on a physical iPhone. If one breaks functionality, revert only that chunk and return to the last known-good checkpoint.
 
-- iOS Build Check `#617` / run ID `33005847996` — success
-- `Prepare the same features used by TestFlight` — success
-- `Full LifeRoute regression audit` — success
-- `Build LifeRoute for iOS Simulator` — success
+## Historical release note
 
-Release validation for TestFlight run `#70` / ID `33006131821`:
+The last v0.4.0 hotfix release was TestFlight workflow run #72 / run ID `33013143643`, built from `64b0c2fef3172a101885e9bdaf4eb7860cc41997`. The workflow completed successfully, including `Upload to TestFlight`, but physical-device testing still showed unusable buttons. CI success is therefore not sufficient evidence of interaction correctness for v0.5.0; physical-device checkpoints are mandatory before cosmetics are layered back in.
 
-- release-source guard — success
-- prepare — success
-- full regression audit — success
-- archive — success
-- signed IPA export — success
-- TestFlight upload — success
+## Immediate next action
 
-Validated areas include auth direct-startup/no-touch-blocking behavior, Google OAuth scope preservation, client profiles/pickers, navigation, Day/Week/Month immediate selected state, routing/gap planning, Live Day/Live Activity, address/home/current/live location, stop/place search and duration, Tools and visual timer, First/Then/session-planning/visual tools, categorized themes, premium haptics/motion/accessibility, AI journeys/runtime safety, external-service limits, state invariants, and no legacy programmatic document scrolling.
+Obtain explicit user authorization to merge draft PR `#20` as defined in `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`.
 
-Performance/smoothness gates passed all four review angles:
-
-1. runtime pressure and freeze prevention
-2. motion and touch responsiveness
-3. scroll/lifecycle stability
-4. release-artifact and navigation integrity
-
-## Performance and UI requirements to preserve
-
-Do not reintroduce whole-document/broad class MutationObservers, repeated full-document scans, forced synchronous layout/reflow tricks, duplicate interaction/transition owners, heavy iPhone blur/filter animation, unnecessary timers/polling, repeated critical-path geometry measurements, or programmatic document scrolling.
-
-Preserve immediate tactile response, lightweight spring motion/haptics, reduced-motion accessibility, immediate Day/Week/Month synchronization, premium dark-blue/gold styling, and categorized Themes (`Classic`, `Metallic`, `Scenery`, `Dynamic`, `Fluid`, `Living`).
-
-## Next action
-
-v0.4.0 direct-startup work is complete, validated, and uploaded to TestFlight. The next step is physical-device testing of TestFlight build `#70`, especially launch responsiveness, absence of the local login overlay, Day/Week/Month response, navigation/touch feel, themes, routing/location, provider connections, and the most-used ABA/Tools workflows.
-
-For the next substantial development task, inspect current `main` and branch into a fresh isolated feature branch. Before any eventual later TestFlight release, rerun deterministic preparation, the full regression suite, performance/smoothness gates, and iOS Simulator build against the final release candidate, then require Brandon's explicit release authorization.
+After an authorized merge, require exact merged-main validation before any TestFlight action. Keep TestFlight untouched and do not add cosmetic chunks yet.

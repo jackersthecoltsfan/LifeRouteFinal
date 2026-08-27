@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# LifeRoute v0.6.3 native preparation. Never reactivate the v0.4 WebView patch stack.
+# LifeRoute v0.7.0 Checkpoint 0 preparation. Never reactivate the v0.4 WebView patch stack.
 rm -rf build
 
 # These two historical audits intentionally lock the pre-v0.6.2 timer/theme behavior.
@@ -61,14 +61,14 @@ python3 -m py_compile \
   scripts/audit_v0_5_4_restore.py \
   scripts/audit_v0_6_0_patch.py \
   scripts/audit_v0_6_2_patch.py \
-  scripts/audit_v0_6_3_patch.py
+  scripts/audit_v0_6_3_patch.py \
+  scripts/audit_v0_7_0_checkpoint_0.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
 
-# Run all non-superseded regression coverage on the fully materialized v0.6.3 tree.
-# v0.6.2's exact theme/audio catalog assertions are superseded by the v0.6.3 audit below;
-# inherited note-context, timing, native-isolation, and release protections are re-asserted there.
+# Run all non-superseded regression coverage on the fully materialized v0.6.3 functional tree.
+# v0.7.0 Checkpoint 0 adds only the visual/architecture contract; production view behavior is unchanged.
 python3 scripts/audit_v0_5_0_functional_shell.py
 python3 scripts/audit_v0_5_0_core_navigation.py
 python3 scripts/audit_v0_5_0_calendar_core.py
@@ -85,5 +85,6 @@ python3 scripts/audit_v0_5_0_second_functionality_pass.py
 python3 scripts/audit_v0_5_3_repair.py
 python3 scripts/audit_v0_6_0_patch.py
 python3 scripts/audit_v0_6_3_patch.py
+python3 scripts/audit_v0_7_0_checkpoint_0.py
 
-echo "LifeRoute v0.6.3 preparation passed: v0.6.2 baseline materialized, persistent scenery + ten Core color schemes + selected-day launch + responsive day-selector layout + gentler timer + bounded session-note context-window hotfix applied, non-superseded regression coverage green, and legacy WebView runtime quarantined."
+echo "LifeRoute v0.7.0 Checkpoint 0 preparation passed: v0.6.3 functional baseline materialized, all non-superseded regressions green, visual/architecture contract locked for Build A, and legacy WebView runtime quarantined."

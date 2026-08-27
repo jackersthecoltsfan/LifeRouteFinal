@@ -371,7 +371,7 @@ struct VisualTimerView: View {
                 }
                 .lifeRouteCard()
 
-                Text("The timer uses an absolute deadline, so returning from another app does not require a polling loop to catch up. Alerts and haptics are intentionally deferred to later layers.")
+                Text("The timer stays accurate from its absolute deadline. During an active countdown it plays a 0.25-second rising chime, then gives a distinct completion chime and haptic at zero.")
                     .font(.caption)
                     .foregroundStyle(palette.textSecondary)
                     .padding(.horizontal, 3)
@@ -381,6 +381,10 @@ struct VisualTimerView: View {
         }
         .navigationTitle("Visual Timer")
         .navigationBarTitleDisplayMode(.inline)
+        .onReceive(timer.$deadline) { deadline in
+            guard deadline == nil, timer.remainingSeconds() <= 0 else { return }
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
     }
 
     private func statusText(at date: Date) -> String {

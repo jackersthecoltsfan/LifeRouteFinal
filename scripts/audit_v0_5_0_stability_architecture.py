@@ -69,6 +69,7 @@ for call, label in [
     ("routingState.cancelPendingOperations()", "routing/location cancellation"),
 ]:
     require(call in scene_change, f"Inactive/background transitions request {label}")
+require("if phase == .active" in scene_change and "routingState.resumeForegroundLocationIfNeeded()" in scene_change, "Active scene resumes an explicitly enabled foreground live-location session")
 require("if phase == .background" in scene_change, "Cancellable routing work stops only on a true background transition")
 require("providerState.cancelPendingOperations()" not in scene_change, "System calendar permission/auth flows survive transient inactive scene phases")
 
@@ -125,11 +126,14 @@ for token, label in [
     ("locationRequestInFlight = false", "location request state"),
 ]:
     require(token in routing_cancel, f"Lifecycle cancellation clears {label}")
+require("locationManager.stopUpdatingLocation()" not in routing_cancel, "Background cleanup does not permanently disable an explicitly enabled foreground live-location session")
 
 authorization = section(routing, "func locationManagerDidChangeAuthorization", "func locationManager(_ manager: CLLocationManager, didUpdateLocations")
-require("let shouldRequestLocation = locationRequestPendingAuthorization" in authorization, "Authorization callbacks request a location only after an explicit user request")
-require("if shouldRequestLocation" in authorization, "Authorization changes cannot trigger startup location work")
-require(routing.count("guard locationRequestInFlight else { return }") >= 2, "Stale Core Location success/failure callbacks are ignored")
+require("let shouldBeginLiveUpdates = locationRequestPendingAuthorization || liveLocationEnabled" in authorization, "Authorization callbacks continue location only after user request or an already-enabled live session")
+require("if shouldBeginLiveUpdates" in authorization, "Authorization changes cannot trigger startup location work on their own")
+require("beginForegroundLocationUpdates()" in authorization, "Authorized explicit/live location requests resume through one foreground-update owner")
+require(routing.count("guard locationRequestInFlight || liveLocationEnabled else { return }") >= 2, "Stale Core Location success/failure callbacks are ignored while live mode remains valid")
+require("allowsBackgroundLocationUpdates = false" in routing, "Live Core Location remains foreground-only")
 
 require("routingState.calculateRoute(to: place, mode: routeMode)" in content and "Task { await routingState.calculateRoute" not in content, "Route buttons call the domain-owned operation directly")
 require("routingState.openInAppleMaps(place, mode: routeMode)" in content and "Task { await routingState.openInAppleMaps" not in content, "Maps buttons call the domain-owned operation directly")

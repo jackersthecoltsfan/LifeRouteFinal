@@ -278,6 +278,26 @@ enum LifeRouteAppearance {
         nav.shadowColor = accent.withAlphaComponent(0.10)
         nav.titleTextAttributes = [.foregroundColor: UIColor.white, .font: UIFont.systemFont(ofSize: 17, weight: .semibold)]
         nav.largeTitleTextAttributes = [.foregroundColor: UIColor.white, .font: UIFont.systemFont(ofSize: 34, weight: .bold)]
+
+        let navButton = UIBarButtonItemAppearance(style: .plain)
+        navButton.normal.titleTextAttributes = [
+            .foregroundColor: accent,
+            .font: UIFont.systemFont(ofSize: 16, weight: .semibold)
+        ]
+        navButton.highlighted.titleTextAttributes = [
+            .foregroundColor: accent.withAlphaComponent(0.68),
+            .font: UIFont.systemFont(ofSize: 16, weight: .semibold)
+        ]
+        nav.buttonAppearance = navButton
+        nav.backButtonAppearance = navButton
+
+        let doneButton = UIBarButtonItemAppearance(style: .done)
+        doneButton.normal.titleTextAttributes = [
+            .foregroundColor: accent,
+            .font: UIFont.systemFont(ofSize: 16, weight: .bold)
+        ]
+        nav.doneButtonAppearance = doneButton
+
         UINavigationBar.appearance().standardAppearance = nav
         UINavigationBar.appearance().scrollEdgeAppearance = nav
         UINavigationBar.appearance().compactAppearance = nav
@@ -296,6 +316,7 @@ enum LifeRouteAppearance {
         UITabBar.appearance().scrollEdgeAppearance = tab
         UITabBar.appearance().tintColor = accent
         UITabBar.appearance().unselectedItemTintColor = secondary
+        UITabBar.appearance().itemPositioning = .fill
 
         let segmented = UISegmentedControl.appearance()
         segmented.backgroundColor = panel.withAlphaComponent(0.72)
@@ -327,6 +348,13 @@ enum LifeRouteAppearance {
         let cell = UITableViewCell.appearance()
         cell.backgroundColor = panel.withAlphaComponent(0.54)
         cell.tintColor = accent
+
+        let sectionLabel = UILabel.appearance(whenContainedInInstancesOf: [UITableViewHeaderFooterView.self])
+        sectionLabel.textColor = accent.withAlphaComponent(0.84)
+        sectionLabel.font = UIFont.systemFont(ofSize: 12, weight: .bold)
+
+        let tableButton = UIButton.appearance(whenContainedInInstancesOf: [UITableViewCell.self])
+        tableButton.tintColor = accent
 
         UICollectionView.appearance().backgroundColor = .clear
     }

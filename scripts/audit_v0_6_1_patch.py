@@ -111,13 +111,13 @@ icon_generator = read("scripts/generate_v0_6_1_app_icon.swift")
 require_all(
     icon_generator,
     [
-        '"LR" as NSString',
+        "NSImage(size: size)",
+        'drawLetter("L"',
+        'drawLetter("R"',
         "Subtle premium map/street texture",
-        "Cool-blue route layer",
-        "Gold inner rim",
+        "Premium beveled gold inner rim",
         "Gold route ribbon",
-        "navigation pin",
-        "hasAlpha: false",
+        "Location navigation pin",
     ],
     "premium LR icon generator",
 )

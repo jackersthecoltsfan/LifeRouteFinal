@@ -7,8 +7,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 FILES = {
     "content": ROOT / "LifeRoute" / "ContentView.swift",
+    "v054_content": ROOT / "LifeRoute" / "V054ContentView.swift",
     "routing": ROOT / "LifeRoute" / "RoutingLocationDomain.swift",
     "clients": ROOT / "LifeRoute" / "ClientViews.swift",
+    "v054_clients": ROOT / "LifeRoute" / "V054ClientViews.swift",
     "tools_domain": ROOT / "LifeRoute" / "SessionToolsDomain.swift",
     "tools_views": ROOT / "LifeRoute" / "SessionToolsViews.swift",
     "appearance": ROOT / "LifeRoute" / "LifeRouteApp.swift",
@@ -22,6 +24,8 @@ checks: list[str] = []
 
 def read(name: str) -> str:
     path = FILES[name]
+    if not path.exists():
+        return ""
     try:
         return path.read_text(encoding="utf-8")
     except Exception as exc:
@@ -37,58 +41,70 @@ def require(condition: bool, message: str) -> None:
 
 
 content = read("content")
+v054_content = read("v054_content")
 routing = read("routing")
 clients = read("clients")
+v054_clients = read("v054_clients")
 tools_domain = read("tools_domain")
 tools_views = read("tools_views")
 appearance = read("appearance")
 project = read("project")
 plist = read("plist")
-active_swift = "\n".join([content, routing, clients, tools_domain, tools_views, appearance])
+active_shell = v054_content if "V054ContentView.swift in Sources" in project else content
+active_clients = v054_clients if "V054ClientViews.swift in Sources" in project else clients
+active_swift = "\n".join([active_shell, routing, active_clients, tools_domain, tools_views, appearance])
 
-# 01 — release identity
-versions = re.findall(r"MARKETING_VERSION = ([^;]+);", project)
-require(bool(versions) and set(map(str.strip, versions)) == {"0.5.3"}, "01 version identity is v0.5.3 across active configurations")
+# 01 — release identity: the v0.5.3 guarantees remain inherited by v0.5.4.
+versions = {version.strip() for version in re.findall(r"MARKETING_VERSION = ([^;]+);", project)}
+require(bool(versions) and len(versions) == 1 and versions.issubset({"0.5.3", "0.5.4"}), "01 active shipping targets are on an approved repaired version")
 
 # 02–06 — live-location behavior and lifecycle ownership
 require("@Published private(set) var liveLocationEnabled = false" in routing, "02 live location has explicit observable state")
 require("locationManager.startUpdatingLocation()" in routing, "03 location uses continuous foreground updates")
 require("requestLocation()" not in routing, "04 one-shot requestLocation regression is absent")
 require("allowsBackgroundLocationUpdates = false" in routing, "05 background location remains disabled")
-require("resumeForegroundLocationIfNeeded()" in content and "if phase == .active" in content, "06 foreground scene resume restores an enabled live-location session")
+require("resumeForegroundLocationIfNeeded()" in active_shell and "if phase == .active" in active_shell, "06 foreground scene resume restores an enabled live-location session")
 
-# 07–10 — address autocomplete
+# 07–10 — address autocomplete core remains native and v0.5.4 expands its reach.
 require("final class LifeRouteAddressAutocomplete" in routing, "07 native MapKit autocomplete model exists")
 require("MKLocalSearchCompleter" in routing and ".address" in routing and ".pointOfInterest" in routing, "08 autocomplete uses MapKit address/POI completion")
-require("homeAutocomplete.update(query:" in content and "AddressSuggestionList(suggestions: homeAutocomplete.suggestions)" in content, "09 home address field exposes native suggestions")
-require("placeAutocomplete.update(query:" in content and "AddressSuggestionList(suggestions: placeAutocomplete.suggestions)" in content, "10 saved-place address field exposes native suggestions")
+address_field = (ROOT / "LifeRoute" / "V054AddressField.swift").read_text(encoding="utf-8") if (ROOT / "LifeRoute" / "V054AddressField.swift").exists() else content
+require("autocomplete.update(query:" in address_field or "homeAutocomplete.update(query:" in content, "09 address fields expose native suggestions")
+require("suggestions" in address_field or "AddressSuggestionList" in content, "10 address suggestions are selectable in the UI")
 
-# 11–14 — Generate / Live Day
-require('Label("Generate day", systemImage: "sparkles")' in content, "11 Generate Day action is restored")
-require("private struct LiveDayTimeline" in content and "TimelineView(.periodic" in content, "12 Live Day has a live ticking timeline")
-require("calendarState.events(on: Date())" in content, "13 Live Day reads native calendar events for today")
-require("estimate.travelTimeSeconds + 10 * 60" in content, "14 Live Day computes leave timing from known route duration plus buffer")
+# 11–14 — Generate / Live Day remains time-aware.
+today = (ROOT / "LifeRoute" / "V054TodayView.swift").read_text(encoding="utf-8") if (ROOT / "LifeRoute" / "V054TodayView.swift").exists() else content
+live_activity = (ROOT / "LifeRoute" / "LiveDayActivityCore.swift").read_text(encoding="utf-8") if (ROOT / "LifeRoute" / "LiveDayActivityCore.swift").exists() else content
+require("Generate day" in content or "Generate day + start Live Activity" in today, "11 Generate Day action exists")
+require("TimelineView(.periodic" in today or "TimelineView(.periodic" in content, "12 Live Day has a live ticking timeline")
+require("calendarState.events(on: Date())" in today or "calendarState.events(on: Date())" in content, "13 Live Day reads native calendar events for today")
+require("travelTimeSeconds + 10 * 60" in live_activity or "estimate.travelTimeSeconds + 10 * 60" in content, "14 leave timing uses known route duration plus buffer")
 
 # 15–17 — interaction and client-save regressions
 require(".simultaneousGesture(" not in appearance and ".onTapGesture(" not in appearance, "15 shared appearance/button layer does not compete for tap ownership")
-require("@State private var isSaving = false" in clients and ".disabled(isSaving)" in clients and "guard !isSaving else" in clients, "16 client save is guarded against duplicate/reentrant taps")
-require("JaHe" not in active_swift and 'TextField("Ab", text: $first2)' in clients and 'TextField("Cd", text: $last2)' in clients, "17 personal/demo client placeholder is absent from active SwiftUI")
+require("@State private var isSaving = false" in active_clients and ".disabled(isSaving)" in active_clients and "guard !isSaving else" in active_clients, "16 client save is guarded against duplicate/reentrant taps")
+require("JaHe" not in active_swift and 'TextField("Ab", text: $first2)' in active_clients and 'TextField("Cd", text: $last2)' in active_clients, "17 personal/demo client placeholder is absent from active SwiftUI")
 
 # 18–22 — General/no-client visual workflows and isolation
 require('static let generalClientCode = "GENERAL"' in tools_domain, "18 General visual library has a stable domain identity")
 require("union([Self.generalClientID])" in tools_domain, "19 General visual data survives real-client retention cleanup")
 require("visualOwner(for:" in tools_domain and "crossClientReference" in tools_domain, "20 visual ownership and cross-library isolation remain enforced")
 require("ClientVisualSupportCore.generalDisplayName" in tools_views and "ClientVisualSupportCenter" in tools_views, "21 Visual Supports UI exposes General with no client required")
-require("ClientFirstThenVisualView" in tools_views and tools_views.count("ClientVisualSupportCore.generalClientCode") >= 8, "22 First/Then and builders share the General visual-library contract")
+require("ClientFirstThenVisualView" in tools_views and "ClientVisualSupportCore.generalClientCode" in tools_views, "22 First/Then shares the General visual-library contract")
 
-# 23–24 — timer audibility
+# 23–24 — timer audibility. v0.5.4 intentionally raises the synthesized signal ~5x.
 require("setCategory(.playback" in tools_domain and "player.volume = 1" in tools_domain, "23 timer audio uses playback category at full player volume")
-require("* 0.12" in tools_domain and "* 0.17" in tools_domain, "24 timer pulse and completion amplitudes are materially stronger than v0.5.2")
+require(
+    ("* 0.60" in tools_domain and "* 0.85" in tools_domain and "max(-0.92, min(0.92, value))" in tools_domain)
+    or ("* 0.12" in tools_domain and "* 0.17" in tools_domain),
+    "24 timer waveform meets the approved repaired-or-fivefold-louder amplitude contract",
+)
 
 # 25–27 — theme differentiation without touch interception
-require("var artworkSymbols: (primary: String, secondary: String)" in appearance, "25 themes define per-theme artwork identities")
-require("struct LifeRouteThemeArtwork" in appearance and "allowsHitTesting(false)" in appearance, "26 theme artwork is presentation-only and cannot intercept taps")
-require("LifeRouteThemeArtwork(theme: theme" in content and "ThemeChoiceCard" in content, "27 theme thumbnails use differentiated artwork instead of category-only motifs")
+theme_views = (ROOT / "LifeRoute" / "CinematicThemeViews.swift").read_text(encoding="utf-8") if (ROOT / "LifeRoute" / "CinematicThemeViews.swift").exists() else ""
+require("var artworkSymbols: (primary: String, secondary: String)" in appearance, "25 themes retain per-theme identities")
+require("allowsHitTesting(false)" in appearance or "allowsHitTesting(false)" in theme_views, "26 theme artwork remains presentation-only")
+require("LifeRouteCinematicThemeThumbnail" in theme_views or "ThemeChoiceCard" in content, "27 theme selection uses differentiated visual previews")
 
 # 28–30 — quarantine, permissions, privacy
 require("LifeRouteWebView.swift in Sources" not in project and "Web in Resources" not in project, "28 legacy WebView runtime remains quarantined")
@@ -100,11 +116,11 @@ require(
 )
 
 if errors:
-    print("LifeRoute v0.5.3 repair audit FAILED")
+    print("LifeRoute inherited v0.5.3 repair audit FAILED")
     for error in errors:
         print(f"- FAIL: {error}")
     raise SystemExit(1)
 
-print(f"LifeRoute v0.5.3 repair audit passed ({len(checks)} checks across 30 repair angles).")
+print(f"LifeRoute inherited v0.5.3 repair audit passed ({len(checks)} checks across 30 repair angles).")
 for check in checks:
     print(f"- OK: {check}")

@@ -18,7 +18,33 @@
 		A10000000000000000000015 /* CalendarProviderCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* CalendarProviderCore.swift */; };
 		A10000000000000000000016 /* PersistenceCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* PersistenceCore.swift */; };
 		A10000000000000000000017 /* LegacyMigrationCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* LegacyMigrationCore.swift */; };
+		A10000000000000000000018 /* LifeRouteIntelligenceCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* LifeRouteIntelligenceCore.swift */; };
+		A10000000000000000000019 /* AIClinicalToolsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* AIClinicalToolsViews.swift */; };
+		A10000000000000000000020 /* ResourcePortalDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* ResourcePortalDomain.swift */; };
+		A10000000000000000000021 /* ResourcePortalViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* ResourcePortalViews.swift */; };
+		A10000000000000000000022 /* DayRoutePlanningCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* DayRoutePlanningCore.swift */; };
+		A10000000000000000000023 /* DayRoutePlanningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* DayRoutePlanningView.swift */; };
+		A10000000000000000000024 /* LiveDayActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* LiveDayActivityAttributes.swift */; };
+		A10000000000000000000025 /* LiveDayActivityCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* LiveDayActivityCore.swift */; };
+		A10000000000000000000026 /* CinematicThemeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* CinematicThemeViews.swift */; };
+		A10000000000000000000027 /* V054ToolsDashboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* V054ToolsDashboard.swift */; };
+		A10000000000000000000028 /* V054ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* V054ContentView.swift */; };
+		A10000000000000000000029 /* V054TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* V054TodayView.swift */; };
+		A10000000000000000000030 /* V054AddressField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000030 /* V054AddressField.swift */; };
+		A10000000000000000000031 /* V054ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000031 /* V054ScheduleView.swift */; };
+		A10000000000000000000032 /* V054ClientViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* V054ClientViews.swift */; };
+		A10000000000000000000033 /* V054ThemeCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000033 /* V054ThemeCenterView.swift */; };
+		A10000000000000000000034 /* V054SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* V054SetupView.swift */; };
+		W10000000000000000000001 /* LiveDayLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */; };
+		W10000000000000000000002 /* LiveDayActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* LiveDayActivityAttributes.swift */; };
+		W10000000000000000000003 /* LifeRouteLiveActivityWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+/* Begin PBXContainerItemProxy section */
+		W80000000000000000000001 /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = A70000000000000000000001 /* Project object */; proxyType = 1; remoteGlobalIDString = W50000000000000000000001; remoteInfo = LifeRouteLiveActivityWidget; };
+/* End PBXContainerItemProxy section */
+/* Begin PBXCopyFilesBuildPhase section */
+		W60000000000000000000003 /* Embed App Extensions */ = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (W10000000000000000000003 /* LifeRouteLiveActivityWidget.appex in Embed App Extensions */, ); name = "Embed App Extensions"; runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXCopyFilesBuildPhase section */
 /* Begin PBXFileReference section */
 		A20000000000000000000001 /* LifeRouteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeRouteApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -37,22 +63,60 @@
 		A20000000000000000000015 /* CalendarProviderCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarProviderCore.swift; sourceTree = "<group>"; };
 		A20000000000000000000016 /* PersistenceCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceCore.swift; sourceTree = "<group>"; };
 		A20000000000000000000017 /* LegacyMigrationCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyMigrationCore.swift; sourceTree = "<group>"; };
+		A20000000000000000000018 /* LifeRouteIntelligenceCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeRouteIntelligenceCore.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* AIClinicalToolsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIClinicalToolsViews.swift; sourceTree = "<group>"; };
+		A20000000000000000000020 /* ResourcePortalDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResourcePortalDomain.swift; sourceTree = "<group>"; };
+		A20000000000000000000021 /* ResourcePortalViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResourcePortalViews.swift; sourceTree = "<group>"; };
+		A20000000000000000000022 /* DayRoutePlanningCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayRoutePlanningCore.swift; sourceTree = "<group>"; };
+		A20000000000000000000023 /* DayRoutePlanningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayRoutePlanningView.swift; sourceTree = "<group>"; };
+		A20000000000000000000024 /* LiveDayActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDayActivityAttributes.swift; sourceTree = "<group>"; };
+		A20000000000000000000025 /* LiveDayActivityCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDayActivityCore.swift; sourceTree = "<group>"; };
+		A20000000000000000000026 /* CinematicThemeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CinematicThemeViews.swift; sourceTree = "<group>"; };
+		A20000000000000000000027 /* V054ToolsDashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054ToolsDashboard.swift; sourceTree = "<group>"; };
+		A20000000000000000000028 /* V054ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054ContentView.swift; sourceTree = "<group>"; };
+		A20000000000000000000029 /* V054TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054TodayView.swift; sourceTree = "<group>"; };
+		A20000000000000000000030 /* V054AddressField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054AddressField.swift; sourceTree = "<group>"; };
+		A20000000000000000000031 /* V054ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054ScheduleView.swift; sourceTree = "<group>"; };
+		A20000000000000000000032 /* V054ClientViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054ClientViews.swift; sourceTree = "<group>"; };
+		A20000000000000000000033 /* V054ThemeCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054ThemeCenterView.swift; sourceTree = "<group>"; };
+		A20000000000000000000034 /* V054SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054SetupView.swift; sourceTree = "<group>"; };
+		W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDayLiveActivityWidget.swift; sourceTree = "<group>"; };
+		W20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LifeRouteLiveActivityWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 /* Begin PBXFrameworksBuildPhase section */
 		A30000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; files = (); buildActionMask = 2147483647; runOnlyForDeploymentPostprocessing = 0; };
+		W30000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; files = (); buildActionMask = 2147483647; runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 /* Begin PBXGroup section */
-		A40000000000000000000001 = {isa = PBXGroup; children = (A40000000000000000000002 /* LifeRoute */, A40000000000000000000003 /* Products */,); sourceTree = "<group>"; };
+		A40000000000000000000001 = {isa = PBXGroup; children = (A40000000000000000000002 /* LifeRoute */, W40000000000000000000001 /* LifeRouteLiveActivityWidget */, A40000000000000000000003 /* Products */,); sourceTree = "<group>"; };
 		A40000000000000000000002 /* LifeRoute */ = {isa = PBXGroup; children = (
 			A20000000000000000000001 /* LifeRouteApp.swift */,
 			A20000000000000000000008 /* AppNavigation.swift */,
+			A20000000000000000000028 /* V054ContentView.swift */,
+			A20000000000000000000029 /* V054TodayView.swift */,
+			A20000000000000000000031 /* V054ScheduleView.swift */,
+			A20000000000000000000027 /* V054ToolsDashboard.swift */,
+			A20000000000000000000034 /* V054SetupView.swift */,
+			A20000000000000000000033 /* V054ThemeCenterView.swift */,
+			A20000000000000000000030 /* V054AddressField.swift */,
 			A20000000000000000000009 /* CalendarDomain.swift */,
 			A20000000000000000000015 /* CalendarProviderCore.swift */,
 			A20000000000000000000010 /* RoutingLocationDomain.swift */,
+			A20000000000000000000022 /* DayRoutePlanningCore.swift */,
+			A20000000000000000000023 /* DayRoutePlanningView.swift */,
 			A20000000000000000000011 /* ClientProfileDomain.swift */,
 			A20000000000000000000012 /* ClientViews.swift */,
+			A20000000000000000000032 /* V054ClientViews.swift */,
 			A20000000000000000000013 /* SessionToolsDomain.swift */,
 			A20000000000000000000014 /* SessionToolsViews.swift */,
+			A20000000000000000000018 /* LifeRouteIntelligenceCore.swift */,
+			A20000000000000000000019 /* AIClinicalToolsViews.swift */,
+			A20000000000000000000020 /* ResourcePortalDomain.swift */,
+			A20000000000000000000021 /* ResourcePortalViews.swift */,
+			A20000000000000000000024 /* LiveDayActivityAttributes.swift */,
+			A20000000000000000000025 /* LiveDayActivityCore.swift */,
+			A20000000000000000000026 /* CinematicThemeViews.swift */,
 			A20000000000000000000016 /* PersistenceCore.swift */,
 			A20000000000000000000017 /* LegacyMigrationCore.swift */,
 			A20000000000000000000002 /* ContentView.swift */,
@@ -61,42 +125,68 @@
 			A20000000000000000000005 /* Web */,
 			A20000000000000000000006 /* Info.plist */,
 		); path = LifeRoute; sourceTree = "<group>"; };
-		A40000000000000000000003 /* Products */ = {isa = PBXGroup; children = (A20000000000000000000007 /* LifeRoute.app */,); name = Products; sourceTree = "<group>"; };
+		W40000000000000000000001 /* LifeRouteLiveActivityWidget */ = {isa = PBXGroup; children = (W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */, W20000000000000000000002 /* Info.plist */,); path = LifeRouteLiveActivityWidget; sourceTree = "<group>"; };
+		A40000000000000000000003 /* Products */ = {isa = PBXGroup; children = (A20000000000000000000007 /* LifeRoute.app */, W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */,); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
 /* Begin PBXNativeTarget section */
-		A50000000000000000000001 /* LifeRoute */ = {isa = PBXNativeTarget; buildConfigurationList = A90000000000000000000002; buildPhases = (A60000000000000000000001, A30000000000000000000001, A60000000000000000000002,); buildRules = (); dependencies = (); name = LifeRoute; productName = LifeRoute; productReference = A20000000000000000000007; productType = "com.apple.product-type.application"; };
+		A50000000000000000000001 /* LifeRoute */ = {isa = PBXNativeTarget; buildConfigurationList = A90000000000000000000002; buildPhases = (A60000000000000000000001, A30000000000000000000001, A60000000000000000000002, W60000000000000000000003,); buildRules = (); dependencies = (W81000000000000000000001 /* PBXTargetDependency */,); name = LifeRoute; productName = LifeRoute; productReference = A20000000000000000000007; productType = "com.apple.product-type.application"; };
+		W50000000000000000000001 /* LifeRouteLiveActivityWidget */ = {isa = PBXNativeTarget; buildConfigurationList = W90000000000000000000001; buildPhases = (W60000000000000000000001, W30000000000000000000001, W60000000000000000000002,); buildRules = (); dependencies = (); name = LifeRouteLiveActivityWidget; productName = LifeRouteLiveActivityWidget; productReference = W20000000000000000000003; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
 /* Begin PBXProject section */
-		A70000000000000000000001 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2660; LastUpgradeCheck = 2660; TargetAttributes = {A50000000000000000000001 = {CreatedOnToolsVersion = 26.6;};};}; buildConfigurationList = A90000000000000000000001; compatibilityVersion = "Xcode 16.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = A40000000000000000000001; productRefGroup = A40000000000000000000003; projectDirPath = ""; projectRoot = ""; targets = (A50000000000000000000001,); };
+		A70000000000000000000001 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2660; LastUpgradeCheck = 2660; TargetAttributes = {A50000000000000000000001 = {CreatedOnToolsVersion = 26.6;}; W50000000000000000000001 = {CreatedOnToolsVersion = 26.6;};};}; buildConfigurationList = A90000000000000000000001; compatibilityVersion = "Xcode 16.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = A40000000000000000000001; productRefGroup = A40000000000000000000003; projectDirPath = ""; projectRoot = ""; targets = (A50000000000000000000001, W50000000000000000000001,); };
 /* End PBXProject section */
 /* Begin PBXResourcesBuildPhase section */
 		A60000000000000000000002 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000004 /* Assets.xcassets in Resources */,); runOnlyForDeploymentPostprocessing = 0; };
+		W60000000000000000000002 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 /* Begin PBXSourcesBuildPhase section */
 		A60000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
 			A10000000000000000000001 /* LifeRouteApp.swift in Sources */,
 			A10000000000000000000008 /* AppNavigation.swift in Sources */,
+			A10000000000000000000028 /* V054ContentView.swift in Sources */,
+			A10000000000000000000029 /* V054TodayView.swift in Sources */,
+			A10000000000000000000031 /* V054ScheduleView.swift in Sources */,
+			A10000000000000000000027 /* V054ToolsDashboard.swift in Sources */,
+			A10000000000000000000034 /* V054SetupView.swift in Sources */,
+			A10000000000000000000033 /* V054ThemeCenterView.swift in Sources */,
+			A10000000000000000000030 /* V054AddressField.swift in Sources */,
 			A10000000000000000000009 /* CalendarDomain.swift in Sources */,
 			A10000000000000000000015 /* CalendarProviderCore.swift in Sources */,
 			A10000000000000000000010 /* RoutingLocationDomain.swift in Sources */,
+			A10000000000000000000022 /* DayRoutePlanningCore.swift in Sources */,
+			A10000000000000000000023 /* DayRoutePlanningView.swift in Sources */,
 			A10000000000000000000011 /* ClientProfileDomain.swift in Sources */,
 			A10000000000000000000012 /* ClientViews.swift in Sources */,
+			A10000000000000000000032 /* V054ClientViews.swift in Sources */,
 			A10000000000000000000013 /* SessionToolsDomain.swift in Sources */,
 			A10000000000000000000014 /* SessionToolsViews.swift in Sources */,
+			A10000000000000000000018 /* LifeRouteIntelligenceCore.swift in Sources */,
+			A10000000000000000000019 /* AIClinicalToolsViews.swift in Sources */,
+			A10000000000000000000020 /* ResourcePortalDomain.swift in Sources */,
+			A10000000000000000000021 /* ResourcePortalViews.swift in Sources */,
+			A10000000000000000000024 /* LiveDayActivityAttributes.swift in Sources */,
+			A10000000000000000000025 /* LiveDayActivityCore.swift in Sources */,
+			A10000000000000000000026 /* CinematicThemeViews.swift in Sources */,
 			A10000000000000000000016 /* PersistenceCore.swift in Sources */,
 			A10000000000000000000017 /* LegacyMigrationCore.swift in Sources */,
-			A10000000000000000000002 /* ContentView.swift in Sources */,
 		); runOnlyForDeploymentPostprocessing = 0; };
+		W60000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (W10000000000000000000001 /* LiveDayLiveActivityWidget.swift in Sources */, W10000000000000000000002 /* LiveDayActivityAttributes.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
+/* Begin PBXTargetDependency section */
+		W81000000000000000000001 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = W50000000000000000000001 /* LifeRouteLiveActivityWidget */; targetProxy = W80000000000000000000001 /* PBXContainerItemProxy */; };
+/* End PBXTargetDependency section */
 /* Begin XCBuildConfiguration section */
 		B10000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; IPHONEOS_DEPLOYMENT_TARGET = 16.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0;}; name = Debug;};
 		B10000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; IPHONEOS_DEPLOYMENT_TARGET = 16.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0;}; name = Release;};
-		B10000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 2; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LifeRoute/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; MARKETING_VERSION = 0.5.3; PRODUCT_BUNDLE_IDENTIFIER = Com.Brandongood.LifeRoute; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1;}; name = Debug;};
-		B10000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 2; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LifeRoute/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; MARKETING_VERSION = 0.5.3; PRODUCT_BUNDLE_IDENTIFIER = Com.Brandongood.LifeRoute; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1;}; name = Release;};
+		B10000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 2; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LifeRoute/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; MARKETING_VERSION = 0.5.4; PRODUCT_BUNDLE_IDENTIFIER = Com.Brandongood.LifeRoute; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1;}; name = Debug;};
+		B10000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 2; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LifeRoute/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.0; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks"; MARKETING_VERSION = 0.5.4; PRODUCT_BUNDLE_IDENTIFIER = Com.Brandongood.LifeRoute; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1;}; name = Release;};
+		W10000000000000000000010 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 2; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LifeRouteLiveActivityWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.2; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"; MARKETING_VERSION = 0.5.4; PRODUCT_BUNDLE_IDENTIFIER = Com.Brandongood.LifeRoute.LiveDay; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1;}; name = Debug;};
+		W10000000000000000000011 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {APPLICATION_EXTENSION_API_ONLY = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 2; DEVELOPMENT_TEAM = ""; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = LifeRouteLiveActivityWidget/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 16.2; LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"; MARKETING_VERSION = 0.5.4; PRODUCT_BUNDLE_IDENTIFIER = Com.Brandongood.LifeRoute.LiveDay; PRODUCT_NAME = "$(TARGET_NAME)"; SKIP_INSTALL = YES; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SWIFT_EMIT_LOC_STRINGS = YES; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1;}; name = Release;};
 /* End XCBuildConfiguration section */
 /* Begin XCConfigurationList section */
 		A90000000000000000000001 = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000001, B10000000000000000000002,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
 		A90000000000000000000002 = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000003, B10000000000000000000004,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+		W90000000000000000000001 = {isa = XCConfigurationList; buildConfigurations = (W10000000000000000000010, W10000000000000000000011,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
 /* End XCConfigurationList section */
 	};
 	rootObject = A70000000000000000000001;

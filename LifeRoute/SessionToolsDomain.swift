@@ -121,7 +121,7 @@ private final class VisualTimerToneEngine {
             let decay = exp(-28 * t)
             let fundamental = sin(2 * Double.pi * frequency * t)
             let shimmer = 0.20 * sin(2 * Double.pi * frequency * 2.01 * t)
-            samples[frame] = Float((fundamental + shimmer) * attack * decay * 0.12)
+            samples[frame] = Float((fundamental + shimmer) * attack * decay * 0.60)
         }
         return buffer
     }
@@ -147,7 +147,7 @@ private final class VisualTimerToneEngine {
                 guard localTime >= 0, localTime <= 0.19 else { continue }
                 let attack = min(1, localTime / 0.008)
                 let decay = exp(-19 * localTime)
-                value += sin(2 * Double.pi * note.frequency * localTime) * attack * decay * 0.17
+                value += sin(2 * Double.pi * note.frequency * localTime) * attack * decay * 0.85
             }
             samples[frame] = Float(max(-0.92, min(0.92, value)))
         }

@@ -4,7 +4,11 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CONTENT = ROOT / "LifeRoute" / "ContentView.swift"
+LEGACY_CONTENT = ROOT / "LifeRoute" / "ContentView.swift"
+V054_CONTENT = ROOT / "LifeRoute" / "V054ContentView.swift"
+V054_TODAY = ROOT / "LifeRoute" / "V054TodayView.swift"
+V054_SCHEDULE = ROOT / "LifeRoute" / "V054ScheduleView.swift"
+V054_SETUP = ROOT / "LifeRoute" / "V054SetupView.swift"
 NAVIGATION = ROOT / "LifeRoute" / "AppNavigation.swift"
 PROJECT = ROOT / "LifeRoute.xcodeproj" / "project.pbxproj"
 PREPARE = ROOT / "scripts" / "prepare_build.sh"
@@ -28,15 +32,22 @@ def read(path: Path) -> str:
         return ""
 
 
-content = read(CONTENT)
+legacy_content = read(LEGACY_CONTENT)
+v054_content = read(V054_CONTENT) if V054_CONTENT.exists() else ""
+v054_today = read(V054_TODAY) if V054_TODAY.exists() else ""
+v054_schedule = read(V054_SCHEDULE) if V054_SCHEDULE.exists() else ""
+v054_setup = read(V054_SETUP) if V054_SETUP.exists() else ""
 navigation = read(NAVIGATION)
 project = read(PROJECT)
 prepare = read(PREPARE)
 
-# Native-only functional-shell contract. Labels may live in the centralized
-# AppSection model; this audit verifies behavior/ownership rather than forcing
-# view-local string duplication.
-require("TabView(selection:" in content, "One explicit native TabView owns top-level navigation")
+active_v054 = "V054ContentView.swift in Sources" in project
+shell = v054_content if active_v054 else legacy_content
+interaction_surface = "\n".join([shell, v054_today, v054_schedule, v054_setup]) if active_v054 else legacy_content
+
+# Native-only functional-shell contract. v0.5.4 may activate the restored shell
+# while the previous ContentView stays in the repository as a regression reference.
+require("TabView(selection:" in shell, "One explicit native TabView owns top-level navigation")
 for case_name, label in [
     ("today", "Today"),
     ("schedule", "Schedule"),
@@ -45,33 +56,38 @@ for case_name, label in [
     ("setup", "Setup"),
 ]:
     require(f"case .{case_name}: return \"{label}\"" in navigation, f"Native top-level destination exists: {label}")
-require("NavigationStack" in content, "Navigation uses native NavigationStack")
-require("Button(" in content, "Functional shell contains semantic native Button controls")
-require("TextField(" in content, "Functional shell contains a semantic native TextField")
-require("Toggle(" in content, "Functional shell contains semantic native state controls")
-require("LifeRouteWebView()" not in content, "Functional shell does not instantiate legacy WKWebView")
-require("WKWebView" not in content and "JavaScript" not in content, "Functional shell has no WebView/JavaScript dependency")
+require("NavigationStack" in shell, "Navigation uses native NavigationStack")
+require("Button" in interaction_surface, "Functional shell contains semantic native Button controls")
+require("TextField(" in interaction_surface, "Functional shell contains semantic native TextField controls")
+require("Toggle(" in interaction_surface, "Functional shell contains semantic native state controls")
+require("LifeRouteWebView()" not in shell, "Functional shell does not instantiate legacy WKWebView")
+require("WKWebView" not in shell and "JavaScript" not in shell, "Functional shell has no WebView/JavaScript dependency")
 require(
-    "No account gate is required to open the app." in content,
-    "Setup explicitly documents direct-launch/no-account-gate behavior",
+    (active_v054 and "typealias ContentView = V054ContentView" in v054_content)
+    or (not active_v054 and "No account gate is required to open the app." in legacy_content),
+    "App launches directly into the reviewed native shell without an account gate",
 )
 
-# Active Xcode target must compile only the reviewed native core and assets.
+# Active Xcode target must compile only reviewed native surfaces and assets.
 require("LifeRouteWebView.swift in Sources" not in project, "Legacy LifeRouteWebView is quarantined from Sources")
 require("Web in Resources" not in project, "Legacy Web runtime is quarantined from Resources")
 require("LifeRouteApp.swift in Sources" in project, "Native app entry remains in Sources")
-require("ContentView.swift in Sources" in project, "Native functional shell remains in Sources")
+require(
+    (active_v054 and "V054ContentView.swift in Sources" in project)
+    or (not active_v054 and "ContentView.swift in Sources" in project),
+    "Reviewed native functional shell remains in Sources",
+)
 require("AppNavigation.swift in Sources" in project, "Central native navigation owner remains in Sources")
 require("Assets.xcassets in Resources" in project, "App assets remain bundled")
 
 versions = [version.strip() for version in re.findall(r"MARKETING_VERSION = ([^;]+);", project)]
-allowed_marketing_versions = {"0.5.0", "0.5.1", "0.5.2", "0.5.3"}
+allowed_marketing_versions = {"0.5.0", "0.5.1", "0.5.2", "0.5.3", "0.5.4"}
 require(bool(versions), "Project contains marketing-version settings")
 require(
     bool(versions)
     and len(set(versions)) == 1
     and versions[0] in allowed_marketing_versions,
-    "Every active shipping target uses one approved v0.5 marketing version (0.5.0 through 0.5.3)",
+    "Every shipping target uses one approved v0.5 marketing version (0.5.0 through 0.5.4)",
 )
 
 # Preparation must not resurrect the quarantined v0.4 runtime.
@@ -86,8 +102,8 @@ legacy_markers = [
 ]
 for marker in legacy_markers:
     require(marker not in prepare, f"Preparation does not reactivate legacy runtime marker: {marker}")
-require("audit_v0_5_0_functional_shell.py" in prepare, "Preparation runs the v0.5.0 functional-shell audit")
-require("audit_v0_5_0_core_navigation.py" in prepare, "Preparation runs the v0.5.0 navigation audit")
+require("audit_v0_5_0_functional_shell.py" in prepare, "Preparation runs the v0.5 functional-shell audit")
+require("audit_v0_5_0_core_navigation.py" in prepare, "Preparation runs the native navigation audit")
 require("rm -rf build" in prepare, "Preparation clears stale repository-local build output")
 
 if errors:

@@ -169,7 +169,6 @@
 			A10000000000000000000026 /* CinematicThemeViews.swift in Sources */,
 			A10000000000000000000016 /* PersistenceCore.swift in Sources */,
 			A10000000000000000000017 /* LegacyMigrationCore.swift in Sources */,
-			A10000000000000000000002 /* ContentView.swift in Sources */,
 		); runOnlyForDeploymentPostprocessing = 0; };
 		W60000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (W10000000000000000000001 /* LiveDayLiveActivityWidget.swift in Sources */, W10000000000000000000002 /* LiveDayActivityAttributes.swift in Sources */,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */

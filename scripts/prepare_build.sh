@@ -17,6 +17,7 @@ python3 scripts/patch_v0_6_3_native.py
 python3 scripts/patch_v0_6_3_compile_hotfix.py
 python3 scripts/patch_v0_6_3_note_context_hotfix.py
 python3 scripts/patch_v0_6_3_day_selector_hotfix.py
+python3 scripts/patch_v0_6_3_core_theme_cleanup.py
 
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
@@ -41,6 +42,7 @@ python3 -m py_compile \
   scripts/patch_v0_6_3_compile_hotfix.py \
   scripts/patch_v0_6_3_note_context_hotfix.py \
   scripts/patch_v0_6_3_day_selector_hotfix.py \
+  scripts/patch_v0_6_3_core_theme_cleanup.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -84,4 +86,4 @@ python3 scripts/audit_v0_5_3_repair.py
 python3 scripts/audit_v0_6_0_patch.py
 python3 scripts/audit_v0_6_3_patch.py
 
-echo "LifeRoute v0.6.3 preparation passed: v0.6.2 baseline materialized, persistent scenery + ten Core themes + selected-day launch + responsive day-selector layout + gentler timer + bounded session-note context-window hotfix applied, non-superseded regression coverage green, and legacy WebView runtime quarantined."
+echo "LifeRoute v0.6.3 preparation passed: v0.6.2 baseline materialized, persistent scenery + ten Core color schemes + selected-day launch + responsive day-selector layout + gentler timer + bounded session-note context-window hotfix applied, non-superseded regression coverage green, and legacy WebView runtime quarantined."

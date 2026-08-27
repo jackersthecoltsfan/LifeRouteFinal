@@ -467,11 +467,13 @@ enum LifeRouteAppearance {
         configure(tab.stackedLayoutAppearance, accent: accent, secondary: secondary)
         configure(tab.inlineLayoutAppearance, accent: accent, secondary: secondary)
         configure(tab.compactInlineLayoutAppearance, accent: accent, secondary: secondary)
-        UITabBar.appearance().standardAppearance = tab
-        UITabBar.appearance().scrollEdgeAppearance = tab
-        UITabBar.appearance().tintColor = accent
-        UITabBar.appearance().unselectedItemTintColor = secondary
-        UITabBar.appearance().itemPositioning = .fill
+        let tabBar = UITabBar.appearance()
+        tabBar.standardAppearance = tab
+        tabBar.scrollEdgeAppearance = tab
+        tabBar.tintColor = accent
+        tabBar.unselectedItemTintColor = secondary
+        tabBar.itemPositioning = .fill
+        tabBar.selectionIndicatorImage = makeTabSelectionIndicator(accent: accent)
 
         let segmented = UISegmentedControl.appearance()
         segmented.backgroundColor = panel.withAlphaComponent(0.72)
@@ -512,6 +514,24 @@ enum LifeRouteAppearance {
         tableButton.tintColor = accent
 
         UICollectionView.appearance().backgroundColor = .clear
+    }
+
+    private static func makeTabSelectionIndicator(accent: UIColor) -> UIImage {
+        let size = CGSize(width: 64, height: 46)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { _ in
+            let rect = CGRect(x: 3, y: 3, width: 58, height: 40)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: 20)
+            accent.withAlphaComponent(0.13).setFill()
+            path.fill()
+            accent.withAlphaComponent(0.20).setStroke()
+            path.lineWidth = 1
+            path.stroke()
+        }
+        return image.resizableImage(
+            withCapInsets: UIEdgeInsets(top: 22, left: 31, bottom: 22, right: 31),
+            resizingMode: .stretch
+        )
     }
 
     private static func configure(_ item: UITabBarItemAppearance, accent: UIColor, secondary: UIColor) {

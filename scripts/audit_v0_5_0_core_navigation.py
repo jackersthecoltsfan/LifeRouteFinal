@@ -32,6 +32,7 @@ def read(path: Path) -> str:
 
 project = read(PROJECT)
 active_v054 = "V054ContentView.swift in Sources" in project
+legacy_source_entry = "\n\t\t\tA10000000000000000000002 /* ContentView.swift in Sources */,"
 content = read(V054_CONTENT) if active_v054 else read(LEGACY_CONTENT)
 children = "\n".join(read(path) for path in [TODAY, TOOLS, SETUP] if path.exists()) if active_v054 else content
 navigation = read(NAVIGATION)
@@ -56,8 +57,8 @@ require("AppNavigation.swift in Sources" in project, "AppRouter is compiled into
 require("LifeRouteWebView.swift in Sources" not in project, "Legacy WebView remains quarantined")
 require("Web in Resources" not in project, "Legacy Web resources remain quarantined")
 require(
-    (active_v054 and "ContentView.swift in Sources" not in project and "typealias ContentView = V054ContentView" in content)
-    or (not active_v054 and "ContentView.swift in Sources" in project),
+    (active_v054 and legacy_source_entry not in project and "typealias ContentView = V054ContentView" in content)
+    or (not active_v054 and legacy_source_entry in project),
     "Exactly one reviewed app shell owns runtime navigation",
 )
 

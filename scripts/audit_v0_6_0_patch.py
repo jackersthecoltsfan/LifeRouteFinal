@@ -108,7 +108,7 @@ require_all(
     intelligence,
     [
         "REQUIRED WRITING STYLE:",
-        "natural chronological narrative",
+        "connected chronological RBT narrative paragraphs",
         "Weave clearly supplied quantitative data",
         "generateVisualScheduleDraft",
         "Return ONLY one step per line",

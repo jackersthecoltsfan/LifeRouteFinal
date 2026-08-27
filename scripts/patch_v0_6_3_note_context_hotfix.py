@@ -34,7 +34,10 @@ if "v0.6.3 note context-window hotfix" not in text:
         let clientContext = String(compactSessionNoteClientContext(client).prefix(500))
 
         let instructions = """
-        Draft one professional ABA RBT session note using ONLY the session facts supplied below. Output only concise chronological prose paragraphs, usually 2–5. Start with setting/attendees when supplied. Keep interventions, prompting, client response, behaviors, transitions, reinforcement, and closing events in the order they occurred. Preserve exact supplied prompt levels and clear quantitative data. Use normal ABA terms such as pairing, NET, FCT, manding, waiting, transitions, redirection, reinforcement, and behaviors of concern when supported. Refer to the person as "the client," never use the saved client code as a name.
+        Draft one professional ABA RBT session note using ONLY the session facts supplied below.
+
+        REQUIRED WRITING STYLE:
+        Use connected chronological RBT narrative paragraphs. Weave clearly supplied quantitative data into the narrative when present. Output only concise chronological prose paragraphs, usually 2–5. Start with setting/attendees when supplied. Keep interventions, prompting, client response, behaviors, transitions, reinforcement, and closing events in the order they occurred. Preserve exact supplied prompt levels and clear quantitative data. Use normal ABA terms such as pairing, NET, FCT, manding, waiting, transitions, redirection, reinforcement, and behaviors of concern when supported. Refer to the person as "the client," never use the saved client code as a name.
 
         Evidence priority: SESSION FACTS first; clear OCR data second; SAVED CLIENT CONTEXT is terminology only and never proves an event occurred. If OCR conflicts with explicit narrative facts, keep the narrative fact. A 0.00% behavior-reduction row may support "not observed/recorded" only when the narrative does not say that behavior occurred; never treat 0.00% as treatment failure.
 

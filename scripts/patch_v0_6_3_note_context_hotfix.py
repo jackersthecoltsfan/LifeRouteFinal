@@ -77,7 +77,7 @@ if "v0.6.3 note context-window hotfix" not in text:
 
     static func generateVisualScheduleDraft'''
 
-    text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+    text, count = re.subn(pattern, lambda _match: replacement, text, count=1, flags=re.S)
     if count != 1:
         raise SystemExit("v0.6.3 note hotfix failed: could not replace ABA note generator")
 

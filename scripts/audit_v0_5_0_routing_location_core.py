@@ -57,9 +57,18 @@ require("@StateObject private var routingState = RoutingLocationCore()" in conte
 require("TodayCoreView(router: router, routingState: routingState)" in content, "Today receives route state explicitly")
 setup_call = re.search(r"SetupCoreView\(([^\n]*)\)", content)
 require(bool(setup_call) and "routingState: routingState" in setup_call.group(1), "Setup receives route state explicitly even as other reviewed dependencies are added")
-require("Button(\"Use current location\")" in content, "Today exposes a semantic current-location control")
-require("Button(\"Estimate\")" in content and "calculateRoute(to: place" in content, "Saved-place route estimate action is wired")
-require("Button(\"Open in Maps\")" in content and "openInAppleMaps" in content, "Saved-place Apple Maps action is wired")
+require(
+    'DashboardActionButton(title: "Locate"' in content and "routingState.requestCurrentLocation()" in content,
+    "Today exposes a semantic current-location control",
+)
+require(
+    "onEstimate: { routingState.calculateRoute(to: place" in content,
+    "Saved-place route estimate action is wired through the dashboard card",
+)
+require(
+    "onMaps: { routingState.openInAppleMaps(place" in content,
+    "Saved-place Apple Maps action is wired through the dashboard card",
+)
 require("Button(\"Add saved place\")" in content, "Setup exposes semantic saved-place creation")
 require("Home and saved places are stored locally in protected LifeRoute app data." in content, "Routing UI states durable routing-input storage truthfully")
 require("Current GPS coordinates and route estimates are not persisted." in content, "Routing UI states transient location/route boundary truthfully")

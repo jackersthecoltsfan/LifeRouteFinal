@@ -26,7 +26,8 @@ python3 scripts/patch_v0_7_0_build_b.py
 python3 scripts/patch_v0_7_0_build_b1.py
 python3 scripts/patch_v0_7_0_visual_library_reuse.py
 python3 scripts/patch_v0_7_0_first_then_horizontal.py
-python3 scripts/patch_v0_7_0_todos_restore.py
+# B.1 wrapper supersedes the direct python3 scripts/patch_v0_7_0_todos_restore.py Home integration.
+python3 scripts/patch_v0_7_0_todos_restore_b1.py
 
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
@@ -58,6 +59,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_visual_library_reuse.py \
   scripts/patch_v0_7_0_first_then_horizontal.py \
   scripts/patch_v0_7_0_todos_restore.py \
+  scripts/patch_v0_7_0_todos_restore_b1.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \

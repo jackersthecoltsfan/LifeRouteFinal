@@ -117,11 +117,18 @@ final class ResourcePortalCore: ObservableObject {
             systemImage: "chart.line.uptrend.xyaxis"
         ),
         LifeRoutePortalLink(
-            title: "ADP",
+            title: "ADP Workforce Now",
             subtitle: "Payroll, time, benefits, and HR",
-            urlString: "https://my.adp.com/",
+            urlString: "https://workforcenow.adp.com/",
             category: .hr,
             systemImage: "dollarsign.circle.fill"
+        ),
+        LifeRoutePortalLink(
+            title: "ADP / MyADP",
+            subtitle: "Employee pay, benefits, and personal ADP portal",
+            urlString: "https://my.adp.com/",
+            category: .hr,
+            systemImage: "person.crop.circle.badge.checkmark"
         ),
         LifeRoutePortalLink(
             title: "BambooHR",

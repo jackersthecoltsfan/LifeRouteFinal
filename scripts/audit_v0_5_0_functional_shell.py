@@ -61,9 +61,15 @@ require("ContentView.swift in Sources" in project, "Native functional shell rema
 require("AppNavigation.swift in Sources" in project, "Central native navigation owner remains in Sources")
 require("Assets.xcassets in Resources" in project, "App assets remain bundled")
 
-versions = re.findall(r"MARKETING_VERSION = ([^;]+);", project)
+versions = [version.strip() for version in re.findall(r"MARKETING_VERSION = ([^;]+);", project)]
+allowed_marketing_versions = {"0.5.0", "0.5.1"}
 require(bool(versions), "Project contains marketing-version settings")
-require(bool(versions) and all(version.strip() == "0.5.0" for version in versions), "Every active shipping target uses marketing version 0.5.0")
+require(
+    bool(versions)
+    and len(set(versions)) == 1
+    and versions[0] in allowed_marketing_versions,
+    "Every active shipping target uses one approved v0.5 marketing version (0.5.0 or 0.5.1)",
+)
 
 # Preparation must not resurrect the quarantined v0.4 runtime.
 legacy_markers = [
@@ -82,11 +88,11 @@ require("audit_v0_5_0_core_navigation.py" in prepare, "Preparation runs the v0.5
 require("rm -rf build" in prepare, "Preparation clears stale repository-local build output")
 
 if errors:
-    print("LifeRoute v0.5.0 functional-shell audit FAILED")
+    print("LifeRoute v0.5 functional-shell audit FAILED")
     for error in errors:
         print(f"- FAIL: {error}")
     raise SystemExit(1)
 
-print(f"LifeRoute v0.5.0 functional-shell audit passed ({len(checks)} checks).")
+print(f"LifeRoute v0.5 functional-shell audit passed ({len(checks)} checks).")
 for check in checks:
     print(f"- OK: {check}")

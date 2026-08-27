@@ -19,6 +19,12 @@ struct RestoredRoutingPersistenceState {
 final class LifeRoutePersistenceStore {
     static let shared = LifeRoutePersistenceStore()
 
+    // This stable owner mirrors the General/no-client visual library in
+    // ClientVisualSupportCore. General visuals are real persisted data even
+    // though there is intentionally no synthetic client profile in Setup.
+    private static let generalVisualLibraryID = UUID(uuidString: "7F164E34-BD4A-4A30-AFDB-70A4AE8C7D3E")!
+    private static let generalVisualLibraryCode = "GENERAL"
+
     private struct PersistedVisualIcon: Codable {
         var id: UUID
         var clientID: UUID
@@ -455,7 +461,8 @@ final class LifeRoutePersistenceStore {
 
     private static func sanitized(_ input: NativeState) -> NativeState {
         let clients = sanitizedClients(input.clients)
-        let codeByClientID = Dictionary(uniqueKeysWithValues: clients.map { ($0.id, $0.code) })
+        var codeByClientID = Dictionary(uniqueKeysWithValues: clients.map { ($0.id, $0.code) })
+        codeByClientID[Self.generalVisualLibraryID] = Self.generalVisualLibraryCode
 
         var seenIconIDs = Set<UUID>()
         let icons = input.visualIcons.compactMap { icon -> PersistedVisualIcon? in

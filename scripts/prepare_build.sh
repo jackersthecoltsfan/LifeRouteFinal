@@ -19,10 +19,12 @@ python3 scripts/patch_v0_6_3_note_context_hotfix.py
 python3 scripts/patch_v0_6_3_day_selector_hotfix.py
 python3 scripts/patch_v0_6_3_core_theme_cleanup.py
 
-# v0.7.0 checkpoints accumulate in order: shell/design system, Today/Home, then the device-parity correction.
+# v0.7.0 checkpoints accumulate in order: shell/design system, Today/Home, device parity,
+# then the saved visual-support reuse correction requested during Build B.1 QA.
 python3 scripts/patch_v0_7_0_build_a.py
 python3 scripts/patch_v0_7_0_build_b.py
 python3 scripts/patch_v0_7_0_build_b1.py
+python3 scripts/patch_v0_7_0_visual_library_reuse.py
 
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
@@ -51,6 +53,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_build_a.py \
   scripts/patch_v0_7_0_build_b.py \
   scripts/patch_v0_7_0_build_b1.py \
+  scripts/patch_v0_7_0_visual_library_reuse.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -74,6 +77,7 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_build_a.py \
   scripts/audit_v0_7_0_build_b.py \
   scripts/audit_v0_7_0_build_b1.py \
+  scripts/audit_v0_7_0_visual_library_reuse.py \
   scripts/audit_v0_7_0_testflight.py
 
 plutil -lint LifeRoute/Info.plist
@@ -100,6 +104,7 @@ python3 scripts/audit_v0_7_0_checkpoint_0.py
 python3 scripts/audit_v0_7_0_build_a.py
 python3 scripts/audit_v0_7_0_build_b.py
 python3 scripts/audit_v0_7_0_build_b1.py
+python3 scripts/audit_v0_7_0_visual_library_reuse.py
 python3 scripts/audit_v0_7_0_testflight.py
 
-echo "LifeRoute v0.7.0 Build B.1 preparation passed: accepted Build A + Build B behavior retained, Today/Home device parity correction materialized, selected-day + routing + Live Day behavior protected, accumulated regressions green, v0.7.0 TestFlight identity guarded, and legacy WebView runtime quarantined."
+echo "LifeRoute v0.7.0 Build B.1 preparation passed: accepted Build A + Build B behavior retained, Today/Home device parity corrected, saved choice boards and schedules are discoverable/reusable with previews, selected-day + routing + Live Day behavior protected, accumulated regressions green, v0.7.0 TestFlight identity guarded, and legacy WebView runtime quarantined."

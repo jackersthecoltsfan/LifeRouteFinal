@@ -159,7 +159,11 @@ active_files = [
 for file_name in active_files:
     require(f"{file_name} in Sources" in source["project"], f"Active native target compiles {file_name}")
 require("LifeRouteWebView.swift in Sources" not in source["project"] and "Web in Resources" not in source["project"], "Legacy WebView and JavaScript runtime remain quarantined")
-require(source["project"].count("MARKETING_VERSION = 0.5.0;") >= 2, "Debug and Release shipping configurations remain version 0.5.0")
+approved_versions = [version for version in ("0.5.0", "0.5.1") if f"MARKETING_VERSION = {version};" in source["project"]]
+require(
+    len(approved_versions) == 1 and source["project"].count(f"MARKETING_VERSION = {approved_versions[0]};") >= 2,
+    "Debug and Release shipping configurations use one approved v0.5 marketing version (0.5.0 or 0.5.1)",
+)
 
 accumulated_audits = [
     "audit_v0_5_0_functional_shell.py",
@@ -193,11 +197,11 @@ for forbidden in ["WKWebView", "MutationObserver", "setInterval", "Timer.schedul
     require(forbidden not in active_runtime, f"Second functionality pass adds no quarantined/global interaction mechanism: {forbidden}")
 
 if errors:
-    print("LifeRoute v0.5.0 second-functionality-pass audit FAILED")
+    print("LifeRoute v0.5 second-functionality-pass audit FAILED")
     for error in errors:
         print(f"- FAIL: {error}")
     raise SystemExit(1)
 
-print(f"LifeRoute v0.5.0 second-functionality-pass audit passed ({len(checks)} checks).")
+print(f"LifeRoute v0.5 second-functionality-pass audit passed ({len(checks)} checks).")
 for check in checks:
     print(f"- OK: {check}")

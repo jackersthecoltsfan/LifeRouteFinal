@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import AVFoundation
 
 enum SessionToolRoute: Hashable {
     case visualTimer
@@ -45,10 +46,126 @@ enum SessionToolsCoreError: LocalizedError {
 }
 
 @MainActor
+private final class VisualTimerToneEngine {
+    private static let sampleRate = 44_100.0
+    private static let pulseDuration = 0.085
+
+    private let engine = AVAudioEngine()
+    private let player = AVAudioPlayerNode()
+    private let format = AVAudioFormat(
+        standardFormatWithSampleRate: VisualTimerToneEngine.sampleRate,
+        channels: 1
+    )!
+    private var isPrepared = false
+    private var completionStopTask: Task<Void, Never>?
+
+    func playPulse(frequency: Double) {
+        guard prepareIfNeeded(), let buffer = pulseBuffer(frequency: frequency) else { return }
+        player.scheduleBuffer(buffer, at: nil, options: [])
+        if !player.isPlaying { player.play() }
+    }
+
+    func playCompletion() {
+        guard prepareIfNeeded(), let buffer = completionBuffer() else { return }
+        player.scheduleBuffer(buffer, at: nil, options: [])
+        if !player.isPlaying { player.play() }
+
+        completionStopTask?.cancel()
+        completionStopTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: 550_000_000)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            self?.stop()
+        }
+    }
+
+    func stop() {
+        completionStopTask?.cancel()
+        completionStopTask = nil
+        player.stop()
+        engine.pause()
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    private func prepareIfNeeded() -> Bool {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+
+            if !isPrepared {
+                engine.attach(player)
+                engine.connect(player, to: engine.mainMixerNode, format: format)
+                isPrepared = true
+            }
+            if !engine.isRunning { try engine.start() }
+            return engine.isRunning
+        } catch {
+            return false
+        }
+    }
+
+    private func pulseBuffer(frequency: Double) -> AVAudioPCMBuffer? {
+        let frameCount = AVAudioFrameCount(Self.sampleRate * Self.pulseDuration)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
+              let samples = buffer.floatChannelData?[0] else { return nil }
+        buffer.frameLength = frameCount
+
+        for frame in 0..<Int(frameCount) {
+            let t = Double(frame) / Self.sampleRate
+            let attack = min(1, t / 0.006)
+            let decay = exp(-31 * t)
+            let fundamental = sin(2 * Double.pi * frequency * t)
+            let shimmer = 0.18 * sin(2 * Double.pi * frequency * 2.01 * t)
+            samples[frame] = Float((fundamental + shimmer) * attack * decay * 0.042)
+        }
+        return buffer
+    }
+
+    private func completionBuffer() -> AVAudioPCMBuffer? {
+        let totalDuration = 0.43
+        let frameCount = AVAudioFrameCount(Self.sampleRate * totalDuration)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
+              let samples = buffer.floatChannelData?[0] else { return nil }
+        buffer.frameLength = frameCount
+
+        let notes: [(start: Double, frequency: Double)] = [
+            (0.00, 950),
+            (0.12, 1_160),
+            (0.25, 1_430),
+        ]
+
+        for frame in 0..<Int(frameCount) {
+            let t = Double(frame) / Self.sampleRate
+            var value = 0.0
+            for note in notes {
+                let localTime = t - note.start
+                guard localTime >= 0, localTime <= 0.16 else { continue }
+                let attack = min(1, localTime / 0.008)
+                let decay = exp(-22 * localTime)
+                value += sin(2 * Double.pi * note.frequency * localTime) * attack * decay * 0.052
+            }
+            samples[frame] = Float(value)
+        }
+        return buffer
+    }
+}
+
+@MainActor
 final class VisualTimerCore: ObservableObject {
+    private static let audioPulseNanoseconds: UInt64 = 250_000_000
+    private static let startFrequency = 220.0
+    private static let endFrequency = 1_320.0
+
     @Published private(set) var durationSeconds: TimeInterval = 5 * 60
     @Published private(set) var deadline: Date?
     @Published private(set) var pausedRemainingSeconds: TimeInterval = 5 * 60
+
+    private let toneEngine = VisualTimerToneEngine()
+    private var audioTask: Task<Void, Never>?
 
     var isRunning: Bool { deadline != nil }
 
@@ -57,6 +174,7 @@ final class VisualTimerCore: ObservableObject {
         durationSeconds = seconds
         pausedRemainingSeconds = seconds
         deadline = now.addingTimeInterval(seconds)
+        startAudioLoop()
     }
 
     func remainingSeconds(at now: Date = Date()) -> TimeInterval {
@@ -78,11 +196,13 @@ final class VisualTimerCore: ObservableObject {
     func pause(now: Date = Date()) {
         pausedRemainingSeconds = remainingSeconds(at: now)
         deadline = nil
+        stopAudioLoop()
     }
 
     func resume(now: Date = Date()) {
         guard pausedRemainingSeconds > 0 else { return }
         deadline = now.addingTimeInterval(pausedRemainingSeconds)
+        startAudioLoop()
     }
 
     func addMinute(now: Date = Date()) {
@@ -97,6 +217,49 @@ final class VisualTimerCore: ObservableObject {
     func reset() {
         deadline = nil
         pausedRemainingSeconds = durationSeconds
+        stopAudioLoop()
+    }
+
+    private func startAudioLoop() {
+        audioTask?.cancel()
+        toneEngine.stop()
+        audioTask = Task { [weak self] in
+            guard let self else { return }
+
+            while !Task.isCancelled {
+                guard let deadline = self.deadline else { return }
+                let remaining = max(0, deadline.timeIntervalSinceNow)
+
+                if remaining <= 0 {
+                    self.pausedRemainingSeconds = 0
+                    self.deadline = nil
+                    self.audioTask = nil
+                    self.toneEngine.playCompletion()
+                    return
+                }
+
+                self.toneEngine.playPulse(frequency: self.frequency(forRemaining: remaining))
+                do {
+                    try await Task.sleep(nanoseconds: Self.audioPulseNanoseconds)
+                } catch {
+                    return
+                }
+            }
+        }
+    }
+
+    private func stopAudioLoop() {
+        audioTask?.cancel()
+        audioTask = nil
+        toneEngine.stop()
+    }
+
+    private func frequency(forRemaining remaining: TimeInterval) -> Double {
+        guard durationSeconds > 0 else { return Self.startFrequency }
+        let remainingFraction = min(1, max(0, remaining / durationSeconds))
+        let elapsedFraction = 1 - remainingFraction
+        let eased = pow(elapsedFraction, 1.18)
+        return Self.startFrequency * pow(Self.endFrequency / Self.startFrequency, eased)
     }
 }
 

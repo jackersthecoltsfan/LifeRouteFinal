@@ -239,85 +239,270 @@ struct ClientEditorView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(palette.accent.opacity(0.16))
-                        Text(codePreview == "—" ? "••••" : codePreview)
-                            .font(.subheadline.weight(.black))
-                            .foregroundStyle(palette.accentSecondary)
-                    }
-                    .frame(width: 62, height: 62)
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                editorHero
+                clientCodeCard
+                serviceLocationCard
+                sessionSupportsCard
+                clinicalContextCard
+                saveCard
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(profileID == nil ? "New client profile" : "Edit \(codePreview)")
-                            .font(.title3.weight(.bold))
-                        Text("Privacy-first ABA context for sessions and visual tools.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.vertical, 5)
+                Text("Client profiles stay in protected local LifeRoute app data on this iPhone.")
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 2)
             }
-
-            Section("ABA client code") {
-                TextField("First 2 initials", text: $first2)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                TextField("Last 2 initials", text: $last2)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                LabeledContent("Preview", value: codePreview)
-            }
-
-            Section("Service location") {
-                TextField("Client address / service location", text: $address)
-                    .textContentType(.fullStreetAddress)
-            }
-
-            Section("Session supports") {
-                EditorFieldHeader(title: "Preferred activities / reinforcers", systemImage: "star.fill")
-                TextEditor(text: $preferredActivities)
-                    .frame(minHeight: 92)
-
-                EditorFieldHeader(title: "Current targets / programs", systemImage: "target")
-                TextEditor(text: $currentTargets)
-                    .frame(minHeight: 92)
-
-                EditorFieldHeader(title: "Behaviors of concern", systemImage: "exclamationmark.triangle.fill")
-                TextEditor(text: $behaviorsOfConcern)
-                    .frame(minHeight: 92)
-            }
-
-            Section("Clinical context") {
-                TextField("Communication / FCT notes", text: $communicationNotes, axis: .vertical)
-                    .lineLimit(2...5)
-                TextField("Prompting / reinforcement notes", text: $promptingNotes, axis: .vertical)
-                    .lineLimit(2...5)
-                TextField("Caregiver / setting notes", text: $caregiverNotes, axis: .vertical)
-                    .lineLimit(2...5)
-                TextField("Other clinical notes", text: $clinicalNotes, axis: .vertical)
-                    .lineLimit(2...5)
-            }
-
-            Section {
-                Button {
-                    save()
-                } label: {
-                    Label(profileID == nil ? "Save client" : "Save changes", systemImage: "checkmark.circle.fill")
-                }
-                .buttonStyle(LifeRoutePrimaryButtonStyle())
-
-                if let message {
-                    Text(message)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            .padding(18)
+            .padding(.bottom, 28)
         }
         .navigationTitle(profileID == nil ? "New Client" : codePreview)
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var editorHero: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [palette.panelElevated.opacity(0.96), palette.panel.opacity(0.82)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+            Circle()
+                .fill(palette.accent.opacity(0.18))
+                .frame(width: 180, height: 180)
+                .offset(x: 190, y: -70)
+
+            Image(systemName: "person.crop.circle.badge.checkmark")
+                .font(.system(size: 118, weight: .black))
+                .foregroundStyle(palette.accentSecondary.opacity(0.055))
+                .offset(x: 190, y: 54)
+
+            HStack(alignment: .center, spacing: 14) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .fill(palette.accent.opacity(0.16))
+                    Text(codePreview == "—" ? "••••" : codePreview)
+                        .font(.subheadline.weight(.black))
+                        .foregroundStyle(palette.accentSecondary)
+                }
+                .frame(width: 66, height: 66)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(profileID == nil ? "New client profile" : "Edit \(codePreview)")
+                        .font(.system(size: 26, weight: .black, design: .rounded))
+                        .foregroundStyle(palette.textPrimary)
+                    Text("Privacy-first ABA context for sessions and visual tools.")
+                        .font(.subheadline)
+                        .foregroundStyle(palette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(20)
+        }
+        .frame(minHeight: 170)
+        .overlay {
+            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
+                .stroke(palette.accent.opacity(0.26), lineWidth: 1)
+        }
+    }
+
+    private var clientCodeCard: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            sectionHeader(
+                title: "ABA client code",
+                subtitle: "Use only the first two and last two initials.",
+                systemImage: "person.text.rectangle.fill"
+            )
+
+            HStack(spacing: 10) {
+                editorField(title: "FIRST 2") {
+                    TextField("Ja", text: $first2)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .font(.title3.weight(.bold))
+                }
+
+                editorField(title: "LAST 2") {
+                    TextField("He", text: $last2)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .font(.title3.weight(.bold))
+                }
+            }
+
+            HStack {
+                Text("PREVIEW")
+                    .font(.caption2.weight(.black))
+                    .tracking(1.4)
+                    .foregroundStyle(palette.textSecondary)
+                Spacer()
+                Text(codePreview)
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(palette.accentSecondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(palette.accentSecondary.opacity(0.10), in: Capsule())
+            }
+        }
+        .lifeRouteCard()
+    }
+
+    private var serviceLocationCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader(
+                title: "Service location",
+                subtitle: "Optional location context for your workday.",
+                systemImage: "mappin.and.ellipse"
+            )
+
+            TextField("Client address / service location", text: $address)
+                .textContentType(.fullStreetAddress)
+                .padding(12)
+                .background(fieldBackground)
+        }
+        .lifeRouteCard()
+    }
+
+    private var sessionSupportsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHeader(
+                title: "Session supports",
+                subtitle: "One item per line works well for lists.",
+                systemImage: "square.grid.2x2.fill"
+            )
+
+            editorArea(
+                title: "Preferred activities / reinforcers",
+                systemImage: "star.fill",
+                text: $preferredActivities
+            )
+
+            editorArea(
+                title: "Current targets / programs",
+                systemImage: "target",
+                text: $currentTargets
+            )
+
+            editorArea(
+                title: "Behaviors of concern",
+                systemImage: "exclamationmark.triangle.fill",
+                text: $behaviorsOfConcern
+            )
+        }
+        .lifeRouteCard()
+    }
+
+    private var clinicalContextCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionHeader(
+                title: "Clinical context",
+                subtitle: "Keep concise working context available to session tools.",
+                systemImage: "cross.case.fill"
+            )
+
+            clinicalField("Communication / FCT notes", text: $communicationNotes, systemImage: "bubble.left.and.bubble.right.fill")
+            clinicalField("Prompting / reinforcement notes", text: $promptingNotes, systemImage: "hand.point.up.left.fill")
+            clinicalField("Caregiver / setting notes", text: $caregiverNotes, systemImage: "house.and.flag.fill")
+            clinicalField("Other clinical notes", text: $clinicalNotes, systemImage: "note.text")
+        }
+        .lifeRouteCard()
+    }
+
+    private var saveCard: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            Button {
+                save()
+            } label: {
+                Label(profileID == nil ? "Save client" : "Save changes", systemImage: "checkmark.circle.fill")
+            }
+            .buttonStyle(LifeRoutePrimaryButtonStyle())
+
+            if let message {
+                Label(message, systemImage: "exclamationmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+            }
+        }
+        .lifeRouteCard()
+    }
+
+    private func sectionHeader(title: String, subtitle: String, systemImage: String) -> some View {
+        HStack(alignment: .top, spacing: 11) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(palette.accent.opacity(0.13))
+                Image(systemName: systemImage)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(palette.accent)
+            }
+            .frame(width: 36, height: 36)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(palette.textPrimary)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func editorField<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption2.weight(.black))
+                .tracking(1.2)
+                .foregroundStyle(palette.textSecondary)
+            content()
+                .foregroundStyle(palette.textPrimary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(fieldBackground)
+    }
+
+    private func editorArea(title: String, systemImage: String, text: Binding<String>) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            EditorFieldHeader(title: title, systemImage: systemImage)
+            TextEditor(text: text)
+                .frame(minHeight: 96)
+                .scrollContentBackground(.hidden)
+                .foregroundStyle(palette.textPrimary)
+        }
+        .padding(12)
+        .background(fieldBackground)
+    }
+
+    private func clinicalField(_ title: String, text: Binding<String>, systemImage: String) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Label(title, systemImage: systemImage)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(palette.accentSecondary)
+            TextField(title, text: text, axis: .vertical)
+                .lineLimit(2...5)
+                .foregroundStyle(palette.textPrimary)
+        }
+        .padding(12)
+        .background(fieldBackground)
+    }
+
+    private var fieldBackground: some View {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .fill(palette.panelElevated.opacity(0.36))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.065), lineWidth: 1)
+            }
     }
 
     private var codePreview: String {

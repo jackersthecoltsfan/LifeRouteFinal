@@ -11,6 +11,7 @@ python3 scripts/audit_v0_5_4_restore.py
 
 # Materialize the narrowly scoped v0.6.2 native changes before every validation/archive.
 python3 scripts/patch_v0_6_2_native.py
+python3 scripts/patch_v0_6_2_compile_hotfix.py
 
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
@@ -29,6 +30,7 @@ echo "AppIcon release guard passed: 1024×1024 opaque RGB PNG with no alpha chan
 
 python3 -m py_compile \
   scripts/patch_v0_6_2_native.py \
+  scripts/patch_v0_6_2_compile_hotfix.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# LifeRoute v0.7.0 Checkpoint 0 preparation. Never reactivate the v0.4 WebView patch stack.
+# LifeRoute v0.7.0 Build A preparation. Never reactivate the v0.4 WebView patch stack.
 rm -rf build
 
 # These two historical audits intentionally lock the pre-v0.6.2 timer/theme behavior.
@@ -9,7 +9,7 @@ rm -rf build
 python3 scripts/audit_v0_5_0_session_tools_core.py
 python3 scripts/audit_v0_5_4_restore.py
 
-# Materialize the shipped v0.6.2 baseline first, then layer the narrow v0.6.3 quick fix.
+# Materialize the shipped v0.6.2 baseline first, then layer the v0.6.3 fixes.
 python3 scripts/patch_v0_6_2_native.py
 python3 scripts/patch_v0_6_2_compile_hotfix.py
 python3 scripts/patch_v0_6_3_pre.py
@@ -18,6 +18,9 @@ python3 scripts/patch_v0_6_3_compile_hotfix.py
 python3 scripts/patch_v0_6_3_note_context_hotfix.py
 python3 scripts/patch_v0_6_3_day_selector_hotfix.py
 python3 scripts/patch_v0_6_3_core_theme_cleanup.py
+
+# Build A is a narrow visual layer over the fully materialized v0.6.3 functional tree.
+python3 scripts/patch_v0_7_0_build_a.py
 
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
@@ -43,6 +46,7 @@ python3 -m py_compile \
   scripts/patch_v0_6_3_note_context_hotfix.py \
   scripts/patch_v0_6_3_day_selector_hotfix.py \
   scripts/patch_v0_6_3_core_theme_cleanup.py \
+  scripts/patch_v0_7_0_build_a.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -62,13 +66,13 @@ python3 -m py_compile \
   scripts/audit_v0_6_0_patch.py \
   scripts/audit_v0_6_2_patch.py \
   scripts/audit_v0_6_3_patch.py \
-  scripts/audit_v0_7_0_checkpoint_0.py
+  scripts/audit_v0_7_0_checkpoint_0.py \
+  scripts/audit_v0_7_0_build_a.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
 
-# Run all non-superseded regression coverage on the fully materialized v0.6.3 functional tree.
-# v0.7.0 Checkpoint 0 adds only the visual/architecture contract; production view behavior is unchanged.
+# Run all non-superseded regression coverage on the fully materialized Build A tree.
 python3 scripts/audit_v0_5_0_functional_shell.py
 python3 scripts/audit_v0_5_0_core_navigation.py
 python3 scripts/audit_v0_5_0_calendar_core.py
@@ -86,5 +90,6 @@ python3 scripts/audit_v0_5_3_repair.py
 python3 scripts/audit_v0_6_0_patch.py
 python3 scripts/audit_v0_6_3_patch.py
 python3 scripts/audit_v0_7_0_checkpoint_0.py
+python3 scripts/audit_v0_7_0_build_a.py
 
-echo "LifeRoute v0.7.0 Checkpoint 0 preparation passed: v0.6.3 functional baseline materialized, all non-superseded regressions green, visual/architecture contract locked for Build A, and legacy WebView runtime quarantined."
+echo "LifeRoute v0.7.0 Build A preparation passed: v0.6.3 functional baseline preserved, Checkpoint 0 contract retained, shared premium design system + native shell materialized, accumulated regressions green, and legacy WebView runtime quarantined."

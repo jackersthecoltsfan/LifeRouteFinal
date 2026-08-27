@@ -241,12 +241,11 @@ struct AISessionNoteGeneratorView: View {
 
     private var matchingScratchNotes: [QuickSessionNote] {
         let selectedCode = selectedClientCode.trimmingCharacters(in: .whitespacesAndNewlines)
-        return toolsState.notes
-            .filter { note in
-                if selectedCode.isEmpty { return note.clientCode == nil }
-                return note.clientCode?.caseInsensitiveCompare(selectedCode) == .orderedSame
-            }
-            .reversed()
+        let matches = toolsState.notes.filter { note in
+            if selectedCode.isEmpty { return note.clientCode == nil }
+            return note.clientCode?.caseInsensitiveCompare(selectedCode) == .orderedSame
+        }
+        return Array(matches.reversed())
     }
 
     private var scratchNoteStatus: String {

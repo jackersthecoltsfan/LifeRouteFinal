@@ -257,20 +257,6 @@ def patch_shell() -> None:
     if "v0.7.0 Build A shell" in text:
         return
 
-    old_background = '''            LifeRouteCinematicBackdrop(
-                theme: themeStore.selectedTheme,
-                palette: themeStore.palette
-            )
-            .ignoresSafeArea()'''
-    text = replace_once(text, old_background, "            LifeRoutePageBackground()", "shared page background")
-
-    text = replace_once(
-        text,
-        ".background(Color.clear) // v0.6.3 keep cinematic scenery visible",
-        ".background(Color.clear) // v0.7.0 Build A shell: preserve theme backdrop beneath native tab content",
-        "Build A shell marker",
-    )
-
     old_appearance = '''        let navigationAppearance = UINavigationBarAppearance()
         navigationAppearance.configureWithTransparentBackground()
         navigationAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
@@ -290,7 +276,8 @@ def patch_shell() -> None:
         tabAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
         tabAppearance.backgroundColor = background.withAlphaComponent(0.88)
         tabAppearance.shadowColor = accent.withAlphaComponent(0.09)'''
-    new_appearance = '''        let chromeBlurStyle: UIBlurEffect.Style = theme == .light ? .systemUltraThinMaterialLight : .systemUltraThinMaterialDark
+    new_appearance = '''        // v0.7.0 Build A shell: premium native navigation and tab chrome; routing remains unchanged.
+        let chromeBlurStyle: UIBlurEffect.Style = theme == .light ? .systemUltraThinMaterialLight : .systemUltraThinMaterialDark
 
         let navigationAppearance = UINavigationBarAppearance()
         navigationAppearance.configureWithTransparentBackground()

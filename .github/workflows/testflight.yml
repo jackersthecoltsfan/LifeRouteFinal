@@ -174,14 +174,14 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: ruby scripts/apple_ci_assets.rb snapshot "$RUNNER_TEMP/apple-signing-baseline.json"
 
-      - name: Verify v0.5.2 bundle and version
+      - name: Verify v0.5.3 bundle and version
         run: |
           set -euo pipefail
           grep -q "PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};" LifeRoute.xcodeproj/project.pbxproj
-          test "$(grep -c 'MARKETING_VERSION = 0.5.2;' LifeRoute.xcodeproj/project.pbxproj)" -ge 2
+          test "$(grep -c 'MARKETING_VERSION = 0.5.3;' LifeRoute.xcodeproj/project.pbxproj)" -ge 2
           ! grep -q 'LifeRouteWebView.swift in Sources' LifeRoute.xcodeproj/project.pbxproj
           ! grep -q 'Web in Resources' LifeRoute.xcodeproj/project.pbxproj
-          echo "v0.5.2 native target is isolated and ready for signing."
+          echo "v0.5.3 native target is isolated and ready for signing."
 
       - name: Archive LifeRoute
         env:
@@ -206,14 +206,14 @@ jobs:
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             archive
 
-      - name: Verify archived v0.5.2 identity
+      - name: Verify archived v0.5.3 identity
         run: |
           set -euo pipefail
           APP_PLIST="build/LifeRoute.xcarchive/Products/Applications/LifeRoute.app/Info.plist"
           test -f "$APP_PLIST"
           VERSION=$(plutil -extract CFBundleShortVersionString raw -o - "$APP_PLIST")
           BUILD=$(plutil -extract CFBundleVersion raw -o - "$APP_PLIST")
-          test "$VERSION" = "0.5.2" || { echo "Wrong archived marketing version: $VERSION"; exit 1; }
+          test "$VERSION" = "0.5.3" || { echo "Wrong archived marketing version: $VERSION"; exit 1; }
           test "$BUILD" = "$GITHUB_RUN_NUMBER" || { echo "Wrong archived build number: $BUILD"; exit 1; }
           echo "Archive identity verified: LifeRoute ${VERSION} (${BUILD})."
 
@@ -268,15 +268,15 @@ jobs:
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
 
           {
-            echo "### ✅ LifeRoute v0.5.2 sent to TestFlight"
+            echo "### ✅ LifeRoute v0.5.3 sent to TestFlight"
             echo "Build **#${GITHUB_RUN_NUMBER}** uploaded successfully."
-            echo "This build preserves the validated native functional core and adds the v0.5.2 graphics, theme, navigation, and tactile polish layer."
+            echo "This build contains the validated v0.5.3 functional repair, including restored native interaction, routing/location, Live Day, visual-support, persistence, timer-audio, and theme behavior."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save IPA artifact
         uses: actions/upload-artifact@v6
         with:
-          name: LifeRoute-v0.5.2-TestFlight-build-${{ github.run_number }}
+          name: LifeRoute-v0.5.3-TestFlight-build-${{ github.run_number }}
           path: build/export/*.ipa
           if-no-files-found: ignore
           retention-days: 7

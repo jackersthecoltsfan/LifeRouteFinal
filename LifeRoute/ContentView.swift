@@ -870,10 +870,10 @@ private struct CalendarEventRow: View {
     let onDeleteManualEvent: (LifeRouteCalendarEvent.ID) -> Void
 
     var body: some View {
-        HStack(alignment: .stretch, spacing: 11) {
+        HStack(alignment: .top, spacing: 11) {
             RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .fill(sourceColor)
-                .frame(width: 4)
+                .frame(width: 4, height: 62)
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {

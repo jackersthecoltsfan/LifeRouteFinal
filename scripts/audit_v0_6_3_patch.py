@@ -31,18 +31,26 @@ live_day = read("LifeRoute/LiveDayActivityCore.swift")
 workflow = read(".github/workflows/testflight.yml")
 project = read("LifeRoute.xcodeproj/project.pbxproj")
 
-# v0.6.2's selected-client context-window protection is a hard regression requirement.
+# Session-note generation must fit Apple's on-device model context window even with a client attached.
 require_all(
     intelligence,
     [
         "compactSessionNoteClientContext",
         "summary.prefix(720)",
-        "SAVED CLIENT CONTEXT — terminology only, compacted to protect the on-device model context window",
-        "Saved client information is terminology/context only and never proves an event occurred",
+        "v0.6.3 note context-window hotfix",
+        "let boundedNarrative = String(cleanNarrative.prefix(5_200))",
+        "let boundedOCR = String(recognized.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1_600))",
+        "let clientContext = String(compactSessionNoteClientContext(client).prefix(500))",
+        "SESSION FACTS:",
+        "Evidence priority: SESSION FACTS first; clear OCR data second; SAVED CLIENT CONTEXT is terminology only",
+        "String(prompt.prefix(9_000))",
+        'lower.contains("context window") || lower.contains("context length")',
         "sessionNoteNeedsNarrativeRepair",
     ],
-    "bounded selected-client ABA note context",
+    "bounded ABA note model request",
 )
+require("MASTER ABA SESSION-NOTE STYLE:" not in intelligence, "oversized duplicated master-note prompt must be removed from the materialized v0.6.3 generator")
+require("String(prompt.prefix(16_000))" not in intelligence, "old oversized generic prompt allowance must be removed")
 
 # Preserve the requested v0.6.2 cadence/pitch/volume contract while removing clicky buffer endings.
 require_all(
@@ -177,4 +185,4 @@ require("LifeRouteWebView.swift in Sources" not in project, "legacy WebView sour
 require("Web in Resources" not in project, "legacy Web runtime must stay out of native resources")
 require("LifeRouteLiveActivityWidget.appex in Embed App Extensions" in project, "Live Activity extension embedding must remain intact")
 
-print("LifeRoute v0.6.3 native audit passed: persistent scenery across app chrome, ten ordered polished Core themes, selected-day generation/routing/Live Activity launch, gentle click-free timer releases, inherited selected-client context protection, and TestFlight/native isolation guards.")
+print("LifeRoute v0.6.3 native audit passed: bounded session-note model requests, persistent scenery across app chrome, ten ordered polished Core themes, selected-day generation/routing/Live Activity launch, gentle click-free timer releases, and TestFlight/native isolation guards.")

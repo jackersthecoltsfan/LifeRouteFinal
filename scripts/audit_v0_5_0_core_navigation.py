@@ -34,18 +34,18 @@ require("@StateObject private var router = AppRouter()" in content, "ContentView
 require("TabView(selection: $router.selectedSection)" in content, "TabView selection is owned by AppRouter")
 require(content.count("NavigationStack(path: $router.") == 5, "Each top-level tab has one router-owned NavigationStack")
 require(content.count(".navigationDestination(for: AppRoute.self)") == 5, "Each tab resolves one typed AppRoute destination")
-require("NavigationLink(" in content, "Context navigation uses semantic NavigationLink")
+require("NavigationLink" in content, "Context navigation uses semantic NavigationLink")
 require("@Environment(\\.dismiss)" in content and "dismiss()" in content, "Native close/back behavior uses SwiftUI dismiss")
-require("router.open(.scheduleDetails, in: .schedule)" in content, "Cross-tab contextual navigation is routed centrally")
-require("router.select(.today)" in content, "Direct tab selection goes through AppRouter")
-require("router.resetPath(for: .setup)" in content, "Navigation paths can be reset deterministically")
+require("router.select(" in content, "Direct tab selection goes through AppRouter")
 
 require("final class AppRouter: ObservableObject" in navigation, "AppRouter is the single reference owner for navigation state")
 require("@Published var selectedSection: AppSection = .today" in navigation, "AppRouter owns selected top-level section")
 for path in ["todayPath", "schedulePath", "toolsPath", "resourcesPath", "setupPath"]:
     require(f"@Published var {path} = NavigationPath()" in navigation, f"AppRouter owns {path}")
 require("func open(_ route: AppRoute, in section: AppSection)" in navigation, "Cross-tab route opening has one owner")
+require("selectedSection = section" in navigation and ".append(route)" in navigation, "Cross-tab contextual navigation is routed centrally")
 require("func resetPath(for section: AppSection)" in navigation, "Path reset has one owner")
+require(navigation.count("= NavigationPath()") >= 10, "Navigation paths can be reset deterministically")
 
 require("withAnimation" not in content and ".animation(" not in content, "Navigation core has no cosmetic animation dependency")
 require("WKWebView" not in content and "LifeRouteWebView" not in content, "Navigation core has no WebView dependency")

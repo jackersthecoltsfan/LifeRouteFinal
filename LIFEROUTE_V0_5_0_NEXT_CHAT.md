@@ -11,7 +11,7 @@ Use this only as the quick entrypoint. The full source of truth is `LIFEROUTE_V0
 
 ## Current functional state
 
-Green through Checkpoint 05A:
+Green through Checkpoint 06:
 - native SwiftUI shell/navigation;
 - Day/Week/Month calendar core;
 - Apple + Google read-only calendar providers;
@@ -40,10 +40,12 @@ The first 04C audit passed. The first Simulator compile then found three isolate
 
 Do not add an automatic startup WebKit/localStorage reader. Preserve old WebKit data untouched until native physical-device reliability is proven.
 
-## Immediate next action — validate Layer 6 stability
+## Immediate next action — validate Layer 7 second functionality pass
 
-Checkpoint 06 is implemented and awaiting exact-runtime validation. Inspect the live branch, draft PR #20, and Actions state first. Run the full accumulated audits and require an actual iOS Simulator build before marking stability green or beginning Layer 7.
+Checkpoint 06 is green on runtime commit `cc2b9c694147378a19e2f27d3148bfc184e8262e`; Actions run `33026667496` passed every accumulated audit and the actual Simulator build.
+
+Checkpoint 07 is implemented and awaiting exact-runtime validation. Inspect the live branch, draft PR #20, and Actions state first. Run the full accumulated audits and require an actual iOS Simulator build before marking the second functionality pass green. If it is green, stop and request explicit user authorization before merging PR #20.
 
 Do not change product behavior, add cosmetics, reactivate legacy WebView/JavaScript code, merge PR #20, or upload to TestFlight.
 
-After Layer 6: Layer 7 second full functionality pass → exact merged-main validation → v0.5.0 functional TestFlight candidate only with explicit authorization → physical iPhone confirmation → cosmetics reintroduced one audited chunk at a time.
+After Layer 7 is green: explicit PR #20 merge authorization → exact merged-main validation → v0.5.0 functional TestFlight candidate only with explicit authorization → physical iPhone confirmation → cosmetics reintroduced one audited chunk at a time.

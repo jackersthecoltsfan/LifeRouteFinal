@@ -17,7 +17,8 @@ python3 -m py_compile \
   scripts/audit_v0_5_0_routing_calendar_persistence.py \
   scripts/audit_v0_5_0_legacy_migration.py \
   scripts/audit_v0_5_0_performance_architecture.py \
-  scripts/audit_v0_5_0_stability_architecture.py
+  scripts/audit_v0_5_0_stability_architecture.py \
+  scripts/audit_v0_5_0_second_functionality_pass.py
 plutil -lint LifeRoute/Info.plist
 
 python3 scripts/audit_v0_5_0_functional_shell.py
@@ -33,5 +34,6 @@ python3 scripts/audit_v0_5_0_routing_calendar_persistence.py
 python3 scripts/audit_v0_5_0_legacy_migration.py
 python3 scripts/audit_v0_5_0_performance_architecture.py
 python3 scripts/audit_v0_5_0_stability_architecture.py
+python3 scripts/audit_v0_5_0_second_functionality_pass.py
 
-echo "LifeRoute v0.5.0 functional-core preparation passed through Checkpoint 06. Legacy WebView runtime remains quarantined."
+echo "LifeRoute v0.5.0 functional-core preparation passed through Checkpoint 07. Legacy WebView runtime remains quarantined."

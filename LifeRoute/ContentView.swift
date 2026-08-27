@@ -198,7 +198,11 @@ private struct ScheduleCoreView: View {
                 Button("Today") { calendarState.selectToday() }
                 Text("\(presentation.eventCount) events · \(presentation.timedMinutes) timed minutes").foregroundStyle(.secondary)
             }
-            Section("Events") { CalendarEventsView(presentation: presentation) }
+            Section("Events") {
+                CalendarEventsView(presentation: presentation) { eventID in
+                    calendarState.removeEvent(id: eventID)
+                }
+            }
             Section("Add manual appointment") {
                 TextField("Appointment title", text: $draftTitle).textInputAutocapitalization(.sentences).submitLabel(.done)
                 TextField("Location (optional)", text: $draftLocation).textContentType(.fullStreetAddress)
@@ -233,6 +237,7 @@ private struct ScheduleCoreView: View {
 
 private struct CalendarEventsView: View {
     let presentation: LifeRouteCalendarRangePresentation
+    let onDeleteManualEvent: (LifeRouteCalendarEvent.ID) -> Void
 
     var body: some View {
         switch presentation.range {
@@ -243,7 +248,7 @@ private struct CalendarEventsView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(day.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())).font(.headline)
                     if day.events.isEmpty { Text("No events").foregroundStyle(.secondary) }
-                    else { ForEach(day.events) { event in CalendarEventRow(event: event) } }
+                    else { ForEach(day.events) { event in eventRow(event) } }
                 }.padding(.vertical, 4)
             }
         case .month:
@@ -252,7 +257,7 @@ private struct CalendarEventsView: View {
                 ForEach(presentation.days) { day in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(day.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())).font(.headline)
-                        ForEach(day.events) { event in CalendarEventRow(event: event) }
+                        ForEach(day.events) { event in eventRow(event) }
                     }.padding(.vertical, 4)
                 }
             }
@@ -260,18 +265,33 @@ private struct CalendarEventsView: View {
     }
     @ViewBuilder private func eventRows(_ events: [LifeRouteCalendarEvent]) -> some View {
         if events.isEmpty { Text("No events on this day").foregroundStyle(.secondary) }
-        else { ForEach(events) { event in CalendarEventRow(event: event) } }
+        else { ForEach(events) { event in eventRow(event) } }
+    }
+    private func eventRow(_ event: LifeRouteCalendarEvent) -> some View {
+        CalendarEventRow(event: event, onDeleteManualEvent: onDeleteManualEvent)
     }
 }
 
 private struct CalendarEventRow: View {
     let event: LifeRouteCalendarEvent
+    let onDeleteManualEvent: (LifeRouteCalendarEvent.ID) -> Void
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(event.title).font(.body.weight(.semibold))
-            Text(timeLabel).font(.caption).foregroundStyle(.secondary)
-            if !event.location.isEmpty { Label(event.location, systemImage: "mappin.and.ellipse").font(.caption).foregroundStyle(.secondary) }
-        }.frame(maxWidth: .infinity, alignment: .leading)
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(event.title).font(.body.weight(.semibold))
+                Text(timeLabel).font(.caption).foregroundStyle(.secondary)
+                if !event.location.isEmpty { Label(event.location, systemImage: "mappin.and.ellipse").font(.caption).foregroundStyle(.secondary) }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if event.source == .manual {
+                Button(role: .destructive) {
+                    onDeleteManualEvent(event.id)
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .accessibilityLabel("Delete \(event.title)")
+            }
+        }
     }
     private var timeLabel: String {
         if event.isAllDay { return "All day · \(event.source.rawValue)" }

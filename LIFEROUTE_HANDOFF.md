@@ -12,7 +12,7 @@ Active rebuild branch: `rebuild/v0.5.0-functional-core`
 
 Detailed rebuild handoff: `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`
 
-Current green runtime checkpoint: **05A — performance architecture**, commit `c63bf974daf65dbffca2e8210962a16ad0cdb25c`; GitHub Actions run `33024385161` passed all accumulated audits and the actual iOS Simulator build.
+Current green runtime checkpoint: **06 — stability architecture**, commit `cc2b9c694147378a19e2f27d3148bfc184e8262e`; GitHub Actions run `33026667496` passed all accumulated audits and the actual iOS Simulator build.
 
 At the start of a new LifeRoute thread, read in this order:
 
@@ -59,6 +59,6 @@ The last v0.4.0 hotfix release was TestFlight workflow run #72 / run ID `3301314
 
 ## Immediate next action
 
-Begin **Layer 6 — stability** from the green Checkpoint 05A runtime as defined in `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`.
+Validate **Layer 7 — second full functionality pass** from the green Checkpoint 06 runtime as defined in `LIFEROUTE_V0_5_0_REBUILD_HANDOFF.md`.
 
-Verify one owner per interaction, deterministic foreground/background/relaunch behavior, graceful provider failures, no overlay/pointer/race regressions, and no lifecycle-created duplicate tasks. Keep PR #20 draft/unmerged, do not upload to TestFlight, and do not add cosmetic chunks yet.
+Require all accumulated audits and an actual iOS Simulator build on the exact Layer 7 runtime SHA. If green, stop for explicit PR #20 merge authorization. Keep TestFlight untouched and do not add cosmetic chunks yet.

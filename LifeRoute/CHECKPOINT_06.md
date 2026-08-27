@@ -1,6 +1,8 @@
 # Checkpoint 06 — Stability architecture
 
-Status: **In validation**.
+Status: **Green** on runtime commit `cc2b9c694147378a19e2f27d3148bfc184e8262e`.
+
+Validation: GitHub Actions run `33026667496` passed the accumulated v0.5.0 preparation/audit suite, the focused Checkpoint 06 audit, and the actual iOS Simulator build.
 
 This checkpoint hardens the green native functional core without changing product behavior or adding cosmetic/runtime dependencies.
 

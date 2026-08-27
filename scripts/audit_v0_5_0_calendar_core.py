@@ -58,6 +58,8 @@ require("calendarState.shiftSelection(selectedRange, by: -1)" in content and "ca
 require("DatePicker(\"Selected date\"" in content, "Schedule allows direct date selection")
 require("CalendarEventsView" in content and "CalendarEventRow" in content, "Schedule renders normalized calendar events natively")
 require("Button(\"Add appointment\")" in content and "calendarState.addManualEvent(" in content, "Manual appointment form writes through CalendarCoreState")
+require("calendarState.removeEvent(id: eventID)" in content and "if event.source == .manual" in content, "Manual appointment deletion is wired without exposing provider-event deletion")
+require(".accessibilityLabel(\"Delete \\(event.title)\")" in content, "Manual appointment deletion has an explicit accessibility label")
 require("Appointment saved locally on this iPhone." in content, "UI states durable manual-appointment storage truthfully")
 require("UserDefaults" not in content and "@AppStorage" not in content, "Calendar UI avoids ad-hoc preference persistence")
 require("CalendarDomain.swift in Sources" in project, "Calendar domain is compiled into the active target")

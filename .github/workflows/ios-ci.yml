@@ -49,6 +49,8 @@ jobs:
         run: python3 scripts/audit_v0_5_0_performance_architecture.py
       - name: Audit checkpoint 06 stability architecture
         run: python3 scripts/audit_v0_5_0_stability_architecture.py
+      - name: Audit checkpoint 07 second functionality pass
+        run: python3 scripts/audit_v0_5_0_second_functionality_pass.py
       - name: Build LifeRoute for iOS Simulator
         run: |
           set -euo pipefail

@@ -12,9 +12,9 @@ Branch base: `64b0c2fef3172a101885e9bdaf4eb7860cc41997`
 
 Draft validation PR: `#20` — `LifeRoute v0.5.0 functional-core rebuild`.
 
-Checkpoint 05A validated runtime head: `c63bf974daf65dbffca2e8210962a16ad0cdb25c`.
+Checkpoint 06 validated runtime head: `cc2b9c694147378a19e2f27d3148bfc184e8262e`.
 
-GitHub Actions run `33024385161` passed the accumulated preparation/audit suite, the focused 05A audit, and the actual iOS Simulator build. Always inspect the live PR head before acting.
+GitHub Actions run `33026667496` passed the accumulated preparation/audit suite, the focused Checkpoint 06 audit, and the actual iOS Simulator build. Always inspect the live PR head before acting.
 
 Keep the PR draft/unmerged until the rebuild reaches the exact-SHA release checkpoint.
 
@@ -113,7 +113,7 @@ Checkpoint 05A implementation:
 Do not optimize by reintroducing timers, global observers, polling loops, or hidden caches whose invalidation rules are unclear.
 
 ### Layer 6 — stability
-Checkpoint 06 is implemented and in validation.
+Checkpoint 06 is green on runtime commit `cc2b9c694147378a19e2f27d3148bfc184e8262e`. GitHub Actions run `33026667496` passed the accumulated preparation/audit suite, the focused stability audit, and the actual iOS Simulator build.
 
 The stability slice:
 - removes fire-and-forget interaction tasks from `ContentView` and gives persistence, provider refresh, routing, Maps, and photo loading explicit owners;
@@ -126,10 +126,14 @@ The stability slice:
 - publishes provider calendar replacements through one coherent observable mutation;
 - adds `scripts/audit_v0_5_0_stability_architecture.py` and exposes it before the Simulator build in iOS CI.
 
-Do not mark Checkpoint 06 green until the accumulated audit suite and actual iOS Simulator build pass on the same runtime commit.
+Checkpoint 06 is complete. Preserve this commit as the recovery point while validating Layer 7.
 
 ### Layer 7 — second full functionality pass
-Repeat critical workflows after performance/stability work. This must be green before the first v0.5.0 TestFlight release.
+Checkpoint 07 is implemented and in validation. Its focused executable audit repeats the connected native workflows after performance/stability work: launch/navigation, calendar/providers, routing/location, clients, Session Tools, client visuals, persistence/migration, preceding performance/stability invariants, target quarantine, and version `0.5.0`.
+
+The pass found and fixed one omission: manual appointments now expose an accessible delete action in Day/Week/Month rendering, while provider events remain read-only and calendar rows continue consuming narrow immutable presentation data.
+
+Do not mark Checkpoint 07 green until the full accumulated audit suite and actual iOS Simulator build pass on the same runtime commit. This must be green before PR #20 can be considered for merge authorization.
 
 ## Client-specific visual-support product rule
 
@@ -197,7 +201,8 @@ GitHub Actions run `33021676527` completed successfully. It passed preparation, 
 | 04B — routing + manual calendar persistence | `dcfb886150ce7316ab83723b2c151b47849ba3d0` | Green | Manual appointments, home, saved places persist; provider events/GPS/route estimates remain transient. Policy #37; CI #654 / run `33020305153`. |
 | 04C — legacy data mapper/cleanup boundary | runtime-equivalent head `5295d93141b9a3e45af6dd4cc21855308999da3a` | Green | Pure native mapper/merge; accumulated audits + Simulator build passed in run `33021676527`. |
 | 05A — performance architecture | `c63bf974daf65dbffca2e8210962a16ad0cdb25c` | Green | Ordered off-main snapshot writer, external protected image blobs, visual indexes/downsample cache, calendar presentation indexes; accumulated audits + Simulator build passed in run `33024385161`. |
-| 06 — stability architecture | Pending validation | In validation | Owned/cancellable async work, stale-completion guards, lifecycle flush closure, provider failure preservation, bounded network/pagination, and focused stability audit. |
+| 06 — stability architecture | `cc2b9c694147378a19e2f27d3148bfc184e8262e` | Green | Owned/cancellable async work, stale-completion guards, lifecycle flush closure, provider failure preservation, bounded network/pagination; accumulated audits + Simulator build passed in run `33026667496`. |
+| 07 — second full functionality pass | Pending validation | In validation | Connected native journeys repeated after performance/stability; missing manual-appointment delete action restored without enabling provider deletion. |
 
 ## Cosmetic chunks preserved for later
 
@@ -230,14 +235,14 @@ For every remaining layer/slice:
 2. Read `AGENTS.md`.
 3. Read `LIFEROUTE_V0_5_0_CHECKPOINT_00_INVENTORY.md` when migration/quarantine context matters.
 4. Inspect the live `rebuild/v0.5.0-functional-core` branch, PR #20, and current Actions state.
-5. Confirm the live head still contains the green Checkpoint 05A runtime commit and inspect current Actions state.
-6. Complete Checkpoint 06 validation without changing product behavior or reactivating quarantined runtime/cosmetic code.
+5. Confirm the live head still contains the green Checkpoint 06 runtime commit and inspect current Actions state.
+6. Complete Checkpoint 07 validation without changing product behavior or reactivating quarantined runtime/cosmetic code.
 7. Never return to v0.4 interaction-hotfix layering.
 
 ## Immediate next action
 
-**Validate Checkpoint 06 on the exact runtime commit, then begin Layer 7 only after its accumulated audits and actual iOS Simulator build are green.**
+**Validate Checkpoint 07 on the exact runtime commit. If it is green, stop and request explicit authorization before merging PR #20.**
 
 Do not add a startup WebKit migration reader before the first physical-device reliability checkpoint. Preserve old WebKit data untouched. Keep the old global visual library quarantined.
 
-Keep PR #20 draft/unmerged and TestFlight untouched. Do not mix Layer 7 functionality validation into the Checkpoint 06 runtime commit.
+Keep PR #20 draft/unmerged and TestFlight untouched. Exact merged-main validation cannot begin until the user explicitly authorizes the PR #20 merge.

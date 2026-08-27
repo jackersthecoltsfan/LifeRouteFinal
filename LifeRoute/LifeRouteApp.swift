@@ -191,6 +191,26 @@ enum LifeRouteDesign {
     }
 }
 
+enum LifeRouteHaptics {
+    static func primaryAction() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        generator.impactOccurred(intensity: 0.78)
+    }
+
+    static func selection() {
+        let generator = UISelectionFeedbackGenerator()
+        generator.prepare()
+        generator.selectionChanged()
+    }
+
+    static func success() {
+        let generator = UINotificationFeedbackGenerator()
+        generator.prepare()
+        generator.notificationOccurred(.success)
+    }
+}
+
 struct LifeRouteCardModifier: ViewModifier {
     @Environment(\.lifeRoutePalette) private var palette
 
@@ -229,6 +249,11 @@ struct LifeRoutePrimaryButtonStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.86 : 1)
             .scaleEffect(configuration.isPressed ? 0.972 : 1)
             .animation(reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.78), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { isPressed in
+                if isPressed {
+                    LifeRouteHaptics.primaryAction()
+                }
+            }
     }
 }
 
@@ -251,6 +276,7 @@ struct LifeRouteSecondaryButtonStyle: ButtonStyle {
 }
 
 private struct LifeRouteChromeModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.lifeRoutePalette) private var palette
     @Environment(\.lifeRouteTheme) private var theme
 
@@ -264,6 +290,7 @@ private struct LifeRouteChromeModifier: ViewModifier {
             RadialGradient(colors: [palette.accentSecondary.opacity(0.09), .clear], center: .bottomLeading, startRadius: 20, endRadius: 380).ignoresSafeArea()
             content.scrollContentBackground(.hidden)
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.24), value: theme)
         .environment(\.defaultMinListRowHeight, 52)
         .tint(palette.accent)
         .preferredColorScheme(.dark)
@@ -499,11 +526,11 @@ enum LifeRouteAppearance {
 
         let table = UITableView.appearance()
         table.backgroundColor = .clear
-        table.separatorColor = UIColor.white.withAlphaComponent(0.07)
-        table.sectionHeaderTopPadding = 18
+        table.separatorStyle = .none
+        table.sectionHeaderTopPadding = 12
 
         let cell = UITableViewCell.appearance()
-        cell.backgroundColor = panel.withAlphaComponent(0.54)
+        cell.backgroundColor = panel.withAlphaComponent(0.42)
         cell.tintColor = accent
 
         let sectionLabel = UILabel.appearance(whenContainedInInstancesOf: [UITableViewHeaderFooterView.self])

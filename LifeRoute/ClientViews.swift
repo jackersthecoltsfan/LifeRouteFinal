@@ -378,23 +378,26 @@ struct ClientEditorView: View {
                 systemImage: "square.grid.2x2.fill"
             )
 
-            editorArea(
-                title: "Preferred activities / reinforcers",
-                systemImage: "star.fill",
-                text: $preferredActivities
-            )
+            editorArea(title: "Preferred activities / reinforcers", systemImage: "star.fill") {
+                TextEditor(text: $preferredActivities)
+                    .frame(minHeight: 96)
+                    .scrollContentBackground(.hidden)
+                    .foregroundStyle(palette.textPrimary)
+            }
 
-            editorArea(
-                title: "Current targets / programs",
-                systemImage: "target",
-                text: $currentTargets
-            )
+            editorArea(title: "Current targets / programs", systemImage: "target") {
+                TextEditor(text: $currentTargets)
+                    .frame(minHeight: 96)
+                    .scrollContentBackground(.hidden)
+                    .foregroundStyle(palette.textPrimary)
+            }
 
-            editorArea(
-                title: "Behaviors of concern",
-                systemImage: "exclamationmark.triangle.fill",
-                text: $behaviorsOfConcern
-            )
+            editorArea(title: "Behaviors of concern", systemImage: "exclamationmark.triangle.fill") {
+                TextEditor(text: $behaviorsOfConcern)
+                    .frame(minHeight: 96)
+                    .scrollContentBackground(.hidden)
+                    .foregroundStyle(palette.textPrimary)
+            }
         }
         .lifeRouteCard()
     }
@@ -471,13 +474,10 @@ struct ClientEditorView: View {
         .background(fieldBackground)
     }
 
-    private func editorArea(title: String, systemImage: String, text: Binding<String>) -> some View {
+    private func editorArea<Content: View>(title: String, systemImage: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             EditorFieldHeader(title: title, systemImage: systemImage)
-            TextEditor(text: text)
-                .frame(minHeight: 96)
-                .scrollContentBackground(.hidden)
-                .foregroundStyle(palette.textPrimary)
+            content()
         }
         .padding(12)
         .background(fieldBackground)

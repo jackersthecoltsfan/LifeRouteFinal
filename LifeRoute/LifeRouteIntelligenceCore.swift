@@ -71,6 +71,18 @@ enum LifeRouteIntelligenceCore {
         let prompt = """
         Write one polished professional ABA session note as a cohesive chronological narrative using ONLY the session facts supplied below.
 
+        MASTER ABA SESSION-NOTE STYLE:
+        - Match the user's established RBT note style: concise, natural, chronological, objective, and written as connected prose rather than a formal report.
+        - When location and attendees are supplied, open naturally by stating that the RBT met with the client at the supplied setting and identify who was present. Do not create separate Location or Participants fields.
+        - Preserve normal ABA vocabulary exactly when supported by the facts, including pairing, manding, FCT, NET, waiting, responding to name, table work, transitions, reinforcement, movement breaks, tolerating denied access, prompting, redirection, and behaviors of concern.
+        - Describe what the RBT did and how the client responded in the same chronological passage. Keep intervention, prompting, behavior, and response linked instead of separating them into report sections.
+        - When a caregiver report explains how the session began, integrate that report naturally near the beginning rather than making it a separate section.
+        - When a prompt level is supplied, state that exact prompt level naturally where the target occurred, including full physical, model, gestural, verbal, or other supplied levels. Never upgrade or downgrade a supplied prompt level.
+        - When the client moves between activities or locations, preserve the order of those transitions. If the session spans more than one location, narrate the transition between locations in the order supplied.
+        - If a behavior of concern or vocal protest is supplied, state the observable event and the supplied RBT response/redirection without adding an interpretation of why it happened unless the antecedent was explicitly supplied.
+        - End by describing the final activity/transition and the client's overall response to treatment only when those closing facts were supplied. Do not add a generic future plan.
+        - Do not over-formalize ordinary user wording. The goal is the same polished ABA narrative style the user uses for LiFe/JaHe notes, not a hospital-style assessment/report.
+
         REQUIRED WRITING STYLE:
         - The finished note should read like a human RBT wrote it directly after session, in the same concise chronological narrative style used for professional ABA session documentation.
         - When enough information exists, use about 3–5 cohesive paragraphs. A shorter session may use fewer paragraphs. Never pad the note just to reach a paragraph count.
@@ -124,7 +136,7 @@ enum LifeRouteIntelligenceCore {
         """
 
         let instructions = """
-        You are LifeRoute's factual ABA documentation assistant. Write only cohesive chronological RBT narrative paragraphs from supplied facts. Never use report headings, placeholders, bullets, future plans, invented interpretations, or unsupported clinical details. Treat explicit session narrative facts as primary evidence and integrate only clear supporting data.
+        You are LifeRoute's factual ABA documentation assistant. Match the user's established master ABA session-note voice: connected chronological RBT narrative paragraphs, normal ABA terminology, supplied prompt levels and data woven into the event where they occurred, and no report formatting or invented interpretation. Treat explicit session narrative facts as primary evidence.
         """
 
         let firstDraft = try await generate(instructions: instructions, prompt: prompt)
@@ -145,7 +157,7 @@ enum LifeRouteIntelligenceCore {
         """
 
         let repairedDraft = try await generate(
-            instructions: "LifeRoute rejected the prior output format. Produce only a factual, chronological ABA narrative note in plain paragraphs. No headings, labels, markdown, placeholders, lists, invented interpretations, or future plans are allowed.",
+            instructions: "LifeRoute rejected the prior output format. Re-create it in the user's master ABA session-note style: factual, chronological RBT narrative paragraphs with no headings, labels, markdown, placeholders, lists, invented interpretations, or future plans.",
             prompt: repairPrompt
         )
 

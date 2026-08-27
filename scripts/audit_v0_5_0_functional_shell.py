@@ -62,13 +62,13 @@ require("AppNavigation.swift in Sources" in project, "Central native navigation 
 require("Assets.xcassets in Resources" in project, "App assets remain bundled")
 
 versions = [version.strip() for version in re.findall(r"MARKETING_VERSION = ([^;]+);", project)]
-allowed_marketing_versions = {"0.5.0", "0.5.1"}
+allowed_marketing_versions = {"0.5.0", "0.5.1", "0.5.2"}
 require(bool(versions), "Project contains marketing-version settings")
 require(
     bool(versions)
     and len(set(versions)) == 1
     and versions[0] in allowed_marketing_versions,
-    "Every active shipping target uses one approved v0.5 marketing version (0.5.0 or 0.5.1)",
+    "Every active shipping target uses one approved v0.5 marketing version (0.5.0, 0.5.1, or 0.5.2)",
 )
 
 # Preparation must not resurrect the quarantined v0.4 runtime.

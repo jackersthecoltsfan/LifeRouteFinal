@@ -70,7 +70,8 @@ python3 -m py_compile \
   scripts/audit_v0_6_3_patch.py \
   scripts/audit_v0_7_0_checkpoint_0.py \
   scripts/audit_v0_7_0_build_a.py \
-  scripts/audit_v0_7_0_build_b.py
+  scripts/audit_v0_7_0_build_b.py \
+  scripts/audit_v0_7_0_testflight.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
@@ -95,5 +96,6 @@ python3 scripts/audit_v0_6_3_patch.py
 python3 scripts/audit_v0_7_0_checkpoint_0.py
 python3 scripts/audit_v0_7_0_build_a.py
 python3 scripts/audit_v0_7_0_build_b.py
+python3 scripts/audit_v0_7_0_testflight.py
 
-echo "LifeRoute v0.7.0 Build B preparation passed: accepted Build A shell retained, Today/Home overhaul materialized, selected-day + routing + Live Day behavior protected, accumulated regressions green, and legacy WebView runtime quarantined."
+echo "LifeRoute v0.7.0 Build B preparation passed: accepted Build A shell retained, Today/Home overhaul materialized, selected-day + routing + Live Day behavior protected, accumulated regressions green, v0.7.0 TestFlight identity guarded, and legacy WebView runtime quarantined."

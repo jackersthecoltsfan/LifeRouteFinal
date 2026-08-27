@@ -89,7 +89,13 @@ require('generalClientCode = "GENERAL"' in s["tools"] and "crossClientReference"
 require("LanguageModelSession" in s["ai"] and "SystemLanguageModel.default" in s["ai"], "Restored AI tools use Apple's on-device Foundation Model")
 require("using ONLY the session facts supplied below" in s["ai"], "AI note generation retains supplied-facts-only guardrail")
 require("ACTUALLY ORGANIZE THE SESSION" in s["ai"] and "never create a new intervention" in s["ai"], "AI planning synthesizes a session flow without inventing treatment")
-require("* 0.60" in s["tools"] and "* 0.85" in s["tools"], "Timer retains approved fivefold audio signal boost")
+legacy_timer_signal = "* 0.60" in s["tools"] and "* 0.85" in s["tools"]
+modern_timer_signal = (
+    "startGainForFiveDecibelCrescendo" in s["tools"]
+    and "signalGain(forRemaining:" in s["tools"]
+    and "v0.6.3 cosine release reaches silence smoothly" in s["tools"]
+)
+require(legacy_timer_signal or modern_timer_signal, "Timer retains either the approved legacy signal boost or the superseding controlled crescendo with click-free release")
 
 # Persistence / migration / architecture.
 for marker, label in [

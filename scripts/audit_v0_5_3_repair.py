@@ -75,9 +75,9 @@ require("suggestions" in address_field or "AddressSuggestionList" in content, "1
 # 11–14 — Generate / Live Day remains time-aware.
 today = (ROOT / "LifeRoute" / "V054TodayView.swift").read_text(encoding="utf-8") if (ROOT / "LifeRoute" / "V054TodayView.swift").exists() else content
 live_activity = (ROOT / "LifeRoute" / "LiveDayActivityCore.swift").read_text(encoding="utf-8") if (ROOT / "LifeRoute" / "LiveDayActivityCore.swift").exists() else content
-require("Generate day" in content or "Generate day + start Live Activity" in today, "11 Generate Day action exists")
+require("Generate day" in content or "Generate day + start Live Activity" in today or "Generate + launch selected day" in today, "11 Generate Day action exists")
 require("TimelineView(.periodic" in today or "TimelineView(.periodic" in content, "12 Live Day has a live ticking timeline")
-require("calendarState.events(on: Date())" in today or "calendarState.events(on: Date())" in content, "13 Live Day reads native calendar events for today")
+require("calendarState.events(on: Date())" in today or "calendarState.events(on: Date())" in content or "calendarState.events(on: selectedDay)" in today, "13 Live Day reads native calendar events for the active day")
 require("travelTimeSeconds + 10 * 60" in live_activity or "estimate.travelTimeSeconds + 10 * 60" in content, "14 leave timing uses known route duration plus buffer")
 
 # 15–17 — interaction and client-save regressions
@@ -92,13 +92,19 @@ require("visualOwner(for:" in tools_domain and "crossClientReference" in tools_d
 require("ClientVisualSupportCore.generalDisplayName" in tools_views and "ClientVisualSupportCenter" in tools_views, "21 Visual Supports UI exposes General with no client required")
 require("ClientFirstThenVisualView" in tools_views and "ClientVisualSupportCore.generalClientCode" in tools_views, "22 First/Then shares the General visual-library contract")
 
-# 23–24 — timer audibility. v0.5.4 intentionally raises the synthesized signal ~5x.
-require("setCategory(.playback" in tools_domain and "player.volume = 1" in tools_domain, "23 timer audio uses playback category at full player volume")
-require(
+# 23–24 — timer audibility. Newer releases retain playback audibility while replacing abrupt high-amplitude waveform endings with a controlled crescendo and release envelope.
+require("setCategory(.playback" in tools_domain and ("player.volume = 1" in tools_domain or "player.volume = max(0, min(1, gain))" in tools_domain), "23 timer audio uses playback category with explicit player gain control")
+legacy_waveform = (
     ("* 0.60" in tools_domain and "* 0.85" in tools_domain and "max(-0.92, min(0.92, value))" in tools_domain)
-    or ("* 0.12" in tools_domain and "* 0.17" in tools_domain),
-    "24 timer waveform meets the approved repaired-or-fivefold-louder amplitude contract",
+    or ("* 0.12" in tools_domain and "* 0.17" in tools_domain)
 )
+modern_waveform = (
+    "startGainForFiveDecibelCrescendo" in tools_domain
+    and "signalGain(forRemaining:" in tools_domain
+    and "v0.6.3 cosine release reaches silence smoothly" in tools_domain
+    and "let release = releaseProgress <= 0 ? 1 : 0.5 * (1 + cos" in tools_domain
+)
+require(legacy_waveform or modern_waveform, "24 timer waveform meets the inherited audibility contract or the superseding controlled-crescendo/click-free-release contract")
 
 # 25–27 — theme differentiation without touch interception
 theme_views = (ROOT / "LifeRoute" / "CinematicThemeViews.swift").read_text(encoding="utf-8") if (ROOT / "LifeRoute" / "CinematicThemeViews.swift").exists() else ""

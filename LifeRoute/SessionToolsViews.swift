@@ -242,60 +242,155 @@ private struct SessionToolCard: View {
 }
 
 struct VisualTimerView: View {
+    @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var timer: VisualTimerCore
     @State private var minutes = 5
 
     var body: some View {
-        Form {
-            Section {
+        ScrollView {
+            LazyVStack(spacing: 18) {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let remaining = timer.remainingSeconds(at: context.date)
-                    VStack(spacing: 14) {
-                        Text(timerText(remaining))
-                            .font(.system(size: 64, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .frame(maxWidth: .infinity)
-                        ProgressView(value: timer.progress(at: context.date))
-                        Text(timer.isFinished(at: context.date) ? "Time is up" : (timer.isRunning ? "Time remaining" : "Paused / ready"))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.vertical, 16)
-                }
-            }
+                    let progress = timer.progress(at: context.date)
 
-            Section("Duration") {
-                HStack {
-                    ForEach([1, 2, 3, 5, 10], id: \.self) { preset in
-                        Button("\(preset)m") {
-                            minutes = preset
-                            timer.start(minutes: preset)
+                    VStack(spacing: 18) {
+                        HStack {
+                            Label(statusText(at: context.date), systemImage: statusIcon(at: context.date))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(timer.isRunning ? palette.accentSecondary : palette.textSecondary)
+                                .padding(.horizontal, 11)
+                                .padding(.vertical, 7)
+                                .background(palette.panelElevated.opacity(0.60), in: Capsule())
+                            Spacer()
+                            Text("\(minutes) MIN")
+                                .font(.caption2.weight(.black))
+                                .tracking(1.2)
+                                .foregroundStyle(palette.accent)
+                        }
+
+                        ZStack {
+                            Circle()
+                                .stroke(Color.white.opacity(0.07), lineWidth: 15)
+                            Circle()
+                                .trim(from: 0, to: progress)
+                                .stroke(
+                                    AngularGradient(
+                                        colors: [palette.accent, palette.accentSecondary, palette.accent],
+                                        center: .center
+                                    ),
+                                    style: StrokeStyle(lineWidth: 15, lineCap: .round)
+                                )
+                                .rotationEffect(.degrees(-90))
+
+                            VStack(spacing: 4) {
+                                Text(timerText(remaining))
+                                    .font(.system(size: 58, weight: .black, design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundStyle(palette.textPrimary)
+                                Text(timer.isFinished(at: context.date) ? "TIME IS UP" : "REMAINING")
+                                    .font(.caption2.weight(.black))
+                                    .tracking(1.5)
+                                    .foregroundStyle(palette.textSecondary)
+                            }
+                        }
+                        .frame(width: 245, height: 245)
+                        .shadow(color: palette.accent.opacity(timer.isRunning ? 0.18 : 0.07), radius: 26)
+
+                        ProgressView(value: timer.progress(at: context.date))
+                            .tint(palette.accent)
+                    }
+                    .padding(20)
+                    .lifeRouteCard()
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Quick duration")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+
+                    HStack(spacing: 8) {
+                        ForEach([1, 2, 3, 5, 10], id: \.self) { preset in
+                            Button {
+                                minutes = preset
+                                timer.start(minutes: preset)
+                            } label: {
+                                Text("\(preset)m")
+                                    .font(.caption.weight(.bold))
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .foregroundStyle(minutes == preset ? Color.black.opacity(0.80) : palette.textPrimary)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .fill(minutes == preset ? palette.accent : palette.panelElevated.opacity(0.66))
+                                    )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
-                }
-                Stepper("Custom: \(minutes) minutes", value: $minutes, in: 1...180)
-                Button("Start timer") {
-                    timer.start(minutes: minutes)
-                }
-            }
 
-            Section("Controls") {
-                Button(timer.isRunning ? "Pause" : "Resume") {
-                    if timer.isRunning { timer.pause() }
-                    else { timer.resume() }
-                }
-                .disabled(!timer.isRunning && timer.remainingSeconds() <= 0)
-                Button("+1 minute") { timer.addMinute() }
-                Button("Reset") { timer.reset() }
-            }
+                    Stepper("Custom: \(minutes) minutes", value: $minutes, in: 1...180)
+                        .font(.subheadline.weight(.semibold))
 
-            Section {
+                    Button {
+                        timer.start(minutes: minutes)
+                    } label: {
+                        Label("Start \(minutes)-minute timer", systemImage: "play.fill")
+                    }
+                    .buttonStyle(LifeRoutePrimaryButtonStyle())
+                }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Timer controls")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+
+                    HStack(spacing: 9) {
+                        Button {
+                            if timer.isRunning { timer.pause() }
+                            else { timer.resume() }
+                        } label: {
+                            Label(timer.isRunning ? "Pause" : "Resume", systemImage: timer.isRunning ? "pause.fill" : "play.fill")
+                        }
+                        .buttonStyle(LifeRouteSecondaryButtonStyle())
+                        .disabled(!timer.isRunning && timer.remainingSeconds() <= 0)
+
+                        Button {
+                            timer.addMinute()
+                        } label: {
+                            Label("+1 min", systemImage: "plus.circle.fill")
+                        }
+                        .buttonStyle(LifeRouteSecondaryButtonStyle())
+                    }
+
+                    Button {
+                        timer.reset()
+                    } label: {
+                        Label("Reset timer", systemImage: "arrow.counterclockwise")
+                    }
+                    .buttonStyle(LifeRouteSecondaryButtonStyle())
+                }
+                .lifeRouteCard()
+
                 Text("The timer uses an absolute deadline, so returning from another app does not require a polling loop to catch up. Alerts and haptics are intentionally deferred to later layers.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
+                    .padding(.horizontal, 3)
             }
+            .padding(18)
+            .padding(.bottom, 24)
         }
         .navigationTitle("Visual Timer")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func statusText(at date: Date) -> String {
+        if timer.isFinished(at: date) { return "Finished" }
+        return timer.isRunning ? "Running" : "Paused / ready"
+    }
+
+    private func statusIcon(at date: Date) -> String {
+        if timer.isFinished(at: date) { return "checkmark.circle.fill" }
+        return timer.isRunning ? "circle.fill" : "pause.circle.fill"
     }
 
     private func timerText(_ seconds: TimeInterval) -> String {

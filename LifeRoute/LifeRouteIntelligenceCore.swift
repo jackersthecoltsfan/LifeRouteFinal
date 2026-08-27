@@ -69,16 +69,26 @@ enum LifeRouteIntelligenceCore {
         let prompting = client?.promptingNotes ?? "none"
 
         let prompt = """
-        Draft one concise professional ABA session note in cohesive paragraphs using ONLY the session facts supplied below.
+        Write one polished professional ABA session note as a natural chronological narrative using ONLY the session facts supplied below.
+
+        REQUIRED WRITING STYLE:
+        - Write like a finished RBT narrative note, not a checklist, data dump, outline, bullet list, SOAP note, or collection of disconnected statements.
+        - Use 2–4 cohesive paragraphs when enough information is available. Keep related events together and move through the session in chronological order.
+        - Begin with the setting and people present when those facts are supplied, then describe what the RBT and client did across the session, how the client responded, and how the session concluded when those facts are available.
+        - Use natural professional transitions such as "RBT then," "Following this," "During this activity," or equivalent wording when appropriate, without sounding repetitive.
+        - Weave clearly supplied quantitative data into the relevant sentence or event in the narrative. Do not isolate the data into a separate section or list.
+        - If screenshot/OCR data corresponds to a target, behavior, prompt level, frequency, duration, percentage, or trial result that is also supported by the supplied session facts, integrate it naturally where that event is described.
+        - Do not dump raw OCR text into the note. Translate only clear, supported data into readable narrative prose.
+        - When multiple pieces of data are supplied, distribute them through the narrative where they belong rather than grouping them into a final data paragraph.
+        - Favor clear clinical prose similar to a human-written ABA session note: concise, objective, chronological, and connected.
 
         HARD RULES:
         - Use objective, observable language.
         - Do not invent frequencies, percentages, prompt levels, interventions, targets, behaviors, attendees, caregiver statements, locations, clinical interpretations, billing facts, or outcomes.
         - Saved client information is CONTEXT ONLY. Do not claim a saved target or behavior occurred unless the narrative or screenshot data explicitly demonstrates it.
-        - If OCR text is unclear or ambiguous, omit it.
-        - Integrate quantitative data naturally when it is clearly supplied.
+        - If OCR text is unclear, ambiguous, or cannot be confidently tied to the supplied session facts, omit it.
         - Avoid mentalistic language.
-        - Return only the finished session-note text. Do not add a heading, disclaimer, SOAP labels, or commentary.
+        - Return only the finished session-note narrative. Do not add a heading, disclaimer, labels, bullets, or commentary.
 
         CLIENT: \(clientCode)
         SAVED TARGETS — context only: \(targets)
@@ -94,7 +104,7 @@ enum LifeRouteIntelligenceCore {
         """
 
         return try await generate(
-            instructions: "You are LifeRoute's factual ABA documentation assistant. Obey the supplied-facts-only rule and never fabricate clinical details.",
+            instructions: "You are LifeRoute's factual ABA documentation assistant. Produce a cohesive human-style RBT narrative note, integrate clearly supported data naturally into the chronology, obey the supplied-facts-only rule, and never fabricate clinical details.",
             prompt: prompt
         )
     }

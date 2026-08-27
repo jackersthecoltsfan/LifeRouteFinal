@@ -6,8 +6,18 @@ rm -rf build
 
 # The newer premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
-swift scripts/generate_v0_6_1_app_icon.swift \
-  LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+ICON="LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+swift scripts/generate_v0_6_1_app_icon.swift "$ICON"
+
+# App Store Connect rejects large app icons that contain an alpha channel, even when they appear opaque.
+test -s "$ICON"
+test "$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/ {print $2}')" = "1024"
+test "$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/ {print $2}')" = "1024"
+test "$(sips -g hasAlpha "$ICON" | awk '/hasAlpha/ {print $2}')" = "no" || {
+  echo "AppIcon release guard failed: $ICON contains an alpha channel."
+  exit 1
+}
+echo "AppIcon release guard passed: 1024×1024 opaque RGB PNG with no alpha channel."
 
 python3 -m py_compile \
   scripts/audit_v0_5_0_functional_shell.py \

@@ -27,6 +27,11 @@ def png_dimensions(path: str) -> tuple[int, int]:
 
 
 intelligence = read("LifeRoute/LifeRouteIntelligenceCore.swift")
+setup = read("LifeRoute/V054SetupView.swift")
+routing = read("LifeRoute/DayRoutePlanningCore.swift")
+themes = read("LifeRoute/V054ThemeCenterView.swift")
+app = read("LifeRoute/LifeRouteApp.swift")
+
 require_all(
     intelligence,
     [
@@ -47,6 +52,59 @@ require_all(
         'End with one short "Flex:" line',
     ],
     "unchanged Session Plan contract",
+)
+
+require_all(
+    setup,
+    [
+        'Text("RBT Profile")',
+        'liferoute.rbtProfile.name',
+        'liferoute.rbtProfile.organization',
+        'liferoute.rbtProfile.credential',
+        'Label("Navigation app"',
+        'liferoute.preferredNavigationApp',
+        'Picker("Preferred navigation app"',
+    ],
+    "RBT profile and navigation Setup controls",
+)
+
+require_all(
+    routing,
+    [
+        "enum LifeRouteNavigationApp",
+        "case appleMaps",
+        "case googleMaps",
+        "case waze",
+        "googleMapsURL",
+        "wazeURL",
+        "LifeRouteNavigationApp.preferred",
+    ],
+    "preferred navigation routing",
+)
+
+visible_theme_groups = {
+    "core": [".royal", ".obsidian", ".carbon", ".midnight", ".navyNoir"],
+    "scenery": [".forest", ".plum", ".ember"],
+    "metallic": [".titanium", ".slate", ".moltenGold", ".phantomSilver"],
+    "dynamic": [".solarFlare", ".electricStorm", ".ultraviolet", ".arcticPulse"],
+    "fluid": [".ocean", ".aurora", ".sapphireTide"],
+}
+for category, values in visible_theme_groups.items():
+    require(len(values) >= 3, f"{category} theme category has fewer than three choices")
+    require(f"case .{category}:" in themes, f"Theme Center missing {category} group")
+    for value in values:
+        require(value in themes, f"Theme {value} missing from visible {category} group")
+
+require_all(
+    app,
+    [
+        "ContentView()",
+        ".lifeRouteChrome()",
+        ".environmentObject(themeStore)",
+        ".environment(\\.lifeRoutePalette, themeStore.palette)",
+        ".environment(\\.lifeRouteTheme, themeStore.selectedTheme)",
+    ],
+    "app-wide theme propagation",
 )
 
 icon_generator = read("scripts/generate_v0_6_1_app_icon.swift")
@@ -91,4 +149,4 @@ require_all(
 app_icon = png_dimensions("LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png")
 require(app_icon == (1024, 1024), f"generated AppIcon must be 1024×1024, got {app_icon}")
 
-print("LifeRoute v0.6.1 regression audit passed: narrative-only ABA notes, premium LR icon generation, locked Session Plan behavior, and release version guard.")
+print("LifeRoute v0.6.1 regression audit passed: master-style ABA notes, RBT profile, navigation selection, balanced themes with app-wide propagation, premium LR icon generation, and release guards.")

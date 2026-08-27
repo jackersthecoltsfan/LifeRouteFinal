@@ -123,7 +123,7 @@ goldLight.setStroke(); roadHighlight.stroke()
 
 image.unlockFocus()
 
-// Encode as true RGB PNG with no alpha channel. Apple rejects even visually opaque icons if the PNG carries alpha.
+// Encode as true RGB PNG with no alpha channel. Use a 32-bit aligned row while retaining only three RGB samples.
 guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
       let opaqueBitmap = NSBitmapImageRep(
         bitmapDataPlanes: nil,
@@ -134,16 +134,19 @@ guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil
         hasAlpha: false,
         isPlanar: false,
         colorSpaceName: .deviceRGB,
-        bytesPerRow: 0,
-        bitsPerPixel: 24
+        bytesPerRow: Int(size.width) * 4,
+        bitsPerPixel: 32
       ),
-      let opaqueContext = NSGraphicsContext(bitmapImageRep: opaqueBitmap)?.cgContext else {
+      let opaqueGraphicsContext = NSGraphicsContext(bitmapImageRep: opaqueBitmap) else {
     fatalError("Could not create opaque RGB bitmap")
 }
 
-opaqueContext.setFillColor(navyTop.cgColor)
-opaqueContext.fill(CGRect(origin: .zero, size: size))
-opaqueContext.draw(cgImage, in: CGRect(origin: .zero, size: size))
+NSGraphicsContext.saveGraphicsState()
+NSGraphicsContext.current = opaqueGraphicsContext
+navyTop.setFill()
+NSBezierPath(rect: full).fill()
+image.draw(in: full, from: .zero, operation: .sourceOver, fraction: 1.0)
+NSGraphicsContext.restoreGraphicsState()
 
 guard let png = opaqueBitmap.representation(using: .png, properties: [.compressionFactor: 1.0]) else {
     fatalError("Could not encode opaque PNG")

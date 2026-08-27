@@ -46,12 +46,10 @@ def patch_today_b1() -> None:
         1,
     )
 
-    require_once(block, "            if suggestions.isEmpty {", "empty gap-filler condition")
-    block = block.replace(
-        "            if suggestions.isEmpty {",
-        "            if openTodos.isEmpty && suggestions.isEmpty {",
-        1,
-    )
+    old_condition = "            if suggestions.isEmpty {"
+    new_condition = "            if openTodos.isEmpty && suggestions.isEmpty {"
+    require_once(block, old_condition, "empty gap-filler condition")
+    block = block.replace(old_condition, new_condition, 1)
 
     old_empty_copy = 'Text("Mark saved places as gap suggestions in Setup and they’ll surface here.")'
     if old_empty_copy in block:
@@ -61,8 +59,15 @@ def patch_today_b1() -> None:
             1,
         )
 
+    # B.1 contains another same-indent `else` in this property. Anchor the insertion
+    # to the specific empty-state condition we just replaced instead of counting all elses.
+    condition_pos = block.index(new_condition)
     else_token = "            } else {\n"
-    require_once(block, else_token, "gap-filler populated branch")
+    else_pos = block.find(else_token, condition_pos)
+    if else_pos < 0:
+        raise SystemExit("v0.7.0 B.1 To-Dos patch failed: populated branch for gap condition missing")
+    insert_pos = else_pos + len(else_token)
+
     todo_cards = r'''                ForEach(openTodos.prefix(3)) { todo in
                     HStack(spacing: 11) {
                         ZStack {
@@ -103,7 +108,7 @@ def patch_today_b1() -> None:
                 }
 
 '''
-    block = block.replace(else_token, else_token + todo_cards, 1)
+    block = block[:insert_pos] + todo_cards + block[insert_pos:]
 
     require_once(block, "ForEach(suggestions.prefix(4))", "saved-place suggestion limit")
     block = block.replace(

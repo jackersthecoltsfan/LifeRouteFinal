@@ -28,6 +28,13 @@
 		A10000000000000000000025 /* LiveDayActivityCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* LiveDayActivityCore.swift */; };
 		A10000000000000000000026 /* CinematicThemeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* CinematicThemeViews.swift */; };
 		A10000000000000000000027 /* V054ToolsDashboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* V054ToolsDashboard.swift */; };
+		A10000000000000000000028 /* V054ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* V054ContentView.swift */; };
+		A10000000000000000000029 /* V054TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* V054TodayView.swift */; };
+		A10000000000000000000030 /* V054AddressField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000030 /* V054AddressField.swift */; };
+		A10000000000000000000031 /* V054ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000031 /* V054ScheduleView.swift */; };
+		A10000000000000000000032 /* V054ClientViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* V054ClientViews.swift */; };
+		A10000000000000000000033 /* V054ThemeCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000033 /* V054ThemeCenterView.swift */; };
+		A10000000000000000000034 /* V054SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* V054SetupView.swift */; };
 		W10000000000000000000001 /* LiveDayLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */; };
 		W10000000000000000000002 /* LiveDayActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* LiveDayActivityAttributes.swift */; };
 		W10000000000000000000003 /* LifeRouteLiveActivityWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -66,6 +73,13 @@
 		A20000000000000000000025 /* LiveDayActivityCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDayActivityCore.swift; sourceTree = "<group>"; };
 		A20000000000000000000026 /* CinematicThemeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CinematicThemeViews.swift; sourceTree = "<group>"; };
 		A20000000000000000000027 /* V054ToolsDashboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054ToolsDashboard.swift; sourceTree = "<group>"; };
+		A20000000000000000000028 /* V054ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054ContentView.swift; sourceTree = "<group>"; };
+		A20000000000000000000029 /* V054TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054TodayView.swift; sourceTree = "<group>"; };
+		A20000000000000000000030 /* V054AddressField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054AddressField.swift; sourceTree = "<group>"; };
+		A20000000000000000000031 /* V054ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054ScheduleView.swift; sourceTree = "<group>"; };
+		A20000000000000000000032 /* V054ClientViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054ClientViews.swift; sourceTree = "<group>"; };
+		A20000000000000000000033 /* V054ThemeCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054ThemeCenterView.swift; sourceTree = "<group>"; };
+		A20000000000000000000034 /* V054SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V054SetupView.swift; sourceTree = "<group>"; };
 		W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDayLiveActivityWidget.swift; sourceTree = "<group>"; };
 		W20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LifeRouteLiveActivityWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -79,6 +93,13 @@
 		A40000000000000000000002 /* LifeRoute */ = {isa = PBXGroup; children = (
 			A20000000000000000000001 /* LifeRouteApp.swift */,
 			A20000000000000000000008 /* AppNavigation.swift */,
+			A20000000000000000000028 /* V054ContentView.swift */,
+			A20000000000000000000029 /* V054TodayView.swift */,
+			A20000000000000000000031 /* V054ScheduleView.swift */,
+			A20000000000000000000027 /* V054ToolsDashboard.swift */,
+			A20000000000000000000034 /* V054SetupView.swift */,
+			A20000000000000000000033 /* V054ThemeCenterView.swift */,
+			A20000000000000000000030 /* V054AddressField.swift */,
 			A20000000000000000000009 /* CalendarDomain.swift */,
 			A20000000000000000000015 /* CalendarProviderCore.swift */,
 			A20000000000000000000010 /* RoutingLocationDomain.swift */,
@@ -86,11 +107,11 @@
 			A20000000000000000000023 /* DayRoutePlanningView.swift */,
 			A20000000000000000000011 /* ClientProfileDomain.swift */,
 			A20000000000000000000012 /* ClientViews.swift */,
+			A20000000000000000000032 /* V054ClientViews.swift */,
 			A20000000000000000000013 /* SessionToolsDomain.swift */,
 			A20000000000000000000014 /* SessionToolsViews.swift */,
 			A20000000000000000000018 /* LifeRouteIntelligenceCore.swift */,
 			A20000000000000000000019 /* AIClinicalToolsViews.swift */,
-			A20000000000000000000027 /* V054ToolsDashboard.swift */,
 			A20000000000000000000020 /* ResourcePortalDomain.swift */,
 			A20000000000000000000021 /* ResourcePortalViews.swift */,
 			A20000000000000000000024 /* LiveDayActivityAttributes.swift */,
@@ -122,6 +143,13 @@
 		A60000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
 			A10000000000000000000001 /* LifeRouteApp.swift in Sources */,
 			A10000000000000000000008 /* AppNavigation.swift in Sources */,
+			A10000000000000000000028 /* V054ContentView.swift in Sources */,
+			A10000000000000000000029 /* V054TodayView.swift in Sources */,
+			A10000000000000000000031 /* V054ScheduleView.swift in Sources */,
+			A10000000000000000000027 /* V054ToolsDashboard.swift in Sources */,
+			A10000000000000000000034 /* V054SetupView.swift in Sources */,
+			A10000000000000000000033 /* V054ThemeCenterView.swift in Sources */,
+			A10000000000000000000030 /* V054AddressField.swift in Sources */,
 			A10000000000000000000009 /* CalendarDomain.swift in Sources */,
 			A10000000000000000000015 /* CalendarProviderCore.swift in Sources */,
 			A10000000000000000000010 /* RoutingLocationDomain.swift in Sources */,
@@ -129,11 +157,11 @@
 			A10000000000000000000023 /* DayRoutePlanningView.swift in Sources */,
 			A10000000000000000000011 /* ClientProfileDomain.swift in Sources */,
 			A10000000000000000000012 /* ClientViews.swift in Sources */,
+			A10000000000000000000032 /* V054ClientViews.swift in Sources */,
 			A10000000000000000000013 /* SessionToolsDomain.swift in Sources */,
 			A10000000000000000000014 /* SessionToolsViews.swift in Sources */,
 			A10000000000000000000018 /* LifeRouteIntelligenceCore.swift in Sources */,
 			A10000000000000000000019 /* AIClinicalToolsViews.swift in Sources */,
-			A10000000000000000000027 /* V054ToolsDashboard.swift in Sources */,
 			A10000000000000000000020 /* ResourcePortalDomain.swift in Sources */,
 			A10000000000000000000021 /* ResourcePortalViews.swift in Sources */,
 			A10000000000000000000024 /* LiveDayActivityAttributes.swift in Sources */,

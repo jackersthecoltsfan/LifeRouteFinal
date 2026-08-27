@@ -28,6 +28,11 @@ ctx.setAllowsAntialiasing(true)
 ctx.setShouldAntialias(true)
 
 let full = NSRect(origin: .zero, size: size)
+
+// App Store icons must be fully opaque. Paint the complete square first; iOS applies the final icon mask.
+navyTop.setFill()
+NSBezierPath(rect: full).fill()
+
 let outer = NSBezierPath(roundedRect: full.insetBy(dx: 20, dy: 20), xRadius: 118, yRadius: 118)
 ctx.saveGState()
 outer.addClip()
@@ -118,10 +123,31 @@ goldLight.setStroke(); roadHighlight.stroke()
 
 image.unlockFocus()
 
-guard let tiff = image.tiffRepresentation,
-      let bitmap = NSBitmapImageRep(data: tiff),
-      let png = bitmap.representation(using: .png, properties: [.compressionFactor: 1.0]) else {
-    fatalError("Could not encode PNG")
+// Encode as true RGB PNG with no alpha channel. Apple rejects even visually opaque icons if the PNG carries alpha.
+guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+      let opaqueBitmap = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: Int(size.width),
+        pixelsHigh: Int(size.height),
+        bitsPerSample: 8,
+        samplesPerPixel: 3,
+        hasAlpha: false,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 24
+      ),
+      let opaqueContext = NSGraphicsContext(bitmapImageRep: opaqueBitmap)?.cgContext else {
+    fatalError("Could not create opaque RGB bitmap")
 }
+
+opaqueContext.setFillColor(navyTop.cgColor)
+opaqueContext.fill(CGRect(origin: .zero, size: size))
+opaqueContext.draw(cgImage, in: CGRect(origin: .zero, size: size))
+
+guard let png = opaqueBitmap.representation(using: .png, properties: [.compressionFactor: 1.0]) else {
+    fatalError("Could not encode opaque PNG")
+}
+
 try png.write(to: URL(fileURLWithPath: output), options: .atomic)
-print("Generated approved premium navy/gold LR AppIcon at \(output)")
+print("Generated approved premium navy/gold LR AppIcon as opaque RGB PNG at \(output)")

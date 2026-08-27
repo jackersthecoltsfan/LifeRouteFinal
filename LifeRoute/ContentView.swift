@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -14,7 +13,7 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $router.selectedSection) {
             NavigationStack(path: $router.todayPath) {
-                TodayCoreView(router: router, routingState: routingState)
+                TodayCoreView(router: router, calendarState: calendarState, routingState: routingState)
                     .navigationDestination(for: AppRoute.self) { route in
                         RouteDetailView(route: route, router: router)
                     }
@@ -59,7 +58,11 @@ struct ContentView: View {
             .tag(AppSection.setup)
         }
         .onChange(of: scenePhase) { phase in
-            guard phase != .active else { return }
+            if phase == .active {
+                routingState.resumeForegroundLocationIfNeeded()
+                return
+            }
+
             lifecycleState.flushPersistenceForSceneTransition()
             if phase == .background {
                 routingState.cancelPendingOperations()
@@ -113,8 +116,12 @@ private struct TodayCoreView: View {
     @EnvironmentObject private var themeStore: LifeRouteThemeStore
 
     @ObservedObject var router: AppRouter
+    @ObservedObject var calendarState: CalendarCoreState
     @ObservedObject var routingState: RoutingLocationCore
+
     @State private var routeMode: LifeRouteTransportMode = .driving
+    @State private var liveDayEnabled = false
+    @State private var generatedAt: Date?
 
     var body: some View {
         ScrollView {
@@ -122,9 +129,9 @@ private struct TodayCoreView: View {
                 dashboardHero
                 quickActions
                 todaySnapshot
+                liveDayCard
                 routePlanner
                 savedPlaces
-                dailyFlowCard
             }
             .padding(.horizontal, 18)
             .padding(.top, 12)
@@ -132,6 +139,13 @@ private struct TodayCoreView: View {
         }
         .navigationTitle("Today")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var todayEvents: [LifeRouteCalendarEvent] {
+        calendarState.events(on: Date()).sorted {
+            if $0.start != $1.start { return $0.start < $1.start }
+            return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+        }
     }
 
     private var dashboardHero: some View {
@@ -149,16 +163,8 @@ private struct TodayCoreView: View {
                     )
                 )
 
-            Circle()
-                .fill(palette.accent.opacity(0.20))
-                .frame(width: 220, height: 220)
-                .blur(radius: 5)
-                .offset(x: 155, y: -85)
-
-            Image(systemName: "mountain.2.fill")
-                .font(.system(size: 150, weight: .black))
-                .foregroundStyle(palette.accentSecondary.opacity(0.07))
-                .offset(x: 115, y: 80)
+            LifeRouteThemeArtwork(theme: themeStore.selectedTheme, palette: themeStore.selectedTheme.palette)
+                .clipShape(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous))
 
             LinearGradient(
                 colors: [.clear, palette.backgroundBottom.opacity(0.70)],
@@ -198,7 +204,7 @@ private struct TodayCoreView: View {
                     .foregroundStyle(palette.textPrimary.opacity(0.88))
 
                 HStack(spacing: 8) {
-                    Image(systemName: "location.fill")
+                    Image(systemName: routingState.liveLocationEnabled ? "location.fill.viewfinder" : "location.fill")
                         .foregroundStyle(palette.accent)
                     Text(routingState.locationRequestInFlight ? "Locating…" : routingState.locationMessage)
                         .font(.caption.weight(.semibold))
@@ -229,8 +235,17 @@ private struct TodayCoreView: View {
             sectionTitle("Quick actions", subtitle: "Jump into the things you use most.")
 
             HStack(spacing: 10) {
-                DashboardActionButton(title: "Locate", subtitle: "Use GPS", systemImage: "location.fill", prominent: true) {
-                    routingState.requestCurrentLocation()
+                DashboardActionButton(
+                    title: routingState.liveLocationEnabled ? "Live GPS" : "Locate",
+                    subtitle: routingState.liveLocationEnabled ? "Tracking" : "Use GPS",
+                    systemImage: routingState.liveLocationEnabled ? "location.fill.viewfinder" : "location.fill",
+                    prominent: true
+                ) {
+                    if routingState.liveLocationEnabled {
+                        routingState.stopLiveLocation()
+                    } else {
+                        routingState.requestCurrentLocation()
+                    }
                 }
                 .disabled(routingState.locationRequestInFlight)
 
@@ -253,13 +268,13 @@ private struct TodayCoreView: View {
 
     private var todaySnapshot: some View {
         VStack(alignment: .leading, spacing: 11) {
-            sectionTitle("Today’s overview", subtitle: "Real setup and routing state at a glance.")
+            sectionTitle("Today’s overview", subtitle: "Calendar and routing state at a glance.")
 
             HStack(spacing: 9) {
                 TodayMetricTile(
-                    value: "\(routingState.savedPlaces.count)",
-                    label: "Saved",
-                    systemImage: "mappin.and.ellipse",
+                    value: "\(todayEvents.count)",
+                    label: "Events",
+                    systemImage: "calendar",
                     accent: palette.accent
                 )
                 TodayMetricTile(
@@ -269,13 +284,94 @@ private struct TodayCoreView: View {
                     accent: palette.accentSecondary
                 )
                 TodayMetricTile(
-                    value: routingState.homeAddress.isEmpty ? "—" : "✓",
-                    label: "Home",
-                    systemImage: "house.fill",
+                    value: routingState.liveLocationEnabled ? "LIVE" : (routingState.homeAddress.isEmpty ? "—" : "HOME"),
+                    label: "Origin",
+                    systemImage: routingState.liveLocationEnabled ? "location.fill" : "house.fill",
                     accent: palette.accent
                 )
             }
         }
+    }
+
+    private var liveDayCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .fill(palette.accent.opacity(0.15))
+                    Image(systemName: liveDayEnabled ? "bolt.horizontal.circle.fill" : "sparkles")
+                        .font(.system(size: 19, weight: .bold))
+                        .foregroundStyle(palette.accent)
+                }
+                .frame(width: 44, height: 44)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(liveDayEnabled ? "Live Day" : "Generate your day")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    Text(liveDayEnabled ? "Your calendar is now a live, time-aware sequence." : "Turn today’s calendar into a live sequence with countdowns and known route timing.")
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+
+                if liveDayEnabled {
+                    Text("LIVE")
+                        .font(.caption2.weight(.black))
+                        .tracking(1.1)
+                        .foregroundStyle(Color.black.opacity(0.78))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 6)
+                        .background(palette.accent, in: Capsule())
+                }
+            }
+
+            if liveDayEnabled {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    LiveDayTimeline(
+                        now: context.date,
+                        events: todayEvents,
+                        routingState: routingState
+                    )
+                }
+
+                HStack(spacing: 9) {
+                    Button {
+                        generatedAt = Date()
+                        LifeRouteHaptics.selection()
+                    } label: {
+                        Label("Regenerate", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(LifeRouteSecondaryButtonStyle())
+
+                    Button {
+                        liveDayEnabled = false
+                        generatedAt = nil
+                    } label: {
+                        Label("End Live Day", systemImage: "stop.fill")
+                    }
+                    .buttonStyle(LifeRouteSecondaryButtonStyle())
+                }
+
+                if let generatedAt {
+                    Text("Generated \(generatedAt.formatted(date: .omitted, time: .shortened)). Route-aware leave times appear when a saved-place route estimate is available.")
+                        .font(.caption2)
+                        .foregroundStyle(palette.textSecondary)
+                }
+            } else {
+                Button {
+                    liveDayEnabled = true
+                    generatedAt = Date()
+                    LifeRouteHaptics.primaryAction()
+                } label: {
+                    Label("Generate day", systemImage: "sparkles")
+                }
+                .buttonStyle(LifeRoutePrimaryButtonStyle())
+            }
+        }
+        .lifeRouteCard()
     }
 
     private var routePlanner: some View {
@@ -326,7 +422,7 @@ private struct TodayCoreView: View {
                     Text("No saved places yet")
                         .font(.headline)
                         .foregroundStyle(palette.textPrimary)
-                    Text("Add favorites like home, the gym, stores, or client locations in Setup.")
+                    Text("Add favorites like home, the gym, stores, or service locations in Setup.")
                         .font(.subheadline)
                         .multilineTextAlignment(.center)
                         .foregroundStyle(palette.textSecondary)
@@ -355,29 +451,6 @@ private struct TodayCoreView: View {
         }
     }
 
-    private var dailyFlowCard: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle().fill(palette.accent.opacity(0.14))
-                Image(systemName: "sparkles")
-                    .foregroundStyle(palette.accent)
-            }
-            .frame(width: 44, height: 44)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Daily flow")
-                    .font(.headline)
-                    .foregroundStyle(palette.textPrimary)
-                Text("Gap suggestions and smarter day planning will live here as the routing layer expands.")
-                    .font(.caption)
-                    .foregroundStyle(palette.textSecondary)
-            }
-
-            Spacer()
-        }
-        .lifeRouteCard()
-    }
-
     private func sectionTitle(_ title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
@@ -389,9 +462,122 @@ private struct TodayCoreView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+}
 
-    private func auditCrossTabRouteOwnership() {
-        router.open(.scheduleDetails, in: .schedule)
+private struct LiveDayTimeline: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
+    let now: Date
+    let events: [LifeRouteCalendarEvent]
+    @ObservedObject var routingState: RoutingLocationCore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            if let next = nextRelevantEvent {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(countdownKicker(for: next))
+                        .font(.caption2.weight(.black))
+                        .tracking(1.2)
+                        .foregroundStyle(palette.accent)
+                    Text(countdownText(for: next))
+                        .font(.system(size: 34, weight: .black, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(palette.textPrimary)
+                    Text(next.title)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(palette.textSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(13)
+                .background(palette.panelElevated.opacity(0.38), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            } else if events.isEmpty {
+                Text("No calendar events today. Your Live Day is open for saved-place and gap planning.")
+                    .font(.subheadline)
+                    .foregroundStyle(palette.textSecondary)
+            } else {
+                Label("Today’s scheduled events are complete", systemImage: "checkmark.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(palette.accentSecondary)
+            }
+
+            if !events.isEmpty {
+                ForEach(events) { event in
+                    HStack(alignment: .top, spacing: 10) {
+                        Circle()
+                            .fill(event.end <= now ? palette.textSecondary.opacity(0.30) : palette.accent)
+                            .frame(width: 8, height: 8)
+                            .padding(.top, 5)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(event.title)
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(event.end <= now ? palette.textSecondary : palette.textPrimary)
+                            Text(eventTimeLabel(event))
+                                .font(.caption2)
+                                .foregroundStyle(palette.textSecondary)
+                            if !event.location.isEmpty {
+                                Text(event.location)
+                                    .font(.caption2)
+                                    .foregroundStyle(palette.textSecondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+        }
+    }
+
+    private var nextRelevantEvent: LifeRouteCalendarEvent? {
+        events.first { $0.end > now }
+    }
+
+    private func matchingEstimate(for event: LifeRouteCalendarEvent) -> LifeRouteRouteEstimate? {
+        guard !event.location.isEmpty else { return nil }
+        let normalized = event.location.lowercased()
+        guard let place = routingState.savedPlaces.first(where: {
+            normalized.contains($0.address.lowercased()) ||
+            $0.address.lowercased().contains(normalized) ||
+            normalized.contains($0.name.lowercased())
+        }) else { return nil }
+        return routingState.routeEstimates[place.id]
+    }
+
+    private func leaveDate(for event: LifeRouteCalendarEvent) -> Date? {
+        guard event.start > now, let estimate = matchingEstimate(for: event) else { return nil }
+        return event.start.addingTimeInterval(-(estimate.travelTimeSeconds + 10 * 60))
+    }
+
+    private func countdownKicker(for event: LifeRouteCalendarEvent) -> String {
+        if event.start <= now && event.end > now { return "CURRENT EVENT" }
+        if let leave = leaveDate(for: event), leave > now { return "LEAVE IN" }
+        return "NEXT EVENT IN"
+    }
+
+    private func countdownText(for event: LifeRouteCalendarEvent) -> String {
+        if event.start <= now && event.end > now {
+            return timeRemaining(until: event.end)
+        }
+        if let leave = leaveDate(for: event), leave > now {
+            return timeRemaining(until: leave)
+        }
+        return timeRemaining(until: event.start)
+    }
+
+    private func timeRemaining(until target: Date) -> String {
+        let seconds = max(0, Int(ceil(target.timeIntervalSince(now))))
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        let remainingSeconds = seconds % 60
+        if hours > 0 { return "\(hours)h \(minutes)m" }
+        if minutes >= 10 { return "\(minutes)m" }
+        return "\(minutes)m \(remainingSeconds)s"
+    }
+
+    private func eventTimeLabel(_ event: LifeRouteCalendarEvent) -> String {
+        if event.isAllDay { return "All day" }
+        return "\(event.start.formatted(date: .omitted, time: .shortened))–\(event.end.formatted(date: .omitted, time: .shortened))"
     }
 }
 
@@ -451,6 +637,8 @@ private struct TodayMetricTile: View {
                 .font(.title2.weight(.black))
                 .foregroundStyle(palette.textPrimary)
                 .monospacedDigit()
+                .minimumScaleFactor(0.65)
+                .lineLimit(1)
             Text(label)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(palette.textSecondary)
@@ -744,10 +932,6 @@ private struct ScheduleCoreView: View {
         } catch {
             formMessage = error.localizedDescription
         }
-    }
-
-    private func auditDirectTabSelection() {
-        router.select(.today)
     }
 }
 
@@ -1048,6 +1232,9 @@ private struct SetupCoreView: View {
     @ObservedObject var routingState: RoutingLocationCore
     @ObservedObject var clientState: ClientProfileCore
 
+    @StateObject private var homeAutocomplete = LifeRouteAddressAutocomplete()
+    @StateObject private var placeAutocomplete = LifeRouteAddressAutocomplete()
+
     @State private var homeDraft = ""
     @State private var placeName = ""
     @State private var placeAddress = ""
@@ -1070,11 +1257,14 @@ private struct SetupCoreView: View {
                         ZStack {
                             RoundedRectangle(cornerRadius: 15, style: .continuous)
                                 .fill(themeStore.selectedTheme.palette.backgroundGradient)
-                            Image(systemName: themeStore.selectedTheme.symbol)
-                                .font(.system(size: 23, weight: .bold))
-                                .foregroundStyle(themeStore.selectedTheme.palette.accent)
+                            LifeRouteThemeArtwork(
+                                theme: themeStore.selectedTheme,
+                                palette: themeStore.selectedTheme.palette,
+                                compact: true
+                            )
                         }
                         .frame(width: 62, height: 62)
+                        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Current look")
@@ -1100,26 +1290,52 @@ private struct SetupCoreView: View {
             Section("Appearance") {
                 NavigationLink("Theme Center", destination: ThemeCenterView())
                     .font(.headline)
-                Text("Choose from core, metallic, scenery, dynamic, and fluid themes.")
+                Text("Each theme now carries its own artwork as well as its own palette.")
                     .font(.caption)
                     .foregroundStyle(palette.textSecondary)
             }
 
             Section("Location") {
-                Label(routingState.locationMessage, systemImage: "location.fill")
+                Label(routingState.locationMessage, systemImage: routingState.liveLocationEnabled ? "location.fill.viewfinder" : "location.fill")
                     .foregroundStyle(palette.textSecondary)
-                Button("Request current location") { routingState.requestCurrentLocation() }
-                    .disabled(routingState.locationRequestInFlight)
+
+                Button(routingState.liveLocationEnabled ? "Stop live location" : "Start live current location") {
+                    if routingState.liveLocationEnabled {
+                        routingState.stopLiveLocation()
+                    } else {
+                        routingState.requestCurrentLocation()
+                    }
+                }
+                .disabled(routingState.locationRequestInFlight)
+
+                Text("LifeRoute uses standard When In Use location updates while the app is in the foreground. Background location is not enabled.")
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
             }
 
             Section("Home") {
                 TextField("Home address", text: $homeDraft)
                     .textContentType(.fullStreetAddress)
+                    .onChange(of: homeDraft) { value in
+                        homeAutocomplete.update(query: value)
+                    }
+
+                AddressSuggestionList(suggestions: homeAutocomplete.suggestions) { suggestion in
+                    homeDraft = suggestion.addressText
+                    homeAutocomplete.clear()
+                }
+
+                if let message = homeAutocomplete.message {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                }
 
                 Button("Use this home address") {
                     do {
                         try routingState.setHomeAddress(homeDraft)
                         placeMessage = "Home address saved locally on this iPhone."
+                        homeAutocomplete.clear()
                     } catch {
                         placeMessage = error.localizedDescription
                     }
@@ -1154,7 +1370,7 @@ private struct SetupCoreView: View {
                     }
                 }
 
-                Text("\(clientState.clients.count) client profiles · ABA-style initials only")
+                Text("Client profiles are optional. General session and visual tools remain available without one.")
                     .font(.caption)
                     .foregroundStyle(palette.textSecondary)
             }
@@ -1163,6 +1379,21 @@ private struct SetupCoreView: View {
                 TextField("Place name", text: $placeName)
                 TextField("Address or place", text: $placeAddress)
                     .textContentType(.fullStreetAddress)
+                    .onChange(of: placeAddress) { value in
+                        placeAutocomplete.update(query: value)
+                    }
+
+                AddressSuggestionList(suggestions: placeAutocomplete.suggestions) { suggestion in
+                    placeAddress = suggestion.addressText
+                    placeAutocomplete.clear()
+                }
+
+                if let message = placeAutocomplete.message {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                }
+
                 Picker("Type", selection: $placeKind) {
                     ForEach(LifeRoutePlaceKind.allCases) { kind in
                         Text(kind.rawValue).tag(kind)
@@ -1235,11 +1466,6 @@ private struct SetupCoreView: View {
         }
     }
 
-    // No PIN or password gate: setup remains direct-launch.
-    private func auditNavigationReset() {
-        router.resetPath(for: .setup)
-    }
-
     private func setupPlaceSymbol(_ kind: LifeRoutePlaceKind) -> String {
         switch kind {
         case .gym: return "figure.strengthtraining.traditional"
@@ -1265,8 +1491,43 @@ private struct SetupCoreView: View {
             placeMessage = "Saved place stored locally on this iPhone."
             placeName = ""
             placeAddress = ""
+            placeAutocomplete.clear()
         } catch {
             placeMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct AddressSuggestionList: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
+    let suggestions: [LifeRouteAddressSuggestion]
+    let onSelect: (LifeRouteAddressSuggestion) -> Void
+
+    var body: some View {
+        ForEach(suggestions) { suggestion in
+            Button {
+                onSelect(suggestion)
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "mappin.circle.fill")
+                        .foregroundStyle(palette.accent)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(suggestion.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(palette.textPrimary)
+                        if !suggestion.subtitle.isEmpty {
+                            Text(suggestion.subtitle)
+                                .font(.caption2)
+                                .foregroundStyle(palette.textSecondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
     }
 }
@@ -1323,7 +1584,7 @@ private struct ThemeCenterView: View {
                             isSelected: themeStore.selectedTheme == theme
                         ) {
                             themeStore.selectedTheme = theme
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            LifeRouteHaptics.selection()
                         }
                     }
                 }
@@ -1332,7 +1593,7 @@ private struct ThemeCenterView: View {
                     Label("Live theme", systemImage: themeStore.selectedTheme.symbol)
                         .font(.headline)
                         .foregroundStyle(palette.textPrimary)
-                    Text("\(themeStore.selectedTheme.name) is applied across the background, cards, accents, controls, and navigation tint.")
+                    Text("\(themeStore.selectedTheme.name) is applied across the background, cards, accents, controls, navigation tint, and theme-specific artwork.")
                         .font(.caption)
                         .foregroundStyle(palette.textSecondary)
                 }
@@ -1349,15 +1610,11 @@ private struct ThemeCenterView: View {
             RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
                 .fill(themeStore.selectedTheme.palette.backgroundGradient)
 
-            Circle()
-                .fill(themeStore.selectedTheme.palette.accent.opacity(0.24))
-                .frame(width: 220, height: 220)
-                .offset(x: 170, y: -70)
-
-            Image(systemName: themeMotif(themeStore.selectedTheme))
-                .font(.system(size: 150, weight: .black))
-                .foregroundStyle(themeStore.selectedTheme.palette.accentSecondary.opacity(0.10))
-                .offset(x: 125, y: 70)
+            LifeRouteThemeArtwork(
+                theme: themeStore.selectedTheme,
+                palette: themeStore.selectedTheme.palette
+            )
+            .clipShape(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous))
 
             VStack(alignment: .leading, spacing: 9) {
                 Text("THEME CENTER")
@@ -1370,7 +1627,7 @@ private struct ThemeCenterView: View {
                 Text("Change the atmosphere. Keep the workflow.")
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.72))
-                Label(themeStore.selectedTheme.category.rawValue, systemImage: themeStore.selectedTheme.symbol)
+                Label(themeStore.selectedTheme.category.rawValue, systemImage: themeStore.selectedTheme.artworkSymbols.primary)
                     .font(.caption.weight(.bold))
                     .foregroundStyle(themeStore.selectedTheme.palette.accentSecondary)
             }
@@ -1397,16 +1654,6 @@ private struct ThemeCenterView: View {
         case .fluid: return "drop.fill"
         }
     }
-
-    private func themeMotif(_ theme: LifeRouteTheme) -> String {
-        switch theme.category {
-        case .core: return "mountain.2.fill"
-        case .metallic: return "hexagon.fill"
-        case .scenery: return "mountain.2.fill"
-        case .dynamic: return "bolt.fill"
-        case .fluid: return "drop.fill"
-        }
-    }
 }
 
 private struct ThemeChoiceCard: View {
@@ -1419,22 +1666,14 @@ private struct ThemeChoiceCard: View {
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 10) {
-                ZStack(alignment: .bottomTrailing) {
+                ZStack {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(themePalette.backgroundGradient)
-                        .frame(height: 102)
-
-                    Image(systemName: motif)
-                        .font(.system(size: 72, weight: .black))
-                        .foregroundStyle(themePalette.accentSecondary.opacity(0.11))
-                        .offset(x: 10, y: 24)
-
-                    Circle()
-                        .fill(themePalette.accent.opacity(0.28))
-                        .frame(width: 74, height: 74)
-                        .blur(radius: 2)
-                        .offset(x: 18, y: -24)
-
+                    LifeRouteThemeArtwork(theme: theme, palette: themePalette, compact: true)
+                }
+                .frame(height: 102)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(alignment: .topTrailing) {
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.title3)
@@ -1442,7 +1681,6 @@ private struct ThemeChoiceCard: View {
                             .padding(9)
                     }
                 }
-                .clipped()
 
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
@@ -1454,7 +1692,9 @@ private struct ThemeChoiceCard: View {
                             .foregroundStyle(Color.white.opacity(0.58))
                     }
                     Spacer()
-                    Circle().fill(themePalette.accent).frame(width: 11, height: 11)
+                    Image(systemName: theme.artworkSymbols.primary)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(themePalette.accent)
                 }
             }
             .padding(10)
@@ -1469,16 +1709,6 @@ private struct ThemeChoiceCard: View {
             .shadow(color: isSelected ? themePalette.accent.opacity(0.12) : .clear, radius: 14, y: 6)
         }
         .buttonStyle(.plain)
-    }
-
-    private var motif: String {
-        switch theme.category {
-        case .core: return "mountain.2.fill"
-        case .metallic: return "hexagon.fill"
-        case .scenery: return "mountain.2.fill"
-        case .dynamic: return "bolt.fill"
-        case .fluid: return "drop.fill"
-        }
     }
 }
 
@@ -1508,4 +1738,5 @@ private struct RouteDetailView: View {
     ContentView()
         .environmentObject(LifeRouteThemeStore())
         .environment(\.lifeRoutePalette, LifeRouteTheme.royal.palette)
+        .environment(\.lifeRouteTheme, LifeRouteTheme.royal)
 }

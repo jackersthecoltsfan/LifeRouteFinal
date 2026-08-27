@@ -111,6 +111,30 @@ enum LifeRouteTheme: String, CaseIterable, Identifiable {
         }
     }
 
+    var artworkSymbols: (primary: String, secondary: String) {
+        switch self {
+        case .royal: return ("crown.fill", "shield.fill")
+        case .obsidian: return ("diamond.fill", "circle.hexagongrid.fill")
+        case .carbon: return ("square.grid.3x3.fill", "square.stack.3d.up.fill")
+        case .midnight: return ("moon.stars.fill", "sparkles")
+        case .navyNoir: return ("moon.fill", "building.columns.fill")
+        case .titanium: return ("gearshape.2.fill", "hexagon.fill")
+        case .slate: return ("square.stack.3d.up.fill", "rectangle.3.group.fill")
+        case .moltenGold: return ("flame.fill", "sun.max.fill")
+        case .phantomSilver: return ("moon.circle.fill", "sparkles")
+        case .ocean: return ("water.waves", "sailboat.fill")
+        case .aurora: return ("wand.and.stars", "wave.3.right")
+        case .forest: return ("tree.fill", "leaf.fill")
+        case .plum: return ("camera.macro", "sparkles")
+        case .ember: return ("flame.fill", "smoke.fill")
+        case .solarFlare: return ("sun.max.fill", "sparkles")
+        case .electricStorm: return ("cloud.bolt.rain.fill", "bolt.fill")
+        case .ultraviolet: return ("atom", "sparkles")
+        case .arcticPulse: return ("snowflake", "wave.3.right")
+        case .sapphireTide: return ("drop.fill", "water.waves")
+        }
+    }
+
     var palette: LifeRouteThemePalette {
         switch self {
         case .royal: return makeThemePalette(0x071329, 0x05284f, 0x0d2038, 0x143f68, 0xedb847, 0xfbdc80)
@@ -250,12 +274,6 @@ struct LifeRoutePrimaryButtonStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.86 : (isEnabled ? 1 : 0.48))
             .scaleEffect(configuration.isPressed ? 0.972 : 1)
             .animation(reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.78), value: configuration.isPressed)
-            .simultaneousGesture(
-                TapGesture().onEnded {
-                    guard isEnabled else { return }
-                    LifeRouteHaptics.primaryAction()
-                }
-            )
     }
 }
 
@@ -274,6 +292,56 @@ struct LifeRouteSecondaryButtonStyle: ButtonStyle {
             .shadow(color: palette.accent.opacity(configuration.isPressed ? 0.04 : 0.09), radius: 8, y: 3)
             .scaleEffect(configuration.isPressed ? 0.978 : 1)
             .animation(reduceMotion ? nil : .spring(response: 0.2, dampingFraction: 0.82), value: configuration.isPressed)
+    }
+}
+
+struct LifeRouteThemeArtwork: View {
+    let theme: LifeRouteTheme
+    let palette: LifeRouteThemePalette
+    var compact = false
+
+    var body: some View {
+        GeometryReader { proxy in
+            let symbols = theme.artworkSymbols
+            ZStack {
+                Image(systemName: symbols.primary)
+                    .font(.system(size: compact ? max(38, proxy.size.height * 0.56) : max(110, proxy.size.width * 0.38), weight: .black))
+                    .foregroundStyle(palette.accent.opacity(compact ? 0.32 : 0.075))
+                    .rotationEffect(.degrees(primaryRotation))
+                    .position(x: proxy.size.width * 0.72, y: proxy.size.height * (compact ? 0.52 : 0.30))
+
+                Image(systemName: symbols.secondary)
+                    .font(.system(size: compact ? max(25, proxy.size.height * 0.34) : max(82, proxy.size.width * 0.27), weight: .bold))
+                    .foregroundStyle(palette.accentSecondary.opacity(compact ? 0.22 : 0.055))
+                    .rotationEffect(.degrees(secondaryRotation))
+                    .position(x: proxy.size.width * 0.24, y: proxy.size.height * (compact ? 0.64 : 0.72))
+
+                Circle()
+                    .fill(palette.accentSecondary.opacity(compact ? 0.12 : 0.055))
+                    .frame(width: compact ? 34 : 120, height: compact ? 34 : 120)
+                    .blur(radius: compact ? 8 : 28)
+                    .position(x: proxy.size.width * 0.86, y: proxy.size.height * 0.16)
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var primaryRotation: Double {
+        switch theme {
+        case .carbon, .slate: return -12
+        case .aurora, .sapphireTide: return 8
+        case .electricStorm, .solarFlare: return -8
+        default: return 0
+        }
+    }
+
+    private var secondaryRotation: Double {
+        switch theme {
+        case .obsidian, .titanium, .phantomSilver: return 18
+        case .forest, .plum: return -10
+        default: return 0
+        }
     }
 }
 
@@ -318,6 +386,8 @@ private struct LifeRouteThemeBackdrop: View {
                 case .fluid:
                     fluidBackdrop(size: proxy.size)
                 }
+
+                LifeRouteThemeArtwork(theme: theme, palette: palette)
             }
             .clipped()
         }
@@ -326,11 +396,6 @@ private struct LifeRouteThemeBackdrop: View {
 
     @ViewBuilder
     private func coreBackdrop(size: CGSize) -> some View {
-        Image(systemName: "mountain.2.fill")
-            .font(.system(size: max(180, size.width * 0.72), weight: .black))
-            .foregroundStyle(palette.accentSecondary.opacity(0.035))
-            .offset(x: size.width * 0.22, y: size.height * 0.25)
-
         ForEach(0..<5, id: \.self) { index in
             Circle()
                 .fill(palette.accent.opacity(index.isMultiple(of: 2) ? 0.08 : 0.045))
@@ -372,11 +437,6 @@ private struct LifeRouteThemeBackdrop: View {
             .blur(radius: 18)
             .position(x: size.width * 0.82, y: size.height * 0.16)
 
-        Image(systemName: scenerySymbol)
-            .font(.system(size: max(220, size.width * 0.92), weight: .black))
-            .foregroundStyle(palette.accent.opacity(0.05))
-            .offset(x: size.width * 0.12, y: size.height * 0.28)
-
         if isAurora {
             Capsule()
                 .fill(palette.accentSecondary.opacity(0.055))
@@ -397,11 +457,6 @@ private struct LifeRouteThemeBackdrop: View {
                 .rotationEffect(.degrees(-32))
                 .offset(x: CGFloat(index - 2) * 42, y: CGFloat(index - 1) * 170)
         }
-
-        Image(systemName: "bolt.fill")
-            .font(.system(size: max(160, size.width * 0.52), weight: .black))
-            .foregroundStyle(palette.accentSecondary.opacity(0.035))
-            .position(x: size.width * 0.82, y: size.height * 0.30)
     }
 
     @ViewBuilder
@@ -419,18 +474,6 @@ private struct LifeRouteThemeBackdrop: View {
             .blur(radius: 8)
             .rotationEffect(.degrees(16))
             .offset(x: -size.width * 0.36, y: size.height * 0.24)
-
-        Image(systemName: "water.waves")
-            .font(.system(size: max(190, size.width * 0.72), weight: .bold))
-            .foregroundStyle(palette.accentSecondary.opacity(0.04))
-            .position(x: size.width * 0.72, y: size.height * 0.72)
-    }
-
-    private var scenerySymbol: String {
-        switch theme {
-        case .ocean: return "water.waves"
-        default: return "mountain.2.fill"
-        }
     }
 
     private var isAurora: Bool {

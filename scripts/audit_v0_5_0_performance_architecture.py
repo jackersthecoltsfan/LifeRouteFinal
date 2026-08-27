@@ -8,6 +8,7 @@ TOOLS = ROOT / "LifeRoute" / "SessionToolsDomain.swift"
 VIEWS = ROOT / "LifeRoute" / "SessionToolsViews.swift"
 CALENDAR = ROOT / "LifeRoute" / "CalendarDomain.swift"
 CONTENT = ROOT / "LifeRoute" / "ContentView.swift"
+NAVIGATION = ROOT / "LifeRoute" / "AppNavigation.swift"
 PROJECT = ROOT / "LifeRoute.xcodeproj" / "project.pbxproj"
 PREPARE = ROOT / "scripts" / "prepare_build.sh"
 WORKFLOW = ROOT / ".github" / "workflows" / "ios-ci.yml"
@@ -45,6 +46,7 @@ tools = read(TOOLS)
 views = read(VIEWS)
 calendar = read(CALENDAR)
 content = read(CONTENT)
+navigation = read(NAVIGATION)
 project = read(PROJECT)
 prepare = read(PREPARE)
 workflow = read(WORKFLOW)
@@ -59,7 +61,14 @@ require("JSONEncoder" not in persist and "data.write" not in persist, "Interacti
 require("await previousTask?.value" in persist, "Rapid saves preserve request order")
 require("latestWrittenRevision" in writer and "revision > latestWrittenRevision" in writer, "Stale write revisions cannot overwrite newer snapshots")
 require("data.write(to: fileURL, options: [.atomic])" in writer, "Snapshot replacement remains atomic")
-require("flushPendingWrites() async" in store and "phase != .active" in content, "Scene transitions request an ordered persistence flush")
+require(
+    "flushPendingWrites() async" in store
+    and "lifecycleState.flushPersistenceForSceneTransition()" in content
+    and "if phase == .active" in content
+    and "final class AppLifecycleCore" in navigation
+    and "guard persistenceFlushTask == nil else { return }" in navigation,
+    "Non-active scene transitions request one ordered persistence flush through the lifecycle owner",
+)
 
 visual_load = section(store, "func loadClientVisualSupports()", "func saveClientVisualSupports(")
 routing_load = section(store, "func loadRoutingState()", "func saveRoutingState(")

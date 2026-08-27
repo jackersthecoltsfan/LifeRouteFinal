@@ -107,7 +107,7 @@ struct ClientProfilesView: View {
             Text("No client profiles yet")
                 .font(.headline)
                 .foregroundStyle(palette.textPrimary)
-            Text("Add a client to unlock client-specific session tools and visual-support libraries.")
+            Text("Add a client for client-specific context, or keep using General session and visual tools without one.")
                 .font(.subheadline)
                 .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
@@ -222,6 +222,7 @@ struct ClientEditorView: View {
     @State private var caregiverNotes: String
     @State private var clinicalNotes: String
     @State private var message: String?
+    @State private var isSaving = false
 
     init(clientState: ClientProfileCore, profile: LifeRouteClientProfile?) {
         self.clientState = clientState
@@ -323,14 +324,14 @@ struct ClientEditorView: View {
 
             HStack(spacing: 10) {
                 editorField(title: "FIRST 2") {
-                    TextField("Ja", text: $first2)
+                    TextField("Ab", text: $first2)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .font(.title3.weight(.bold))
                 }
 
                 editorField(title: "LAST 2") {
-                    TextField("He", text: $last2)
+                    TextField("Cd", text: $last2)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .font(.title3.weight(.bold))
@@ -423,9 +424,13 @@ struct ClientEditorView: View {
             Button {
                 save()
             } label: {
-                Label(profileID == nil ? "Save client" : "Save changes", systemImage: "checkmark.circle.fill")
+                Label(
+                    isSaving ? "Saving…" : (profileID == nil ? "Save client" : "Save changes"),
+                    systemImage: isSaving ? "arrow.triangle.2.circlepath" : "checkmark.circle.fill"
+                )
             }
             .buttonStyle(LifeRoutePrimaryButtonStyle())
+            .disabled(isSaving)
 
             if let message {
                 Label(message, systemImage: "exclamationmark.circle.fill")
@@ -511,6 +516,11 @@ struct ClientEditorView: View {
     }
 
     private func save() {
+        guard !isSaving else { return }
+        isSaving = true
+        message = nil
+        defer { isSaving = false }
+
         do {
             _ = try clientState.saveProfile(
                 id: profileID,

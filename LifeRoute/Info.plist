@@ -39,8 +39,6 @@
     <string>LifeRoute reads the calendars you choose so it can combine appointments, find usable gaps, and plan routes. LifeRoute does not edit or delete your calendar events.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>LifeRoute uses your location while the app is open to start commute and route estimates from where you actually are. Your live location is not stored in your calendar.</string>
-    <key>NSFaceIDUsageDescription</key>
-    <string>LifeRoute can use Face ID when you choose it as a faster way to unlock your local LifeRoute login.</string>
     <key>NSCameraUsageDescription</key>
     <string>LifeRoute uses the camera only when you choose to photograph an item, activity, person, or place for a visual support icon. Photos used by the visual tools stay on this device.</string>
     <key>NSPhotoLibraryUsageDescription</key>

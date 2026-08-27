@@ -58,10 +58,11 @@ require("func open(_ route: AppRoute, in section: AppSection)" in source["naviga
 require("func resetPath(for section: AppSection)" in source["navigation"], "Native navigation paths remain deterministically resettable")
 require("Button(\"Close\") { dismiss() }" in source["content"], "Native detail routes retain semantic back/close behavior")
 
-# Today + Setup routing journey: explicit location, durable home/saved places,
-# route estimate, Apple Maps handoff, and transient runtime-only outputs.
+# Today + Setup routing journey: foreground live location, durable home/saved
+# places, route estimate, Apple Maps handoff, and transient runtime-only outputs.
 for marker, label in [
-    ("routingState.requestCurrentLocation()", "explicit current-location request"),
+    ("routingState.requestCurrentLocation()", "explicit live-location start"),
+    ("routingState.stopLiveLocation()", "explicit live-location stop"),
     ("routingState.calculateRoute(to: place, mode: routeMode)", "saved-place route estimate"),
     ("routingState.openInAppleMaps(place, mode: routeMode)", "Apple Maps handoff"),
     ("routingState.setHomeAddress(homeDraft)", "home-address save"),
@@ -69,11 +70,14 @@ for marker, label in [
     ("routingState.removeSavedPlace(id: place.id)", "saved-place removal"),
 ]:
     require(marker in source["content"], f"Routing UI retains {label}")
-require("CLLocationManagerDelegate" in source["routing"] and "requestLocation()" in source["routing"], "Location remains native and one-shot")
+require("CLLocationManagerDelegate" in source["routing"] and "startUpdatingLocation()" in source["routing"], "Location remains native and supports foreground live updates")
+require("requestLocation()" not in source["routing"] and "allowsBackgroundLocationUpdates = false" in source["routing"], "Location no longer regresses to one-shot behavior and remains foreground-only")
 require("MKLocalSearch" in source["routing"] and "MKDirections" in source["routing"], "Search and route calculation remain native MapKit flows")
+require("MKLocalSearchCompleter" in source["routing"], "Address autocomplete remains native MapKit")
 require("if let currentLocation" in source["routing"] and "if !homeAddress.isEmpty" in source["routing"], "Route origin retains current-location then home fallback")
 require("saveRoutingState(homeAddress: homeAddress, savedPlaces: savedPlaces)" in source["routing"], "Home and saved-place mutations persist together")
 require("currentLocation" not in source["persistence"] and "routeEstimates" not in source["persistence"], "GPS coordinates and calculated routes remain transient")
+require("LiveDayTimeline" in source["content"] and "calendarState.events(on: Date())" in source["content"], "Generate/Live Day remains native and calendar-backed")
 
 # Calendar journey: manual CRUD, range navigation/presentation, and explicit
 # read-only provider refreshes whose caches remain separate from persistence.
@@ -96,6 +100,7 @@ require("saveManualCalendarEvents(events.filter { $0.source == .manual })" in so
 require("ClientProfilesView(clientState: clientState)" in source["content"], "Setup opens native client management")
 require("clientState.saveProfile(" in source["client_views"], "Client editor retains add/edit save wiring")
 require("clientState.removeClient(id: profile.id)" in source["client_views"], "Client removal remains wired")
+require("@State private var isSaving = false" in source["client_views"] and ".disabled(isSaving)" in source["client_views"], "Client save is guarded against duplicate taps")
 require("let code = first + last" in source["clients"] and "first.count == 2" in source["clients"], "ABA client identity remains four normalized initials")
 for field in [
     "preferredActivities", "currentTargets", "behaviorsOfConcern", "communicationNotes",
@@ -105,7 +110,7 @@ for field in [
 require("LifeRoutePersistenceStore.shared.saveClients(clients)" in source["clients"], "Client add/edit/remove mutations remain durable")
 
 # Session Tools journey: absolute-deadline timer, ephemeral quick notes,
-# client-scoped visual supports, First/Then, and deterministic plan organizer.
+# General/client-scoped visual supports, First/Then, and deterministic plan organizer.
 for route in ["visualTimer", "quickNotes", "firstThen", "sessionPlan"]:
     require(f"case {route}" in source["tools"] and f"SessionToolRoute.{route}" in source["tool_views"], f"Session Tool route remains available: {route}")
 require("deadline = now.addingTimeInterval(seconds)" in source["tools"] and "remainingSeconds(at:" in source["tools"], "Visual Timer retains absolute-deadline behavior")
@@ -113,16 +118,17 @@ for action in ["timer.start", "timer.pause", "timer.resume", "timer.addMinute", 
     require(action in source["tool_views"], f"Visual Timer control remains wired: {action}")
 require("toolsState.addNote(" in source["tool_views"] and "toolsState.removeNote(id: note.id)" in source["tool_views"], "Quick Session Notes retain add/remove behavior")
 require("func buildPlan(" in source["tools"] and "toolsState.buildPlan(" in source["tool_views"], "Session Plan Organizer remains deterministic and wired")
-require("ClientVisualSupportCenter" in source["tool_views"], "Client visual-support hub remains reachable")
+require("ClientVisualSupportCenter" in source["tool_views"], "Visual-support hub remains reachable")
 for operation, label in [
     ("visualState.addIcon", "icon creation"),
     ("visualState.saveChoiceBoard", "Choice Board creation"),
     ("ClientFirstThenVisualView", "First/Then"),
     ("visualState.saveSchedule", "Visual Schedule creation"),
 ]:
-    require(operation in source["tool_views"], f"Client visual workflow retains {label}")
-require("clientID: UUID" in source["tools"] and "crossClientReference" in source["tools"], "Visual ownership remains durable and same-client constrained")
-require("visualState.retainClients(clientState.clients)" in source["tool_views"] and ".onReceive(clientState.$clients)" in source["tool_views"], "Client edits/deletes reconcile the active visual library")
+    require(operation in source["tool_views"], f"Visual workflow retains {label}")
+require("clientID: UUID" in source["tools"] and "crossClientReference" in source["tools"], "Visual ownership remains durable and same-library constrained")
+require('generalClientCode = "GENERAL"' in source["tools"], "Visual workflows retain a General library without requiring a client")
+require("visualState.retainClients(clientState.clients)" in source["tool_views"] and ".onReceive(clientState.$clients)" in source["tool_views"], "Client edits/deletes reconcile active visual libraries without deleting General")
 
 # Persistence and migration journey: protected versioned native data, ordered
 # atomic writes, corruption recovery, and reviewed legacy inputs only.
@@ -148,6 +154,7 @@ require("private var googleRefreshTask: Task<Void, Never>?" in source["providers
 require("Task {" not in source["content"], "Root interactions create no fire-and-forget tasks")
 require("if phase == .background" in source["content"] and "routingState.cancelPendingOperations()" in source["content"], "Background routing cancellation remains lifecycle-bounded")
 require("providerState.cancelPendingOperations()" not in source["content"], "Transient inactive phases cannot abort provider permission/authentication")
+require(".simultaneousGesture(" not in source["app"] and ".onTapGesture(" not in source["app"], "Shared appearance layer cannot compete with semantic Button tap ownership")
 
 # Build/release isolation and accumulated validation order.
 active_files = [
@@ -159,10 +166,10 @@ active_files = [
 for file_name in active_files:
     require(f"{file_name} in Sources" in source["project"], f"Active native target compiles {file_name}")
 require("LifeRouteWebView.swift in Sources" not in source["project"] and "Web in Resources" not in source["project"], "Legacy WebView and JavaScript runtime remain quarantined")
-approved_versions = [version for version in ("0.5.0", "0.5.1", "0.5.2") if f"MARKETING_VERSION = {version};" in source["project"]]
+approved_versions = [version for version in ("0.5.0", "0.5.1", "0.5.2", "0.5.3") if f"MARKETING_VERSION = {version};" in source["project"]]
 require(
     len(approved_versions) == 1 and source["project"].count(f"MARKETING_VERSION = {approved_versions[0]};") >= 2,
-    "Debug and Release shipping configurations use one approved v0.5 marketing version (0.5.0, 0.5.1, or 0.5.2)",
+    "Debug and Release shipping configurations use one approved v0.5 marketing version (0.5.0 through 0.5.3)",
 )
 
 accumulated_audits = [
@@ -187,6 +194,7 @@ for audit in accumulated_audits:
     require(position > last_position, f"Preparation executes accumulated gate in order: {audit}")
     if position >= 0:
         last_position = position
+require("audit_v0_5_3_repair.py" in source["prepare"], "Preparation adds the dedicated v0.5.3 multi-angle repair audit after inherited gates")
 require("Audit checkpoint 07 second functionality pass" in source["workflow"], "iOS CI exposes Checkpoint 07 before Simulator compilation")
 
 active_runtime = "\n".join(source[name] for name in [

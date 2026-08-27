@@ -65,6 +65,73 @@ struct LifeRouteSavedPlace: Identifiable, Codable, Hashable {
     }
 }
 
+struct LifeRouteAddressSuggestion: Identifiable, Hashable {
+    let title: String
+    let subtitle: String
+
+    var id: String { title + "\n" + subtitle }
+
+    var addressText: String {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanSubtitle = subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanSubtitle.isEmpty else { return cleanTitle }
+        guard !cleanTitle.localizedCaseInsensitiveContains(cleanSubtitle) else { return cleanTitle }
+        return "\(cleanTitle), \(cleanSubtitle)"
+    }
+}
+
+final class LifeRouteAddressAutocomplete: NSObject, ObservableObject, MKLocalSearchCompleterDelegate {
+    @Published private(set) var suggestions: [LifeRouteAddressSuggestion] = []
+    @Published private(set) var message: String?
+
+    private let completer = MKLocalSearchCompleter()
+    private var lastQuery = ""
+
+    override init() {
+        super.init()
+        completer.delegate = self
+        completer.resultTypes = [.address, .pointOfInterest]
+    }
+
+    func update(query: String) {
+        let cleaned = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard cleaned != lastQuery else { return }
+        lastQuery = cleaned
+        message = nil
+
+        guard cleaned.count >= 3 else {
+            suggestions = []
+            completer.queryFragment = ""
+            return
+        }
+        completer.queryFragment = cleaned
+    }
+
+    func clear() {
+        lastQuery = ""
+        suggestions = []
+        message = nil
+        completer.queryFragment = ""
+    }
+
+    func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        let next = Array(completer.results.prefix(6)).map {
+            LifeRouteAddressSuggestion(title: $0.title, subtitle: $0.subtitle)
+        }
+        DispatchQueue.main.async { [weak self] in
+            self?.suggestions = next
+            self?.message = nil
+        }
+    }
+
+    func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+        DispatchQueue.main.async { [weak self] in
+            self?.suggestions = []
+            self?.message = "Address suggestions are temporarily unavailable. You can still type the address manually."
+        }
+    }
+}
+
 struct LifeRouteRouteEstimate: Hashable {
     let placeID: UUID
     let mode: LifeRouteTransportMode
@@ -114,6 +181,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
     @Published private(set) var routeMessage: String?
     @Published private(set) var homeAddress = ""
     @Published private(set) var locationRequestInFlight = false
+    @Published private(set) var liveLocationEnabled = false
     @Published private(set) var routeRequestsInFlight: Set<UUID> = []
     @Published private(set) var mapsOpenInFlight = false
 
@@ -133,6 +201,9 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        locationManager.distanceFilter = 25
+        locationManager.pausesLocationUpdatesAutomatically = true
+        locationManager.allowsBackgroundLocationUpdates = false
         authorizationStatus = locationManager.authorizationStatus
         updateLocationMessage(for: authorizationStatus)
     }
@@ -144,22 +215,43 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
         case .notDetermined:
             locationRequestInFlight = true
             locationRequestPendingAuthorization = true
+            liveLocationEnabled = true
             locationMessage = "Requesting location permission…"
             locationManager.requestWhenInUseAuthorization()
         case .authorizedAlways, .authorizedWhenInUse:
-            locationRequestInFlight = true
-            locationMessage = "Updating current location…"
-            locationManager.requestLocation()
+            beginForegroundLocationUpdates()
         case .denied:
             locationRequestPendingAuthorization = false
+            liveLocationEnabled = false
             locationMessage = "Location access is denied. You can enable it in iPhone Settings."
         case .restricted:
             locationRequestPendingAuthorization = false
+            liveLocationEnabled = false
             locationMessage = "Location access is restricted on this iPhone."
         @unknown default:
             locationRequestPendingAuthorization = false
+            liveLocationEnabled = false
             locationMessage = "Location status is unavailable."
         }
+    }
+
+    func resumeForegroundLocationIfNeeded() {
+        authorizationStatus = locationManager.authorizationStatus
+        guard liveLocationEnabled,
+              (authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse) else {
+            updateLocationMessage(for: authorizationStatus)
+            return
+        }
+        locationManager.startUpdatingLocation()
+        locationMessage = currentLocation == nil ? "Updating live location…" : "Live location active"
+    }
+
+    func stopLiveLocation() {
+        liveLocationEnabled = false
+        locationRequestInFlight = false
+        locationRequestPendingAuthorization = false
+        locationManager.stopUpdatingLocation()
+        updateLocationMessage(for: locationManager.authorizationStatus)
     }
 
     func setHomeAddress(_ address: String) throws {
@@ -257,7 +349,9 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
 
         locationRequestPendingAuthorization = false
         locationRequestInFlight = false
-        locationManager.stopUpdatingLocation()
+        // Do not tear down an explicitly enabled foreground live-location session here.
+        // With When-In-Use authorization iOS suspends delivery in the background and
+        // the active scene resumes the same standard location service on return.
 
         if hadPendingWork {
             _ = publishRouteMessage(nil)
@@ -323,33 +417,39 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
         updateLocationMessage(for: authorizationStatus)
-        let shouldRequestLocation = locationRequestPendingAuthorization
+        let shouldBeginLiveUpdates = locationRequestPendingAuthorization || liveLocationEnabled
         locationRequestPendingAuthorization = false
-        if shouldRequestLocation,
+        if shouldBeginLiveUpdates,
            (authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse) {
-            locationRequestInFlight = true
-            locationMessage = "Updating current location…"
-            manager.requestLocation()
+            beginForegroundLocationUpdates()
         } else if authorizationStatus != .notDetermined {
             locationRequestInFlight = false
+            if authorizationStatus == .denied || authorizationStatus == .restricted {
+                liveLocationEnabled = false
+            }
         }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard locationRequestInFlight else { return }
-        locationRequestInFlight = false
+        guard locationRequestInFlight || liveLocationEnabled else { return }
         guard let location = locations.last else {
+            locationRequestInFlight = false
             locationMessage = "Location unavailable; no position was returned."
             return
         }
         currentLocation = location
-        locationMessage = "Current location ready"
+        locationRequestInFlight = false
+        locationMessage = liveLocationEnabled ? "Live location active" : "Current location ready"
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        guard locationRequestInFlight else { return }
+        guard locationRequestInFlight || liveLocationEnabled else { return }
         locationRequestInFlight = false
-        locationMessage = "Location unavailable: \(error.localizedDescription)"
+        if liveLocationEnabled {
+            locationMessage = "Live location temporarily unavailable: \(error.localizedDescription)"
+        } else {
+            locationMessage = "Location unavailable: \(error.localizedDescription)"
+        }
     }
 
     @discardableResult
@@ -412,7 +512,11 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
         case .notDetermined:
             locationMessage = "Location not requested"
         case .authorizedAlways, .authorizedWhenInUse:
-            locationMessage = currentLocation == nil ? "Location allowed; waiting for a position" : "Current location ready"
+            if liveLocationEnabled {
+                locationMessage = currentLocation == nil ? "Updating live location…" : "Live location active"
+            } else {
+                locationMessage = currentLocation == nil ? "Location allowed; tap Locate to start" : "Current location ready"
+            }
         case .denied:
             locationMessage = "Location access is denied"
         case .restricted:
@@ -420,6 +524,13 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
         @unknown default:
             locationMessage = "Location status is unavailable"
         }
+    }
+
+    private func beginForegroundLocationUpdates() {
+        liveLocationEnabled = true
+        locationRequestInFlight = true
+        locationMessage = "Updating live location…"
+        locationManager.startUpdatingLocation()
     }
 
     private func originMapItem() async throws -> MKMapItem {

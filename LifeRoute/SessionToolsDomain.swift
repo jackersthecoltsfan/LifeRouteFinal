@@ -48,7 +48,7 @@ enum SessionToolsCoreError: LocalizedError {
 @MainActor
 private final class VisualTimerToneEngine {
     private static let sampleRate = 44_100.0
-    private static let pulseDuration = 0.085
+    private static let pulseDuration = 0.10
 
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
@@ -73,7 +73,7 @@ private final class VisualTimerToneEngine {
         completionStopTask?.cancel()
         completionStopTask = Task { [weak self] in
             do {
-                try await Task.sleep(nanoseconds: 550_000_000)
+                try await Task.sleep(nanoseconds: 650_000_000)
             } catch {
                 return
             }
@@ -93,12 +93,13 @@ private final class VisualTimerToneEngine {
     private func prepareIfNeeded() -> Bool {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try session.setActive(true)
 
             if !isPrepared {
                 engine.attach(player)
                 engine.connect(player, to: engine.mainMixerNode, format: format)
+                player.volume = 1
                 isPrepared = true
             }
             if !engine.isRunning { try engine.start() }
@@ -117,16 +118,16 @@ private final class VisualTimerToneEngine {
         for frame in 0..<Int(frameCount) {
             let t = Double(frame) / Self.sampleRate
             let attack = min(1, t / 0.006)
-            let decay = exp(-31 * t)
+            let decay = exp(-28 * t)
             let fundamental = sin(2 * Double.pi * frequency * t)
-            let shimmer = 0.18 * sin(2 * Double.pi * frequency * 2.01 * t)
-            samples[frame] = Float((fundamental + shimmer) * attack * decay * 0.042)
+            let shimmer = 0.20 * sin(2 * Double.pi * frequency * 2.01 * t)
+            samples[frame] = Float((fundamental + shimmer) * attack * decay * 0.12)
         }
         return buffer
     }
 
     private func completionBuffer() -> AVAudioPCMBuffer? {
-        let totalDuration = 0.43
+        let totalDuration = 0.52
         let frameCount = AVAudioFrameCount(Self.sampleRate * totalDuration)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
               let samples = buffer.floatChannelData?[0] else { return nil }
@@ -134,8 +135,8 @@ private final class VisualTimerToneEngine {
 
         let notes: [(start: Double, frequency: Double)] = [
             (0.00, 950),
-            (0.12, 1_160),
-            (0.25, 1_430),
+            (0.14, 1_160),
+            (0.29, 1_430),
         ]
 
         for frame in 0..<Int(frameCount) {
@@ -143,12 +144,12 @@ private final class VisualTimerToneEngine {
             var value = 0.0
             for note in notes {
                 let localTime = t - note.start
-                guard localTime >= 0, localTime <= 0.16 else { continue }
+                guard localTime >= 0, localTime <= 0.19 else { continue }
                 let attack = min(1, localTime / 0.008)
-                let decay = exp(-22 * localTime)
-                value += sin(2 * Double.pi * note.frequency * localTime) * attack * decay * 0.052
+                let decay = exp(-19 * localTime)
+                value += sin(2 * Double.pi * note.frequency * localTime) * attack * decay * 0.17
             }
-            samples[frame] = Float(value)
+            samples[frame] = Float(max(-0.92, min(0.92, value)))
         }
         return buffer
     }
@@ -400,23 +401,27 @@ enum ClientVisualSupportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingClient:
-            return "Choose a client before creating a visual support."
+            return "Choose a client or the General visual library before creating a visual support."
         case .missingLabel:
             return "Add a label for the visual icon."
         case .missingTitle:
             return "Add a title before saving this visual support."
         case .noIcons:
-            return "Choose at least one icon from this client’s visual library."
+            return "Choose at least one icon from this visual library."
         case .noSteps:
             return "Add at least one step before saving the visual schedule."
         case .crossClientReference:
-            return "A visual support can only use icons saved to the same client."
+            return "A visual support can only use icons saved to the same visual library."
         }
     }
 }
 
 @MainActor
 final class ClientVisualSupportCore: ObservableObject {
+    static let generalClientCode = "GENERAL"
+    static let generalDisplayName = "General / no client"
+    private static let generalClientID = UUID(uuidString: "7F164E34-BD4A-4A30-AFDB-70A4AE8C7D3E")!
+
     @Published private(set) var icons: [ClientVisualIcon]
     @Published private(set) var choiceBoards: [ClientChoiceBoard]
     @Published private(set) var schedules: [ClientVisualSchedule]
@@ -436,30 +441,28 @@ final class ClientVisualSupportCore: ObservableObject {
     }
 
     func icons(for clientCode: String) -> [ClientVisualIcon] {
-        guard let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: normalizedRequiredClientCode(clientCode)) else { return [] }
-        return iconsByClientID[clientID] ?? []
+        guard let owner = visualOwner(for: clientCode) else { return [] }
+        return iconsByClientID[owner.id] ?? []
     }
 
     func choiceBoards(for clientCode: String) -> [ClientChoiceBoard] {
-        guard let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: normalizedRequiredClientCode(clientCode)) else { return [] }
-        return choiceBoardsByClientID[clientID] ?? []
+        guard let owner = visualOwner(for: clientCode) else { return [] }
+        return choiceBoardsByClientID[owner.id] ?? []
     }
 
     func schedules(for clientCode: String) -> [ClientVisualSchedule] {
-        guard let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: normalizedRequiredClientCode(clientCode)) else { return [] }
-        return schedulesByClientID[clientID] ?? []
+        guard let owner = visualOwner(for: clientCode) else { return [] }
+        return schedulesByClientID[owner.id] ?? []
     }
 
     @discardableResult
     func addIcon(clientCode: String, label: String, imageData: Data?) throws -> ClientVisualIcon {
-        let code = normalizedRequiredClientCode(clientCode)
-        guard !code.isEmpty,
-              let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: code) else {
+        guard let owner = visualOwner(for: clientCode) else {
             throw ClientVisualSupportError.missingClient
         }
         let cleanLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanLabel.isEmpty else { throw ClientVisualSupportError.missingLabel }
-        let icon = ClientVisualIcon(clientID: clientID, clientCode: code, label: cleanLabel, imageData: imageData)
+        let icon = ClientVisualIcon(clientID: owner.id, clientCode: owner.code, label: cleanLabel, imageData: imageData)
         icons.append(icon)
         rebuildVisualIndexes()
         persistVisualSupports()
@@ -488,23 +491,21 @@ final class ClientVisualSupportCore: ObservableObject {
 
     @discardableResult
     func saveChoiceBoard(clientCode: String, title: String, iconIDs: [UUID], columns: Int) throws -> ClientChoiceBoard {
-        let code = normalizedRequiredClientCode(clientCode)
-        guard !code.isEmpty,
-              let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: code) else {
+        guard let owner = visualOwner(for: clientCode) else {
             throw ClientVisualSupportError.missingClient
         }
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTitle.isEmpty else { throw ClientVisualSupportError.missingTitle }
 
-        let allowed = iconIDsByClientID[clientID] ?? []
+        let allowed = iconIDsByClientID[owner.id] ?? []
         var seen = Set<UUID>()
         let requested = iconIDs.filter { seen.insert($0).inserted }
         guard !requested.isEmpty else { throw ClientVisualSupportError.noIcons }
         guard requested.allSatisfy(allowed.contains) else { throw ClientVisualSupportError.crossClientReference }
 
         let board = ClientChoiceBoard(
-            clientID: clientID,
-            clientCode: code,
+            clientID: owner.id,
+            clientCode: owner.code,
             title: cleanTitle,
             iconIDs: Array(requested.prefix(9)),
             columns: columns == 3 ? 3 : 2
@@ -523,16 +524,14 @@ final class ClientVisualSupportCore: ObservableObject {
 
     @discardableResult
     func saveSchedule(clientCode: String, title: String, steps: [ClientVisualScheduleStep]) throws -> ClientVisualSchedule {
-        let code = normalizedRequiredClientCode(clientCode)
-        guard !code.isEmpty,
-              let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: code) else {
+        guard let owner = visualOwner(for: clientCode) else {
             throw ClientVisualSupportError.missingClient
         }
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTitle.isEmpty else { throw ClientVisualSupportError.missingTitle }
         guard !steps.isEmpty else { throw ClientVisualSupportError.noSteps }
 
-        let allowed = iconIDsByClientID[clientID] ?? []
+        let allowed = iconIDsByClientID[owner.id] ?? []
         let cleanedSteps = steps.compactMap { step -> ClientVisualScheduleStep? in
             let label = step.label.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !label.isEmpty else { return nil }
@@ -542,8 +541,8 @@ final class ClientVisualSupportCore: ObservableObject {
         guard cleanedSteps.count == steps.count else { throw ClientVisualSupportError.crossClientReference }
 
         let schedule = ClientVisualSchedule(
-            clientID: clientID,
-            clientCode: code,
+            clientID: owner.id,
+            clientCode: owner.code,
             title: cleanTitle,
             steps: cleanedSteps
         )
@@ -560,14 +559,15 @@ final class ClientVisualSupportCore: ObservableObject {
     }
 
     func icon(id: UUID, for clientCode: String) -> ClientVisualIcon? {
-        guard let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: normalizedRequiredClientCode(clientCode)) else { return nil }
-        guard let icon = iconsByID[id], icon.clientID == clientID else { return nil }
+        guard let owner = visualOwner(for: clientCode) else { return nil }
+        guard let icon = iconsByID[id], icon.clientID == owner.id else { return nil }
         return icon
     }
 
     func retainClients(_ clients: [LifeRouteClientProfile]) {
-        let clientIDs = Set(clients.map(\.id))
-        let codeByID = Dictionary(uniqueKeysWithValues: clients.map { ($0.id, normalizedRequiredClientCode($0.code)) })
+        let clientIDs = Set(clients.map(\.id)).union([Self.generalClientID])
+        var codeByID = Dictionary(uniqueKeysWithValues: clients.map { ($0.id, normalizedRequiredClientCode($0.code)) })
+        codeByID[Self.generalClientID] = Self.generalClientCode
 
         var changed = false
         let updatedIcons = icons.compactMap { icon -> ClientVisualIcon? in
@@ -650,6 +650,15 @@ final class ClientVisualSupportCore: ObservableObject {
             choiceBoards: choiceBoards,
             schedules: schedules
         )
+    }
+
+    private func visualOwner(for value: String) -> (id: UUID, code: String)? {
+        let code = normalizedRequiredClientCode(value)
+        if code.isEmpty || code.caseInsensitiveCompare(Self.generalClientCode) == .orderedSame {
+            return (Self.generalClientID, Self.generalClientCode)
+        }
+        guard let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: code) else { return nil }
+        return (clientID, code)
     }
 
     private func normalizedRequiredClientCode(_ value: String) -> String {

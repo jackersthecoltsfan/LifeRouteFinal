@@ -1,64 +1,212 @@
 import SwiftUI
 
 struct ClientProfilesView: View {
+    @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var clientState: ClientProfileCore
 
     var body: some View {
-        List {
-            Section {
-                Text("Use a four-letter ABA-style code: first two letters of the first name + first two letters of the last name. Full names are not required.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                clientHero
+                addClientCard
 
-            Section {
-                NavigationLink {
-                    ClientEditorView(clientState: clientState, profile: nil)
-                } label: {
-                    Label("Add client", systemImage: "person.badge.plus")
-                }
-            }
-
-            Section("Saved clients") {
                 if clientState.clients.isEmpty {
-                    Text("No client profiles yet")
-                        .foregroundStyle(.secondary)
+                    emptyState
                 } else {
-                    ForEach(clientState.clients) { profile in
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text(profile.code)
-                                .font(.headline)
-                            Text(profile.address.isEmpty ? "No service location" : profile.address)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("\(profile.currentTargets.count) targets · \(profile.preferredActivities.count) preferred activities · \(profile.behaviorsOfConcern.count) behaviors of concern")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            HStack {
-                                NavigationLink("Edit") {
-                                    ClientEditorView(clientState: clientState, profile: profile)
-                                }
-                                Button("Remove", role: .destructive) {
-                                    clientState.removeClient(id: profile.id)
-                                }
-                            }
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Saved clients")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(palette.textPrimary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        ForEach(clientState.clients) { profile in
+                            clientCard(profile)
                         }
-                        .padding(.vertical, 4)
                     }
                 }
-            }
 
-            Section {
                 Text("Client profiles are saved locally in protected LifeRoute app data on this iPhone.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(palette.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 4)
             }
+            .padding(18)
         }
         .navigationTitle("Clients")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var clientHero: some View {
+        HStack(alignment: .top, spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(palette.accent.opacity(0.15))
+                Image(systemName: "person.2.crop.square.stack.fill")
+                    .font(.system(size: 23, weight: .bold))
+                    .foregroundStyle(palette.accent)
+            }
+            .frame(width: 54, height: 54)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Client hub")
+                    .font(.system(size: 28, weight: .black, design: .rounded))
+                    .foregroundStyle(palette.textPrimary)
+                Text("Keep the session context you actually need, without putting full client names into LifeRoute.")
+                    .font(.subheadline)
+                    .foregroundStyle(palette.textSecondary)
+                Text("Full names are not required.")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(palette.accentSecondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .lifeRouteCard()
+    }
+
+    private var addClientCard: some View {
+        NavigationLink {
+            ClientEditorView(clientState: clientState, profile: nil)
+        } label: {
+            HStack(spacing: 13) {
+                ZStack {
+                    Circle()
+                        .fill(palette.accent.opacity(0.16))
+                    Image(systemName: "person.badge.plus")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(palette.accent)
+                }
+                .frame(width: 44, height: 44)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Add client")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    Text("Create a four-letter ABA-style profile")
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "plus.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(palette.accent)
+            }
+        }
+        .buttonStyle(.plain)
+        .lifeRouteCard()
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "person.crop.circle.badge.plus")
+                .font(.system(size: 34, weight: .semibold))
+                .foregroundStyle(palette.accent)
+            Text("No client profiles yet")
+                .font(.headline)
+                .foregroundStyle(palette.textPrimary)
+            Text("Add a client to unlock client-specific session tools and visual-support libraries.")
+                .font(.subheadline)
+                .foregroundStyle(palette.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 22)
+        .lifeRouteCard()
+    }
+
+    private func clientCard(_ profile: LifeRouteClientProfile) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [palette.accent.opacity(0.26), palette.accentSecondary.opacity(0.10)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                    Text(profile.code)
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(palette.accentSecondary)
+                        .minimumScaleFactor(0.7)
+                }
+                .frame(width: 56, height: 56)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(profile.code)
+                        .font(.title3.weight(.black))
+                        .foregroundStyle(palette.textPrimary)
+
+                    Label(
+                        profile.address.isEmpty ? "No service location" : profile.address,
+                        systemImage: "mappin.and.ellipse"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+                    .lineLimit(2)
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 7) {
+                ClientMetricChip(value: profile.currentTargets.count, label: "Targets")
+                ClientMetricChip(value: profile.preferredActivities.count, label: "Preferred")
+                ClientMetricChip(value: profile.behaviorsOfConcern.count, label: "Behaviors")
+            }
+
+            HStack(spacing: 9) {
+                NavigationLink {
+                    ClientEditorView(clientState: clientState, profile: profile)
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(LifeRouteSecondaryButtonStyle())
+
+                Button("Remove", role: .destructive) {
+                    clientState.removeClient(id: profile.id)
+                }
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity, minHeight: 46)
+                .background(Color.red.opacity(0.09), in: RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous))
+            }
+        }
+        .lifeRouteCard()
+    }
+}
+
+private struct ClientMetricChip: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    let value: Int
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text("\(value)")
+                .font(.subheadline.weight(.black))
+                .foregroundStyle(palette.textPrimary)
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, minHeight: 50)
+        .background(palette.panelElevated.opacity(0.50), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .stroke(Color.white.opacity(0.055), lineWidth: 1)
+        }
     }
 }
 
 struct ClientEditorView: View {
+    @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var clientState: ClientProfileCore
     let profileID: UUID?
 
@@ -92,6 +240,28 @@ struct ClientEditorView: View {
 
     var body: some View {
         Form {
+            Section {
+                HStack(spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(palette.accent.opacity(0.16))
+                        Text(codePreview == "—" ? "••••" : codePreview)
+                            .font(.subheadline.weight(.black))
+                            .foregroundStyle(palette.accentSecondary)
+                    }
+                    .frame(width: 62, height: 62)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(profileID == nil ? "New client profile" : "Edit \(codePreview)")
+                            .font(.title3.weight(.bold))
+                        Text("Privacy-first ABA context for sessions and visual tools.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 5)
+            }
+
             Section("ABA client code") {
                 TextField("First 2 initials", text: $first2)
                     .textInputAutocapitalization(.never)
@@ -99,8 +269,7 @@ struct ClientEditorView: View {
                 TextField("Last 2 initials", text: $last2)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                Text("Preview: \(codePreview)")
-                    .foregroundStyle(.secondary)
+                LabeledContent("Preview", value: codePreview)
             }
 
             Section("Service location") {
@@ -109,23 +278,17 @@ struct ClientEditorView: View {
             }
 
             Section("Session supports") {
-                Text("Preferred activities / reinforcers")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                EditorFieldHeader(title: "Preferred activities / reinforcers", systemImage: "star.fill")
                 TextEditor(text: $preferredActivities)
-                    .frame(minHeight: 80)
+                    .frame(minHeight: 92)
 
-                Text("Current targets / programs")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                EditorFieldHeader(title: "Current targets / programs", systemImage: "target")
                 TextEditor(text: $currentTargets)
-                    .frame(minHeight: 80)
+                    .frame(minHeight: 92)
 
-                Text("Behaviors of concern")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                EditorFieldHeader(title: "Behaviors of concern", systemImage: "exclamationmark.triangle.fill")
                 TextEditor(text: $behaviorsOfConcern)
-                    .frame(minHeight: 80)
+                    .frame(minHeight: 92)
             }
 
             Section("Clinical context") {
@@ -140,9 +303,13 @@ struct ClientEditorView: View {
             }
 
             Section {
-                Button(profileID == nil ? "Save client" : "Save changes") {
+                Button {
                     save()
+                } label: {
+                    Label(profileID == nil ? "Save client" : "Save changes", systemImage: "checkmark.circle.fill")
                 }
+                .buttonStyle(LifeRoutePrimaryButtonStyle())
+
                 if let message {
                     Text(message)
                         .foregroundStyle(.secondary)
@@ -177,5 +344,17 @@ struct ClientEditorView: View {
         } catch {
             message = error.localizedDescription
         }
+    }
+}
+
+private struct EditorFieldHeader: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        Label(title, systemImage: systemImage)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(palette.accentSecondary)
     }
 }

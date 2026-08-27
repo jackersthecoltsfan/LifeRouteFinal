@@ -126,7 +126,12 @@ final class DayRoutePlanningCore: ObservableObject {
     func openLegInAppleMaps(_ leg: LifeRouteDayRouteLeg, mode: LifeRouteTransportMode) {
         Task {
             do {
-                let source = try await Self.mapItem(for: leg.fromAddress, fallbackName: leg.fromTitle)
+                let source: MKMapItem
+                if leg.fromAddress == "Current Location" {
+                    source = MKMapItem.forCurrentLocation()
+                } else {
+                    source = try await Self.mapItem(for: leg.fromAddress, fallbackName: leg.fromTitle)
+                }
                 let destination = try await Self.mapItem(for: leg.toAddress, fallbackName: leg.toTitle)
                 source.name = leg.fromTitle
                 destination.name = leg.toTitle
@@ -216,9 +221,6 @@ final class DayRoutePlanningCore: ObservableObject {
     }
 
     private static func mapItem(for query: String, fallbackName: String) async throws -> MKMapItem {
-        if query == "Current Location" {
-            throw DayRoutePlanningError.locationNotFound(query)
-        }
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = query
         let response = try await MKLocalSearch(request: request).start()

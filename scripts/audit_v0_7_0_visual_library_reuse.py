@@ -63,13 +63,33 @@ def main() -> None:
             'actionLabel: "Open"',
             'Label("Preview board", systemImage: "rectangle.on.rectangle")',
             'Label("Open schedule", systemImage: "rectangle.on.rectangle")',
-            'navigationTitle("Board Preview")',
-            'navigationTitle("Schedule Preview")',
             "LazyVGrid(columns: gridColumns",
             "ForEach(board.iconIDs, id: \\.self)",
             "ForEach(Array(schedule.steps.enumerated()), id: \\.element.id)",
         ],
         "discoverable reusable saved visual UI",
+    )
+
+    # B.1 used standard NavigationStack titles. B.2 deliberately supersedes those
+    # with a true full-screen session surface that hides navigation/tab chrome and
+    # owns an explicit Close control. Require one exact reviewed presentation model.
+    legacy_navigation_preview = (
+        'navigationTitle("Board Preview")' in views
+        and 'navigationTitle("Schedule Preview")' in views
+    )
+    b2_fullscreen_preview = all(
+        token in views
+        for token in [
+            "v0.7.0 B.2 save and fullscreen preview",
+            '.accessibilityLabel("Close board preview")',
+            '.accessibilityLabel("Close schedule preview")',
+            ".toolbar(.hidden, for: .navigationBar)",
+            ".toolbar(.hidden, for: .tabBar)",
+        ]
+    )
+    require(
+        legacy_navigation_preview or b2_fullscreen_preview,
+        "saved visuals must reopen into either the reviewed B.1 navigation preview or the reviewed B.2 full-screen session preview",
     )
 
     center_block = views.split("struct ClientVisualSupportCenter: View", 1)[1].split("private struct VisualWorkspaceCard", 1)[0]
@@ -84,7 +104,7 @@ def main() -> None:
     require("python3 scripts/audit_v0_7_0_visual_library_reuse.py" in prepare, "canonical preparation must run saved visual reuse audit")
 
     print(
-        "LifeRoute v0.7.0 visual library reuse audit passed: persisted choice boards and schedules are discoverable from the Visual Supports library, reopen into session-ready previews, remain client/General scoped, and preserve native persistence ownership."
+        "LifeRoute v0.7.0 visual library reuse audit passed: persisted choice boards and schedules are discoverable from the Visual Supports library, reopen into a reviewed session-ready preview model, remain client/General scoped, and preserve native persistence ownership."
     )
 
 

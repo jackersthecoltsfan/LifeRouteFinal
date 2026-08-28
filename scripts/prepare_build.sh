@@ -35,7 +35,12 @@ python3 scripts/patch_v0_7_0_build_b3.py
 python3 scripts/patch_v0_7_0_build_b3_compat.py
 python3 scripts/patch_v0_7_0_build_c.py
 python3 scripts/patch_v0_7_0_build_c_compile_hotfix.py
+# Build D is presentation-only. Temporarily normalize the superseding v0.6.2 timer TimelineView
+# spelling so the visual patch can apply, then restore the validated 0.10-second final cadence.
+python3 scripts/patch_v0_7_0_build_d_timer_compat_pre.py
 python3 scripts/patch_v0_7_0_build_d.py
+python3 scripts/patch_v0_7_0_build_d_timer_compat_post.py
+python3 scripts/patch_v0_7_0_build_d_compat.py
 
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
@@ -74,7 +79,10 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_build_b3_compat.py \
   scripts/patch_v0_7_0_build_c.py \
   scripts/patch_v0_7_0_build_c_compile_hotfix.py \
+  scripts/patch_v0_7_0_build_d_timer_compat_pre.py \
   scripts/patch_v0_7_0_build_d.py \
+  scripts/patch_v0_7_0_build_d_timer_compat_post.py \
+  scripts/patch_v0_7_0_build_d_compat.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -140,4 +148,4 @@ python3 scripts/audit_v0_7_0_build_c.py
 python3 scripts/audit_v0_7_0_build_d.py
 python3 scripts/audit_v0_7_0_testflight.py
 
-echo "LifeRoute v0.7.0 Build D preparation passed: accepted Build A/B/B.1/B.2/B.3/C behavior remains intact, Tools now uses the shared premium clinical-first hierarchy, Session Note/Plan and Timer presentation are tightened without changing validated AI/timer/client/persistence behavior, accumulated regressions stay green, and legacy WebView runtime remains quarantined."
+echo "LifeRoute v0.7.0 Build D preparation passed: accepted Build A/B/B.1/B.2/B.3/C behavior remains intact, Tools now uses the shared premium clinical-first hierarchy, Session Note/Plan and Timer presentation are tightened without changing validated AI/timer/client/persistence behavior, the final timer visual cadence remains 0.10 seconds, accumulated regressions stay green, and legacy WebView runtime remains quarantined."

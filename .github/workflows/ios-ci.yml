@@ -62,6 +62,7 @@ jobs:
             -configuration Debug \
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/liferoute-derived-data" \
             CODE_SIGNING_ALLOWED=NO \
             build >"$LOG_FILE" 2>&1
           status=$?
@@ -81,3 +82,17 @@ jobs:
           fi
 
           tail -40 "$LOG_FILE"
+      - name: Capture v0.7.1 visual fixtures
+        if: github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/v0.7.1-theme-runtime-visual-regression'
+        run: |
+          bash scripts/capture_v0_7_1_visual_fixtures.sh \
+            "$RUNNER_TEMP/liferoute-derived-data/Build/Products/Debug-iphonesimulator/LifeRoute.app" \
+            "$RUNNER_TEMP/liferoute-visual-validation"
+      - name: Upload v0.7.1 visual fixtures
+        if: always() && github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/v0.7.1-theme-runtime-visual-regression'
+        uses: actions/upload-artifact@v6
+        with:
+          name: liferoute-v0.7.1-visual-fixtures
+          path: ${{ runner.temp }}/liferoute-visual-validation/*.png
+          if-no-files-found: error
+          retention-days: 14

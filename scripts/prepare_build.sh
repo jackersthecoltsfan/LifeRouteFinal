@@ -137,6 +137,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_official_branding.py \
   scripts/patch_v0_7_0_live_theme_surface_hero.py \
   scripts/patch_v0_7_0_theme_phase_3.py \
+  scripts/patch_v0_7_1_theme_visual_runtime_fix.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -176,7 +177,8 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_official_branding.py \
   scripts/audit_v0_7_0_live_theme_surface_hero.py \
   scripts/audit_v0_7_0_theme_phase_3.py \
-  scripts/audit_v0_7_0_testflight.py
+  scripts/audit_v0_7_0_testflight.py \
+  scripts/audit_v0_7_1_theme_visual_runtime_fix.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
@@ -220,4 +222,10 @@ python3 scripts/patch_v0_7_0_theme_phase_3.py
 python3 scripts/audit_v0_7_0_theme_phase_3.py
 python3 scripts/audit_v0_7_0_testflight.py
 
-echo "LifeRoute v0.7.0 Phase 3 scenery preparation passed: Build A/B/B.1/B.2/B.3/C/D/E, swipe behavior, location QA, 12 still Core Glass themes, 12 clearly visible Dynamic Liquid Glass themes, and 20 individually selectable cinematic Scenery Day/Night environments share the protected persistent shell; Reduce Motion/lifecycle controls and the single live-environment clock remain intact; Today keeps the approved split Life/Route hero and full selected-day agenda; the official navy/gold LR identity remains protected; the timer cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."
+# v0.7.1 visual-runtime correction is intentionally last: all historical Build #96 contracts are
+# locked first, then the scoped Canyon Day / Royal Current / Today exemplar architecture supersedes
+# only the failed renderer and foreground-surface behavior.
+python3 scripts/patch_v0_7_1_theme_visual_runtime_fix.py
+python3 scripts/audit_v0_7_1_theme_visual_runtime_fix.py
+
+echo "LifeRoute v0.7.1 exemplar preparation passed: the complete v0.7.0 Build #96 regression chain remains locked; Canyon Day uses bundled cinematic artwork, Royal Current uses broad layered glass currents, and Today reveals either selected exemplar through availability-safe glass surfaces while the protected persistent shell, one live-environment clock, full selected-day agenda, official identity, timer cadence, and quarantined legacy runtime remain intact."

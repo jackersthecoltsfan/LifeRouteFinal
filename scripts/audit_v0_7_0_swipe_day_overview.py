@@ -6,6 +6,7 @@ TODAY = ROOT / "LifeRoute/V054TodayView.swift"
 SCHEDULE = ROOT / "LifeRoute/V054ScheduleView.swift"
 CALENDAR = ROOT / "LifeRoute/CalendarDomain.swift"
 CONTENT = ROOT / "LifeRoute/V054ContentView.swift"
+NAVIGATION = ROOT / "LifeRoute/AppNavigation.swift"
 PROVIDER = ROOT / "LifeRoute/CalendarProviderCore.swift"
 
 
@@ -24,6 +25,7 @@ def main() -> None:
     schedule = SCHEDULE.read_text(encoding="utf-8")
     calendar = CALENDAR.read_text(encoding="utf-8")
     content = CONTENT.read_text(encoding="utf-8")
+    navigation = NAVIGATION.read_text(encoding="utf-8")
     provider = PROVIDER.read_text(encoding="utf-8")
 
     require(today, "v0.7.0 swipeable day overview", "feature marker")
@@ -65,13 +67,26 @@ def main() -> None:
     ]:
         forbid(today, token, "unguarded newer/custom paging dependency")
 
-    # Root navigation remains the protected five-tab shell.
-    for tab in ["Today", "Schedule", "Tools", "Resources", "Setup"]:
-        require(content, f'"{tab}"', f"root tab {tab}")
-    forbid(content, '"Routes"', "Routes root tab")
+    # Root navigation remains the protected five-tab AppSection shell, with no sixth Routes section.
+    expected_sections = [
+        ("today", "Today"),
+        ("schedule", "Schedule"),
+        ("tools", "Tools"),
+        ("resources", "Resources"),
+        ("setup", "Setup"),
+    ]
+    for section, title in expected_sections:
+        require(navigation, f"case {section}", f"AppSection case {section}")
+        require(navigation, f'case .{section}: return "{title}"', f"AppSection title {title}")
+        require(content, f".tag(AppSection.{section})", f"root TabView tag {section}")
+    forbid(navigation, "case routes", "Routes AppSection case")
+    if content.count(".tag(AppSection.") != 5:
+        raise SystemExit(
+            f"v0.7.0 swipe-day audit failed: expected exactly 5 root AppSection tab tags, found {content.count('.tag(AppSection.') }"
+        )
 
     print(
-        "LifeRoute v0.7.0 swipe-day audit passed: CalendarCoreState remains the sole selected-day owner; Today uses native iOS-16 page-style browsing across the connected provider horizon; Today/Tomorrow/date VoiceOver labels and selected-page state are present; selected-day events flow into overview, route planning, and Live Day; and the protected five-tab shell remains intact."
+        "LifeRoute v0.7.0 swipe-day audit passed: CalendarCoreState remains the sole selected-day owner; Today uses native iOS-16 page-style browsing across the connected provider horizon; Today/Tomorrow/date VoiceOver labels and selected-page state are present; selected-day events flow into overview, route planning, and Live Day; and the protected five-tab AppSection shell remains intact."
     )
 
 

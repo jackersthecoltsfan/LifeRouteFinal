@@ -84,6 +84,16 @@ width, height = struct.unpack(">II", header[16:24])
 require(width >= 800 and height >= 1600 and height > width, "Canyon Day asset must be a high-detail portrait image")
 require_all(contents, ['"filename" : "SceneryCanyonDay.png"', '"idiom" : "universal"'], "Canyon asset catalog")
 
+royal_asset = ROOT / "LifeRoute/Assets.xcassets/DynamicRoyalCurrent.imageset/DynamicRoyalCurrent.png"
+royal_contents = read("LifeRoute/Assets.xcassets/DynamicRoyalCurrent.imageset/Contents.json")
+require(royal_asset.is_file(), "bundled Royal Current artwork is missing")
+require(royal_asset.stat().st_size >= 1_000_000, "Royal Current artwork is unexpectedly small")
+royal_header = royal_asset.read_bytes()[:26]
+require(royal_header[:8] == b"\x89PNG\r\n\x1a\n", "Royal Current artwork must be PNG")
+royal_width, royal_height = struct.unpack(">II", royal_header[16:24])
+require(royal_width >= 800 and royal_height >= 1600 and royal_height > royal_width, "Royal Current artwork must be a high-detail portrait image")
+require_all(royal_contents, ['"filename" : "DynamicRoyalCurrent.png"', '"idiom" : "universal"'], "Royal Current asset catalog")
+
 canyon_start = app.index("// v0.7.1 Canyon Day exemplar")
 canyon_end = app.index("struct LifeRouteSceneryFrame: View", canyon_start)
 canyon = app[canyon_start:canyon_end]
@@ -115,6 +125,7 @@ require_all(
     [
         "v0.7.1 Royal Current exemplar", "private struct LifeRouteRoyalCurrentBand: Shape",
         "let samples = 36", "stride(from: samples, through: 0, by: -1)",
+        'Image(decorative: "DynamicRoyalCurrent")', ".resizable()", ".scaledToFill()",
         "thickness: max(142, size.height * 0.22)", "thickness: max(126, size.height * 0.19)",
         ".blendMode(.screen)", "AngularGradient(", ".compositingGroup()",
     ],
@@ -138,7 +149,9 @@ require("LifeRouteTodayHeroScene" not in today, "Today must not retain a competi
 require_all(
     today,
     [
-        "v0.7.1 Today uses the persistent root environment as its only hero artwork",
+        "v0.7.1 Today reuses the selected exemplar's production artwork; no local competing renderer or clock",
+        "LifeRouteTodaySelectedExemplarArtwork(theme: themeStore.selectedTheme)",
+        'Image(decorative: "SceneryCanyonDay")', 'Image(decorative: "DynamicRoyalCurrent")',
         'Text("Life")', 'Text("Route")', ".foregroundStyle(brandGold)",
         "ForEach(selectedDayEvents)", "LifeRouteTodayGlassCardModifier",
         "if #available(iOS 26.0, *)", "GlassEffectContainer(spacing: 8)",
@@ -147,6 +160,11 @@ require_all(
     "environment-transparent Today exemplar",
 )
 require("LifeRouteBrandMark(variant: .small)" not in today, "square LR mark must remain absent from Today")
+today_artwork_start = today.index("private struct LifeRouteTodaySelectedExemplarArtwork: View")
+today_artwork_end = today.index("private struct LifeRouteTodayGlassCardModifier", today_artwork_start)
+today_artwork = today[today_artwork_start:today_artwork_end]
+for forbidden in ["TimelineView(", "Timer.", "CADisplayLink", "AsyncImage", "URLSession"]:
+    require(forbidden not in today_artwork, f"Today exemplar artwork must not introduce {forbidden}")
 
 require_all(
     app,
@@ -207,6 +225,6 @@ require(
 
 print(
     f"LifeRoute v0.7.1 exemplar audit passed: Canyon Day is a {width}x{height} bundled cinematic asset; "
-    "Royal Current uses broad layered glass bodies from the one root phase; Today exposes the selected root environment "
+    f"Royal Current is a {royal_width}x{royal_height} bundled glass-current asset with restrained one-clock overlays; Today reuses the selected exemplar artwork "
     "with iOS 26 Liquid Glass and fallback materials; all 12 Core, 12 Dynamic, and 20 Scenery identities remain protected."
 )

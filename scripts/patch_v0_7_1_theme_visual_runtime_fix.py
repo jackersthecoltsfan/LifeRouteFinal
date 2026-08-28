@@ -66,6 +66,13 @@ private struct LifeRouteRoyalCurrentFrame: View {
             let drift = sin(phase * 0.64)
 
             ZStack {
+                Image(decorative: "DynamicRoyalCurrent")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: size.width, height: size.height)
+                    .scaleEffect(1.035 + pulse * 0.012)
+                    .offset(x: drift * 4.2, y: -drift * 2.4)
+
                 LinearGradient(
                     colors: [
                         Color(red: 0.004, green: 0.025, blue: 0.085),
@@ -75,6 +82,8 @@ private struct LifeRouteRoyalCurrentFrame: View {
                     startPoint: UnitPoint(x: 0.08, y: CGFloat(0.02 + 0.04 * pulse)),
                     endPoint: UnitPoint(x: CGFloat(0.92 - 0.05 * drift), y: 1)
                 )
+                .opacity(0.16)
+                .blendMode(.overlay)
 
                 RadialGradient(
                     colors: [
@@ -124,6 +133,7 @@ private struct LifeRouteRoyalCurrentFrame: View {
                 .rotationEffect(.degrees(-9 + drift * 2.2))
                 .offset(x: -size.width * 0.04, y: -size.height * 0.04)
                 .shadow(color: palette.accentSecondary.opacity(0.25), radius: 24)
+                .opacity(0.20)
 
                 LifeRouteRoyalCurrentBand(
                     phase: -phase * 0.72 + 2.15,
@@ -150,6 +160,7 @@ private struct LifeRouteRoyalCurrentFrame: View {
                 .rotationEffect(.degrees(8 - drift * 1.8))
                 .offset(x: size.width * 0.07, y: size.height * 0.02)
                 .blendMode(.screen)
+                .opacity(0.18)
 
                 LifeRouteRoyalCurrentBand(
                     phase: phase * 0.68 + 0.45,
@@ -177,6 +188,7 @@ private struct LifeRouteRoyalCurrentFrame: View {
                 .rotationEffect(.degrees(-9 + drift * 2.2))
                 .offset(x: -size.width * 0.04, y: -size.height * 0.04)
                 .blendMode(.screen)
+                .opacity(0.34)
 
                 LifeRouteRoyalCurrentBand(
                     phase: -phase * 0.66 + 2.50,
@@ -198,6 +210,7 @@ private struct LifeRouteRoyalCurrentFrame: View {
                 .rotationEffect(.degrees(8 - drift * 1.8))
                 .offset(x: size.width * 0.07, y: size.height * 0.02)
                 .blendMode(.screen)
+                .opacity(0.28)
 
                 Ellipse()
                     .trim(from: 0.08, to: 0.78)
@@ -213,6 +226,7 @@ private struct LifeRouteRoyalCurrentFrame: View {
                     .offset(x: -size.width * 0.20, y: -size.height * 0.14)
                     .blur(radius: 3.5)
                     .blendMode(.screen)
+                    .opacity(0.22)
 
                 LinearGradient(
                     colors: [Color.white.opacity(0.08), Color.clear, palette.accent.opacity(0.05), Color.clear],
@@ -343,6 +357,25 @@ private struct LifeRouteVisualFixtureView: View {
 
 
 TODAY_SURFACES = r'''// v0.7.1 Today exemplar surfaces: native Liquid Glass on iOS 26 with an availability-safe material fallback.
+private struct LifeRouteTodaySelectedExemplarArtwork: View {
+    let theme: LifeRouteTheme
+
+    @ViewBuilder
+    var body: some View {
+        if theme == .sceneryCanyonDay {
+            Image(decorative: "SceneryCanyonDay")
+                .resizable()
+                .scaledToFill()
+        } else if theme == .royalCurrent {
+            Image(decorative: "DynamicRoyalCurrent")
+                .resizable()
+                .scaledToFill()
+        } else {
+            Color.clear
+        }
+    }
+}
+
 private struct LifeRouteTodayGlassCardModifier: ViewModifier {
     @Environment(\.lifeRoutePalette) private var palette
 
@@ -581,7 +614,7 @@ def patch_today() -> None:
     text = replace_once(
         text,
         "            LifeRouteTodayHeroScene()",
-        "            // v0.7.1 Today uses the persistent root environment as its only hero artwork.\n            Color.clear",
+        "            // v0.7.1 Today reuses the selected exemplar's production artwork; no local competing renderer or clock.\n            LifeRouteTodaySelectedExemplarArtwork(theme: themeStore.selectedTheme)",
         "Today competing hero removal",
     )
     text = text.replace(".lifeRouteCard()", ".modifier(LifeRouteTodayGlassCardModifier())")
@@ -618,7 +651,8 @@ def main() -> None:
     patch_today()
     print(
         "LifeRoute v0.7.1 exemplar runtime applied: Canyon Day uses bundled cinematic artwork, "
-        "Royal Current uses broad layered glass currents, Today reveals the shared root environment, "
+        "Royal Current uses bundled blue/gold glass artwork with restrained one-clock overlays, "
+        "Today reuses the selected exemplar artwork without a competing clock, "
         "and iOS 26 uses availability-gated native Liquid Glass surfaces."
     )
 

@@ -35,7 +35,7 @@ if MARKER not in text:
         let clientContext = String(compactSessionNoteClientContext(client).prefix(550))
 
         let instructions = """
-        Create one professional ABA session note from the supplied session evidence. Match the user's Master ABA Session Note standard.
+        Create one professional ABA session note using ONLY the session facts supplied below. Clear screenshot OCR may supplement those facts only as supporting quantitative evidence. Match the user's Master ABA Session Note standard.
 
         WRITING CONTRACT
         - Write natural, objective, person-first clinical prose appropriate for insurance documentation. Use approximately 2–4 concise cohesive paragraphs; do not pad a sparse session.
@@ -55,7 +55,7 @@ if MARKER not in text:
         - SESSION FACTS are the primary source of truth. Clear SCREENSHOT OCR / DATA is supporting quantitative evidence. SAVED CLIENT CONTEXT is terminology/context only and never proves that an event occurred.
         - Integrate clear percentages, frequencies, and other values naturally beside the matching target/behavior; never create a separate data dump.
         - If OCR conflicts with an explicit narrative fact, preserve the narrative fact and omit uncertain OCR rather than overwriting the user's account.
-        - Describe successful or lower-performing skills objectively when clear data supports it, without inventing explanations or unsupported progress claims.
+        - Describe successful or lower-performing skills objectively when clear data supports it. When clear data shows a target still requires intervention, it is acceptable to state that the target continues to require intervention, but do not invent an explanation or unsupported progress claim.
         - Never convert behavior frequency/count data into a percentage.
 
         COLLABORATION CONTRACT

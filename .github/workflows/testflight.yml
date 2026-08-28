@@ -113,14 +113,21 @@ jobs:
           ! grep -q 'LifeRouteWebView.swift in Sources' LifeRoute.xcodeproj/project.pbxproj
           ! grep -q 'Web in Resources' LifeRoute.xcodeproj/project.pbxproj
 
-          # The canonical preparation step above already materializes the complete historical regression chain.
-          # Re-run the current authoritative release-facing audit here rather than grepping obsolete Phase 2/3 UI markers.
+          # Canonical preparation materializes the historical theme work first, then the final shipping hold.
+          # The release gate validates the actual user-facing shipping surface, not hidden work-in-progress themes.
           python3 scripts/audit_v0_7_1_physical_runtime_fix.py
+          python3 scripts/audit_v0_7_1_shipping_theme_hold.py
 
           grep -q 'v0.7.1 physical-device motion visibility repair' LifeRoute/LifeRouteApp.swift
           grep -q 'v0.7.1 physical-device root environment reveal' LifeRoute/V054ContentView.swift
           grep -q 'v0.7.1 custom LifeRoute bottom toolbar' LifeRoute/V054ContentView.swift
+          grep -q 'v0.7.1 single-toolbar physical fix' LifeRoute/V054ContentView.swift
+          grep -q 'bar.isHidden = true' LifeRoute/V054ContentView.swift
           grep -q 'v0.7.1 Setup disclosure groups' LifeRoute/V054SetupView.swift
+          grep -q 'v0.7.1 shipping theme hold' LifeRoute/LifeRouteApp.swift
+          grep -q 'v0.7.1 shipping theme hold' LifeRoute/V054ThemeCenterView.swift
+          grep -q 'return \[.royalCurrent\]' LifeRoute/V054ThemeCenterView.swift
+          grep -q 'return \[.sceneryCanyonDay\]' LifeRoute/V054ThemeCenterView.swift
           grep -q 'static let phaseOneCoreGlassCatalog' LifeRoute/LifeRouteApp.swift
           grep -q 'static let phaseTwoDynamicCatalog' LifeRoute/LifeRouteApp.swift
           grep -q 'static let phaseThreeSceneryCatalog' LifeRoute/LifeRouteApp.swift
@@ -133,7 +140,7 @@ jobs:
           test -s "$ICON"
           test "$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/ {print $2}')" = "1024"
           test "$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/ {print $2}')" = "1024"
-          echo "v0.7.1 finishing contract verified: 12 Core + 8 Dynamic + 12 Scenery, one shared live-theme clock, custom five-tab toolbar, decluttered Setup, protected timer cadence, native isolation, premium LR icon, and Live Activity extension are ready for signing."
+          echo "v0.7.1 shipping contract verified: 12 protected Core themes + Royal Current + Canyon Day are user-facing; unfinished Dynamic/Scenery implementation remains preserved but hidden, one shared live-theme clock remains authoritative, only the custom five-tab toolbar is visible, Setup remains decluttered, and protected native behavior is ready for signing."
 
       - name: Archive LifeRoute v0.7.1 finishing candidate
         env:
@@ -233,9 +240,9 @@ jobs:
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
 
           {
-            echo "### ✅ LifeRoute v0.7.1 finishing candidate sent to TestFlight"
+            echo "### ✅ LifeRoute v0.7.1 shipping-hold candidate sent to TestFlight"
             echo "Build **#${GITHUB_RUN_NUMBER}** uploaded successfully."
-            echo "Checkpoint includes the validated 12 Core + 8 Dynamic + 12 Scenery production theme library, app-wide theme runtime repair, custom five-tab LifeRoute toolbar, decluttered Setup disclosures, protected native navigation/persistence/timer/ABA/calendar/routing behavior, and Live Day / Live Activity support."
+            echo "Checkpoint exposes the validated 12 Core themes + Royal Current + Canyon Day, preserves unfinished theme implementation for later integration, includes the single custom five-tab LifeRoute toolbar and decluttered Setup disclosures, and protects native navigation/persistence/timer/ABA/calendar/routing and Live Day / Live Activity behavior."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save IPA artifact

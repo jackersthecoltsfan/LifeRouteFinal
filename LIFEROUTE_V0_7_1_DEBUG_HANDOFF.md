@@ -254,6 +254,60 @@ Do not upload another TestFlight build without new explicit authorization from t
 
 The successful Build #96 checkpoint remains the rollback baseline.
 
+## Codex-first engineering workflow
+
+For v0.7.1 and future substantial native LifeRoute work, use a Codex-first execution model rather than treating this chat as the primary coding surface.
+
+### Responsibility split
+
+**Codex is the primary implementation engine.** Use it for:
+
+- repository inspection and code tracing;
+- authoritative patch-chain edits;
+- SwiftUI implementation and refactoring;
+- deterministic audit updates;
+- `prepare_build.sh` materialization;
+- actual Simulator compilation;
+- Simulator launch and UI interaction;
+- screenshot capture and visual iteration;
+- code-first SwiftUI performance review;
+- profiling/ETTrace work when visual correctness is already achieved;
+- PR preparation and exact validated-head handoff.
+
+**The ChatGPT LifeRoute engineering thread is the control room.** Use it for:
+
+- product and architecture decisions;
+- interpreting reference artwork as acceptance criteria;
+- reviewing Codex checkpoints and Simulator screenshots;
+- deciding whether a milestone is visually credible;
+- preserving release rules and protected functionality;
+- approving progression from exemplar work to full rollout;
+- deciding when TestFlight authorization is appropriate.
+
+Figma, Canva, and image generation may support the asset/design pipeline, but they should feed source-controlled assets and clear implementation specs into the native Codex workflow rather than becoming parallel implementation paths.
+
+### Codex gating model
+
+Do not ask Codex to implement all 32 live theme variants before proving the corrected architecture.
+
+Use these gates:
+
+1. Trace the current materialized theme runtime end-to-end.
+2. Implement one representative Scenery exemplar to reference quality.
+3. Compile and visually validate that exemplar in Simulator.
+4. Implement one representative Dynamic exemplar to reference quality.
+5. Compile and visually validate that exemplar in Simulator.
+6. Validate Today with the selected Scenery exemplar and Dynamic exemplar using the shared root environment.
+7. Only after those three visual gates pass, scale the proven renderer architecture across the remaining theme identities.
+8. Run full deterministic regression and representative screenshot sweep.
+9. Run performance review/profiling only after visual correctness is established.
+
+A successful compile is only an intermediate signal. Codex should continue automatically through screenshot capture and visual comparison for any milestone whose acceptance criteria are visual.
+
+### Reasoning setting
+
+Keep Codex at Extra High for this v0.7.1 renderer/debugging work. Do not raise it further unless repeated serious debugging attempts leave a genuinely unresolved problem.
+
 ## Recommended execution order
 
 1. Inspect the fully materialized current source and trace background ownership end-to-end.
@@ -279,4 +333,4 @@ The user has raised Codex reasoning above High to Extra High (not Max) for this 
 
 Use this in a new engineering chat:
 
-`@GitHub @Build iOS Apps @SwiftUI Expert Continue LifeRoute as v0.7.1 debugging from LIFEROUTE_V0_7_1_DEBUG_HANDOFF.md in jackersthecoltsfan/LifeRouteFinal. Use branch fix/v0.7.1-theme-runtime-visual-regression starting from exact v0.7.0 TestFlight Build #96 SHA 4d30c9949515b324d4425393337afc01ede3b485. The priority is to replace the failed procedural Scenery and faint Dynamic renderer architecture so the real app visually matches the supplied approved theme reference images, then restore Today/welcome-screen reference parity and run full functional + visual regression. Do not upload TestFlight without fresh explicit authorization.`
+`@GitHub @Build iOS Apps @SwiftUI Expert Continue LifeRoute as v0.7.1 debugging from LIFEROUTE_V0_7_1_DEBUG_HANDOFF.md in jackersthecoltsfan/LifeRouteFinal. Use branch fix/v0.7.1-theme-runtime-visual-regression starting from exact v0.7.0 TestFlight Build #96 SHA 4d30c9949515b324d4425393337afc01ede3b485. The priority is to replace the failed procedural Scenery and faint Dynamic renderer architecture so the real app visually matches the supplied approved theme reference images, then restore Today/welcome-screen reference parity and run full functional + visual regression. Use the Codex-first workflow in the handoff: prove one Scenery exemplar, one Dynamic exemplar, and Today with both before scaling to the full theme catalog. Do not upload TestFlight without fresh explicit authorization.`

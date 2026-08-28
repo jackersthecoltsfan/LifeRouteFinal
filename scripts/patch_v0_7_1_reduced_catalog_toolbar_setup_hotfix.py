@@ -2,6 +2,7 @@
 from pathlib import Path
 
 from patch_v0_7_1_shipping_theme_hold import main as patch_shipping_theme_hold
+from patch_v0_7_1_toolbar_brand_lock import main as patch_toolbar_brand_lock
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "LifeRoute/LifeRouteApp.swift"
@@ -81,11 +82,14 @@ def main() -> None:
 
     # Final shipping surface deliberately narrows the user-facing library without deleting unfinished implementation.
     patch_shipping_theme_hold()
+    # Final v0.7.1 visual-only correction: keep toolbar chrome LifeRoute navy/gold across every theme.
+    patch_toolbar_brand_lock()
 
     print(
         "LifeRoute v0.7.1 toolbar/Setup generation hotfix applied: the custom toolbar uses an explicit "
         "accessibility selected value, Setup emits the correct environment key path, historical reduced-catalog "
-        "markers remain available, and the final shipping theme-hold layer exposes only physically proven themes."
+        "markers remain available, the shipping theme hold exposes only physically proven themes, and the final "
+        "toolbar brand lock preserves LifeRoute navy/gold chrome across every theme."
     )
 
 

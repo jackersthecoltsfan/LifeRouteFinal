@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import patch_v0_7_0_today_overview_agenda as today_overview_agenda
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "LifeRoute/LifeRouteApp.swift"
@@ -172,8 +173,9 @@ def patch_today() -> None:
 def main() -> None:
     patch_app()
     patch_today()
+    today_overview_agenda.main()
     print(
-        "LifeRoute v0.7.0 live-theme surface repair applied: Dynamic Liquid Glass uses stronger full-frame moving illumination, cards/navigation/tab chrome expose more of the persistent root environment, and Today restores the approved split Life/Route hero composition while the official LR identity remains on the AppIcon and supporting brand surfaces."
+        "LifeRoute v0.7.0 live-theme surface repair applied: Dynamic Liquid Glass uses stronger full-frame moving illumination, cards/navigation/tab chrome expose more of the persistent root environment, Today restores the approved split Life/Route hero composition, and its overview lists every selected-day appointment while the official LR identity remains on the AppIcon and supporting brand surfaces."
     )
 
 

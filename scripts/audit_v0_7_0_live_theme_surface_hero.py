@@ -22,6 +22,7 @@ app = read("LifeRoute/LifeRouteApp.swift")
 today = read("LifeRoute/V054TodayView.swift")
 prepare = read("scripts/prepare_build.sh")
 patch = read("scripts/patch_v0_7_0_live_theme_surface_hero.py")
+agenda_patch = read("scripts/patch_v0_7_0_today_overview_agenda.py")
 
 require_all(
     app,
@@ -69,6 +70,27 @@ require_all(
 require("LifeRouteBrandMark(variant: .small)" not in today, "Today hero must not retain the oversized square LR badge from the rejected device composition")
 require('Text("LifeRoute")' not in today, "Today hero must use the approved split Life/Route wordmark")
 
+require_all(
+    today,
+    [
+        "v0.7.0 Today overview full-day agenda",
+        "ForEach(selectedDayEvents)",
+        "event.id == nextEvent?.id",
+        "private func overviewEventCard(",
+        "private func overviewEventLabel(",
+        "private func overviewEventStatusLabel(",
+        "private func overviewEventStatusValue(",
+        'value: "\\(selectedDayEvents.count)"',
+    ],
+    "selected-day appointment overview",
+)
+overview_start = today.index("    private var overviewCard: some View {")
+overview_end = today.index("    private var gapSuggestions: some View {", overview_start)
+overview = today[overview_start:overview_end]
+require("ForEach(selectedDayEvents)" in overview, "overview must enumerate every selected-day calendar appointment")
+require("if let event = nextEvent" not in overview, "overview must not collapse the day to only one next-event card")
+require("selectedDayEvents.isEmpty" in overview, "overview must retain an explicit clear-day state")
+
 # The official identity remains protected outside the Today wordmark: this repair must not own the
 # AppIcon generator, widget, Setup, Theme Center, routing, calendar, timer, persistence, or AppRouter.
 require_all(
@@ -81,14 +103,24 @@ require_all(
     ],
     "official identity and approved theme catalogs",
 )
-for forbidden in [
-    "DayRoutePlanningCore.swift",
-    "CalendarDomain.swift",
-    "SessionToolsDomain.swift",
-    "PersistenceCore.swift",
-    "AppNavigation.swift",
-]:
-    require(forbidden not in patch, f"presentation repair must not own {forbidden}")
+require_all(
+    patch,
+    [
+        "import patch_v0_7_0_today_overview_agenda as today_overview_agenda",
+        "today_overview_agenda.main()",
+    ],
+    "canonical visual-repair bundle",
+)
+
+for candidate, label in [(patch, "visual repair"), (agenda_patch, "Today agenda repair")]:
+    for forbidden in [
+        "DayRoutePlanningCore.swift",
+        "CalendarDomain.swift",
+        "SessionToolsDomain.swift",
+        "PersistenceCore.swift",
+        "AppNavigation.swift",
+    ]:
+        require(forbidden not in candidate, f"{label} must not own {forbidden}")
 
 require_all(
     prepare,
@@ -105,9 +137,9 @@ require(
     < prepare.index("python3 scripts/patch_v0_7_0_live_theme_surface_hero.py")
     < prepare.index("python3 scripts/audit_v0_7_0_live_theme_surface_hero.py")
     < prepare.index("python3 scripts/audit_v0_7_0_testflight.py"),
-    "historical branding must be audited before Today preview parity supersedes only that surface, then the new repair must be audited before TestFlight contract validation",
+    "historical branding must be audited before Today preview parity supersedes only that surface, then the combined visual/agenda repair must be audited before TestFlight contract validation",
 )
 
 print(
-    "LifeRoute v0.7.0 live-theme surface audit passed: Dynamic themes remain one-clock, Reduce-Motion/lifecycle-aware environments but now expose clearly visible full-frame moving illumination through more translucent app surfaces; Today restores the approved split Life/Route hero composition without changing the official AppIcon/supporting brand identity or protected app behavior."
+    "LifeRoute v0.7.0 live-theme surface audit passed: Dynamic themes remain one-clock, Reduce-Motion/lifecycle-aware environments but now expose clearly visible full-frame moving illumination through more translucent app surfaces; Today restores the approved split Life/Route hero and lists every selected-day appointment, without changing the official AppIcon/supporting brand identity or protected app behavior."
 )

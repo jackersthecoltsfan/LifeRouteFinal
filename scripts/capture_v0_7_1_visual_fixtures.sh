@@ -79,12 +79,15 @@ capture_environment() {
   xcrun simctl io "$SIMULATOR_ID" screenshot "$OUTPUT_DIR/$output"
 }
 
-capture_today() {
+capture_app() {
   local theme_id="$1"
-  local output="$2"
+  local section="$2"
+  local output="$3"
   local launch_output
   local app_pid
-  launch_output="$(xcrun simctl launch --terminate-running-process "$SIMULATOR_ID" "$BUNDLE_ID" -LifeRouteThemeOverride "$theme_id")"
+  launch_output="$(xcrun simctl launch --terminate-running-process "$SIMULATOR_ID" "$BUNDLE_ID" \
+    -LifeRouteThemeOverride "$theme_id" \
+    -LifeRouteSectionOverride "$section")"
   printf '%s\n' "$launch_output"
   app_pid="${launch_output##*: }"
   sleep 8
@@ -93,21 +96,36 @@ capture_today() {
 }
 
 capture_environment "canyon-day" "canyon-day.png"
-capture_environment "royal-current" "royal-current.png"
-capture_today "scenery.canyon.day" "today-canyon-day.png"
-capture_today "dynamic.royalCurrent" "today-royal-current.png"
+capture_environment "royal-current" "royal-current-frame-a.png"
+sleep 3
+xcrun simctl io "$SIMULATOR_ID" screenshot "$OUTPUT_DIR/royal-current-frame-b.png"
 
-test -s "$OUTPUT_DIR/canyon-day.png"
-test -s "$OUTPUT_DIR/royal-current.png"
-test -s "$OUTPUT_DIR/today-canyon-day.png"
-test -s "$OUTPUT_DIR/today-royal-current.png"
+if cmp -s "$OUTPUT_DIR/royal-current-frame-a.png" "$OUTPUT_DIR/royal-current-frame-b.png"; then
+  echo "Royal Current motion validation failed: frames captured three seconds apart are byte-identical."
+  exit 1
+fi
+
+echo "Royal Current motion validation passed: frames captured three seconds apart differ."
+
+capture_app "scenery.canyon.day" "today" "today-canyon-day.png"
+capture_app "scenery.canyon.day" "schedule" "schedule-canyon-day.png"
+capture_app "scenery.canyon.day" "tools" "tools-canyon-day.png"
+capture_app "scenery.canyon.day" "resources" "resources-canyon-day.png"
+capture_app "scenery.canyon.day" "setup" "setup-canyon-day.png"
+capture_app "dynamic.royalCurrent" "today" "today-royal-current.png"
 
 for capture in \
   "$OUTPUT_DIR/canyon-day.png" \
-  "$OUTPUT_DIR/royal-current.png" \
+  "$OUTPUT_DIR/royal-current-frame-a.png" \
+  "$OUTPUT_DIR/royal-current-frame-b.png" \
   "$OUTPUT_DIR/today-canyon-day.png" \
+  "$OUTPUT_DIR/schedule-canyon-day.png" \
+  "$OUTPUT_DIR/tools-canyon-day.png" \
+  "$OUTPUT_DIR/resources-canyon-day.png" \
+  "$OUTPUT_DIR/setup-canyon-day.png" \
   "$OUTPUT_DIR/today-royal-current.png"; do
+  test -s "$capture"
   test "$(wc -c < "$capture")" -ge 150000
 done
 
-echo "Captured Canyon Day, Royal Current, Today + Canyon Day, and Today + Royal Current Simulator screenshots."
+echo "Captured v0.7.1 runtime validation fixtures: Canyon Day standalone + all five real app tabs, Royal Current standalone frames three seconds apart, and Today + Royal Current."

@@ -18,6 +18,31 @@ def require_all(text: str, tokens: list[str], label: str) -> None:
     require(not missing, f"{label} missing: {', '.join(missing)}")
 
 
+def selected_day_owner_is_valid(today: str) -> bool:
+    legacy = all(
+        token in today
+        for token in [
+            "@State private var selectedDay = Calendar.current.startOfDay(for: Date())",
+            'DatePicker("Choose day", selection: $selectedDay, displayedComponents: .date)',
+        ]
+    )
+    shared = all(
+        token in today
+        for token in [
+            "v0.7.0 swipeable day overview",
+            "private var selectedDay: Date",
+            "Calendar.current.startOfDay(for: calendarState.selectedDate)",
+            "calendarState.selectedDate = Calendar.current.startOfDay(for: newValue)",
+            "private var selectedDayBinding: Binding<Date>",
+            'DatePicker("Choose day", selection: selectedDayBinding, displayedComponents: .date)',
+            "TabView(selection: selectedDayBinding)",
+        ]
+    )
+    if shared:
+        require("@State private var selectedDay" not in today, "shared selected-day owner must not coexist with duplicate Today state")
+    return legacy or shared
+
+
 def main() -> None:
     today = read("LifeRoute/V054TodayView.swift")
     prepare = read("scripts/prepare_build.sh")
@@ -31,7 +56,6 @@ def main() -> None:
             'Text("Life")',
             'Text("Route")',
             'Text("Plan your day. Optimize every gap.")',
-            "if !Calendar.current.isDateInToday(selectedDay)",
             "selectedDayContext",
             "@State private var showingDayPicker = false",
             ".sheet(isPresented: $showingDayPicker)",
@@ -48,17 +72,28 @@ def main() -> None:
         "device-tuned target hierarchy",
     )
 
-    # The target screenshot has no always-visible date card. The old selector must
-    # remain available only from the hero control so the selected-day feature survives.
+    # B.1 removed the old always-visible day selector from Home. The focused swipe enhancement
+    # later adds a compact native pager in that same top-day role; accept that deliberate superseding
+    # presentation while keeping the old selector itself out of the default stack.
+    legacy_compact_presentation = "if !Calendar.current.isDateInToday(selectedDay)" in today
+    swipe_compact_presentation = all(
+        token in today
+        for token in [
+            "v0.7.0 swipeable day overview",
+            "dayOverviewPager",
+            "TabView(selection: selectedDayBinding)",
+        ]
+    )
+    require(legacy_compact_presentation or swipe_compact_presentation, "selected-day presentation must remain compact or use the reviewed swipe pager")
+
     body_block = today.split("var body: some View", 1)[1].split("private var selectedDayEvents", 1)[0]
-    require("\n                daySelector\n" not in body_block, "persistent day selector must not remain in the default Home stack")
+    require("\n                daySelector\n" not in body_block, "old persistent day selector must not return to the default Home stack")
+    require(selected_day_owner_is_valid(today), "selected-day owner must be the reviewed local owner or the stricter shared CalendarCoreState owner")
     require_all(
         today,
         [
-            "@State private var selectedDay = Calendar.current.startOfDay(for: Date())",
             "private var daySelector: some View",
             "v0.6.3 responsive day selector layout",
-            'DatePicker("Choose day", selection: $selectedDay, displayedComponents: .date)',
             'Label("Choose date", systemImage: "calendar")',
             "shiftSelectedDay(by: -1)",
             "shiftSelectedDay(by: 1)",
@@ -113,7 +148,7 @@ def main() -> None:
     require("python3 scripts/audit_v0_7_0_build_b1.py" in prepare, "canonical preparation must run B.1 audit")
 
     print(
-        "LifeRoute v0.7.0 Build B.1 audit passed: the default Home stack matches the target density without the date card, selected-day behavior remains accessible, blue/gold brand hierarchy is deterministic, the hero is higher-contrast, and all protected native actions remain wired."
+        "LifeRoute v0.7.0 Build B.1 audit passed: the old date selector stays out of the default Home stack, selected-day behavior remains accessible through the reviewed compact or superseding swipe presentation, blue/gold brand hierarchy is deterministic, the hero is higher-contrast, and all protected native actions remain wired."
     )
 
 

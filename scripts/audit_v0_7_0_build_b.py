@@ -18,6 +18,31 @@ def require_all(text: str, tokens: list[str], label: str) -> None:
     require(not missing, f"{label} missing: {', '.join(missing)}")
 
 
+def selected_day_owner_is_valid(today: str) -> bool:
+    legacy = all(
+        token in today
+        for token in [
+            "@State private var selectedDay = Calendar.current.startOfDay(for: Date())",
+            'DatePicker("Choose day", selection: $selectedDay, displayedComponents: .date)',
+        ]
+    )
+    shared = all(
+        token in today
+        for token in [
+            "v0.7.0 swipeable day overview",
+            "private var selectedDay: Date",
+            "Calendar.current.startOfDay(for: calendarState.selectedDate)",
+            "calendarState.selectedDate = Calendar.current.startOfDay(for: newValue)",
+            "private var selectedDayBinding: Binding<Date>",
+            'DatePicker("Choose day", selection: selectedDayBinding, displayedComponents: .date)',
+            "TabView(selection: selectedDayBinding)",
+        ]
+    )
+    if shared:
+        require("@State private var selectedDay" not in today, "shared selected-day owner must not coexist with duplicate Today state")
+    return legacy or shared
+
+
 def main() -> None:
     today = read("LifeRoute/V054TodayView.swift")
     prepare = read("scripts/prepare_build.sh")
@@ -49,14 +74,14 @@ def main() -> None:
         "approved Today/Home visual hierarchy",
     )
 
-    # Build B must retain the exact selected-day safeguards introduced in v0.6.3.
+    # Build B must retain the selected-day behavior introduced in v0.6.3. A later focused
+    # swipe enhancement may supersede only the local-owner spelling with CalendarCoreState.
+    require(selected_day_owner_is_valid(today), "selected-day owner must be the reviewed local owner or the stricter shared CalendarCoreState owner")
     require_all(
         today,
         [
-            "@State private var selectedDay = Calendar.current.startOfDay(for: Date())",
             "private var daySelector: some View",
             "v0.6.3 responsive day selector layout",
-            'DatePicker("Choose day", selection: $selectedDay, displayedComponents: .date)',
             'Label("Choose date", systemImage: "calendar")',
             ".layoutPriority(1)",
             ".fixedSize()",
@@ -124,7 +149,7 @@ def main() -> None:
     require("python3 scripts/audit_v0_7_0_build_b.py" in prepare, "canonical preparation must run Build B audit")
 
     print(
-        "LifeRoute v0.7.0 Build B audit passed: Today/Home matches the approved hierarchy, selected-day routing remains protected, quick actions and Live Day stay wired, responsive grid/date controls are present, and the redesign remains native-only."
+        "LifeRoute v0.7.0 Build B audit passed: Today/Home matches the approved hierarchy, selected-day routing remains protected under the reviewed or superseding shared owner, quick actions and Live Day stay wired, responsive grid/date controls are present, and the redesign remains native-only."
     )
 
 

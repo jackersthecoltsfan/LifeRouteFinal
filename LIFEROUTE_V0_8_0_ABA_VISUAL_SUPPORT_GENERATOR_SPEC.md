@@ -38,14 +38,15 @@ LifeRoute must not depend on generative-image text rendering for the label. Gene
 
 ## Native implementation direction
 
-Use Apple’s Image Playground framework on supported iOS 26 Apple Intelligence devices:
+Use Apple’s Image Playground framework on supported iOS 26.4 Apple Intelligence devices:
 
 - Seed the system generation sheet with the canonical ABA visual-support prompt.
 - Allow either text-only generation or one optional reference image.
-- Request square output and the Illustration style.
+- Request the Illustration style and prompt for a centered square visual-support composition.
 - Disable person personalization because unrelated people do not belong in this clinical visual-support workflow.
 - Let the user review/refine the result in the system Image Playground UI before LifeRoute accepts it.
-- Copy the approved temporary result into LifeRoute-owned image data and normalize it to a square white canvas before saving.
+- Treat the system sheet’s source dimensions as provider-controlled; do not depend on a nonexistent size option.
+- Copy the approved temporary result into LifeRoute-owned image data and normalize it to a 1,024 × 1,024 square white canvas before saving.
 - Preserve the existing local photo/text icon workflow as the fallback on unsupported devices or whenever the user does not want generation.
 - Store approved icon results through the existing `ClientVisualSupportCore` and protected native persistence owner. Do not introduce a second icon-library or persistence owner.
 
@@ -59,6 +60,7 @@ Image Playground may use Apple Intelligence and Private Cloud Compute under Appl
 - Single reference photo or text-only input
 - Exact editable label
 - System Image Playground review/regeneration
+- Deterministic 1,024 × 1,024 white-canvas normalization
 - Save approved result into the existing General/client icon library
 - Graceful unsupported-device fallback
 - Dedicated regression audit and actual Simulator compilation

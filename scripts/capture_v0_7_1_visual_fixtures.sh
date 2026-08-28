@@ -144,7 +144,7 @@ capture_app_pair() {
   sleep 7
   kill -0 "$app_pid"
   xcrun simctl io "$SIMULATOR_ID" screenshot "$OUTPUT_DIR/today-$slug.png"
-  xcrun simctl openurl "$SIMULATOR_ID" "liferoute://fixture/schedule"
+  kill -USR1 "$app_pid"
   sleep 3
   kill -0 "$app_pid"
   xcrun simctl io "$SIMULATOR_ID" screenshot "$OUTPUT_DIR/schedule-$slug.png"

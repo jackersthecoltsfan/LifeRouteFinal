@@ -50,14 +50,15 @@ require_all(
 require_all(
     content,
     [
-        "-LifeRouteSectionOverride", "sectionOverride(from url: URL)",
-        'url.host?.lowercased() == "fixture"', "url.lastPathComponent.lowercased()",
-        "router.select(section)",
+        "import Darwin", "-LifeRouteSectionOverride", "LifeRouteDebugSectionSignal",
+        "DispatchSource.makeSignalSource", "SIGUSR1", "SIG_IGN",
+        "source.setEventHandler", "router.select(.schedule)",
     ],
     "in-process tab persistence fixture",
 )
 require(content.count("TimelineView(") == 0, "tab fixture must not introduce an animation clock")
 require("Task.sleep" not in content, "tab fixture must not race Simulator launch with a timer")
+require("sectionOverride(from url:" not in content, "tab fixture must not invoke an iOS URL confirmation")
 require(app.count("TimelineView(") == 1, "the fully materialized app must keep one TimelineView")
 require(app.count("final class LifeRouteThemeStore: ObservableObject") == 1, "one theme store must remain")
 
@@ -66,7 +67,7 @@ require_all(
     capture,
     [
         "today-", "schedule-", "reduce-motion-", "motion-frame-a-", "motion-frame-b-",
-        "xcrun simctl openurl", "liferoute://fixture/schedule", "-LifeRouteFixtureReduceMotion", "validate-motion",
+        'kill -USR1 "$app_pid"', "-LifeRouteFixtureReduceMotion", "validate-motion",
         "validate-identity", "validate-distinct", "validate-coverage", "validate-health", "bundle-size.txt",
     ],
     "capture matrix gates",

@@ -39,8 +39,10 @@ def main() -> None:
     require(shell, "A newly selected tab can materialize a fresh UIKit container after selection changes.", "tab materialization refresh")
     require(shell, "DispatchQueue.main.async", "deferred UIKit refresh")
 
+    # Exactly four lifecycle paths intentionally refresh visible UIKit chrome:
+    # initial presentation, tab selection, theme selection, and scene reactivation.
     refresh_calls = shell.count("LifeRouteAppearance.refreshVisibleChrome(theme:")
-    if refresh_calls < 5:
+    if refresh_calls < 4:
         raise SystemExit(
             f"v0.7.1 physical runtime audit failed: expected refresh coverage for launch/tab/theme/scene flows, found {refresh_calls} calls"
         )
@@ -61,7 +63,7 @@ def main() -> None:
     print(
         "LifeRoute v0.7.1 physical runtime audit passed: the single shared live-theme clock remains unique, "
         "all 12 Dynamic phase rates plus Canyon ambience are perceptible, all five tab roots are transparent, "
-        "UIKit host surfaces are cleared after launch/theme/tab materialization, and Today retains the approved exemplar artwork contract."
+        "UIKit host surfaces are cleared after launch/theme/tab/scene materialization, and Today retains the approved exemplar artwork contract."
     )
 
 

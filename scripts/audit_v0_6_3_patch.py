@@ -174,8 +174,8 @@ require_all(
     "selected-day Live Activity",
 )
 
-# Release identity can advance beyond v0.6.3 while every v0.6.3 functional guard above remains mandatory.
-# Accept only the historical v0.6.3 workflow or explicitly reviewed v0.7.0 Build B-family checkpoint workflows.
+# Release identity can advance while every v0.6.3 functional guard above remains mandatory.
+# Keep historical reviewed contracts and add each newer reviewed checkpoint explicitly.
 release_contracts = [
     [
         "RELEASE_MARKETING_VERSION: 0.6.3",
@@ -213,10 +213,19 @@ release_contracts = [
         "LifeRoute v0.7.0 Build B.2 sent to TestFlight",
         "LifeRoute-v0.7.0-Build-B2-TestFlight-build-",
     ],
+    [
+        "RELEASE_MARKETING_VERSION: 0.7.0",
+        "Prepare validated v0.7.0 Build E release",
+        "Verify v0.7.0 Build E app and Live Activity release contract",
+        "Archive LifeRoute v0.7.0 Build E",
+        "Verify archived v0.7.0 Build E identity",
+        "LifeRoute v0.7.0 Build E sent to TestFlight",
+        "LifeRoute-v0.7.0-Build-E-TestFlight-build-",
+    ],
 ]
 require(
     any(all(token in workflow for token in contract) for contract in release_contracts),
-    "TestFlight workflow must match an explicitly reviewed v0.6.3 or v0.7.0 Build B-family release contract",
+    "TestFlight workflow must match an explicitly reviewed LifeRoute release contract",
 )
 require("LifeRouteWebView.swift in Sources" not in project, "legacy WebView source must stay quarantined")
 require("Web in Resources" not in project, "legacy Web runtime must stay out of native resources")

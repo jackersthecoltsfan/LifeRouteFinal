@@ -140,6 +140,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_1_theme_visual_runtime_fix.py \
   scripts/patch_v0_7_1_physical_runtime_fix.py \
   scripts/patch_v0_7_1_dynamic_library_finish.py \
+  scripts/patch_v0_7_1_scenery_library_finish.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -183,7 +184,8 @@ python3 -m py_compile \
   scripts/audit_v0_7_1_theme_visual_runtime_fix.py \
   scripts/audit_v0_7_1_protected_regressions.py \
   scripts/audit_v0_7_1_physical_runtime_fix.py \
-  scripts/audit_v0_7_1_dynamic_library_finish.py
+  scripts/audit_v0_7_1_dynamic_library_finish.py \
+  scripts/audit_v0_7_1_scenery_library_finish.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
@@ -251,6 +253,15 @@ python3 scripts/audit_v0_7_1_dynamic_library_finish.py
 python3 scripts/audit_v0_7_1_protected_regressions.py
 
 echo "LifeRoute v0.7.1 retained Dynamic preparation passed: the complete Build #98 architecture remains locked; Royal Current retains its approved artwork and motion, seven additional retained Dynamic identities now use distinct root-driven full-screen compositions, Theme Center exposes only the eight finished Dynamic identities, and protected navigation, calendar, routing, ABA, timer, Live Activity, identity, persistence, and legacy-runtime contracts remain intact."
+
+# Finish only the approved six retained Scenery families. Canyon Day remains the Build #98
+# exemplar; the other eleven identities use optimized bundled artwork and the same root phase.
+python3 scripts/patch_v0_7_1_scenery_library_finish.py
+python3 scripts/audit_v0_7_1_scenery_library_finish.py
+python3 scripts/audit_v0_7_1_dynamic_library_finish.py
+python3 scripts/audit_v0_7_1_protected_regressions.py
+
+echo "LifeRoute v0.7.1 retained theme-library preparation passed: the complete Build #98 architecture remains locked; eight finished Dynamic identities use distinct root-driven full-screen compositions; twelve Scenery identities across six Day/Night families use bundled cinematic artwork and restrained shared-phase ambience; Theme Center hides retired placeholders; and protected navigation, calendar, routing, ABA, timer, Live Activity, identity, persistence, and legacy-runtime contracts remain intact."
 
 # v0.8.0 functionality pass 1: Master ABA Session Note parity. Keep this as a new cumulative layer
 # after the protected v0.7.x materialization rather than weakening historical note/runtime checkpoints.

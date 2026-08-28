@@ -43,6 +43,8 @@ python3 scripts/patch_v0_7_0_build_d_timer_compat_post.py
 python3 scripts/patch_v0_7_0_build_d_compat.py
 # Build E is presentation-only and consumes the fully materialized post-D supporting surfaces.
 python3 scripts/patch_v0_7_0_build_e.py
+# Preserve the reviewed v0.6.3 Core order and v0.6.2 Dynamic/Scenery catalogs in the new browser.
+python3 scripts/patch_v0_7_0_build_e_theme_compat.py
 
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
@@ -86,6 +88,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_build_d_timer_compat_post.py \
   scripts/patch_v0_7_0_build_d_compat.py \
   scripts/patch_v0_7_0_build_e.py \
+  scripts/patch_v0_7_0_build_e_theme_compat.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \

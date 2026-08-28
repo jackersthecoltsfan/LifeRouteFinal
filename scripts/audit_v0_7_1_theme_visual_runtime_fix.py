@@ -152,7 +152,8 @@ require_all(
     app,
     [
         "case canyonDay = \"canyon-day\"", "case royalCurrent = \"royal-current\"",
-        "-LifeRouteVisualFixture", "LifeRouteVisualFixtureView", "#if DEBUG",
+        "-LifeRouteVisualFixture", "-LifeRouteThemeOverride", "LifeRouteVisualFixture.themeOverride?.rawValue",
+        "LifeRouteVisualFixtureView", "#if DEBUG",
     ],
     "debug-only visual fixtures",
 )
@@ -162,6 +163,7 @@ require_all(
         "xcrun simctl bootstatus", "xcrun simctl install", "xcrun simctl launch",
         "xcrun simctl io", "canyon-day.png", "royal-current.png",
         "today-canyon-day.png", "today-royal-current.png",
+        "--terminate-running-process", "kill -0", "wc -c", "-LifeRouteThemeOverride",
     ],
     "Simulator screenshot capture",
 )
@@ -170,6 +172,7 @@ require_all(
     [
         "Capture v0.7.1 visual fixtures", "Upload v0.7.1 visual fixtures",
         "scripts/capture_v0_7_1_visual_fixtures.sh", "actions/upload-artifact@v6",
+        "SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG",
     ],
     "iOS validation workflow visual gate",
 )

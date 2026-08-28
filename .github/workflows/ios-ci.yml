@@ -63,6 +63,7 @@ jobs:
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/liferoute-derived-data" \
+            SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG \
             CODE_SIGNING_ALLOWED=NO \
             build >"$LOG_FILE" 2>&1
           status=$?

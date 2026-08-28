@@ -69,19 +69,26 @@ xcrun simctl status_bar "$SIMULATOR_ID" override \
 capture_environment() {
   local fixture="$1"
   local output="$2"
-  xcrun simctl terminate "$SIMULATOR_ID" "$BUNDLE_ID" >/dev/null 2>&1 || true
-  xcrun simctl launch "$SIMULATOR_ID" "$BUNDLE_ID" -LifeRouteVisualFixture "$fixture"
-  sleep 4
+  local launch_output
+  local app_pid
+  launch_output="$(xcrun simctl launch --terminate-running-process "$SIMULATOR_ID" "$BUNDLE_ID" -LifeRouteVisualFixture "$fixture")"
+  printf '%s\n' "$launch_output"
+  app_pid="${launch_output##*: }"
+  sleep 8
+  kill -0 "$app_pid"
   xcrun simctl io "$SIMULATOR_ID" screenshot "$OUTPUT_DIR/$output"
 }
 
 capture_today() {
   local theme_id="$1"
   local output="$2"
-  xcrun simctl terminate "$SIMULATOR_ID" "$BUNDLE_ID" >/dev/null 2>&1 || true
-  xcrun simctl spawn "$SIMULATOR_ID" defaults write "$BUNDLE_ID" liferoute.selectedTheme "$theme_id"
-  xcrun simctl launch "$SIMULATOR_ID" "$BUNDLE_ID"
-  sleep 4
+  local launch_output
+  local app_pid
+  launch_output="$(xcrun simctl launch --terminate-running-process "$SIMULATOR_ID" "$BUNDLE_ID" -LifeRouteThemeOverride "$theme_id")"
+  printf '%s\n' "$launch_output"
+  app_pid="${launch_output##*: }"
+  sleep 8
+  kill -0 "$app_pid"
   xcrun simctl io "$SIMULATOR_ID" screenshot "$OUTPUT_DIR/$output"
 }
 
@@ -94,5 +101,13 @@ test -s "$OUTPUT_DIR/canyon-day.png"
 test -s "$OUTPUT_DIR/royal-current.png"
 test -s "$OUTPUT_DIR/today-canyon-day.png"
 test -s "$OUTPUT_DIR/today-royal-current.png"
+
+for capture in \
+  "$OUTPUT_DIR/canyon-day.png" \
+  "$OUTPUT_DIR/royal-current.png" \
+  "$OUTPUT_DIR/today-canyon-day.png" \
+  "$OUTPUT_DIR/today-royal-current.png"; do
+  test "$(wc -c < "$capture")" -ge 150000
+done
 
 echo "Captured Canyon Day, Royal Current, Today + Canyon Day, and Today + Royal Current Simulator screenshots."

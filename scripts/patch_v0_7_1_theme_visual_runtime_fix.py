@@ -306,6 +306,14 @@ private enum LifeRouteVisualFixture: String {
         return LifeRouteVisualFixture(rawValue: arguments[valueIndex])
     }
 
+    static var themeOverride: LifeRouteTheme? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let keyIndex = arguments.firstIndex(of: "-LifeRouteThemeOverride") else { return nil }
+        let valueIndex = arguments.index(after: keyIndex)
+        guard arguments.indices.contains(valueIndex) else { return nil }
+        return LifeRouteTheme(rawValue: arguments[valueIndex])
+    }
+
     var theme: LifeRouteTheme {
         switch self {
         case .canyonDay: return .sceneryCanyonDay
@@ -529,6 +537,23 @@ def patch_app() -> None:
         "private struct LifeRouteChromeModifier: ViewModifier {",
         VISUAL_FIXTURES + "private struct LifeRouteChromeModifier: ViewModifier {",
         "debug visual fixture insertion",
+    )
+
+    text = replace_once(
+        text,
+        '''    init() {
+        let savedIdentifier = UserDefaults.standard.string(forKey: Self.storageKey)
+        let theme = Self.resolveStoredTheme(savedIdentifier)''',
+        '''    init() {
+#if DEBUG
+        // v0.7.1 visual validation can select a theme without mutating persisted user preference.
+        let savedIdentifier = LifeRouteVisualFixture.themeOverride?.rawValue
+            ?? UserDefaults.standard.string(forKey: Self.storageKey)
+#else
+        let savedIdentifier = UserDefaults.standard.string(forKey: Self.storageKey)
+#endif
+        let theme = Self.resolveStoredTheme(savedIdentifier)''',
+        "debug-only Today theme override",
     )
 
     app_entry_start = text.index("@main\nstruct LifeRouteApp: App {")

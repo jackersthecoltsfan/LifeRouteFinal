@@ -46,6 +46,18 @@ if MARKER not in text:
     text = text.replace(wrong_environment, correct_environment, 1)
     text = text.replace("supportsImageGeneration", "supportsImagePlayground")
 
+    # The current ImagePlaygroundOptions API does not expose a sizeSpecification member.
+    # LifeRoute instead guarantees the product's square-card contract after approval by
+    # normalizing the returned temporary image to a 1,024 × 1,024 white canvas.
+    unsupported_size_option = (
+        "        options.sizeSpecification = .closest(to: CGSize(width: 1_024, height: 1_024))\n"
+    )
+    if text.count(unsupported_size_option) != 1:
+        raise SystemExit(
+            "v0.8.0 visual compile hotfix failed: unsupported sizeSpecification anchor missing"
+        )
+    text = text.replace(unsupported_size_option, "", 1)
+
     fallback_copy = (
         "Illustrated generation requires a supported iOS 26 Apple Intelligence device. "
         "Photo and text-only visual saving remain available."
@@ -63,7 +75,8 @@ if MARKER not in text:
     PATH.write_text(text, encoding="utf-8")
 
 print(
-    "LifeRoute v0.8.0 ABA visual generator compile hotfix applied: ImagePlaygroundOptions, "
-    "supportsImagePlayground, and the configured generation sheet are isolated behind their "
-    "actual iOS 26.4 availability boundary while earlier systems retain photo/text fallback."
+    "LifeRoute v0.8.0 ABA visual generator compile hotfix applied: supportsImagePlayground, "
+    "ImagePlaygroundOptions, and the configured generation sheet are isolated behind their actual "
+    "iOS 26.4 availability boundary; unsupported sizeSpecification usage is removed; and approved "
+    "artwork is still normalized locally to the required square white icon canvas."
 )

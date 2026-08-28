@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# LifeRoute v0.7.0 Build B.2 preparation. Never reactivate the v0.4 WebView patch stack.
+# LifeRoute v0.7.0 Build B.3 preparation. Never reactivate the v0.4 WebView patch stack.
 rm -rf build
 
 # These two historical audits intentionally lock the pre-v0.6.2 timer/theme behavior.
@@ -21,7 +21,7 @@ python3 scripts/patch_v0_6_3_core_theme_cleanup.py
 
 # v0.7.0 checkpoints accumulate in order: shell/design system, Today/Home, device parity,
 # saved visual-support reuse, the horizontal First -> Then preview, restored native weekly To-Dos,
-# then the B.2 real-device QA correction for Home density and visual save/full-screen behavior.
+# B.2 real-device QA, then B.3 real-device presentation/library corrections.
 python3 scripts/patch_v0_7_0_build_a.py
 python3 scripts/patch_v0_7_0_build_b.py
 python3 scripts/patch_v0_7_0_build_b1.py
@@ -30,6 +30,9 @@ python3 scripts/patch_v0_7_0_first_then_horizontal.py
 # B.1 wrapper supersedes the direct python3 scripts/patch_v0_7_0_todos_restore.py Home integration.
 python3 scripts/patch_v0_7_0_todos_restore_b1.py
 python3 scripts/patch_v0_7_0_build_b2.py
+python3 scripts/patch_v0_7_0_build_b3_pre.py
+python3 scripts/patch_v0_7_0_build_b3.py
+python3 scripts/patch_v0_7_0_build_b3_compat.py
 
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
@@ -63,6 +66,9 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_todos_restore.py \
   scripts/patch_v0_7_0_todos_restore_b1.py \
   scripts/patch_v0_7_0_build_b2.py \
+  scripts/patch_v0_7_0_build_b3_pre.py \
+  scripts/patch_v0_7_0_build_b3.py \
+  scripts/patch_v0_7_0_build_b3_compat.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -90,12 +96,13 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_first_then_horizontal.py \
   scripts/audit_v0_7_0_todos_restore.py \
   scripts/audit_v0_7_0_build_b2.py \
+  scripts/audit_v0_7_0_build_b3.py \
   scripts/audit_v0_7_0_testflight.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
 
-# Run all non-superseded regression coverage on the fully materialized Build B.2 tree.
+# Run all non-superseded regression coverage on the fully materialized Build B.3 tree.
 python3 scripts/audit_v0_5_0_functional_shell.py
 python3 scripts/audit_v0_5_0_core_navigation.py
 python3 scripts/audit_v0_5_0_calendar_core.py
@@ -120,6 +127,7 @@ python3 scripts/audit_v0_7_0_visual_library_reuse.py
 python3 scripts/audit_v0_7_0_first_then_horizontal.py
 python3 scripts/audit_v0_7_0_todos_restore.py
 python3 scripts/audit_v0_7_0_build_b2.py
+python3 scripts/audit_v0_7_0_build_b3.py
 python3 scripts/audit_v0_7_0_testflight.py
 
-echo "LifeRoute v0.7.0 Build B.2 preparation passed: accepted Build A + Build B + B.1 behavior retained, Home tightened against the latest real-iPhone/reference comparison, Choice Boards and Visual Schedules have persistent Save & Preview controls with true full-screen session views, saved visual reuse + horizontal First -> Then + weekly To-Dos remain intact, accumulated regressions green, v0.7.0 TestFlight identity guarded, and legacy WebView runtime quarantined."
+echo "LifeRoute v0.7.0 Build B.3 preparation passed: accepted Build A/B/B.1/B.2 behavior retained, Home is retuned from real-device screenshots toward the cinematic reference, Choice Boards and Visual Schedules expose unobscured View Library + Save & Preview actions, First / Then saves as a reusable two-step Visual Schedule with true full-screen presentation, weekly To-Dos remain intact, accumulated regressions stay green, and legacy WebView runtime remains quarantined."

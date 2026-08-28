@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 
+from patch_v0_7_1_reduced_catalog_toolbar_setup_anchor_compat import main as patch_reduced_catalog_toolbar_setup_anchor_compat
 from patch_v0_7_1_reduced_catalog_toolbar_setup import main as patch_reduced_catalog_toolbar_setup
 from patch_v0_7_1_reduced_catalog_toolbar_setup_hotfix import main as patch_reduced_catalog_toolbar_setup_hotfix
 
@@ -190,7 +191,8 @@ private enum LifeRouteDebugLaunch {
 def main() -> None:
     patch_motion()
     patch_shell_transparency()
-    # Build #98 proved the shared runtime architecture; layer the approved finishing pass only after it.
+    # Build #98 proved the shared runtime architecture; normalize the final shell anchor, then layer the approved finishing pass.
+    patch_reduced_catalog_toolbar_setup_anchor_compat()
     patch_reduced_catalog_toolbar_setup()
     patch_reduced_catalog_toolbar_setup_hotfix()
     print(

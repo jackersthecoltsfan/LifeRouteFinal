@@ -74,7 +74,9 @@ python3 scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py
 # leaving a static near-black field behind the moving liquid ribbons.
 python3 scripts/patch_v0_7_0_theme_phase_2_background_motion_fix.py
 
-# Controlled post-Phase-2/pre-Phase-3 branding checkpoint. No routing/calendar/timer/navigation ownership moves.
+# Controlled post-Phase-2/pre-Phase-3 branding checkpoint. The Today compatibility pass replaces only
+# the retired split wordmark and deliberately preserves Build B.1's validated day-picker button.
+python3 scripts/patch_v0_7_0_official_branding_today_compat.py
 python3 scripts/patch_v0_7_0_official_branding.py
 
 # The official refined 1E/1F hybrid AppIcon is generated deterministically from checked-in vector-style
@@ -127,6 +129,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_theme_phase_2.py \
   scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py \
   scripts/patch_v0_7_0_theme_phase_2_background_motion_fix.py \
+  scripts/patch_v0_7_0_official_branding_today_compat.py \
   scripts/patch_v0_7_0_official_branding.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \

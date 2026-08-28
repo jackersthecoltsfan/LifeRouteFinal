@@ -91,7 +91,7 @@ require_all(
         "python3 scripts/patch_v0_7_0_swipe_day_overview.py",
         "python3 scripts/patch_v0_7_0_theme_phase_1.py",
         "python3 scripts/patch_v0_7_0_location_intent_fix.py",
-        "python3 scripts/patch_v0_7_0_theme_phase_2_pre.py",
+        "python3 scripts/patch_v0_7_0_theme_phase_2_category_compat.py",
         "python3 scripts/patch_v0_7_0_theme_phase_2.py",
         "python3 scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py",
         "python3 scripts/audit_v0_7_0_build_b2.py",

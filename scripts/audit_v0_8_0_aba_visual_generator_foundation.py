@@ -47,7 +47,7 @@ check("system generation sheet used", ".imagePlaygroundSheet(" in VIEWS)
 check("square generation requested", "options.sizeSpecification = .closest(to: CGSize(width: 1_024, height: 1_024))" in VIEWS)
 check("person personalization disabled", "options.personalization = .disabled" in VIEWS)
 check("illustration style locked", ".imagePlaygroundGenerationStyle(.illustration, in: [.illustration])" in VIEWS)
-check("optional reference photo supplied", "sourceImage: sourceImage" in VIEWS and "referencePhotoData" in VIEWS)
+check("optional reference photo supplied", "sourceImage: sourceImage" in VIEWS and "sourceImage: referenceSourceImage" in VIEWS)
 check("text-only generation supported", "hasReference: referencePhotoData != nil" in VIEWS and "cleanLabel" in VIEWS)
 check("unsupported fallback retained", "Photo and text-only visual saving remain available" in VIEWS)
 
@@ -77,10 +77,18 @@ check("exact editable label field", 'TextField("Exact icon label", text: $label)
 check("native label preview below artwork", "Text(displayLabel)" in VIEWS and "Visual support preview" in VIEWS)
 check("generated result normalized to square", "normalizedSquarePNG" in VIEWS and "CGSize(width: 1_024, height: 1_024)" in VIEWS)
 check("white canvas is deterministic", "context.cgContext.setFillColor(UIColor.white.cgColor)" in VIEWS)
-check("generated file copied from temporary URL", "Data(contentsOf: url)" in VIEWS and "rendered.pngData()" in VIEWS)
+check("generated temporary URL decoded through ImageIO", "CGImageSourceCreateWithURL" in VIEWS and "rendered.pngData()" in VIEWS)
 check("generated draft remains review-before-save", "Illustrated ABA visual ready. Review the artwork and exact label before saving." in VIEWS)
 check("original photo can be restored", "Use original photo instead" in VIEWS)
 check("library row covers photo/generated art", '"Image visual"' in VIEWS)
+
+# Image performance and lifecycle contract.
+check("async image-decode hotfix materialized", "v0.8.0 ABA visual-support async image decode" in VIEWS)
+check("no synchronous UIImage data decode remains", "UIImage(data:" not in VIEWS)
+check("reference image uses actor-owned thumbnail pipeline", "await ClientVisualThumbnailCache.shared.thumbnail" in VIEWS and "referenceSourceImage = decodedReference.map" in VIEWS)
+check("generated result decoding is detached", "await Task.detached(priority: .userInitiated)" in VIEWS and "CGImageSourceCreateThumbnailAtIndex" in VIEWS)
+check("reference source clears with selection and save", VIEWS.count("referenceSourceImage = nil") == 2)
+check("generated URL is not retained", "normalizedSquarePNG(from: url)" in VIEWS and "LifeRoute stores only the image you approve" in VIEWS)
 
 # Existing single-image and privacy workflow remains honest.
 check("photo picker retained", "PhotosPicker(selection: $selectedPhotoItem, matching: .images)" in VIEWS)
@@ -91,9 +99,12 @@ check("later checkpoints are disclosed", "Batch generation and printable PDF she
 
 # Deterministic materialization and post-change protection.
 check("visual patch wired into preparation", "python3 scripts/patch_v0_8_0_aba_visual_generator_foundation.py" in PREP)
+check("performance hotfix wired into preparation", "python3 scripts/patch_v0_8_0_aba_visual_generator_performance_hotfix.py" in PREP)
 check("visual audit wired into preparation", "python3 scripts/audit_v0_8_0_aba_visual_generator_foundation.py" in PREP)
+check("hotfix precedes visual audit", PREP.find("patch_v0_8_0_aba_visual_generator_performance_hotfix.py") < PREP.find("audit_v0_8_0_aba_visual_generator_foundation.py"))
 check("Master ABA note audit still runs first", PREP.find("audit_v0_8_0_master_aba_note.py") < PREP.find("patch_v0_8_0_aba_visual_generator_foundation.py"))
 check("protected visual persistence reruns after patch", PREP.rfind("audit_v0_5_0_client_visual_persistence.py") > PREP.find("patch_v0_8_0_aba_visual_generator_foundation.py"))
+check("protected performance audit reruns after patch", PREP.rfind("audit_v0_5_0_performance_architecture.py") > PREP.find("patch_v0_8_0_aba_visual_generator_foundation.py"))
 check("protected v0.7.1 regression reruns after patch", PREP.rfind("audit_v0_7_1_protected_regressions.py") > PREP.find("patch_v0_8_0_aba_visual_generator_foundation.py"))
 
 failed = [name for name, ok in checks if not ok]

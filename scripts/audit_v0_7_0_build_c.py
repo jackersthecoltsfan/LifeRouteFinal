@@ -15,7 +15,7 @@ checks = {
     "Schedule receives shared routing ownership": "@ObservedObject var routingState: RoutingLocationCore" in schedule,
     "Schedule has compact premium header": 'Text("Schedule")' in schedule and "scheduleHeader" in schedule,
     "Schedule retains native range state": "@State private var selectedRange: LifeRouteCalendarRange = .day" in schedule,
-    "Schedule exposes Agenda Week Month segmented control": 'Picker("Range", selection: $selectedRange)' in schedule and "LifeRouteCalendarRange.allCases" in schedule and '"Agenda"' in schedule and '"Week"' in schedule and '"Month"' in schedule,
+    "Schedule exposes Agenda Week Month segmented control": 'Picker("Range", selection: $selectedRange)' in schedule and "LifeRouteCalendarRange.allCases" in schedule and 'range == .day ? "Agenda" : range.rawValue' in schedule,
     "Schedule preserves previous period navigation": "calendarState.shiftSelection(selectedRange, by: -1)" in schedule,
     "Schedule preserves next period navigation": "calendarState.shiftSelection(selectedRange, by: 1)" in schedule,
     "Schedule has compact horizontal date strip": "private var compactDateStrip: some View" in schedule and "ScrollView(.horizontal, showsIndicators: false)" in schedule,

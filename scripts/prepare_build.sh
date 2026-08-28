@@ -74,6 +74,10 @@ python3 scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py
 # leaving a static near-black field behind the moving liquid ribbons.
 python3 scripts/patch_v0_7_0_theme_phase_2_background_motion_fix.py
 
+# Build B's original wordmark requirement is a historical visual checkpoint. Lock the full Build B
+# functional/presentation contract immediately before the official identity intentionally supersedes only that mark.
+python3 scripts/audit_v0_7_0_build_b.py
+
 # Controlled post-Phase-2/pre-Phase-3 branding checkpoint. The Today compatibility pass replaces only
 # the retired split wordmark and deliberately preserves Build B.1's validated day-picker button.
 python3 scripts/patch_v0_7_0_official_branding_today_compat.py
@@ -190,7 +194,6 @@ python3 scripts/audit_v0_5_0_second_functionality_pass.py
 python3 scripts/audit_v0_5_3_repair.py
 python3 scripts/audit_v0_6_0_patch.py
 python3 scripts/audit_v0_7_0_checkpoint_0.py
-python3 scripts/audit_v0_7_0_build_b.py
 python3 scripts/audit_v0_7_0_build_b1.py
 python3 scripts/audit_v0_7_0_visual_library_reuse.py
 python3 scripts/audit_v0_7_0_first_then_horizontal.py

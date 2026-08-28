@@ -46,7 +46,7 @@ require(app.count("TimelineView(") == 1,
 # This audit intentionally runs both before and after the final v0.7.1 finishing layer.
 # Before it, protect the historical Phase 3 catalog (12/12/20). After the finishing marker
 # appears, protect the approved production reduction (12/8/12) without weakening the shared runtime.
-finishing_applied = "v0.7.1 production catalog reduction" in app
+finishing_applied = "v0.7.1 reduced production theme catalog" in app
 catalog_expectations = [
     ("static let phaseOneCoreGlassCatalog: [LifeRouteTheme]", 12),
     ("static let phaseTwoDynamicCatalog: [LifeRouteTheme]", 8 if finishing_applied else 12),
@@ -55,8 +55,7 @@ catalog_expectations = [
 for declaration, expected in catalog_expectations:
     match = re.search(re.escape(declaration) + r"\s*=\s*\[(.*?)\n\s*\]", app, flags=re.S)
     require(match is not None, f"theme catalog declaration missing: {declaration}")
-    # Count catalog item lines rather than periods; dotted stable identifiers contain multiple periods.
-    item_count = sum(1 for line in match.group(1).splitlines() for token in [line.strip()] if token.startswith("."))
+    item_count = len(re.findall(r"\.[A-Za-z][A-Za-z0-9]*", match.group(1)))
     require(item_count == expected,
             f"theme catalog count changed for {declaration}; expected {expected}, found {item_count}")
 

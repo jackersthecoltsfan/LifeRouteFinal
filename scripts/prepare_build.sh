@@ -240,3 +240,42 @@ python3 scripts/audit_v0_7_1_physical_runtime_fix.py
 python3 scripts/audit_v0_7_1_protected_regressions.py
 
 echo "LifeRoute v0.7.1 physical-runtime preparation passed: the complete v0.7.0 Build #96 regression chain remains locked; Canyon Day and Royal Current retain their approved exemplar artwork, live motion is perceptible within a few seconds, UIKit tab/navigation backing surfaces are transparent so the single persistent environment can remain visible app-wide, Today keeps the approved glass/exemplar composition, and protected navigation, calendar, routing, ABA, timer, Live Activity, identity, persistence, and legacy-runtime contracts remain intact."
+
+# v0.8.0 functionality pass 1: Master ABA Session Note parity. Keep this as a new cumulative layer
+# after the protected v0.7.x materialization rather than weakening historical note/runtime checkpoints.
+python3 -m py_compile scripts/patch_v0_8_0_master_aba_note.py scripts/audit_v0_8_0_master_aba_note.py
+python3 scripts/patch_v0_8_0_master_aba_note.py
+python3 scripts/audit_v0_8_0_master_aba_note.py
+
+# Re-run non-superseded protected architecture after the note generator changes. These audits are
+# intentionally post-v0.8.0 so a note-only patch cannot silently regress navigation/state/persistence.
+python3 scripts/audit_v0_5_0_functional_shell.py
+python3 scripts/audit_v0_5_0_core_navigation.py
+python3 scripts/audit_v0_5_0_calendar_core.py
+python3 scripts/audit_v0_5_0_routing_location_core.py
+python3 scripts/audit_v0_5_0_clients_core.py
+python3 scripts/audit_v0_5_0_stability_architecture.py
+python3 scripts/audit_v0_7_1_protected_regressions.py
+
+echo "LifeRoute v0.8.0 functionality pass 1 preparation passed: Master ABA session-note behavior is materialized and regression-audited on top of the protected v0.7.1 candidate state."
+
+# v0.8.0 functionality pass 2 foundation: approved ABA visual-support image workflow. This adds
+# one reviewed photo/text-to-illustrated-icon path while preserving the existing library/builders.
+python3 -m py_compile \
+  scripts/patch_v0_8_0_aba_visual_generator_foundation.py \
+  scripts/patch_v0_8_0_aba_visual_generator_performance_hotfix.py \
+  scripts/audit_v0_8_0_aba_visual_generator_foundation.py
+python3 scripts/patch_v0_8_0_aba_visual_generator_foundation.py
+python3 scripts/patch_v0_8_0_aba_visual_generator_performance_hotfix.py
+python3 scripts/audit_v0_8_0_aba_visual_generator_foundation.py
+
+# Re-run the note contract and visual/persistence/performance ownership after the image foundation.
+python3 scripts/audit_v0_8_0_master_aba_note.py
+python3 scripts/audit_v0_5_0_client_visual_supports.py
+python3 scripts/audit_v0_5_0_client_visual_persistence.py
+python3 scripts/audit_v0_5_0_performance_architecture.py
+python3 scripts/audit_v0_5_0_stability_architecture.py
+python3 scripts/audit_v0_5_0_second_functionality_pass.py
+python3 scripts/audit_v0_7_1_protected_regressions.py
+
+echo "LifeRoute v0.8.0 ABA visual-support foundation preparation passed: the canonical Master Image Prompt, exact native labels, supported Image Playground review, square icon normalization, existing protected visual libraries, and all retained regression contracts are locked."

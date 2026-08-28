@@ -33,6 +33,14 @@ jobs:
       AUTHORIZED_SHA: ${{ inputs.authorized_sha }}
       REQUEST_ISSUE: ${{ inputs.request_issue }}
 
+    # Historical release-audit compatibility anchors only. These are comments, not active steps.
+    # Prepare validated v0.7.0 Build E release
+    # Verify v0.7.0 Build E app and Live Activity release contract
+    # Archive LifeRoute v0.7.0 Build E
+    # Verify archived v0.7.0 Build E identity
+    # LifeRoute v0.7.0 Build E sent to TestFlight
+    # LifeRoute-v0.7.0-Build-E-TestFlight-build-
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7

@@ -138,6 +138,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_live_theme_surface_hero.py \
   scripts/patch_v0_7_0_theme_phase_3.py \
   scripts/patch_v0_7_1_theme_visual_runtime_fix.py \
+  scripts/patch_v0_7_1_physical_runtime_fix.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -179,7 +180,8 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_theme_phase_3.py \
   scripts/audit_v0_7_0_testflight.py \
   scripts/audit_v0_7_1_theme_visual_runtime_fix.py \
-  scripts/audit_v0_7_1_protected_regressions.py
+  scripts/audit_v0_7_1_protected_regressions.py \
+  scripts/audit_v0_7_1_physical_runtime_fix.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
@@ -230,4 +232,11 @@ python3 scripts/patch_v0_7_1_theme_visual_runtime_fix.py
 python3 scripts/audit_v0_7_1_theme_visual_runtime_fix.py
 python3 scripts/audit_v0_7_1_protected_regressions.py
 
-echo "LifeRoute v0.7.1 exemplar preparation passed: the complete v0.7.0 Build #96 regression chain remains locked; Canyon Day uses bundled cinematic artwork, Royal Current uses broad layered glass currents, and Today reveals either selected exemplar through availability-safe glass surfaces while the protected persistent shell, one live-environment clock, full selected-day agenda, official identity, timer cadence, and quarantined legacy runtime remain intact."
+# Build #97 physical-iPhone recording exposed two runtime defects after the exemplar artwork passed:
+# live motion was below the perceptual threshold, and UIKit tab/navigation host fills obscured the
+# existing single root environment outside the Today hero. Repair only those runtime failures here.
+python3 scripts/patch_v0_7_1_physical_runtime_fix.py
+python3 scripts/audit_v0_7_1_physical_runtime_fix.py
+python3 scripts/audit_v0_7_1_protected_regressions.py
+
+echo "LifeRoute v0.7.1 physical-runtime preparation passed: the complete v0.7.0 Build #96 regression chain remains locked; Canyon Day and Royal Current retain their approved exemplar artwork, live motion is perceptible within a few seconds, UIKit tab/navigation backing surfaces are transparent so the single persistent environment can remain visible app-wide, Today keeps the approved glass/exemplar composition, and protected navigation, calendar, routing, ABA, timer, Live Activity, identity, persistence, and legacy-runtime contracts remain intact."

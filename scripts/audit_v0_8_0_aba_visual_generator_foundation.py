@@ -5,6 +5,8 @@ ROOT = Path(__file__).resolve().parents[1]
 VIEWS = (ROOT / "LifeRoute/SessionToolsViews.swift").read_text(encoding="utf-8")
 DOMAIN = (ROOT / "LifeRoute/SessionToolsDomain.swift").read_text(encoding="utf-8")
 PREP = (ROOT / "scripts/prepare_build.sh").read_text(encoding="utf-8")
+WRAPPER = (ROOT / "scripts/patch_v0_8_0_aba_visual_generator_performance_hotfix.py").read_text(encoding="utf-8")
+COMPILE_HOTFIX = (ROOT / "scripts/patch_v0_8_0_aba_visual_generator_compile_hotfix.py").read_text(encoding="utf-8")
 SPEC = (ROOT / "LIFEROUTE_V0_8_0_ABA_VISUAL_SUPPORT_GENERATOR_SPEC.md").read_text(encoding="utf-8")
 
 checks: list[tuple[str, bool]] = []
@@ -41,7 +43,13 @@ check("existing builders remain reachable", all(token in VIEWS for token in [
 
 # Image Playground integration must be availability-gated and use Apple's supported reviewed UI.
 check("Image Playground import is guarded", "#if canImport(ImagePlayground)\nimport ImagePlayground\n#endif" in VIEWS)
-check("iOS 26 availability gate", "@available(iOS 26.0, *)" in VIEWS and "if #available(iOS 26.0, *)" in VIEWS)
+check(
+    "iOS 26.4 availability gate",
+    "@available(iOS 26.4, *)" in VIEWS
+    and "if #available(iOS 26.4, *)" in VIEWS
+    and "v0.8.0 ABA visual-support Image Playground 26.4 gate" in VIEWS,
+)
+check("pre-26.4 generator type gate removed", "@available(iOS 26.0, *)\nprivate struct ABAVisualSupportImageGeneratorButton" not in VIEWS)
 check("system availability environment", "@Environment(\\.supportsImageGeneration)" in VIEWS)
 check("system generation sheet used", ".imagePlaygroundSheet(" in VIEWS)
 check("square generation requested", "options.sizeSpecification = .closest(to: CGSize(width: 1_024, height: 1_024))" in VIEWS)
@@ -49,7 +57,7 @@ check("person personalization disabled", "options.personalization = .disabled" i
 check("illustration style locked", ".imagePlaygroundGenerationStyle(.illustration, in: [.illustration])" in VIEWS)
 check("optional reference photo supplied", "sourceImage: sourceImage" in VIEWS and "sourceImage: referenceSourceImage" in VIEWS)
 check("text-only generation supported", "hasReference: referencePhotoData != nil" in VIEWS and "cleanLabel" in VIEWS)
-check("unsupported fallback retained", "Photo and text-only visual saving remain available" in VIEWS)
+check("unsupported fallback retained", "supported iOS 26.4 Apple Intelligence device" in VIEWS and "Photo and text-only visual saving remain available" in VIEWS)
 
 # Master ABA visual prompt behavior.
 for token, label in [
@@ -99,9 +107,15 @@ check("later checkpoints are disclosed", "Batch generation and printable PDF she
 
 # Deterministic materialization and post-change protection.
 check("visual patch wired into preparation", "python3 scripts/patch_v0_8_0_aba_visual_generator_foundation.py" in PREP)
-check("performance hotfix wired into preparation", "python3 scripts/patch_v0_8_0_aba_visual_generator_performance_hotfix.py" in PREP)
+check("performance wrapper wired into preparation", "python3 scripts/patch_v0_8_0_aba_visual_generator_performance_hotfix.py" in PREP)
+check("compile hotfix exists", "Image Playground 26.4 gate" in COMPILE_HOTFIX and "@available(iOS 26.4, *)" in COMPILE_HOTFIX)
+check(
+    "compile hotfix wired through canonical wrapper",
+    "runpy.run_path" in WRAPPER
+    and "patch_v0_8_0_aba_visual_generator_compile_hotfix.py" in WRAPPER,
+)
 check("visual audit wired into preparation", "python3 scripts/audit_v0_8_0_aba_visual_generator_foundation.py" in PREP)
-check("hotfix precedes visual audit", PREP.find("patch_v0_8_0_aba_visual_generator_performance_hotfix.py") < PREP.find("audit_v0_8_0_aba_visual_generator_foundation.py"))
+check("performance wrapper precedes visual audit", PREP.find("patch_v0_8_0_aba_visual_generator_performance_hotfix.py") < PREP.find("audit_v0_8_0_aba_visual_generator_foundation.py"))
 check("Master ABA note audit still runs first", PREP.find("audit_v0_8_0_master_aba_note.py") < PREP.find("patch_v0_8_0_aba_visual_generator_foundation.py"))
 check("protected visual persistence reruns after patch", PREP.rfind("audit_v0_5_0_client_visual_persistence.py") > PREP.find("patch_v0_8_0_aba_visual_generator_foundation.py"))
 check("protected performance audit reruns after patch", PREP.rfind("audit_v0_5_0_performance_architecture.py") > PREP.find("patch_v0_8_0_aba_visual_generator_foundation.py"))

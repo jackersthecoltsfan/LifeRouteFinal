@@ -135,6 +135,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_theme_phase_2_background_motion_fix.py \
   scripts/patch_v0_7_0_official_branding_today_compat.py \
   scripts/patch_v0_7_0_official_branding.py \
+  scripts/patch_v0_7_0_live_theme_surface_hero.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -172,6 +173,7 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_theme_phase_2.py \
   scripts/audit_v0_7_0_theme_phase_2_background_motion_fix.py \
   scripts/audit_v0_7_0_official_branding.py \
+  scripts/audit_v0_7_0_live_theme_surface_hero.py \
   scripts/audit_v0_7_0_testflight.py
 
 plutil -lint LifeRoute/Info.plist
@@ -206,7 +208,11 @@ python3 scripts/audit_v0_7_0_swipe_day_overview.py
 python3 scripts/audit_v0_7_0_location_intent_fix.py
 python3 scripts/audit_v0_7_0_theme_phase_2.py
 python3 scripts/audit_v0_7_0_theme_phase_2_background_motion_fix.py
+# Lock the full official identity before Today intentionally returns to the approved preview wordmark.
 python3 scripts/audit_v0_7_0_official_branding.py
+# Real-device visual repair: make Dynamic Liquid Glass visibly fill the app surface and restore the approved Today hero composition.
+python3 scripts/patch_v0_7_0_live_theme_surface_hero.py
+python3 scripts/audit_v0_7_0_live_theme_surface_hero.py
 python3 scripts/audit_v0_7_0_testflight.py
 
-echo "LifeRoute v0.7.0 branded pre-Phase-3 preparation passed: Build A/B/B.1/B.2/B.3/C/D/E, swipe behavior, location QA, still Core Glass, full-frame Dynamic Liquid Glass with Reduce Motion/lifecycle protections, and the official refined navy/gold LR + pin + route + mountain/topographic identity remain intact; Phase 3 Scenery remains isolated; the validated timer cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."
+echo "LifeRoute v0.7.0 pre-Phase-3 visual repair preparation passed: Build A/B/B.1/B.2/B.3/C/D/E, swipe behavior, location QA, still Core Glass, clearly visible full-frame Dynamic Liquid Glass with Reduce Motion/lifecycle protections, the approved Today preview hero composition, and the official navy/gold LR identity on protected brand surfaces remain intact; Phase 3 Scenery remains isolated; the validated timer cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."

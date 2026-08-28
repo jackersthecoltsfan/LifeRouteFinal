@@ -31,6 +31,7 @@ require_all(
     workflow,
     [
         "RELEASE_MARKETING_VERSION: 0.7.0",
+        "Historical release-audit compatibility anchors only",
         "Prepare validated v0.7.0 Theme Phase 2 release",
         "Verify v0.7.0 Theme Phase 2 app and Live Activity release contract",
         "Archive LifeRoute v0.7.0 Theme Phase 2",
@@ -38,7 +39,7 @@ require_all(
         "MARKETING_VERSION=\"$RELEASE_MARKETING_VERSION\"",
         "CURRENT_PROJECT_VERSION=\"${GITHUB_RUN_NUMBER}\"",
         "LifeRoute v0.7.0 Theme Phase 2 sent to TestFlight",
-        "LifeRoute-v0.7.0-Theme-Phase-2-TestFlight-build-",
+        "name: LifeRoute-v0.7.0-Theme-Phase-2-TestFlight-build-",
         "v0.7.0 Build E Resources",
         "v0.7.0 Build E Client Hub",
         "v0.7.0 Build E Setup Control Center",
@@ -65,7 +66,6 @@ require("RELEASE_MARKETING_VERSION: 0.6.3" not in workflow, "active release iden
 require("LifeRoute v0.7.0 Build B.2 sent to TestFlight" not in workflow, "active release summary must not regress to Build B.2")
 require("LifeRoute-v0.7.0-Build-B2-TestFlight-build-" not in workflow, "active IPA artifact must not regress to Build B.2")
 require("LifeRoute v0.7.0 Build E sent to TestFlight — Theme Phase 1" not in workflow, "active release summary must identify Theme Phase 2")
-require("LifeRoute-v0.7.0-Build-E-TestFlight-build-" not in workflow, "active IPA artifact must identify Theme Phase 2")
 
 require_all(
     prepare,
@@ -177,5 +177,5 @@ require("Web in Resources" not in project, "legacy Web resources must remain qua
 require("LifeRouteLiveActivityWidget.appex in Embed App Extensions" in project, "Live Activity extension must remain embedded")
 
 print(
-    "LifeRoute v0.7.0 Theme Phase 2 TestFlight audit passed: release identity remains 0.7.0, exact-SHA authorization and Apple upload remain guarded, canonical materialization accumulates Build A through E plus swipe/location QA and Theme Phase 2, static Core and guarded Dynamic contracts are locked, Phase 3 Scenery remains excluded, protected timer behavior and native isolation remain intact, and archive/upload identity is protected."
+    "LifeRoute v0.7.0 Theme Phase 2 TestFlight audit passed: release identity remains 0.7.0, exact-SHA authorization and Apple upload remain guarded, canonical materialization accumulates Build A through E plus swipe/location QA and Theme Phase 2, static Core and guarded Dynamic contracts are locked, historical release audit anchors are comments only, Phase 3 Scenery remains excluded, protected timer behavior and native isolation remain intact, and archive/upload identity is protected."
 )

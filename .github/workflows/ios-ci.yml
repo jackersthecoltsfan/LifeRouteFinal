@@ -53,7 +53,9 @@ jobs:
         run: python3 scripts/audit_v0_5_0_second_functionality_pass.py
       - name: Build LifeRoute for iOS Simulator
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          LOG_FILE="$RUNNER_TEMP/liferoute-xcodebuild.log"
+          set +e
           xcodebuild \
             -project LifeRoute.xcodeproj \
             -scheme LifeRoute \
@@ -61,4 +63,21 @@ jobs:
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
-            build
+            build >"$LOG_FILE" 2>&1
+          status=$?
+          set -e
+
+          if [ "$status" -ne 0 ]; then
+            echo "Xcode build failed. Compiler diagnostics:"
+            diagnostics="$(grep -E '(^|[[:space:]])(error|fatal error):|:[0-9]+:[0-9]+: error:' "$LOG_FILE" | head -80 || true)"
+            if [ -z "$diagnostics" ]; then
+              diagnostics="$(tail -120 "$LOG_FILE")"
+            fi
+            printf '%s\n' "$diagnostics"
+            while IFS= read -r diagnostic; do
+              [ -n "$diagnostic" ] && echo "::error::$diagnostic"
+            done <<< "$diagnostics"
+            exit "$status"
+          fi
+
+          tail -40 "$LOG_FILE"

@@ -136,6 +136,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_official_branding_today_compat.py \
   scripts/patch_v0_7_0_official_branding.py \
   scripts/patch_v0_7_0_live_theme_surface_hero.py \
+  scripts/patch_v0_7_0_theme_phase_3.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -174,6 +175,7 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_theme_phase_2_background_motion_fix.py \
   scripts/audit_v0_7_0_official_branding.py \
   scripts/audit_v0_7_0_live_theme_surface_hero.py \
+  scripts/audit_v0_7_0_theme_phase_3.py \
   scripts/audit_v0_7_0_testflight.py
 
 plutil -lint LifeRoute/Info.plist
@@ -213,6 +215,9 @@ python3 scripts/audit_v0_7_0_official_branding.py
 # Real-device visual repair: make Dynamic Liquid Glass visibly fill the app surface and restore the approved Today hero composition.
 python3 scripts/patch_v0_7_0_live_theme_surface_hero.py
 python3 scripts/audit_v0_7_0_live_theme_surface_hero.py
+# Theme roadmap Phase 3 intentionally replaces only the retained legacy Scenery catalog/renderer after the post-QA contract is locked.
+python3 scripts/patch_v0_7_0_theme_phase_3.py
+python3 scripts/audit_v0_7_0_theme_phase_3.py
 python3 scripts/audit_v0_7_0_testflight.py
 
-echo "LifeRoute v0.7.0 pre-Phase-3 visual repair preparation passed: Build A/B/B.1/B.2/B.3/C/D/E, swipe behavior, location QA, still Core Glass, clearly visible full-frame Dynamic Liquid Glass with Reduce Motion/lifecycle protections, the approved Today preview hero composition, and the official navy/gold LR identity on protected brand surfaces remain intact; Phase 3 Scenery remains isolated; the validated timer cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."
+echo "LifeRoute v0.7.0 Phase 3 scenery preparation passed: Build A/B/B.1/B.2/B.3/C/D/E, swipe behavior, location QA, 12 still Core Glass themes, 12 clearly visible Dynamic Liquid Glass themes, and 20 individually selectable cinematic Scenery Day/Night environments share the protected persistent shell; Reduce Motion/lifecycle controls and the single live-environment clock remain intact; Today keeps the approved split Life/Route hero and full selected-day agenda; the official navy/gold LR identity remains protected; the timer cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."

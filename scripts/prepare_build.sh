@@ -261,8 +261,12 @@ echo "LifeRoute v0.8.0 functionality pass 1 preparation passed: Master ABA sessi
 
 # v0.8.0 functionality pass 2 foundation: approved ABA visual-support image workflow. This adds
 # one reviewed photo/text-to-illustrated-icon path while preserving the existing library/builders.
-python3 -m py_compile scripts/patch_v0_8_0_aba_visual_generator_foundation.py scripts/audit_v0_8_0_aba_visual_generator_foundation.py
+python3 -m py_compile \
+  scripts/patch_v0_8_0_aba_visual_generator_foundation.py \
+  scripts/patch_v0_8_0_aba_visual_generator_performance_hotfix.py \
+  scripts/audit_v0_8_0_aba_visual_generator_foundation.py
 python3 scripts/patch_v0_8_0_aba_visual_generator_foundation.py
+python3 scripts/patch_v0_8_0_aba_visual_generator_performance_hotfix.py
 python3 scripts/audit_v0_8_0_aba_visual_generator_foundation.py
 
 # Re-run the note contract and visual/persistence/performance ownership after the image foundation.

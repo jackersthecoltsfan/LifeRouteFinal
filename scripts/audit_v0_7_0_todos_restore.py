@@ -66,7 +66,6 @@ def main() -> None:
             'Picker("Category", selection: $todoCategory)',
             'Picker("Estimated task time", selection: $todoDurationMinutes)',
             'Picker("Saved place (optional)", selection: $todoSavedPlaceID)',
-            'V054AddressField("Location / store (optional)", text: $todoAddress)',
             'Picker("Priority", selection: $todoPriority)',
             'DatePicker("Do by", selection: $todoDueDate, displayedComponents: .date)',
             'TextField("Notes (optional)", text: $todoNotes, axis: .vertical)',
@@ -74,6 +73,11 @@ def main() -> None:
             "routingState.removeTodo",
         ],
         "Setup weekly To-Do workflow",
+    )
+    require(
+        'V054AddressField("Location / store (optional)", text: $todoAddress)' in setup
+        or 'V054AddressField("Location / store (optional)", text: $todoAddress, mode: .todoDestination)' in setup,
+        "Setup weekly To-Do workflow must retain the reviewed location field or its superseding flexible-destination mode",
     )
 
     require_all(
@@ -92,7 +96,7 @@ def main() -> None:
     require("python3 scripts/patch_v0_7_0_todos_restore.py" in prepare, "canonical preparation must materialize restored To-Dos")
     require("python3 scripts/audit_v0_7_0_todos_restore.py" in prepare, "canonical preparation must audit restored To-Dos")
 
-    print("LifeRoute v0.7.0 To-Dos restore audit passed: the legacy flexible weekly task model is restored natively beside Saved Places, persists safely, supports completion/undo, and surfaces on Home as gap-filler work.")
+    print("LifeRoute v0.7.0 To-Dos restore audit passed: the legacy flexible weekly task model is restored natively beside Saved Places, persists safely, supports completion/undo, and surfaces on Home as gap-filler work; the location field may use its reviewed flexible-destination supersession.")
 
 
 if __name__ == "__main__":

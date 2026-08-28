@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from pathlib import Path
 
+from audit_v0_7_1_toolbar_brand_lock import main as audit_toolbar_brand_lock
+
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "LifeRoute/LifeRouteApp.swift"
 SHELL = ROOT / "LifeRoute/V054ContentView.swift"
@@ -62,6 +64,9 @@ def main() -> None:
     if shell.count(".tabItem {") != 5:
         raise SystemExit("v0.7.1 shipping theme-hold audit failed: underlying five-tab router changed")
 
+    # Final visual-only toolbar correction must stay independent of the selected theme.
+    audit_toolbar_brand_lock()
+
     # Proven architecture remains one shared live clock.
     if app.count("TimelineView(\n            .animation(") != 1:
         raise SystemExit("v0.7.1 shipping theme-hold audit failed: shared live-theme TimelineView ownership changed")
@@ -69,8 +74,8 @@ def main() -> None:
     print(
         "LifeRoute v0.7.1 shipping theme-hold audit passed: unfinished theme implementation remains preserved "
         "internally, the user-facing library is 12 Core + Royal Current + Canyon Day, held selections migrate to "
-        "a proven theme, the five-tab router remains intact, and the UIKit stock tab bar is explicitly hidden so "
-        "only the custom LifeRoute toolbar is presented."
+        "a proven theme, the five-tab router remains intact, the UIKit stock tab bar is explicitly hidden, and the "
+        "final custom toolbar retains LifeRoute navy/gold brand chrome across every selected theme."
     )
 
 

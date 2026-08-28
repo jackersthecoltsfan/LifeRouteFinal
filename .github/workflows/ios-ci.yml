@@ -31,10 +31,9 @@ concurrency:
 jobs:
   build:
     runs-on: macos-26
-    # v0.7.1 runtime validation boots a cold iOS Simulator and captures nine native
-    # fixtures. GitHub's macOS 26 image can spend ~5 minutes in first-boot migration,
-    # so keep enough headroom for the already-fast preparation + Xcode build to finish.
-    timeout-minutes: 25
+    # The isolated v0.7.1 theme branch boots a cold iOS Simulator and captures the complete
+    # twenty-theme matrix. GitHub's macOS 26 image can spend ~5 minutes in first-boot migration.
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -89,6 +88,7 @@ jobs:
       - name: Capture v0.7.1 visual fixtures
         if: >-
           (github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/v0.7.1-theme-runtime-visual-regression') ||
+          (github.event_name == 'workflow_dispatch' && github.ref_name == 'feature/v0.7.1-theme-library-finish-codex') ||
           (github.event_name == 'pull_request' && github.head_ref == 'fix/v0.7.1-theme-runtime-visual-regression')
         run: |
           bash scripts/capture_v0_7_1_visual_fixtures.sh \
@@ -98,11 +98,12 @@ jobs:
         if: >-
           always() && (
             (github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/v0.7.1-theme-runtime-visual-regression') ||
+            (github.event_name == 'workflow_dispatch' && github.ref_name == 'feature/v0.7.1-theme-library-finish-codex') ||
             (github.event_name == 'pull_request' && github.head_ref == 'fix/v0.7.1-theme-runtime-visual-regression')
           )
         uses: actions/upload-artifact@v6
         with:
-          name: liferoute-v0.7.1-visual-fixtures
-          path: ${{ runner.temp }}/liferoute-visual-validation/*.png
+          name: liferoute-v0.7.1-theme-matrix
+          path: ${{ runner.temp }}/liferoute-visual-validation/**
           if-no-files-found: error
           retention-days: 14

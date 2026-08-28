@@ -38,6 +38,9 @@ def main() -> None:
     require(shell, "wait one run loop so TabView/UIKit children exist", "deferred initial transparency refresh")
     require(shell, "A newly selected tab can materialize a fresh UIKit container after selection changes.", "tab materialization refresh")
     require(shell, "DispatchQueue.main.async", "deferred UIKit refresh")
+    require(shell, "private enum LifeRouteDebugLaunch", "DEBUG validation launch helper")
+    require(shell, "-LifeRouteSectionOverride", "DEBUG real-tab override argument")
+    require(shell, "router.select(section)", "DEBUG real-tab selection")
 
     # Exactly four lifecycle paths intentionally refresh visible UIKit chrome:
     # initial presentation, tab selection, theme selection, and scene reactivation.
@@ -63,7 +66,8 @@ def main() -> None:
     print(
         "LifeRoute v0.7.1 physical runtime audit passed: the single shared live-theme clock remains unique, "
         "all 12 Dynamic phase rates plus Canyon ambience are perceptible, all five tab roots are transparent, "
-        "UIKit host surfaces are cleared after launch/theme/tab/scene materialization, and Today retains the approved exemplar artwork contract."
+        "UIKit host surfaces are cleared after launch/theme/tab/scene materialization, DEBUG validation can "
+        "launch each real tab root, and Today retains the approved exemplar artwork contract."
     )
 
 

@@ -70,6 +70,9 @@ python3 scripts/audit_v0_7_0_location_intent_fix.py
 python3 scripts/patch_v0_7_0_theme_phase_2_category_compat.py
 python3 scripts/patch_v0_7_0_theme_phase_2.py
 python3 scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py
+# Real-device Phase 2 QA: make the full Dynamic backdrop participate in motion/refraction instead of
+# leaving a static near-black field behind the moving liquid ribbons.
+python3 scripts/patch_v0_7_0_theme_phase_2_background_motion_fix.py
 
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
@@ -120,6 +123,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_theme_phase_2_category_compat.py \
   scripts/patch_v0_7_0_theme_phase_2.py \
   scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py \
+  scripts/patch_v0_7_0_theme_phase_2_background_motion_fix.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -155,6 +159,7 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_theme_phase_1.py \
   scripts/audit_v0_7_0_location_intent_fix.py \
   scripts/audit_v0_7_0_theme_phase_2.py \
+  scripts/audit_v0_7_0_theme_phase_2_background_motion_fix.py \
   scripts/audit_v0_7_0_testflight.py
 
 plutil -lint LifeRoute/Info.plist
@@ -191,6 +196,7 @@ python3 scripts/audit_v0_7_0_build_d.py
 python3 scripts/audit_v0_7_0_swipe_day_overview.py
 python3 scripts/audit_v0_7_0_location_intent_fix.py
 python3 scripts/audit_v0_7_0_theme_phase_2.py
+python3 scripts/audit_v0_7_0_theme_phase_2_background_motion_fix.py
 python3 scripts/audit_v0_7_0_testflight.py
 
-echo "LifeRoute v0.7.0 Theme Phase 2 preparation passed: accepted Build A/B/B.1/B.2/B.3/C/D/E, swipe behavior, and the location QA repair remain intact; one persistent environment spans the native five-tab shell; the 12 approved still Core Glass themes remain static; the 12 approved Dynamic Liquid Glass themes use one paused system-driven root timeline with Reduce Motion and lifecycle protections; pre-Phase-3 Scenery remains isolated; the validated timer visual cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."
+echo "LifeRoute v0.7.0 Theme Phase 2 preparation passed: accepted Build A/B/B.1/B.2/B.3/C/D/E, swipe behavior, and the location QA repair remain intact; one persistent environment spans the native five-tab shell; the 12 approved still Core Glass themes remain static; the 12 approved Dynamic Liquid Glass themes use one paused system-driven root timeline with Reduce Motion and lifecycle protections plus full-frame moving color/refraction fields; pre-Phase-3 Scenery remains isolated; the validated timer visual cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."

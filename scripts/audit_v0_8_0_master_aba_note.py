@@ -3,12 +3,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SWIFT = (ROOT / "LifeRoute/LifeRouteIntelligenceCore.swift").read_text(encoding="utf-8")
+VIEW = (ROOT / "LifeRoute/AIClinicalToolsViews.swift").read_text(encoding="utf-8")
 PREP = (ROOT / "scripts/prepare_build.sh").read_text(encoding="utf-8")
 
 checks = []
 def check(name, condition):
     checks.append((name, bool(condition)))
 
+# Master ABA generation contract.
 check("v0.8.0 Master ABA marker materialized", "v0.8.0 master ABA session-note parity" in SWIFT)
 check("single ABA note generator remains", SWIFT.count("static func generateABASessionNote(") == 1)
 check("supplied-facts-only guard retained", "using ONLY the session facts supplied below" in SWIFT)
@@ -41,6 +43,8 @@ check("closing repair guard", "if !lower.contains(\"treatment plan\")" in SWIFT)
 check("medical necessity supported not asserted", "Support medical necessity through concrete documentation" in SWIFT and "do not make an unsupported declaration" in SWIFT)
 check("no fabrication boundary", "Do not fabricate targets, behaviors, antecedents, prompt levels, interventions" in SWIFT)
 check("client code remains context only", "the saved client code is context only and is not a name" in SWIFT)
+
+# On-device context-window and repair reliability.
 check("narrative context bounded", "cleanNarrative.prefix(5_200)" in SWIFT)
 check("OCR context bounded", "prefix(1_700)" in SWIFT)
 check("client context bounded", "compactSessionNoteClientContext(client).prefix(550)" in SWIFT)
@@ -50,6 +54,22 @@ check("existing narrative format guard retained", "private static func sessionNo
 check("Master ABA repair guard added", "private static func sessionNoteNeedsMasterABARepair" in SWIFT)
 check("single Master ABA repair guard remains", SWIFT.count("private static func sessionNoteNeedsMasterABARepair") == 1)
 check("on-device 9k context cap preserved", "session.respond(to: String(prompt.prefix(9_000)))" in SWIFT)
+
+# Actual Session Note screen -> authoritative generator workflow.
+check("Session Note screen remains native", "struct AISessionNoteGeneratorView: View" in VIEW)
+check("session narrative editor remains", "TextEditor(text: $narrative)" in VIEW)
+check("selected client context remains", "private var selectedClient: LifeRouteClientProfile?" in VIEW and "clientState.client(code: selectedClientCode)" in VIEW)
+check("Scratch Notes append without overwrite", "Pull from Scratch Notes" in VIEW and "appendToNarrative" in VIEW and "appends without overwriting" in VIEW)
+check("optional screenshot input remains", "PhotosPicker(selection: $selectedPhotoItem, matching: .images)" in VIEW and "screenshotData = data" in VIEW)
+check("UI explains local screenshot recognition", "text recognition runs locally" in VIEW)
+check("single authoritative generator call receives all inputs", VIEW.count("LifeRouteIntelligenceCore.generateABASessionNote(") == 1 and "narrative: narrative" in VIEW and "screenshotData: screenshotData" in VIEW and "client: selectedClient" in VIEW)
+check("generation blocked without evidence", "narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && screenshotData == nil" in VIEW)
+check("generated draft remains editable", "TextEditor(text: $generatedNote)" in VIEW)
+check("generated draft remains copyable", "UIPasteboard.general.string = generatedNote" in VIEW)
+check("regenerate uses current facts", "Regenerate from current facts" in VIEW and VIEW.count("Task { await generate() }") >= 2)
+check("documentation review warning retained", "Review every sentence before using a generated draft for documentation or billing." in VIEW)
+
+# Deterministic materialization and regression coverage.
 check("deterministic patch wired", "python3 scripts/patch_v0_8_0_master_aba_note.py" in PREP)
 check("v0.8.0 audit wired", "python3 scripts/audit_v0_8_0_master_aba_note.py" in PREP)
 check("protected post-note regressions wired", all(token in PREP for token in [

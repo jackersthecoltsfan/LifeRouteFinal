@@ -27,16 +27,37 @@ if MARKER not in text:
         raise SystemExit("v0.8.0 visual performance hotfix failed: generator call anchor missing")
     text = text.replace(button_call_anchor, button_call_replacement, 1)
 
-    reset_anchor = '''            referencePhotoData = nil
-            photoData = nil'''
-    if text.count(reset_anchor) != 2:
-        raise SystemExit("v0.8.0 visual performance hotfix failed: expected two reference reset anchors")
-    text = text.replace(
-        reset_anchor,
-        '''            referencePhotoData = nil
+    empty_selection_anchor = '''            guard let selectedPhotoItem else {
+                referencePhotoData = nil
+                photoData = nil
+                isGeneratedArtwork = false
+                photoPreviewID = UUID()
+                return
+            }'''
+    empty_selection_replacement = '''            guard let selectedPhotoItem else {
+                referencePhotoData = nil
+                referenceSourceImage = nil
+                photoData = nil
+                isGeneratedArtwork = false
+                photoPreviewID = UUID()
+                return
+            }'''
+    if text.count(empty_selection_anchor) != 1:
+        raise SystemExit("v0.8.0 visual performance hotfix failed: empty-selection reset anchor missing")
+    text = text.replace(empty_selection_anchor, empty_selection_replacement, 1)
+
+    save_reset_anchor = '''            selectedPhotoItem = nil
+            referencePhotoData = nil
+            photoData = nil
+            isGeneratedArtwork = false'''
+    save_reset_replacement = '''            selectedPhotoItem = nil
+            referencePhotoData = nil
             referenceSourceImage = nil
-            photoData = nil''',
-    )
+            photoData = nil
+            isGeneratedArtwork = false'''
+    if text.count(save_reset_anchor) != 1:
+        raise SystemExit("v0.8.0 visual performance hotfix failed: post-save reset anchor missing")
+    text = text.replace(save_reset_anchor, save_reset_replacement, 1)
 
     loaded_anchor = '''            referencePhotoData = loadedData
             photoData = loadedData

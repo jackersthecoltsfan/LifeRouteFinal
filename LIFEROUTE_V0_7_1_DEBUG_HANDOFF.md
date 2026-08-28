@@ -1,5 +1,29 @@
 # LifeRoute v0.7.1 Debug Build Handoff
 
+## Exemplar validation milestone — 2026-08-28
+
+The corrected theme-runtime architecture has passed the deliberately narrow four-exemplar gate. Do not interpret this milestone as validation of the remaining Dynamic or Scenery catalog.
+
+- Validated branch: `fix/v0.7.1-theme-runtime-visual-regression`
+- Validated code SHA: `01fdde591a52e3a2774dfd95458e92f81a0de136`
+- Required Codex-first workflow commit `d91e40b272dda0d19dbcf38aa335ef01dc38ab6e` is an ancestor of the validated SHA.
+- GitHub Actions Simulator run: `33190020502`
+- Screenshot artifact: `liferoute-v0.7.1-visual-fixtures` (`9693594790`)
+- Artifact digest: `sha256:23e61fddc6e104181b20445194aeeaa7077e500c85773e41c40ce03a484e5af0`
+
+The run passed canonical preparation, the accumulated historical audits, the focused v0.7.1 theme-runtime audit, the protected-regression audit, an actual iOS Simulator build, four app launches, and four screenshot captures. Simulator visual inspection passed:
+
+1. Canyon — Day
+2. Royal Current
+3. Today using Canyon — Day
+4. Today using Royal Current
+
+The approved exemplar architecture is asset-backed and source-controlled. Canyon and Royal Current each use a reference-quality hero asset with restrained motion/compositing driven by the existing single root live-theme phase. Theme Center previews remain deterministic, Reduce Motion and lifecycle pausing remain intact, and no local Today timer or competing background owner was added. Today reuses the same production exemplar artwork within a constrained hero canvas, preserving the split white/gold wordmark, semantic quick actions, selected-day paging, and full selected-day agenda behavior. Native iOS 26 glass effects retain availability-safe material fallbacks.
+
+All implementation changes live in the authoritative patch/audit/preparation chain; generated materialized Swift output was not committed as a competing source of truth. The Simulator fixture harness defines its debug compilation condition explicitly and validates app liveness and screenshot output before upload.
+
+The remaining themes have intentionally not been scaled. No TestFlight upload was performed, and `main` was not modified. The next implementation step is to expand only from this proven architecture, followed by the broader representative sweep and physical-iPhone regression described below.
+
 ## Purpose
 
 This handoff starts a clean LifeRoute v0.7.1 debugging build focused on correcting the failed visual/runtime implementation of Dynamic and Scenery themes and restoring Today/welcome-screen visual parity with the approved references.

@@ -81,11 +81,11 @@ checks = {
     "Core theme architecture remains owned centrally": "final class LifeRouteThemeStore" in theme_owner and "var category: LifeRouteThemeCategory" in theme_owner,
 
     "Five-tab shell remains exact": shell.count("NavigationStack(path: $router.") == 5,
-    "Today root remains": 'Label("Today"' in shell,
-    "Schedule root remains": 'Label("Schedule"' in shell,
-    "Tools root remains": 'Label("Tools"' in shell,
-    "Resources root remains": 'Label("Resources"' in shell,
-    "Setup root remains": 'Label("Setup"' in shell,
+    "Today root remains": "Label(AppSection.today.title, systemImage: AppSection.today.systemImage)" in shell and ".tag(AppSection.today)" in shell,
+    "Schedule root remains": "Label(AppSection.schedule.title, systemImage: AppSection.schedule.systemImage)" in shell and ".tag(AppSection.schedule)" in shell,
+    "Tools root remains": "Label(AppSection.tools.title, systemImage: AppSection.tools.systemImage)" in shell and ".tag(AppSection.tools)" in shell,
+    "Resources root remains": "Label(AppSection.resources.title, systemImage: AppSection.resources.systemImage)" in shell and ".tag(AppSection.resources)" in shell,
+    "Setup root remains": "Label(AppSection.setup.title, systemImage: AppSection.setup.systemImage)" in shell and ".tag(AppSection.setup)" in shell,
     "Build D final timer cadence remains 0.10 seconds": "TimelineView(.periodic(from: .now, by: 0.10))" in session,
     "Build D timer compatibility anchor remains": "v0.7.0 Build D audit compatibility anchor" in session,
 

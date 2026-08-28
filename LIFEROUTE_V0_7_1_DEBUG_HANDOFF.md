@@ -1,5 +1,24 @@
 # LifeRoute v0.7.1 Debug Build Handoff
 
+## Intermediate TestFlight physical-validation milestone — 2026-08-28
+
+The exact validated exemplar checkpoint was uploaded successfully for intermediate physical-iPhone validation without merging or modifying `main`.
+
+- Release source branch: `fix/v0.7.1-theme-runtime-visual-regression`
+- Exact release SHA: `fd7638f8d811b3821e7c6b85c1b81ed39070e81c`
+- Exact validated implementation parent: `01fdde591a52e3a2774dfd95458e92f81a0de136`
+- Fresh pre-release iOS Build Check: run `878`, ID `33192461705` — successful
+- TestFlight workflow: run/build `97`, ID `33193336126` — successful
+- Apple upload result: `UPLOAD SUCCEEDED with no errors`
+- Apple delivery UUID: `4281365a-cc62-45eb-8e8f-6322cb1d8a36`
+- Archived/TestFlight identity: LifeRoute `0.7.0 (97)` plus the matching Live Day extension
+
+The unchanged canonical TestFlight workflow still sets `RELEASE_MARKETING_VERSION` to `0.7.0`; therefore this v0.7.1 exemplar code checkpoint appears in TestFlight as marketing version `0.7.0`, Build `97`. The code and assets are the exact v0.7.1 exemplar checkpoint described below; no version-label or release-workflow change was introduced after validation.
+
+Before release, run 878 replayed canonical preparation, the complete historical audit chain, the focused v0.7.1 theme-runtime audit, the protected-regression audit, the actual iOS Simulator build, and all four exemplar launches/captures. The TestFlight workflow then replayed canonical preparation/audits again, passed the exact-SHA guard and release contract, produced and verified the signed generic-device archive, exported the IPA, uploaded it to Apple, saved the short-lived IPA artifact, and cleaned the temporary Apple signing asset created by the run.
+
+The remaining Dynamic and Scenery themes remain intentionally unexpanded. The next gate is physical-iPhone validation of Canyon — Day, Royal Current motion, Today using each exemplar, persistence/tab switching, Reduce Motion, lifecycle/background behavior, readability, responsiveness, timer/Live Activity protection, and absence of theme flashes or competing clocks.
+
 ## Exemplar validation milestone — 2026-08-28
 
 The corrected theme-runtime architecture has passed the deliberately narrow four-exemplar gate. Do not interpret this milestone as validation of the remaining Dynamic or Scenery catalog.

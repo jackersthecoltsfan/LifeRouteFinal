@@ -45,6 +45,8 @@ python3 scripts/patch_v0_7_0_build_d_compat.py
 python3 scripts/patch_v0_7_0_build_e.py
 # Preserve the reviewed v0.6.3 Core order and v0.6.2 Dynamic/Scenery catalogs in the new browser.
 python3 scripts/patch_v0_7_0_build_e_theme_compat.py
+# Post-Build-E focused Today enhancement: shared selected-day paging without changing protected domain owners.
+python3 scripts/patch_v0_7_0_swipe_day_overview.py
 
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
@@ -89,6 +91,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_build_d_compat.py \
   scripts/patch_v0_7_0_build_e.py \
   scripts/patch_v0_7_0_build_e_theme_compat.py \
+  scripts/patch_v0_7_0_swipe_day_overview.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -120,12 +123,13 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_build_c.py \
   scripts/audit_v0_7_0_build_d.py \
   scripts/audit_v0_7_0_build_e.py \
+  scripts/audit_v0_7_0_swipe_day_overview.py \
   scripts/audit_v0_7_0_testflight.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
 
-# Run all non-superseded regression coverage on the fully materialized Build E tree.
+# Run all non-superseded regression coverage on the fully materialized post-Build-E tree.
 python3 scripts/audit_v0_5_0_functional_shell.py
 python3 scripts/audit_v0_5_0_core_navigation.py
 python3 scripts/audit_v0_5_0_calendar_core.py
@@ -154,6 +158,7 @@ python3 scripts/audit_v0_7_0_build_b3.py
 python3 scripts/audit_v0_7_0_build_c.py
 python3 scripts/audit_v0_7_0_build_d.py
 python3 scripts/audit_v0_7_0_build_e.py
+python3 scripts/audit_v0_7_0_swipe_day_overview.py
 python3 scripts/audit_v0_7_0_testflight.py
 
-echo "LifeRoute v0.7.0 Build E preparation passed: accepted Build A/B/B.1/B.2/B.3/C/D behavior remains intact; Resources, Clients, Setup, Saved Places, Weekly To-Dos, and Theme Center now use the compact premium supporting-surface hierarchy; native domain/persistence ownership and five-tab routing remain unchanged; the validated timer visual cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."
+echo "LifeRoute v0.7.0 post-Build-E preparation passed: accepted Build A/B/B.1/B.2/B.3/C/D/E behavior remains intact; Today now uses shared CalendarCoreState selected-day paging across the connected calendar horizon; Resources, Clients, Setup, Saved Places, Weekly To-Dos, and Theme Center retain the compact premium supporting-surface hierarchy; native domain/persistence ownership and five-tab routing remain unchanged; the validated timer visual cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."

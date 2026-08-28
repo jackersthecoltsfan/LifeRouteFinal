@@ -25,11 +25,22 @@ for pair in pairs {
     request.usesLanguageCorrection = true
     do { try VNImageRequestHandler(cgImage: cgImage).perform([request]) }
     catch { fail("Vision failed for \(path): \(error)") }
-    let recognized = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ").lowercased()
+    let observations = request.results ?? []
+    let recognized = observations.compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ").lowercased()
     let normalized = recognized.replacingOccurrences(of: " ", with: "")
     let normalizedExpected = expected.replacingOccurrences(of: " ", with: "")
-    guard normalized.contains(normalizedExpected) else {
-        fail("\(URL(fileURLWithPath: path).lastPathComponent) did not contain '\(expected)'; recognized: \(recognized)")
+    guard !normalized.contains("openinliferoute"), !normalized.contains("cancelopen") else {
+        fail("\(URL(fileURLWithPath: path).lastPathComponent) contains a system URL confirmation: \(recognized)")
     }
-    print("text \(URL(fileURLWithPath: path).lastPathComponent): found '\(expected)'")
+    let foundNearTop = observations.contains { observation in
+        guard observation.boundingBox.midY > 0.78,
+              let text = observation.topCandidates(1).first?.string.lowercased() else {
+            return false
+        }
+        return text.replacingOccurrences(of: " ", with: "").contains(normalizedExpected)
+    }
+    guard foundNearTop else {
+        fail("\(URL(fileURLWithPath: path).lastPathComponent) did not contain top title '\(expected)'; recognized: \(recognized)")
+    }
+    print("text \(URL(fileURLWithPath: path).lastPathComponent): found top title '\(expected)' with no URL dialog")
 }

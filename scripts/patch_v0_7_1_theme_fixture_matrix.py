@@ -16,6 +16,15 @@ def replace_once(path: str, old: str, new: str) -> None:
 
 
 replace_once(
+    "LifeRoute/V054ContentView.swift",
+    '''import AVFoundation''',
+    '''import AVFoundation
+#if DEBUG
+import Darwin
+#endif''',
+)
+
+replace_once(
     "LifeRoute/LifeRouteApp.swift",
     '''#if DEBUG
 private enum LifeRouteVisualFixture: String {
@@ -175,14 +184,6 @@ replace_once(
         section(for: "-LifeRouteSectionOverride")
     }
 
-    static func sectionOverride(from url: URL) -> AppSection? {
-        guard url.scheme?.lowercased() == "liferoute",
-              url.host?.lowercased() == "fixture" else {
-            return nil
-        }
-        return AppSection(rawValue: url.lastPathComponent.lowercased())
-    }
-
     private static func section(for argument: String) -> AppSection? {
         let arguments = ProcessInfo.processInfo.arguments
         guard let keyIndex = arguments.firstIndex(of: argument) else { return nil }
@@ -190,31 +191,45 @@ replace_once(
         guard arguments.indices.contains(valueIndex) else { return nil }
         return AppSection(rawValue: arguments[valueIndex])
     }
+}
+
+private final class LifeRouteDebugSectionSignal {
+    static let shared = LifeRouteDebugSectionSignal()
+
+    private var source: DispatchSourceSignal?
+
+    private init() {}
+
+    func install(_ handler: @escaping () -> Void) {
+        guard source == nil else { return }
+        Darwin.signal(SIGUSR1, SIG_IGN)
+        let source = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
+        source.setEventHandler(handler: handler)
+        source.resume()
+        self.source = source
+    }
 }''',
 )
 
 replace_once(
     "LifeRoute/V054ContentView.swift",
-    '''        .onOpenURL { url in
-            if url.scheme?.lowercased() == "liferoute" {
-                router.select(.today)
-            }
-        }''',
-    '''        .onOpenURL { url in
-#if DEBUG
-            if let section = LifeRouteDebugLaunch.sectionOverride(from: url) {
+    '''#if DEBUG
+            if let section = LifeRouteDebugLaunch.sectionOverride {
                 router.select(section)
-                return
             }
-#endif
-            if url.scheme?.lowercased() == "liferoute" {
-                router.select(.today)
+#endif''',
+    '''#if DEBUG
+            if let section = LifeRouteDebugLaunch.sectionOverride {
+                router.select(section)
             }
-        }''',
+            LifeRouteDebugSectionSignal.shared.install {
+                router.select(.schedule)
+            }
+#endif''',
 )
 
 print(
     "LifeRoute v0.7.1 theme fixture matrix patch applied: all twenty retained raw theme "
     "identifiers can launch in the standalone renderer or full app shell; Reduce Motion can be "
-    "forced deterministically; and a DEBUG-only URL can move from Today to another tab in-process."
+    "forced deterministically; and a DEBUG-only signal can move from Today to Schedule in-process."
 )

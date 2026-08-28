@@ -60,6 +60,15 @@ python3 scripts/patch_v0_7_0_theme_phase_1.py
 # Real-device QA repair after Phase 1: reliable autocomplete dismissal + flexible To-Do destination intents.
 python3 scripts/patch_v0_7_0_location_intent_fix.py
 
+# Lock the complete validated Phase 1 + real-device QA contract before Phase 2 intentionally replaces
+# only the retained legacy Dynamic catalog/renderer. Core Glass and the location repair remain mandatory.
+python3 scripts/audit_v0_7_0_theme_phase_1.py
+python3 scripts/audit_v0_7_0_location_intent_fix.py
+
+# Theme roadmap Phase 2: the 12 approved live Dynamic Liquid Glass identities over the same root host.
+python3 scripts/patch_v0_7_0_theme_phase_2.py
+python3 scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py
+
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
 ICON="LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
@@ -106,6 +115,8 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_swipe_day_overview.py \
   scripts/patch_v0_7_0_theme_phase_1.py \
   scripts/patch_v0_7_0_location_intent_fix.py \
+  scripts/patch_v0_7_0_theme_phase_2.py \
+  scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -140,14 +151,15 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_swipe_day_overview.py \
   scripts/audit_v0_7_0_theme_phase_1.py \
   scripts/audit_v0_7_0_location_intent_fix.py \
+  scripts/audit_v0_7_0_theme_phase_2.py \
   scripts/audit_v0_7_0_testflight.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
 
-# Run non-superseded regression coverage on the fully materialized Theme Phase 1 + QA repair tree.
-# The v0.6.3, Build A, and Build E presentation audits already ran immediately before Phase 1 above;
-# the Phase 1 audit below owns their intentionally superseding theme/environment contract.
+# Run non-superseded regression coverage on the fully materialized Theme Phase 2 tree.
+# Phase 1's visual contract already ran immediately before Phase 2 above; the Phase 2 audit now owns
+# its intentional Dynamic catalog/renderer supersession while reasserting the still Core contract.
 python3 scripts/audit_v0_5_0_functional_shell.py
 python3 scripts/audit_v0_5_0_core_navigation.py
 python3 scripts/audit_v0_5_0_calendar_core.py
@@ -174,8 +186,8 @@ python3 scripts/audit_v0_7_0_build_b3.py
 python3 scripts/audit_v0_7_0_build_c.py
 python3 scripts/audit_v0_7_0_build_d.py
 python3 scripts/audit_v0_7_0_swipe_day_overview.py
-python3 scripts/audit_v0_7_0_theme_phase_1.py
 python3 scripts/audit_v0_7_0_location_intent_fix.py
+python3 scripts/audit_v0_7_0_theme_phase_2.py
 python3 scripts/audit_v0_7_0_testflight.py
 
-echo "LifeRoute v0.7.0 Theme Phase 1 + location QA repair preparation passed: accepted Build A/B/B.1/B.2/B.3/C/D/E and swipe behavior remain intact; one persistent environment spans the native five-tab shell; the 12 approved still Core Glass themes retain stable persisted identifiers and deterministic migration; autocomplete selection dismisses reliably; flexible Any-brand/category To-Do destinations normalize through native routing; the validated timer visual cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."
+echo "LifeRoute v0.7.0 Theme Phase 2 preparation passed: accepted Build A/B/B.1/B.2/B.3/C/D/E, swipe behavior, and the location QA repair remain intact; one persistent environment spans the native five-tab shell; the 12 approved still Core Glass themes remain static; the 12 approved Dynamic Liquid Glass themes use one paused system-driven root timeline with Reduce Motion and lifecycle protections; pre-Phase-3 Scenery remains isolated; the validated timer visual cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."

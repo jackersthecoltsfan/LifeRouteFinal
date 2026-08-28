@@ -29,16 +29,15 @@ def main() -> None:
     themes = THEMES.read_text(encoding="utf-8")
 
     # Catalog contract: historical Phase 1 already locks exactly 12 Core choices. This finishing pass
-    # changes only Dynamic/Scenery visibility, so require every approved Core identity without re-counting
-    # raw token substrings (some Core names are prefixes of other identities).
+    # changes only Dynamic/Scenery visibility, so require the exact approved Phase 1 identities.
     dynamic = between(app, "static let phaseTwoDynamicCatalog", "var isPhaseTwoDynamic")
     scenery = between(app, "static let phaseThreeSceneryCatalog", "var isPhaseThreeScenery")
     core = between(app, "static let phaseOneCoreGlassCatalog", "var isPhaseOneCoreGlass")
 
     kept_core = [
-        ".coreRoyal", ".coreObsidian", ".coreMidnight", ".coreNavyNoir",
-        ".coreOcean", ".coreAurora", ".coreForest", ".corePlum",
-        ".coreCarbon", ".coreArctic", ".coreSunshine", ".coreEmber",
+        ".royal", ".obsidian", ".midnight", ".titanium",
+        ".coreOcean", ".coreAurora", ".coreSolarFlare", ".coreUltraviolet",
+        ".emerald", ".roseQuartz", ".arctic", ".coreEmber",
     ]
     kept_dynamic = [
         ".royalCurrent", ".midnightPrism", ".auroraBloom", ".solarPulse",

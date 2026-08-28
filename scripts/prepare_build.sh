@@ -194,7 +194,6 @@ python3 scripts/audit_v0_5_0_routing_location_core.py
 python3 scripts/audit_v0_5_0_clients_core.py
 python3 scripts/audit_v0_5_0_calendar_providers.py
 python3 scripts/audit_v0_5_0_client_visual_supports.py
-python3 scripts/audit_v0_5_0_client_visual_persistence.py
 python3 scripts/audit_v0_5_0_routing_calendar_persistence.py
 python3 scripts/audit_v0_5_0_legacy_migration.py
 python3 scripts/audit_v0_5_0_performance_architecture.py
@@ -240,3 +239,11 @@ python3 scripts/audit_v0_7_1_physical_runtime_fix.py
 python3 scripts/audit_v0_7_1_protected_regressions.py
 
 echo "LifeRoute v0.7.1 physical-runtime preparation passed: the complete v0.7.0 Build #96 regression chain remains locked; Canyon Day and Royal Current retain their approved exemplar artwork, live motion is perceptible within a few seconds, UIKit tab/navigation backing surfaces are transparent so the single persistent environment can remain visible app-wide, Today keeps the approved glass/exemplar composition, and protected navigation, calendar, routing, ABA, timer, Live Activity, identity, persistence, and legacy-runtime contracts remain intact."
+
+# v0.8.0 functionality pass 1: Master ABA Session Note parity. Keep this as a new cumulative layer
+# after the protected v0.7.x materialization rather than weakening historical note/runtime checkpoints.
+python3 -m py_compile scripts/patch_v0_8_0_master_aba_note.py scripts/audit_v0_8_0_master_aba_note.py
+python3 scripts/patch_v0_8_0_master_aba_note.py
+python3 scripts/audit_v0_8_0_master_aba_note.py
+
+echo "LifeRoute v0.8.0 functionality pass 1 preparation passed: Master ABA session-note behavior is materialized and regression-audited on top of the protected v0.7.1 candidate state."

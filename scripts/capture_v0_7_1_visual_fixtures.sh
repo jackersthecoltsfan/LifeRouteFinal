@@ -6,6 +6,8 @@ OUTPUT_DIR="${2:?Usage: capture_v0_7_1_visual_fixtures.sh APP_PATH OUTPUT_DIR}"
 BUNDLE_ID="Com.Brandongood.LifeRoute"
 COMPARE_SCRIPT="scripts/compare_v0_7_1_theme_fixtures.py"
 TEXT_SCRIPT="scripts/validate_v0_7_1_fixture_text.swift"
+ANALYSIS_DIR="${RUNNER_TEMP:-$OUTPUT_DIR}/liferoute-fixture-analysis"
+export LIFEROUTE_FIXTURE_ANALYSIS_DIR="$ANALYSIS_DIR"
 
 DYNAMIC_THEMES=(
   "dynamic.royalCurrent|dynamic-royal-current"
@@ -47,6 +49,7 @@ test -d "$APP_PATH"
 test -f "$COMPARE_SCRIPT"
 test -f "$TEXT_SCRIPT"
 mkdir -p "$OUTPUT_DIR"
+mkdir -p "$ANALYSIS_DIR"
 
 SIMULATOR_JSON="$(xcrun simctl list devices available -j)"
 SIMULATOR_ID="$({ printf '%s' "$SIMULATOR_JSON"; } | python3 -c '
@@ -136,13 +139,13 @@ capture_app_pair() {
   local app_pid
   launch_output="$(xcrun simctl launch --terminate-running-process "$SIMULATOR_ID" "$BUNDLE_ID" \
     -LifeRouteThemeOverride "$theme_id" \
-    -LifeRouteSectionOverride today \
-    -LifeRouteCycleSection schedule)"
+    -LifeRouteSectionOverride today)"
   app_pid="$(launch_pid "$launch_output")"
   sleep 7
   kill -0 "$app_pid"
   xcrun simctl io "$SIMULATOR_ID" screenshot "$OUTPUT_DIR/today-$slug.png"
-  sleep 5
+  xcrun simctl openurl "$SIMULATOR_ID" "liferoute://fixture/schedule"
+  sleep 3
   kill -0 "$app_pid"
   xcrun simctl io "$SIMULATOR_ID" screenshot "$OUTPUT_DIR/schedule-$slug.png"
 }
@@ -197,6 +200,8 @@ for pair in "${SCENERY_PAIRS[@]}"; do
 done
 
 python3 "$COMPARE_SCRIPT" validate-distinct "${REDUCE_FIXTURES[@]}" | tee -a "$OUTPUT_DIR/validation-results.txt"
+python3 "$COMPARE_SCRIPT" validate-coverage "$OUTPUT_DIR"/today-*.png "$OUTPUT_DIR"/schedule-*.png \
+  | tee -a "$OUTPUT_DIR/validation-results.txt"
 python3 "$COMPARE_SCRIPT" validate-health "$OUTPUT_DIR"/*.png | tee -a "$OUTPUT_DIR/validation-results.txt"
 swift "$TEXT_SCRIPT" "${OCR_ARGUMENTS[@]}" | tee -a "$OUTPUT_DIR/validation-results.txt"
 

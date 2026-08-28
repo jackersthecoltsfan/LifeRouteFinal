@@ -50,13 +50,14 @@ require_all(
 require_all(
     content,
     [
-        "-LifeRouteSectionOverride", "-LifeRouteCycleSection",
-        "cycleDelayNanoseconds: UInt64 = 9_000_000_000",
-        "try? await Task.sleep", "guard !Task.isCancelled", "router.select(section)",
+        "-LifeRouteSectionOverride", "sectionOverride(from url: URL)",
+        'url.host?.lowercased() == "fixture"', "url.lastPathComponent.lowercased()",
+        "router.select(section)",
     ],
     "in-process tab persistence fixture",
 )
 require(content.count("TimelineView(") == 0, "tab fixture must not introduce an animation clock")
+require("Task.sleep" not in content, "tab fixture must not race Simulator launch with a timer")
 require(app.count("TimelineView(") == 1, "the fully materialized app must keep one TimelineView")
 require(app.count("final class LifeRouteThemeStore: ObservableObject") == 1, "one theme store must remain")
 
@@ -65,14 +66,17 @@ require_all(
     capture,
     [
         "today-", "schedule-", "reduce-motion-", "motion-frame-a-", "motion-frame-b-",
-        "-LifeRouteCycleSection", "-LifeRouteFixtureReduceMotion", "validate-motion",
-        "validate-identity", "validate-distinct", "validate-health", "bundle-size.txt",
+        "xcrun simctl openurl", "liferoute://fixture/schedule", "-LifeRouteFixtureReduceMotion", "validate-motion",
+        "validate-identity", "validate-distinct", "validate-coverage", "validate-health", "bundle-size.txt",
     ],
     "capture matrix gates",
 )
 require_all(
     compare,
-    ["def decode_png", "validate-motion", "validate-identity", "validate-distinct", "validate-health"],
+    [
+        "def decode_png", "def analysis_png", 'shutil.which("sips")',
+        "validate-motion", "validate-identity", "validate-distinct", "validate-coverage", "validate-health",
+    ],
     "pixel validation helper",
 )
 require_all(

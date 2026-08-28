@@ -267,7 +267,7 @@ python3 scripts/audit_v0_7_1_protected_regressions.py
 echo "LifeRoute v0.7.1 retained theme-library preparation passed: the complete Build #98 architecture remains locked; eight finished Dynamic identities use distinct root-driven full-screen compositions; twelve Scenery identities across six Day/Night families use bundled cinematic artwork and restrained shared-phase ambience; Theme Center hides retired placeholders; and protected navigation, calendar, routing, ABA, timer, Live Activity, identity, persistence, and legacy-runtime contracts remain intact."
 
 # Terminal DEBUG-only validation hooks accept all retained identifiers, force a deterministic
-# Reduce Motion phase, and move between real tabs in one process. Production theme ownership,
+# Reduce Motion phase, and use a fixture URL to move between real tabs in one process. Production theme ownership,
 # clocks, navigation, and release behavior remain unchanged.
 python3 scripts/patch_v0_7_1_theme_fixture_matrix.py
 python3 scripts/audit_v0_7_1_theme_fixture_matrix.py

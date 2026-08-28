@@ -11,6 +11,7 @@ def check(name, condition):
 
 check("v0.8.0 Master ABA marker materialized", "v0.8.0 master ABA session-note parity" in SWIFT)
 check("single ABA note generator remains", SWIFT.count("static func generateABASessionNote(") == 1)
+check("supplied-facts-only guard retained", "using ONLY the session facts supplied below" in SWIFT)
 check("2-4 paragraph contract", "approximately 2–4 concise cohesive paragraphs" in SWIFT and "Return only 2–4 cohesive chronological paragraphs" in SWIFT)
 check("legacy 3-5 paragraph contract removed", "3–5 cohesive paragraphs" not in SWIFT)
 check("insurance documentation style", "appropriate for insurance documentation" in SWIFT)
@@ -29,6 +30,7 @@ check("OCR supporting evidence", "SCREENSHOT OCR / DATA is supporting quantitati
 check("saved profile context only", "SAVED CLIENT CONTEXT is terminology/context only and never proves" in SWIFT)
 check("narrative wins OCR conflict", "preserve the narrative fact and omit uncertain OCR" in SWIFT)
 check("data integrated beside target", "Integrate clear percentages, frequencies, and other values naturally beside the matching target/behavior" in SWIFT)
+check("continued intervention may be data-grounded", "clear data shows a target still requires intervention" in SWIFT and "continues to require intervention" in SWIFT)
 check("behavior counts never converted to percentages", "Never convert behavior frequency/count data into a percentage" in SWIFT)
 check("caregiver collaboration contract", "caregiver coaching/modeling/education" in SWIFT and "prompt fading" in SWIFT)
 check("BCBA LBS collaboration contract", "BCBA/LBS collaboration" in SWIFT and "protocol modifications" in SWIFT)

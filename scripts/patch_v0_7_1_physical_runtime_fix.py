@@ -2,7 +2,8 @@
 from pathlib import Path
 
 from patch_v0_7_1_reduced_catalog_toolbar_setup_anchor_compat import main as patch_reduced_catalog_toolbar_setup_anchor_compat
-from patch_v0_7_1_reduced_catalog_toolbar_setup import main as patch_reduced_catalog_toolbar_setup
+from patch_v0_7_1_reduced_catalog_toolbar_setup import patch_catalog, patch_toolbar
+from patch_v0_7_1_setup_disclosures import main as patch_setup_disclosures
 from patch_v0_7_1_reduced_catalog_toolbar_setup_hotfix import main as patch_reduced_catalog_toolbar_setup_hotfix
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -193,7 +194,9 @@ def main() -> None:
     patch_shell_transparency()
     # Build #98 proved the shared runtime architecture; normalize the final shell anchor, then layer the approved finishing pass.
     patch_reduced_catalog_toolbar_setup_anchor_compat()
-    patch_reduced_catalog_toolbar_setup()
+    patch_catalog()
+    patch_toolbar()
+    patch_setup_disclosures()
     patch_reduced_catalog_toolbar_setup_hotfix()
     print(
         "LifeRoute v0.7.1 physical runtime + finishing repair applied: the proven app-wide theme host remains intact, "

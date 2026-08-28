@@ -97,12 +97,15 @@ jobs:
           ! grep -q 'LifeRouteWebView.swift in Sources' LifeRoute.xcodeproj/project.pbxproj
           ! grep -q 'Web in Resources' LifeRoute.xcodeproj/project.pbxproj
 
-          # Prove the signed archive is being built from the fully materialized Build E app,
+          # Prove the signed archive is being built from the fully materialized Build E + Theme Phase 1 app,
           # not merely from the older checked-in Swift source state.
           grep -q 'v0.7.0 Build E Resources' LifeRoute/ResourcePortalViews.swift
           grep -q 'v0.7.0 Build E Client Hub' LifeRoute/V054ClientViews.swift
           grep -q 'v0.7.0 Build E Setup Control Center' LifeRoute/V054SetupView.swift
-          grep -q 'v0.7.0 Build E Theme Center' LifeRoute/V054ThemeCenterView.swift
+          grep -Eq 'v0.7.0 Build E Theme Center|v0.7.0 Theme Phase 1 Theme Center' LifeRoute/V054ThemeCenterView.swift
+          grep -q 'v0.7.0 Theme Phase 1 Core Glass catalog' LifeRoute/LifeRouteApp.swift
+          grep -q 'static let phaseOneCoreGlassCatalog' LifeRoute/LifeRouteApp.swift
+          grep -q 'v0.7.0 Theme Phase 1 single environment shell' LifeRoute/V054ContentView.swift
           grep -q 'v0.7.0 Build D audit compatibility anchor' LifeRoute/SessionToolsViews.swift
           grep -q 'TimelineView(.periodic(from: .now, by: 0.10))' LifeRoute/SessionToolsViews.swift
           grep -q 'v0.7.0 B.2 save and fullscreen preview' LifeRoute/SessionToolsViews.swift
@@ -112,7 +115,7 @@ jobs:
           test -s "$ICON"
           test "$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/ {print $2}')" = "1024"
           test "$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/ {print $2}')" = "1024"
-          echo "v0.7.0 Build E materialization, protected Build D timer cadence, premium LR icon, native isolation, and Live Activity extension are ready for signing."
+          echo "v0.7.0 Build E materialization plus Theme Phase 1 Core Glass environment, protected Build D timer cadence, premium LR icon, native isolation, and Live Activity extension are ready for signing."
 
       - name: Archive LifeRoute v0.7.0 Build E
         env:
@@ -212,9 +215,9 @@ jobs:
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
 
           {
-            echo "### ✅ LifeRoute v0.7.0 Build E sent to TestFlight"
+            echo "### ✅ LifeRoute v0.7.0 Build E sent to TestFlight — Theme Phase 1"
             echo "Build **#${GITHUB_RUN_NUMBER}** uploaded successfully."
-            echo "Checkpoint includes the validated Build A-through-E native stack: Today, Schedule, Tools, Resources, Setup, Clients, Saved Places, Weekly To-Dos, Theme Center, reusable visual supports, protected timer behavior, AI clinical tools, routing, and Live Day / Live Activity behavior."
+            echo "Checkpoint includes the validated Build A-through-E native stack, swipeable day overview, and Theme Phase 1 app-wide Core Glass environment: Today, Schedule, Tools, Resources, Setup, Clients, Saved Places, Weekly To-Dos, Theme Center, reusable visual supports, protected timer behavior, AI clinical tools, routing, and Live Day / Live Activity behavior."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save IPA artifact

@@ -94,6 +94,7 @@ def patch_shell_transparency() -> None:
         "static func refreshVisibleChrome(theme: LifeRouteTheme)",
         "guard let viewController else { return }",
         ".onChange(of: router.selectedSection)",
+        ".onChange(of: themeStore.selectedTheme)",
     ]
     missing = [token for token in required if token not in text]
     if missing:
@@ -111,8 +112,38 @@ def patch_shell_transparency() -> None:
     text = replace_once(
         text,
         "        .animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)\n        .onChange(of: router.selectedSection)",
-        "        .animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)\n        .onAppear {\n            // v0.7.1 physical-device root environment reveal: clear UIKit host surfaces on first presentation.\n            LifeRouteAppearance.refreshVisibleChrome(theme: themeStore.selectedTheme)\n        }\n        .onChange(of: router.selectedSection)",
-        "initial chrome refresh",
+        "        .animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)\n        .onAppear {\n            // v0.7.1 physical-device root environment reveal: wait one run loop so TabView/UIKit children exist.\n            DispatchQueue.main.async {\n                LifeRouteAppearance.refreshVisibleChrome(theme: themeStore.selectedTheme)\n            }\n        }\n        .onChange(of: router.selectedSection)",
+        "initial deferred chrome refresh",
+    )
+
+    text = replace_once(
+        text,
+        '''        .onChange(of: router.selectedSection) { _ in
+            LifeRouteHaptics.selection()
+        }''',
+        '''        .onChange(of: router.selectedSection) { _ in
+            LifeRouteHaptics.selection()
+            // A newly selected tab can materialize a fresh UIKit container after selection changes.
+            DispatchQueue.main.async {
+                LifeRouteAppearance.refreshVisibleChrome(theme: themeStore.selectedTheme)
+            }
+        }''',
+        "tab-change deferred chrome refresh",
+    )
+
+    text = replace_once(
+        text,
+        '''        .onChange(of: themeStore.selectedTheme) { theme in
+            LifeRouteAppearance.refreshVisibleChrome(theme: theme)
+            LifeRouteThemeFeedbackSound.shared.play()
+        }''',
+        '''        .onChange(of: themeStore.selectedTheme) { theme in
+            DispatchQueue.main.async {
+                LifeRouteAppearance.refreshVisibleChrome(theme: theme)
+            }
+            LifeRouteThemeFeedbackSound.shared.play()
+        }''',
+        "theme-change deferred chrome refresh",
     )
 
     text = replace_once(
@@ -138,8 +169,8 @@ def main() -> None:
     print(
         "LifeRoute v0.7.1 physical runtime repair applied: Dynamic motion is perceptible on-device, "
         "Canyon ambience no longer advances at a near-static rate, and UIKit tab/navigation host surfaces "
-        "are explicitly transparent so the existing single persistent root environment can remain visible "
-        "behind Today, Schedule, Tools, Resources, and Setup."
+        "are explicitly transparent and refreshed after launch/theme/tab materialization so the existing "
+        "single persistent root environment can remain visible behind Today, Schedule, Tools, Resources, and Setup."
     )
 
 

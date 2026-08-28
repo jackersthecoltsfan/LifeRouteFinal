@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from pathlib import Path
 
+from patch_v0_7_1_shipping_theme_hold import main as patch_shipping_theme_hold
+
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "LifeRoute/LifeRouteApp.swift"
 SHELL = ROOT / "LifeRoute/V054ContentView.swift"
@@ -77,11 +79,13 @@ def main() -> None:
         )
         THEMES.write_text(themes, encoding="utf-8")
 
+    # Final shipping surface deliberately narrows the user-facing library without deleting unfinished implementation.
+    patch_shipping_theme_hold()
+
     print(
         "LifeRoute v0.7.1 toolbar/Setup generation hotfix applied: the custom toolbar uses an explicit "
-        "accessibility selected value, Setup emits the correct environment key path, Theme Center copy "
-        "truthfully describes the reduced 8-Dynamic / 12-Scenery production library, and historical release-contract "
-        "catalog markers remain available without changing the reduced catalog."
+        "accessibility selected value, Setup emits the correct environment key path, historical reduced-catalog "
+        "markers remain available, and the final shipping theme-hold layer exposes only physically proven themes."
     )
 
 

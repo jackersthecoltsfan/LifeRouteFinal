@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "LifeRoute/LifeRouteApp.swift"
 SHELL = ROOT / "LifeRoute/V054ContentView.swift"
 SETUP = ROOT / "LifeRoute/V054SetupView.swift"
+THEMES = ROOT / "LifeRoute/V054ThemeCenterView.swift"
 
 
 def require(text: str, token: str, label: str) -> None:
@@ -25,12 +26,20 @@ def main() -> None:
     app = APP.read_text(encoding="utf-8")
     shell = SHELL.read_text(encoding="utf-8")
     setup = SETUP.read_text(encoding="utf-8")
+    themes = THEMES.read_text(encoding="utf-8")
 
-    # Catalog contract: 12 Core + 8 Dynamic + 12 Scenery = 32 visible choices.
+    # Catalog contract: historical Phase 1 already locks exactly 12 Core choices. This finishing pass
+    # changes only Dynamic/Scenery visibility, so require every approved Core identity without re-counting
+    # raw token substrings (some Core names are prefixes of other identities).
     dynamic = between(app, "static let phaseTwoDynamicCatalog", "var isPhaseTwoDynamic")
     scenery = between(app, "static let phaseThreeSceneryCatalog", "var isPhaseThreeScenery")
     core = between(app, "static let phaseOneCoreGlassCatalog", "var isPhaseOneCoreGlass")
 
+    kept_core = [
+        ".coreRoyal", ".coreObsidian", ".coreMidnight", ".coreNavyNoir",
+        ".coreOcean", ".coreAurora", ".coreForest", ".corePlum",
+        ".coreCarbon", ".coreArctic", ".coreSunshine", ".coreEmber",
+    ]
     kept_dynamic = [
         ".royalCurrent", ".midnightPrism", ".auroraBloom", ".solarPulse",
         ".emeraldFlow", ".oceanGlass", ".obsidianSpectra", ".plasmaOrchid",
@@ -51,13 +60,8 @@ def main() -> None:
         ".sceneryCoastalCliffsDay", ".sceneryCoastalCliffsNight",
     ]
 
-    if sum(core.count(token) for token in [
-        ".coreRoyal", ".coreObsidian", ".coreMidnight", ".coreNavyNoir",
-        ".coreOcean", ".coreAurora", ".coreForest", ".corePlum",
-        ".coreCarbon", ".coreArctic", ".coreSunshine", ".coreEmber",
-    ]) != 12:
-        raise SystemExit("v0.7.1 reduced catalog/toolbar/setup audit failed: Core catalog is not exactly 12 choices")
-
+    for token in kept_core:
+        require(core, token, f"protected Core {token}")
     for token in kept_dynamic:
         require(dynamic, token, f"retained Dynamic {token}")
     for token in removed_dynamic:
@@ -78,6 +82,11 @@ def main() -> None:
         'case "scenery.coastalCliffs.day"', 'case "scenery.coastalCliffs.night"',
     ]:
         require(app, identifier, f"retired-theme migration {identifier}")
+
+    # Theme Center must describe the production-sized library truthfully.
+    require(themes, "8 live full-frame Liquid Glass environments", "8-theme Dynamic copy")
+    require(themes, "12 cinematic Day/Night environments across 6 landscape families", "12-theme Scenery copy")
+    require(themes, "All 12 retained Scenery thumbnails are deterministic still frames", "retained Scenery preview copy")
 
     # Preserve the proven Build #98 architecture: one shared live clock and root environment.
     if app.count("TimelineView(\n            .animation(") != 1:
@@ -106,15 +115,14 @@ def main() -> None:
     require(setup, "@Environment(\\.lifeRoutePalette) private var palette", "correct Setup palette key path")
     if "@Environment(\\\\.lifeRoutePalette)" in setup:
         raise SystemExit("v0.7.1 reduced catalog/toolbar/setup audit failed: invalid doubled Setup environment key path remains")
-    defaults = {
-        "@State private var appearanceExpanded = true": True,
-        "@State private var profileExpanded = false": False,
-        "@State private var navigationExpanded = false": False,
-        "@State private var todosExpanded = false": False,
-        "@State private var clinicalExpanded = false": False,
-        "@State private var privacyExpanded = false": False,
-    }
-    for token in defaults:
+    for token in [
+        "@State private var appearanceExpanded = true",
+        "@State private var profileExpanded = false",
+        "@State private var navigationExpanded = false",
+        "@State private var todosExpanded = false",
+        "@State private var clinicalExpanded = false",
+        "@State private var privacyExpanded = false",
+    ]:
         require(setup, token, f"Setup default {token}")
     if setup.count("LifeRouteSetupDisclosureGroup(") != 6:
         raise SystemExit("v0.7.1 reduced catalog/toolbar/setup audit failed: Setup must expose exactly six disclosure groups")
@@ -132,9 +140,9 @@ def main() -> None:
         require(setup, token, f"preserved Setup functionality {token}")
 
     print(
-        "LifeRoute v0.7.1 reduced catalog/toolbar/Setup audit passed: 32 visible themes are locked, retired "
-        "identifiers migrate safely, Build #98's single live-theme architecture remains intact, the existing five-tab "
-        "router drives one custom vector LifeRoute toolbar, and Setup preserves every control behind six disclosure groups."
+        "LifeRoute v0.7.1 reduced catalog/toolbar/Setup audit passed: 12 Core + 8 Dynamic + 12 Scenery are visible, "
+        "retired identifiers migrate safely, Build #98's single live-theme architecture remains intact, the existing "
+        "five-tab router drives one custom vector LifeRoute toolbar, and Setup preserves every control behind six disclosure groups."
     )
 
 

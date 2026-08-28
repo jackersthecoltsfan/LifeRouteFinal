@@ -43,6 +43,22 @@ def selected_day_owner_is_valid(today: str) -> bool:
     return legacy or shared
 
 
+def brand_identity_is_valid(today: str) -> bool:
+    legacy = all(token in today for token in ['Text("Life")', 'Text("Route")'])
+    official = all(
+        token in today
+        for token in [
+            "v0.7.0 official branding Today hero",
+            "LifeRouteBrandMark(variant: .small)",
+            'Text("LifeRoute")',
+        ]
+    )
+    if official:
+        require('Text("Life")' not in today, "official branding must remove the retired split Life wordmark")
+        require('Text("Route")' not in today, "official branding must remove the retired split Route wordmark")
+    return legacy or official
+
+
 def main() -> None:
     today = read("LifeRoute/V054TodayView.swift")
     prepare = read("scripts/prepare_build.sh")
@@ -53,8 +69,6 @@ def main() -> None:
         [
             "v0.7.0 Build B.1 Today/Home parity",
             "LifeRouteTodayHeroScene()",
-            'Text("Life")',
-            'Text("Route")',
             'Text("Plan your day. Optimize every gap.")',
             "selectedDayContext",
             "@State private var showingDayPicker = false",
@@ -70,6 +84,10 @@ def main() -> None:
             "accent: schedulePurple",
         ],
         "device-tuned target hierarchy",
+    )
+    require(
+        brand_identity_is_valid(today),
+        "Today brand identity must retain the reviewed B.1 split wordmark or the complete official LifeRoute brand supersession",
     )
 
     # B.1 removed the old always-visible day selector from Home. The focused swipe enhancement
@@ -148,7 +166,7 @@ def main() -> None:
     require("python3 scripts/audit_v0_7_0_build_b1.py" in prepare, "canonical preparation must run B.1 audit")
 
     print(
-        "LifeRoute v0.7.0 Build B.1 audit passed: the old date selector stays out of the default Home stack, selected-day behavior remains accessible through the reviewed compact or superseding swipe presentation, blue/gold brand hierarchy is deterministic, the hero is higher-contrast, and all protected native actions remain wired."
+        "LifeRoute v0.7.0 Build B.1 audit passed: the old date selector stays out of the default Home stack, selected-day behavior remains accessible through the reviewed compact or superseding swipe presentation, the B.1 visual contract retains either its reviewed wordmark or the complete official brand supersession, the hero remains higher-contrast, and all protected native actions remain wired."
     )
 
 

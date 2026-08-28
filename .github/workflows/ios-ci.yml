@@ -84,13 +84,19 @@ jobs:
 
           tail -40 "$LOG_FILE"
       - name: Capture v0.7.1 visual fixtures
-        if: github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/v0.7.1-theme-runtime-visual-regression'
+        if: >-
+          (github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/v0.7.1-theme-runtime-visual-regression') ||
+          (github.event_name == 'pull_request' && github.head_ref == 'fix/v0.7.1-theme-runtime-visual-regression')
         run: |
           bash scripts/capture_v0_7_1_visual_fixtures.sh \
             "$RUNNER_TEMP/liferoute-derived-data/Build/Products/Debug-iphonesimulator/LifeRoute.app" \
             "$RUNNER_TEMP/liferoute-visual-validation"
       - name: Upload v0.7.1 visual fixtures
-        if: always() && github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/v0.7.1-theme-runtime-visual-regression'
+        if: >-
+          always() && (
+            (github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/v0.7.1-theme-runtime-visual-regression') ||
+            (github.event_name == 'pull_request' && github.head_ref == 'fix/v0.7.1-theme-runtime-visual-regression')
+          )
         uses: actions/upload-artifact@v6
         with:
           name: liferoute-v0.7.1-visual-fixtures

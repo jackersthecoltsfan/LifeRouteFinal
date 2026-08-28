@@ -1,0 +1,51 @@
+name: Dispatch v0.7.1 Shipping Hold b8944855 TestFlight
+
+on:
+  push:
+    branches:
+      - release-control/v0.7.1-shipping-hold-b8944855
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TARGET_REF: fix/v0.7.1-theme-runtime-visual-regression
+      TARGET_SHA: b894485586219962d4a832b7fa952d15ccf2cd95
+      VALIDATION_RUN: '33209294090'
+    steps:
+      - name: Verify exact candidate and validated gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${TARGET_REF}" --jq '.sha')
+          test "$CURRENT_SHA" = "$TARGET_SHA" || {
+            echo "Refusing release: ${TARGET_REF} moved from ${TARGET_SHA} to ${CURRENT_SHA}."
+            exit 1
+          }
+          VALIDATED_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${VALIDATION_RUN}" --jq '.head_sha')
+          VALIDATED_STATUS=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${VALIDATION_RUN}" --jq '.status')
+          VALIDATED_RESULT=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${VALIDATION_RUN}" --jq '.conclusion')
+          test "$VALIDATED_SHA" = "$TARGET_SHA" || { echo "Refusing release: validation SHA mismatch."; exit 1; }
+          test "$VALIDATED_STATUS" = "completed" && test "$VALIDATED_RESULT" = "success" || {
+            echo "Refusing release: validation run is not completed/success."
+            exit 1
+          }
+          ACTIVE=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/testflight.yml/runs?per_page=30" \
+            --jq '[.workflow_runs[] | select(.event == "workflow_dispatch") | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending")] | length')
+          test "$ACTIVE" = "0" || { echo "Refusing release: another workflow-dispatched TestFlight release is active."; exit 1; }
+          echo "Exact validated TestFlight candidate confirmed: ${TARGET_SHA}."
+
+      - name: Dispatch exact-SHA TestFlight workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          jq -n --arg ref "$TARGET_REF" --arg sha "$TARGET_SHA" '{ref:$ref, inputs:{authorized_sha:$sha}}' | \
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/testflight.yml/dispatches" --input -
+          echo "Dispatched testflight.yml for ${TARGET_REF} at exact SHA ${TARGET_SHA}."

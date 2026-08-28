@@ -194,6 +194,7 @@ python3 scripts/audit_v0_5_0_routing_location_core.py
 python3 scripts/audit_v0_5_0_clients_core.py
 python3 scripts/audit_v0_5_0_calendar_providers.py
 python3 scripts/audit_v0_5_0_client_visual_supports.py
+python3 scripts/audit_v0_5_0_client_visual_persistence.py
 python3 scripts/audit_v0_5_0_routing_calendar_persistence.py
 python3 scripts/audit_v0_5_0_legacy_migration.py
 python3 scripts/audit_v0_5_0_performance_architecture.py

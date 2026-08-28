@@ -30,6 +30,22 @@ if MARKER not in text:
         1,
     )
 
+    # Apple exposes current-device generation availability through
+    # EnvironmentValues.supportsImagePlayground. Keep this inside the same 26.4-gated
+    # helper as ImagePlaygroundOptions so the iOS 16 deployment target remains clean.
+    wrong_environment = (
+        "@Environment(\\.supportsImageGeneration) private var supportsImageGeneration"
+    )
+    correct_environment = (
+        "@Environment(\\.supportsImagePlayground) private var supportsImagePlayground"
+    )
+    if text.count(wrong_environment) != 1:
+        raise SystemExit(
+            "v0.8.0 visual compile hotfix failed: obsolete Image Playground environment anchor missing"
+        )
+    text = text.replace(wrong_environment, correct_environment, 1)
+    text = text.replace("supportsImageGeneration", "supportsImagePlayground")
+
     fallback_copy = (
         "Illustrated generation requires a supported iOS 26 Apple Intelligence device. "
         "Photo and text-only visual saving remain available."
@@ -48,6 +64,6 @@ if MARKER not in text:
 
 print(
     "LifeRoute v0.8.0 ABA visual generator compile hotfix applied: ImagePlaygroundOptions, "
-    "supportsImageGeneration, and the configured generation sheet are isolated behind their "
+    "supportsImagePlayground, and the configured generation sheet are isolated behind their "
     "actual iOS 26.4 availability boundary while earlier systems retain photo/text fallback."
 )

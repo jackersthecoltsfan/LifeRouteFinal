@@ -108,17 +108,15 @@ def patch_single_toolbar() -> None:
         "v0.7.1 custom LifeRoute bottom toolbar",
         ".toolbar(.hidden, for: .tabBar)",
         "if let tabBarController = viewController as? UITabBarController {",
-        "bar.standardAppearance = tabAppearance",
-        "bar.scrollEdgeAppearance = tabAppearance",
-        "bar.unselectedItemTintColor = secondary",
+        "let bar = tabBarController.tabBar",
     ]
     missing = [token for token in required if token not in shell]
     if missing:
         raise SystemExit(f"v0.7.1 shipping theme-hold patch failed: toolbar baseline missing {missing}")
 
-    old = '''        if let tabBarController = viewController as? UITabBarController {\n            let bar = tabBarController.tabBar\n            bar.standardAppearance = tabAppearance\n            bar.scrollEdgeAppearance = tabAppearance\n            bar.tintColor = accent\n            bar.unselectedItemTintColor = secondary\n        }'''
-    new = '''        if let tabBarController = viewController as? UITabBarController {\n            let bar = tabBarController.tabBar\n            // v0.7.1 single-toolbar physical fix: SwiftUI's hidden modifier did not suppress the real iPhone UITabBar.\n            // Keep UITabBarController/TabView as the navigation owner, but remove only the stock bar presentation.\n            bar.standardAppearance = tabAppearance\n            bar.scrollEdgeAppearance = tabAppearance\n            bar.tintColor = accent\n            bar.unselectedItemTintColor = secondary\n            bar.isHidden = true\n            bar.alpha = 0\n            bar.isUserInteractionEnabled = false\n            tabBarController.view.setNeedsLayout()\n        }'''
-    shell = replace_once(shell, old, new, "UIKit tab-bar suppression")
+    anchor = '''        if let tabBarController = viewController as? UITabBarController {\n            let bar = tabBarController.tabBar\n'''
+    replacement = anchor + '''            // v0.7.1 single-toolbar physical fix: SwiftUI's hidden modifier did not suppress the real iPhone UITabBar.\n            // Keep UITabBarController/TabView as the navigation owner, but remove only the stock bar presentation.\n            bar.isHidden = true\n            bar.alpha = 0\n            bar.isUserInteractionEnabled = false\n            tabBarController.view.setNeedsLayout()\n'''
+    shell = replace_once(shell, anchor, replacement, "UIKit tab-bar suppression anchor")
     SHELL.write_text(shell, encoding="utf-8")
 
 

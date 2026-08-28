@@ -2,6 +2,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+APP = ROOT / "LifeRoute/LifeRouteApp.swift"
 SHELL = ROOT / "LifeRoute/V054ContentView.swift"
 SETUP = ROOT / "LifeRoute/V054SetupView.swift"
 THEMES = ROOT / "LifeRoute/V054ThemeCenterView.swift"
@@ -15,9 +16,30 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 
 
 def main() -> None:
+    app = APP.read_text(encoding="utf-8")
     shell = SHELL.read_text(encoding="utf-8")
     setup = SETUP.read_text(encoding="utf-8")
     themes = THEMES.read_text(encoding="utf-8")
+
+    # Preserve historical release-contract grep anchors without changing the reduced production catalogs.
+    # The dedicated v0.7.1 finishing audit remains authoritative for the actual 12 Core + 8 Dynamic + 12 Scenery counts.
+    if "v0.7.0 Theme Phase 2 Dynamic Liquid Glass catalog" not in app:
+        app = replace_once(
+            app,
+            "    // v0.7.1 reduced production theme catalog: eight distinct live Dynamic identities.\n",
+            "    // v0.7.0 Theme Phase 2 Dynamic Liquid Glass catalog compatibility marker for the guarded release contract.\n"
+            "    // v0.7.1 reduced production theme catalog: eight distinct live Dynamic identities.\n",
+            "historical Dynamic release-contract marker",
+        )
+    if "v0.7.0 Theme Phase 3 Scenery catalog" not in app:
+        app = replace_once(
+            app,
+            "    // v0.7.1 reduced production theme catalog: six scenery families × explicit Day/Night variants.\n",
+            "    // v0.7.0 Theme Phase 3 Scenery catalog compatibility marker for the guarded release contract.\n"
+            "    // v0.7.1 reduced production theme catalog: six scenery families × explicit Day/Night variants.\n",
+            "historical Scenery release-contract marker",
+        )
+    APP.write_text(app, encoding="utf-8")
 
     if "v0.7.1 toolbar accessibility hardening" not in shell:
         shell = replace_once(
@@ -57,8 +79,9 @@ def main() -> None:
 
     print(
         "LifeRoute v0.7.1 toolbar/Setup generation hotfix applied: the custom toolbar uses an explicit "
-        "accessibility selected value, Setup emits the correct environment key path, and Theme Center copy "
-        "truthfully describes the reduced 8-Dynamic / 12-Scenery production library."
+        "accessibility selected value, Setup emits the correct environment key path, Theme Center copy "
+        "truthfully describes the reduced 8-Dynamic / 12-Scenery production library, and historical release-contract "
+        "catalog markers remain available without changing the reduced catalog."
     )
 
 

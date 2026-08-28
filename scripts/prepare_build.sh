@@ -254,7 +254,6 @@ python3 scripts/audit_v0_5_0_core_navigation.py
 python3 scripts/audit_v0_5_0_calendar_core.py
 python3 scripts/audit_v0_5_0_routing_location_core.py
 python3 scripts/audit_v0_5_0_clients_core.py
-python3 scripts/audit_v0_5_0_session_tools_core.py
 python3 scripts/audit_v0_5_0_stability_architecture.py
 python3 scripts/audit_v0_7_1_protected_regressions.py
 

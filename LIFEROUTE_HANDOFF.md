@@ -1,5 +1,13 @@
 # LifeRoute Project Handoff
 
+## Non-shipping v0.7.1 theme-library branch complete — 2026-08-28
+
+The isolated branch `feature/v0.7.1-theme-library-finish-codex`, based exactly on physically validated Build #98 SHA `00f98f4cade1b6cb14ce65d3b62203c0efda4ef2`, now contains the finished retained library: 8 Dynamic themes and 12 Scenery identities. The implementation code at `d56ed5deebf084703927964fe714e7faad2de444` passed deterministic preparation, Xcode Simulator build, the complete Today/Schedule fixture matrix, all Dynamic motion comparisons, all Scenery Day/Night comparisons, all Reduce Motion stills, full-background coverage, and title-position OCR in GitHub Actions run `33217191235`.
+
+Detailed branch handoff: `LIFEROUTE_V0_7_1_THEME_LIBRARY_CODEX_HANDOFF.md`.
+
+This experimental branch is not merged, did not trigger TestFlight, and does not supersede the active product/release pointer below. The main LifeRoute thread should selectively cherry-pick the implementation after reconciling its newer product work.
+
 ## Current v0.7.1 intermediate physical-validation build — 2026-08-28
 
 The validated v0.7.1 theme-runtime exemplar checkpoint was uploaded successfully to TestFlight from `fix/v0.7.1-theme-runtime-visual-regression` without modifying `main`.

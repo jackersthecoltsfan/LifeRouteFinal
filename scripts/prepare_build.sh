@@ -65,7 +65,9 @@ python3 scripts/patch_v0_7_0_location_intent_fix.py
 python3 scripts/audit_v0_7_0_theme_phase_1.py
 python3 scripts/audit_v0_7_0_location_intent_fix.py
 
-# Theme roadmap Phase 2: the 12 approved live Dynamic Liquid Glass identities over the same root host.
+# Theme roadmap Phase 2: normalize the historical Dynamic category grouping, then materialize
+# the 12 approved live Dynamic Liquid Glass identities over the same root host.
+python3 scripts/patch_v0_7_0_theme_phase_2_category_compat.py
 python3 scripts/patch_v0_7_0_theme_phase_2.py
 python3 scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py
 
@@ -115,6 +117,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_swipe_day_overview.py \
   scripts/patch_v0_7_0_theme_phase_1.py \
   scripts/patch_v0_7_0_location_intent_fix.py \
+  scripts/patch_v0_7_0_theme_phase_2_category_compat.py \
   scripts/patch_v0_7_0_theme_phase_2.py \
   scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py \
   scripts/audit_v0_5_0_functional_shell.py \

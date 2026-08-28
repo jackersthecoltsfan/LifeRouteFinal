@@ -139,6 +139,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_theme_phase_3.py \
   scripts/patch_v0_7_1_theme_visual_runtime_fix.py \
   scripts/patch_v0_7_1_physical_runtime_fix.py \
+  scripts/patch_v0_7_1_dynamic_library_finish.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -181,7 +182,8 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_testflight.py \
   scripts/audit_v0_7_1_theme_visual_runtime_fix.py \
   scripts/audit_v0_7_1_protected_regressions.py \
-  scripts/audit_v0_7_1_physical_runtime_fix.py
+  scripts/audit_v0_7_1_physical_runtime_fix.py \
+  scripts/audit_v0_7_1_dynamic_library_finish.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
@@ -239,4 +241,11 @@ python3 scripts/patch_v0_7_1_physical_runtime_fix.py
 python3 scripts/audit_v0_7_1_physical_runtime_fix.py
 python3 scripts/audit_v0_7_1_protected_regressions.py
 
-echo "LifeRoute v0.7.1 physical-runtime preparation passed: the complete v0.7.0 Build #96 regression chain remains locked; Canyon Day and Royal Current retain their approved exemplar artwork, live motion is perceptible within a few seconds, UIKit tab/navigation backing surfaces are transparent so the single persistent environment can remain visible app-wide, Today keeps the approved glass/exemplar composition, and protected navigation, calendar, routing, ABA, timer, Live Activity, identity, persistence, and legacy-runtime contracts remain intact."
+# Build #98 is the physically validated architecture baseline. Finish the retained Dynamic
+# library only after that checkpoint is fully materialized and audited so Royal Current, the
+# single root clock, lifecycle pausing, and Reduce Motion ownership stay protected.
+python3 scripts/patch_v0_7_1_dynamic_library_finish.py
+python3 scripts/audit_v0_7_1_dynamic_library_finish.py
+python3 scripts/audit_v0_7_1_protected_regressions.py
+
+echo "LifeRoute v0.7.1 retained Dynamic preparation passed: the complete Build #98 architecture remains locked; Royal Current retains its approved artwork and motion, seven additional retained Dynamic identities now use distinct root-driven full-screen compositions, Theme Center exposes only the eight finished Dynamic identities, and protected navigation, calendar, routing, ABA, timer, Live Activity, identity, persistence, and legacy-runtime contracts remain intact."

@@ -258,3 +258,20 @@ python3 scripts/audit_v0_5_0_stability_architecture.py
 python3 scripts/audit_v0_7_1_protected_regressions.py
 
 echo "LifeRoute v0.8.0 functionality pass 1 preparation passed: Master ABA session-note behavior is materialized and regression-audited on top of the protected v0.7.1 candidate state."
+
+# v0.8.0 functionality pass 2 foundation: approved ABA visual-support image workflow. This adds
+# one reviewed photo/text-to-illustrated-icon path while preserving the existing library/builders.
+python3 -m py_compile scripts/patch_v0_8_0_aba_visual_generator_foundation.py scripts/audit_v0_8_0_aba_visual_generator_foundation.py
+python3 scripts/patch_v0_8_0_aba_visual_generator_foundation.py
+python3 scripts/audit_v0_8_0_aba_visual_generator_foundation.py
+
+# Re-run the note contract and visual/persistence/performance ownership after the image foundation.
+python3 scripts/audit_v0_8_0_master_aba_note.py
+python3 scripts/audit_v0_5_0_client_visual_supports.py
+python3 scripts/audit_v0_5_0_client_visual_persistence.py
+python3 scripts/audit_v0_5_0_performance_architecture.py
+python3 scripts/audit_v0_5_0_stability_architecture.py
+python3 scripts/audit_v0_5_0_second_functionality_pass.py
+python3 scripts/audit_v0_7_1_protected_regressions.py
+
+echo "LifeRoute v0.8.0 ABA visual-support foundation preparation passed: the canonical Master Image Prompt, exact native labels, supported Image Playground review, square icon normalization, existing protected visual libraries, and all retained regression contracts are locked."

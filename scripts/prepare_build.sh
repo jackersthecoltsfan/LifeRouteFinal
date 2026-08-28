@@ -74,10 +74,19 @@ python3 scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py
 # leaving a static near-black field behind the moving liquid ribbons.
 python3 scripts/patch_v0_7_0_theme_phase_2_background_motion_fix.py
 
-# The premium LR icon is generated deterministically from checked-in vector-style drawing code
-# so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
+# Build B's original wordmark requirement is a historical visual checkpoint. Lock the full Build B
+# functional/presentation contract immediately before the official identity intentionally supersedes only that mark.
+python3 scripts/audit_v0_7_0_build_b.py
+
+# Controlled post-Phase-2/pre-Phase-3 branding checkpoint. The Today compatibility pass replaces only
+# the retired split wordmark and deliberately preserves Build B.1's validated day-picker button.
+python3 scripts/patch_v0_7_0_official_branding_today_compat.py
+python3 scripts/patch_v0_7_0_official_branding.py
+
+# The official refined 1E/1F hybrid AppIcon is generated deterministically from checked-in vector-style
+# drawing code so Simulator validation and the signed TestFlight archive ship the same 1024×1024 identity.
 ICON="LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
-swift scripts/generate_v0_6_1_app_icon.swift "$ICON"
+swift scripts/generate_v0_7_0_official_app_icon.swift "$ICON"
 
 # App Store Connect rejects large app icons that contain an alpha channel, even when they appear opaque.
 test -s "$ICON"
@@ -87,7 +96,7 @@ test "$(sips -g hasAlpha "$ICON" | awk '/hasAlpha/ {print $2}')" = "no" || {
   echo "AppIcon release guard failed: $ICON contains an alpha channel."
   exit 1
 }
-echo "AppIcon release guard passed: 1024×1024 opaque RGB PNG with no alpha channel."
+echo "Official LifeRoute AppIcon release guard passed: 1024×1024 opaque RGB PNG with no alpha channel."
 
 python3 -m py_compile \
   scripts/patch_v0_6_2_native.py \
@@ -124,6 +133,8 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_theme_phase_2.py \
   scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py \
   scripts/patch_v0_7_0_theme_phase_2_background_motion_fix.py \
+  scripts/patch_v0_7_0_official_branding_today_compat.py \
+  scripts/patch_v0_7_0_official_branding.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -160,14 +171,13 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_location_intent_fix.py \
   scripts/audit_v0_7_0_theme_phase_2.py \
   scripts/audit_v0_7_0_theme_phase_2_background_motion_fix.py \
+  scripts/audit_v0_7_0_official_branding.py \
   scripts/audit_v0_7_0_testflight.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
 
-# Run non-superseded regression coverage on the fully materialized Theme Phase 2 tree.
-# Phase 1's visual contract already ran immediately before Phase 2 above; the Phase 2 audit now owns
-# its intentional Dynamic catalog/renderer supersession while reasserting the still Core contract.
+# Run non-superseded regression coverage on the fully materialized branded Phase 2 tree.
 python3 scripts/audit_v0_5_0_functional_shell.py
 python3 scripts/audit_v0_5_0_core_navigation.py
 python3 scripts/audit_v0_5_0_calendar_core.py
@@ -184,7 +194,6 @@ python3 scripts/audit_v0_5_0_second_functionality_pass.py
 python3 scripts/audit_v0_5_3_repair.py
 python3 scripts/audit_v0_6_0_patch.py
 python3 scripts/audit_v0_7_0_checkpoint_0.py
-python3 scripts/audit_v0_7_0_build_b.py
 python3 scripts/audit_v0_7_0_build_b1.py
 python3 scripts/audit_v0_7_0_visual_library_reuse.py
 python3 scripts/audit_v0_7_0_first_then_horizontal.py
@@ -197,6 +206,7 @@ python3 scripts/audit_v0_7_0_swipe_day_overview.py
 python3 scripts/audit_v0_7_0_location_intent_fix.py
 python3 scripts/audit_v0_7_0_theme_phase_2.py
 python3 scripts/audit_v0_7_0_theme_phase_2_background_motion_fix.py
+python3 scripts/audit_v0_7_0_official_branding.py
 python3 scripts/audit_v0_7_0_testflight.py
 
-echo "LifeRoute v0.7.0 Theme Phase 2 preparation passed: accepted Build A/B/B.1/B.2/B.3/C/D/E, swipe behavior, and the location QA repair remain intact; one persistent environment spans the native five-tab shell; the 12 approved still Core Glass themes remain static; the 12 approved Dynamic Liquid Glass themes use one paused system-driven root timeline with Reduce Motion and lifecycle protections plus full-frame moving color/refraction fields; pre-Phase-3 Scenery remains isolated; the validated timer visual cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."
+echo "LifeRoute v0.7.0 branded pre-Phase-3 preparation passed: Build A/B/B.1/B.2/B.3/C/D/E, swipe behavior, location QA, still Core Glass, full-frame Dynamic Liquid Glass with Reduce Motion/lifecycle protections, and the official refined navy/gold LR + pin + route + mountain/topographic identity remain intact; Phase 3 Scenery remains isolated; the validated timer cadence remains 0.10 seconds; and legacy WebView runtime remains quarantined."

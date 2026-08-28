@@ -43,16 +43,22 @@ require_all(app, [
 require(app.count("TimelineView(") == 1,
         "LifeRouteApp must keep exactly one shared live-theme TimelineView")
 
-# Catalog counts are protected: 12 Core + 12 Dynamic + 20 Scenery.
-for declaration, expected in [
+# This audit intentionally runs both before and after the final v0.7.1 finishing layer.
+# Before it, protect the historical Phase 3 catalog (12/12/20). After the finishing marker
+# appears, protect the approved production reduction (12/8/12) without weakening the shared runtime.
+finishing_applied = "v0.7.1 production catalog reduction" in app
+catalog_expectations = [
     ("static let phaseOneCoreGlassCatalog: [LifeRouteTheme]", 12),
-    ("static let phaseTwoDynamicCatalog: [LifeRouteTheme]", 12),
-    ("static let phaseThreeSceneryCatalog: [LifeRouteTheme]", 20),
-]:
+    ("static let phaseTwoDynamicCatalog: [LifeRouteTheme]", 8 if finishing_applied else 12),
+    ("static let phaseThreeSceneryCatalog: [LifeRouteTheme]", 12 if finishing_applied else 20),
+]
+for declaration, expected in catalog_expectations:
     match = re.search(re.escape(declaration) + r"\s*=\s*\[(.*?)\n\s*\]", app, flags=re.S)
     require(match is not None, f"theme catalog declaration missing: {declaration}")
-    require(match.group(1).count(".") == expected,
-            f"theme catalog count changed for {declaration}; expected {expected}")
+    # Count catalog item lines rather than periods; dotted stable identifiers contain multiple periods.
+    item_count = sum(1 for line in match.group(1).splitlines() for token in [line.strip()] if token.startswith("."))
+    require(item_count == expected,
+            f"theme catalog count changed for {declaration}; expected {expected}, found {item_count}")
 
 # --- Five-tab shell / navigation -------------------------------------------
 for tab in ["today", "schedule", "tools", "resources", "setup"]:
@@ -131,9 +137,10 @@ require("Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png" in prepare,
 require("hasAlpha" in prepare and '"no"' in prepare,
         "AppIcon no-alpha release guard disappeared")
 
+catalog_label = "12 Core + 8 Dynamic + 12 Scenery" if finishing_applied else "12 Core + 12 Dynamic + 20 Scenery"
 print(
     "LifeRoute v0.7.1 protected regression audit passed: single theme owner/clock, "
-    "12 Core + 12 Dynamic + 20 Scenery catalogs, five-tab shell, AppRouter/Setup routing, "
+    f"{catalog_label} catalogs, five-tab shell, AppRouter/Setup routing, "
     "Today split wordmark + full selected-day agenda + horizontal day navigation, Live Day/Live Activity, "
     "calendar/routing/tools/persistence owners, canonical Phase 3 materialization, WebView quarantine, "
     "and official AppIcon release guards remain present."

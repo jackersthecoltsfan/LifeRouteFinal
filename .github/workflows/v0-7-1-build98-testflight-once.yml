@@ -1,0 +1,75 @@
+name: LifeRoute v0.7.1 Build 98 one-shot TestFlight dispatch
+
+on:
+  push:
+    branches:
+      - release-control/v0.7.1-build98
+    paths:
+      - '.github/workflows/v0-7-1-build98-testflight-once.yml'
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TARGET_REF: fix/v0.7.1-theme-runtime-visual-regression
+      TARGET_SHA: 00f98f4cade1b6cb14ce65d3b62203c0efda4ef2
+      VALIDATION_RUN_ID: '33197743868'
+    steps:
+      - name: Verify exact validated branch head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$TARGET_REF" --jq '.object.sha')"
+          test "$actual_sha" = "$TARGET_SHA"
+          echo "Validated target branch is still exactly $TARGET_SHA"
+
+      - name: Verify exact native validation succeeded
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_sha="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN_ID" --jq '.head_sha')"
+          run_status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN_ID" --jq '.status')"
+          run_conclusion="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN_ID" --jq '.conclusion')"
+          test "$run_sha" = "$TARGET_SHA"
+          test "$run_status" = "completed"
+          test "$run_conclusion" = "success"
+          echo "Native validation run $VALIDATION_RUN_ID is green for $TARGET_SHA"
+
+      - name: Enforce TestFlight non-overlap and 60-minute guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=workflow_dispatch&per_page=100")"
+          active_count="$(printf '%s' "$runs_json" | jq '[.workflow_runs[] | select(.path == ".github/workflows/testflight.yml") | select(.status != "completed")] | length')"
+          test "$active_count" = "0"
+
+          latest_created="$(printf '%s' "$runs_json" | jq -r '[.workflow_runs[] | select(.path == ".github/workflows/testflight.yml")][0].created_at // empty')"
+          if [ -n "$latest_created" ]; then
+            now_epoch="$(date -u +%s)"
+            latest_epoch="$(date -u -d "$latest_created" +%s)"
+            elapsed="$((now_epoch - latest_epoch))"
+            if [ "$elapsed" -lt 3600 ]; then
+              echo "Refusing autonomous TestFlight dispatch: latest release began only ${elapsed}s ago."
+              exit 1
+            fi
+          fi
+          echo "No active TestFlight run and the autonomous 60-minute guard is clear."
+
+      - name: Dispatch exact validated fix SHA to existing TestFlight workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run testflight.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$TARGET_REF" \
+            -f authorized_sha="$TARGET_SHA"
+          echo "Dispatched TestFlight for $TARGET_REF at exact SHA $TARGET_SHA"

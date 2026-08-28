@@ -14,7 +14,7 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 
 def main() -> None:
     text = PATH.read_text(encoding="utf-8")
-    marker = "// v0.7.0 Build C compile hotfix: explicit shape fills avoid SwiftUI background overload ambiguity."
+    marker = "// v0.7.0 Build C compile hotfix: explicit shape fills and deployment-target-safe date strip."
     if marker in text:
         return
     if "v0.7.0 Build C Schedule" not in text:
@@ -40,15 +40,22 @@ def main() -> None:
             }'''
     text = replace_once(text, old_month, new_month, "month-day background")
 
+    text = replace_once(
+        text,
+        "        .scrollClipDisabled()\n",
+        "        // Deployment-target-safe: horizontal date browsing remains clipped by the ScrollView.\n",
+        "iOS 17-only scrollClipDisabled modifier",
+    )
+
     text = text.replace(
         "// v0.7.0 Build C Schedule: premium agenda/calendar surface; provider, manual-event,\n",
         "// v0.7.0 Build C Schedule: premium agenda/calendar surface; provider, manual-event,\n"
-        "// v0.7.0 Build C compile hotfix: explicit shape fills avoid SwiftUI background overload ambiguity.\n",
+        "// v0.7.0 Build C compile hotfix: explicit shape fills and deployment-target-safe date strip.\n",
         1,
     )
 
     PATH.write_text(text, encoding="utf-8")
-    print("LifeRoute v0.7.0 Build C compile hotfix applied: conditional AnyShapeStyle backgrounds replaced with explicit RoundedRectangle fills.")
+    print("LifeRoute v0.7.0 Build C compile hotfix applied: conditional backgrounds use explicit fills and the date strip avoids iOS 17-only APIs.")
 
 
 if __name__ == "__main__":

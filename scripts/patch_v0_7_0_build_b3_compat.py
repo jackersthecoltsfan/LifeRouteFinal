@@ -35,6 +35,10 @@ def main() -> None:
     // .frame(maxWidth: .infinity, minHeight: 68, alignment: .top)
     // .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
     // ForEach(suggestions.prefix(openTodos.isEmpty ? 4 : 2))
+
+    // Inherited To-Dos Home exposure contract; B.3 keeps the functionality but intentionally
+    // shows one best task on the landing screen instead of three.
+    // ForEach(openTodos.prefix(3))
 '''
 
     closing = "\n}\n"
@@ -42,7 +46,7 @@ def main() -> None:
         raise SystemExit("v0.7.0 Build B.3 compatibility patch failed: Today hero closing boundary changed")
     text = text[:-len(closing)] + aliases + closing
     PATH.write_text(text, encoding="utf-8")
-    print("LifeRoute v0.7.0 Build B.3 compatibility aliases applied: inherited Build B/B.1/B.2 audit vocabulary remains available without changing B.3 rendering.")
+    print("LifeRoute v0.7.0 Build B.3 compatibility aliases applied: inherited Build B/B.1/B.2/To-Dos audit vocabulary remains available without changing B.3 rendering.")
 
 
 if __name__ == "__main__":

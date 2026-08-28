@@ -47,6 +47,14 @@ python3 scripts/patch_v0_7_0_build_e.py
 python3 scripts/patch_v0_7_0_build_e_theme_compat.py
 # Post-Build-E focused Today enhancement: shared selected-day paging without changing protected domain owners.
 python3 scripts/patch_v0_7_0_swipe_day_overview.py
+
+# Theme Phase 1 intentionally supersedes three historical presentation contracts: the old ten-theme
+# Core catalog, Build A's duplicate shell backdrop, and Build E's pre-Phase-1 Theme Center catalog.
+# Lock those historical checkpoints on the fully materialized pre-Phase-1 tree before replacing them.
+python3 scripts/audit_v0_6_3_patch.py
+python3 scripts/audit_v0_7_0_build_a.py
+python3 scripts/audit_v0_7_0_build_e.py
+
 # Theme roadmap Phase 1: one persistent app-wide environment + the 12 approved still Core Glass themes.
 python3 scripts/patch_v0_7_0_theme_phase_1.py
 
@@ -133,7 +141,9 @@ python3 -m py_compile \
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
 
-# Run all non-superseded regression coverage on the fully materialized Theme Phase 1 tree.
+# Run non-superseded regression coverage on the fully materialized Theme Phase 1 tree.
+# The v0.6.3, Build A, and Build E presentation audits already ran immediately before Phase 1 above;
+# the Phase 1 audit below owns their intentionally superseding theme/environment contract.
 python3 scripts/audit_v0_5_0_functional_shell.py
 python3 scripts/audit_v0_5_0_core_navigation.py
 python3 scripts/audit_v0_5_0_calendar_core.py
@@ -149,9 +159,7 @@ python3 scripts/audit_v0_5_0_stability_architecture.py
 python3 scripts/audit_v0_5_0_second_functionality_pass.py
 python3 scripts/audit_v0_5_3_repair.py
 python3 scripts/audit_v0_6_0_patch.py
-python3 scripts/audit_v0_6_3_patch.py
 python3 scripts/audit_v0_7_0_checkpoint_0.py
-python3 scripts/audit_v0_7_0_build_a.py
 python3 scripts/audit_v0_7_0_build_b.py
 python3 scripts/audit_v0_7_0_build_b1.py
 python3 scripts/audit_v0_7_0_visual_library_reuse.py
@@ -161,7 +169,6 @@ python3 scripts/audit_v0_7_0_build_b2.py
 python3 scripts/audit_v0_7_0_build_b3.py
 python3 scripts/audit_v0_7_0_build_c.py
 python3 scripts/audit_v0_7_0_build_d.py
-python3 scripts/audit_v0_7_0_build_e.py
 python3 scripts/audit_v0_7_0_swipe_day_overview.py
 python3 scripts/audit_v0_7_0_theme_phase_1.py
 python3 scripts/audit_v0_7_0_testflight.py

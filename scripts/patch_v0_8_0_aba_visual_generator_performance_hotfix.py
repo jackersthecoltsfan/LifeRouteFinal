@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import re
+import runpy
 
 ROOT = Path(__file__).resolve().parents[1]
 PATH = ROOT / "LifeRoute/SessionToolsViews.swift"
@@ -164,6 +165,14 @@ if MARKER not in text:
         raise SystemExit("v0.8.0 visual performance hotfix failed: synchronous UIImage(data:) decode remains")
 
     PATH.write_text(text, encoding="utf-8")
+
+# This file is the canonical visual-foundation wrapper already invoked by prepare_build.sh.
+# Apply the narrowly scoped Apple API availability layer immediately afterward so the
+# deterministic sequence stays explicit without weakening any historical materialization.
+runpy.run_path(
+    str(ROOT / "scripts/patch_v0_8_0_aba_visual_generator_compile_hotfix.py"),
+    run_name="__main__",
+)
 
 print(
     "LifeRoute v0.8.0 ABA visual generator performance hotfix applied: reference-photo decoding uses the existing "

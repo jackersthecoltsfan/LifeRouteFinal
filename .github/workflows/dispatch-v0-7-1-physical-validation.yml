@@ -1,0 +1,54 @@
+name: Dispatch v0.7.1 Physical Validation
+
+on:
+  push:
+    branches:
+      - release-control/v0.7.1-physical-validation-00f98f4c
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TARGET_REF: fix/v0.7.1-theme-runtime-visual-regression
+      TARGET_SHA: 00f98f4cade1b6cb14ce65d3b62203c0efda4ef2
+    steps:
+      - name: Verify exact candidate and release state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          CURRENT_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${TARGET_REF}" --jq '.sha')
+          test "$CURRENT_SHA" = "$TARGET_SHA" || {
+            echo "Refusing release: ${TARGET_REF} moved from ${TARGET_SHA} to ${CURRENT_SHA}."
+            exit 1
+          }
+
+          ACTIVE=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/testflight.yml/runs?per_page=20" \
+            --jq '[.workflow_runs[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "pending")] | length')
+          test "$ACTIVE" = "0" || {
+            echo "Refusing release: another TestFlight workflow is active."
+            exit 1
+          }
+
+          echo "Exact physical-validation candidate confirmed: ${TARGET_SHA}."
+
+      - name: Dispatch exact-SHA TestFlight workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg ref "$TARGET_REF" \
+            --arg sha "$TARGET_SHA" \
+            '{ref:$ref, inputs:{authorized_sha:$sha}}' | \
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/testflight.yml/dispatches" \
+            --input -
+          echo "Dispatched testflight.yml for ${TARGET_REF} at exact SHA ${TARGET_SHA}."

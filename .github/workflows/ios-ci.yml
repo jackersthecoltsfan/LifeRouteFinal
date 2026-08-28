@@ -31,7 +31,10 @@ concurrency:
 jobs:
   build:
     runs-on: macos-26
-    timeout-minutes: 15
+    # v0.7.1 runtime validation boots a cold iOS Simulator and captures nine native
+    # fixtures. GitHub's macOS 26 image can spend ~5 minutes in first-boot migration,
+    # so keep enough headroom for the already-fast preparation + Xcode build to finish.
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v7

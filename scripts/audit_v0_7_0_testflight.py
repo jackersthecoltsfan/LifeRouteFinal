@@ -20,39 +20,40 @@ def require_all(text: str, tokens: list[str], label: str) -> None:
 
 workflow = read(".github/workflows/testflight.yml")
 prepare = read("scripts/prepare_build.sh")
-today_patch = read("scripts/patch_v0_7_0_build_b.py")
-today_parity_patch = read("scripts/patch_v0_7_0_build_b1.py")
-today_b2_patch = read("scripts/patch_v0_7_0_build_b2.py")
-today_audit = read("scripts/audit_v0_7_0_build_b.py")
-today_parity_audit = read("scripts/audit_v0_7_0_build_b1.py")
-today_b2_audit = read("scripts/audit_v0_7_0_build_b2.py")
+build_e_patch = read("scripts/patch_v0_7_0_build_e.py")
+build_e_theme_compat = read("scripts/patch_v0_7_0_build_e_theme_compat.py")
+build_e_audit = read("scripts/audit_v0_7_0_build_e.py")
 project = read("LifeRoute.xcodeproj/project.pbxproj")
 
 require_all(
     workflow,
     [
         "RELEASE_MARKETING_VERSION: 0.7.0",
-        "Prepare validated v0.7.0 Build B.2 release",
-        "Verify v0.7.0 Build B.2 app and Live Activity release contract",
-        "Archive LifeRoute v0.7.0 Build B.2",
-        "Verify archived v0.7.0 Build B.2 identity",
+        "Prepare validated v0.7.0 Build E release",
+        "Verify v0.7.0 Build E app and Live Activity release contract",
+        "Archive LifeRoute v0.7.0 Build E",
+        "Verify archived v0.7.0 Build E identity",
         "MARKETING_VERSION=\"$RELEASE_MARKETING_VERSION\"",
         "CURRENT_PROJECT_VERSION=\"${GITHUB_RUN_NUMBER}\"",
-        "LifeRoute v0.7.0 Build B.2 sent to TestFlight",
-        "LifeRoute-v0.7.0-Build-B2-TestFlight-build-",
-        "v0.7.0 Build B.2 device QA",
-        "v0.7.0 B.2 save and fullscreen preview",
+        "LifeRoute v0.7.0 Build E sent to TestFlight",
+        "LifeRoute-v0.7.0-Build-E-TestFlight-build-",
+        "v0.7.0 Build E Resources",
+        "v0.7.0 Build E Client Hub",
+        "v0.7.0 Build E Setup Control Center",
+        "v0.7.0 Build E Theme Center",
+        "v0.7.0 Build D audit compatibility anchor",
+        "TimelineView(.periodic(from: .now, by: 0.10))",
         "authorized_sha:",
         'test "$GITHUB_SHA" = "$AUTHORIZED_SHA"',
         "xcrun altool",
         "--upload-app",
         "Clean temporary Apple signing assets",
     ],
-    "v0.7.0 Build B.2 TestFlight workflow",
+    "v0.7.0 Build E TestFlight workflow",
 )
-require("RELEASE_MARKETING_VERSION: 0.6.3" not in workflow, "active release identity must not remain v0.6.3")
-require("Build B.1 sent to TestFlight" not in workflow, "active release summary must identify Build B.2")
-require("Build-B1-TestFlight-build-" not in workflow, "active IPA artifact must identify Build B.2")
+require("RELEASE_MARKETING_VERSION: 0.6.3" not in workflow, "active release identity must not regress to v0.6.3")
+require("LifeRoute v0.7.0 Build B.2 sent to TestFlight" not in workflow, "active release summary must identify Build E")
+require("LifeRoute-v0.7.0-Build-B2-TestFlight-build-" not in workflow, "active IPA artifact must identify Build E")
 
 require_all(
     prepare,
@@ -64,28 +65,72 @@ require_all(
         "python3 scripts/patch_v0_7_0_first_then_horizontal.py",
         "python3 scripts/patch_v0_7_0_todos_restore_b1.py",
         "python3 scripts/patch_v0_7_0_build_b2.py",
-        "python3 scripts/audit_v0_7_0_build_a.py",
-        "python3 scripts/audit_v0_7_0_build_b.py",
-        "python3 scripts/audit_v0_7_0_build_b1.py",
-        "python3 scripts/audit_v0_7_0_visual_library_reuse.py",
-        "python3 scripts/audit_v0_7_0_first_then_horizontal.py",
-        "python3 scripts/audit_v0_7_0_todos_restore.py",
+        "python3 scripts/patch_v0_7_0_build_b3_pre.py",
+        "python3 scripts/patch_v0_7_0_build_b3.py",
+        "python3 scripts/patch_v0_7_0_build_b3_compat.py",
+        "python3 scripts/patch_v0_7_0_build_c.py",
+        "python3 scripts/patch_v0_7_0_build_c_compile_hotfix.py",
+        "python3 scripts/patch_v0_7_0_build_d_timer_compat_pre.py",
+        "python3 scripts/patch_v0_7_0_build_d.py",
+        "python3 scripts/patch_v0_7_0_build_d_timer_compat_post.py",
+        "python3 scripts/patch_v0_7_0_build_d_compat.py",
+        "python3 scripts/patch_v0_7_0_build_e.py",
+        "python3 scripts/patch_v0_7_0_build_e_theme_compat.py",
         "python3 scripts/audit_v0_7_0_build_b2.py",
+        "python3 scripts/audit_v0_7_0_build_b3.py",
+        "python3 scripts/audit_v0_7_0_build_c.py",
+        "python3 scripts/audit_v0_7_0_build_d.py",
+        "python3 scripts/audit_v0_7_0_build_e.py",
     ],
-    "accumulated Build A + B + B.1 + B.2 preparation",
+    "accumulated v0.7.0 Build A-through-E preparation",
 )
 
-require("v0.7.0 Build B Today/Home" in today_patch, "Build B Today/Home patch must be present")
-require("v0.7.0 Build B.1 Today/Home parity" in today_parity_patch, "Build B.1 parity patch must be present")
-require("v0.7.0 Build B.2 device QA" in today_b2_patch, "Build B.2 device-QA patch must be present")
-require("v0.7.0 B.2 save and fullscreen preview" in today_b2_patch, "Build B.2 visual save/full-screen patch must be present")
-require("selected-day regression contract" in today_audit, "Build B selected-day acceptance gate must be present")
-require("persistent day selector must not remain" in today_parity_audit, "Build B.1 target-density gate must be present")
-require("persistent Save & Preview actions" in today_b2_audit, "Build B.2 visual-save gate must be present")
-require("real-device Home density pass" in today_b2_audit, "Build B.2 Home-density gate must be present")
+require_all(
+    build_e_patch,
+    [
+        'RESOURCES = ROOT / "LifeRoute/ResourcePortalViews.swift"',
+        'CLIENTS = ROOT / "LifeRoute/V054ClientViews.swift"',
+        'SETUP = ROOT / "LifeRoute/V054SetupView.swift"',
+        'THEMES = ROOT / "LifeRoute/V054ThemeCenterView.swift"',
+        "v0.7.0 Build E Resources",
+        "v0.7.0 Build E Client Hub",
+        "v0.7.0 Build E Setup Control Center",
+        "v0.7.0 Build E Theme Center",
+    ],
+    "Build E presentation patch",
+)
+require("RoutingLocationDomain.swift" not in build_e_patch, "Build E release patch must not own routing domain")
+require("PersistenceCore.swift" not in build_e_patch, "Build E release patch must not own persistence domain")
+require("SessionToolsDomain.swift" not in build_e_patch, "Build E release patch must not own timer domain")
+require("AppNavigation.swift" not in build_e_patch, "Build E release patch must not own AppRouter")
+
+require_all(
+    build_e_theme_compat,
+    [
+        "v0.7.0 Build E validated theme catalog compatibility",
+        "coreThemes",
+        "dynamicThemes",
+        "sceneryThemes",
+    ],
+    "Build E theme compatibility",
+)
+require_all(
+    build_e_audit,
+    [
+        "Build E Resources marker materialized",
+        "Build E Client Hub marker materialized",
+        "Build E Setup marker materialized",
+        "Build E Theme Center marker materialized",
+        "Five-tab shell remains exact",
+        "Build D final timer cadence remains 0.10 seconds",
+    ],
+    "Build E regression audit",
+)
 
 require("LifeRouteWebView.swift in Sources" not in project, "legacy WebView must remain quarantined")
 require("Web in Resources" not in project, "legacy Web resources must remain quarantined")
 require("LifeRouteLiveActivityWidget.appex in Embed App Extensions" in project, "Live Activity extension must remain embedded")
 
-print("LifeRoute v0.7.0 Build B.2 TestFlight audit passed: release identity remains 0.7.0, exact-SHA guard remains available, Build A/B/B.1/B.2 preparation is accumulated, real-device Home and full-screen visual-save corrections are guarded, native isolation is intact, and upload/archive identity is protected.")
+print(
+    "LifeRoute v0.7.0 Build E TestFlight audit passed: release identity remains 0.7.0, exact-SHA authorization and Apple upload remain guarded, canonical materialization accumulates Build A through E, supporting-surface ownership and Build D timer protections are locked, native isolation is intact, and archive/upload identity is protected."
+)

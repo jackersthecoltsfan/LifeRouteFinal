@@ -89,6 +89,7 @@ def patch_shell_transparency() -> None:
         return
 
     required = [
+        "typealias ContentView = V054ContentView",
         "TabView(selection: $router.selectedSection)",
         ".background(Color.clear) // v0.7.0 Theme Phase 1 reveal the single root environment",
         "static func refreshVisibleChrome(theme: LifeRouteTheme)",
@@ -99,6 +100,26 @@ def patch_shell_transparency() -> None:
     missing = [token for token in required if token not in text]
     if missing:
         raise SystemExit(f"v0.7.1 physical runtime fix failed: shell baseline missing {missing}")
+
+    debug_launch = r'''#if DEBUG
+private enum LifeRouteDebugLaunch {
+    static var sectionOverride: AppSection? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let keyIndex = arguments.firstIndex(of: "-LifeRouteSectionOverride") else { return nil }
+        let valueIndex = arguments.index(after: keyIndex)
+        guard arguments.indices.contains(valueIndex) else { return nil }
+        return AppSection(rawValue: arguments[valueIndex])
+    }
+}
+#endif
+
+'''
+    text = replace_once(
+        text,
+        "typealias ContentView = V054ContentView\n\nstruct V054ContentView: View {",
+        "typealias ContentView = V054ContentView\n\n" + debug_launch + "struct V054ContentView: View {",
+        "debug tab launch override",
+    )
 
     tab_item_token = "                .tabItem {"
     tab_count = text.count(tab_item_token)
@@ -112,7 +133,7 @@ def patch_shell_transparency() -> None:
     text = replace_once(
         text,
         "        .animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)\n        .onChange(of: router.selectedSection)",
-        "        .animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)\n        .onAppear {\n            // v0.7.1 physical-device root environment reveal: wait one run loop so TabView/UIKit children exist.\n            DispatchQueue.main.async {\n                LifeRouteAppearance.refreshVisibleChrome(theme: themeStore.selectedTheme)\n            }\n        }\n        .onChange(of: router.selectedSection)",
+        "        .animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)\n        .onAppear {\n#if DEBUG\n            if let section = LifeRouteDebugLaunch.sectionOverride {\n                router.select(section)\n            }\n#endif\n            // v0.7.1 physical-device root environment reveal: wait one run loop so TabView/UIKit children exist.\n            DispatchQueue.main.async {\n                LifeRouteAppearance.refreshVisibleChrome(theme: themeStore.selectedTheme)\n            }\n        }\n        .onChange(of: router.selectedSection)",
         "initial deferred chrome refresh",
     )
 
@@ -168,9 +189,9 @@ def main() -> None:
     patch_shell_transparency()
     print(
         "LifeRoute v0.7.1 physical runtime repair applied: Dynamic motion is perceptible on-device, "
-        "Canyon ambience no longer advances at a near-static rate, and UIKit tab/navigation host surfaces "
-        "are explicitly transparent and refreshed after launch/theme/tab materialization so the existing "
-        "single persistent root environment can remain visible behind Today, Schedule, Tools, Resources, and Setup."
+        "Canyon ambience no longer advances at a near-static rate, UIKit tab/navigation host surfaces "
+        "are explicitly transparent and refreshed after launch/theme/tab materialization, and DEBUG "
+        "validation can launch directly into each real tab root to verify the app-wide environment."
     )
 
 

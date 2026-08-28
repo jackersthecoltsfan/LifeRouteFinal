@@ -36,7 +36,7 @@ require(ROUTING, "static func naturalLanguageQuery(forStoredValue value: String)
 require(SETUP, 'V054AddressField("Location / store (optional)", text: $todoAddress, mode: .todoDestination)', "To-Do destination mode")
 require(ADDRESS, "case todoDestination", "To-Do address field mode")
 require(ADDRESS, 'Text("FLEXIBLE DESTINATIONS")', "flexible destination section")
-require(ADDRESS, 'Text("SPECIFIC PLACES")', "specific places section")
+require(ADDRESS, 'Text(mode == .todoDestination ? "SPECIFIC PLACES" : "SUGGESTIONS")', "specific places section")
 require(ADDRESS, "LifeRouteDestinationIntent.matches(text)", "typed intent matching")
 
 # Selection must dismiss both the result surface and keyboard, and must not immediately re-query.

@@ -60,15 +60,24 @@ A TestFlight run is not equivalent to disposable CI once its release job has act
 - Remember that TestFlight cleanup intentionally runs after failures so temporary Apple signing assets can be removed. Force-cancel is an emergency recovery tool, not normal release control.
 - Never dispatch a replacement TestFlight run until the prior release state is understood.
 
+## Standing LifeRoute TestFlight authorization
+
+The product owner has granted ChatGPT standing authorization to initiate **one TestFlight physical-validation release in any rolling 60-minute window** when the current checkpoint is meaningfully worth testing and prerequisite validation/release-state checks have passed.
+
+- This standing authorization does not make every commit releasable and does not bypass exact-SHA, CI, signing, or prior-release-state safeguards.
+- A second or additional TestFlight initiation inside the same rolling 60-minute window requires explicit owner authorization.
+- Explicit owner authorization may direct a specific additional release when needed.
+- Standing TestFlight authorization does **not** imply authorization to merge a pull request or modify `main`; merge authority remains separate.
+
 ## Recovery after GitHub reports service restoration
 
 1. Wait approximately 5 minutes for GitHub to drain/reconcile backlog.
 2. Re-read queued and in-progress LifeRoute runs.
 3. Force-cancel only stale runs that still meet the zombie criteria.
 4. Do not rerun every historical job.
-5. Produce exactly one current-main iOS validation and, when needed, one current-main web preview.
+5. Produce exactly one current iOS validation and, when needed, one current web preview for the intended release source.
 6. Verify those current validations before any TestFlight release request.
-7. Only then create the guarded TestFlight release request if the user has explicitly authorized that release.
+7. Only then use the standing once-per-hour authorization or a specific owner authorization to initiate TestFlight.
 
 ## Prevention rules
 
@@ -85,14 +94,14 @@ A TestFlight run is not equivalent to disposable CI once its release job has act
 
 ### Keep release authorization short-lived
 
-The assistant TestFlight release bridge must not hold a runner for long periods waiting for CI. ChatGPT/Codex should verify completed successful validation first, then create the owner-authorized release request. The bridge should fail fast when required validation is absent.
+The assistant TestFlight release bridge must not hold a runner for long periods waiting for CI. ChatGPT/Codex should verify completed successful validation first, then create the authorized release request. The bridge should fail fast when required validation is absent.
 
 ### Keep TestFlight isolated
 
 - `testflight.yml` remains `workflow_dispatch` only.
 - Ordinary pushes never upload to TestFlight.
-- The assistant bridge may dispatch `testflight.yml` only after explicit user authorization and successful release-equivalent validation.
-- Assistant dispatch passes the exact authorized `main` SHA; `testflight.yml` refuses a mismatched SHA.
+- The assistant bridge may dispatch `testflight.yml` only after successful release-equivalent validation and either the standing once-per-hour authorization or a specific explicit owner authorization.
+- Assistant dispatch passes the exact authorized release SHA; `testflight.yml` refuses a mismatched SHA.
 - No other workflow may contain Apple signing secrets or TestFlight upload machinery.
 
 ### Avoid queue-amplifying repair behavior

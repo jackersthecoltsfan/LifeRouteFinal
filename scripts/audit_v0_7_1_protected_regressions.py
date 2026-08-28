@@ -27,6 +27,7 @@ router = read("LifeRoute/AppNavigation.swift")
 calendar = read("LifeRoute/CalendarDomain.swift")
 routing = read("LifeRoute/DayRoutePlanningCore.swift")
 tools = read("LifeRoute/SessionToolsDomain.swift")
+tools_view = read("LifeRoute/V054ToolsDashboard.swift")
 persistence = read("LifeRoute/PersistenceCore.swift")
 
 # --- Theme/runtime ownership -------------------------------------------------
@@ -70,10 +71,15 @@ require("resumeForegroundLocationIfNeeded" in shell,
 require("cancelPendingOperations" in shell,
         "background routing cancellation disappeared")
 
-# AppRouter/openSettings are explicitly protected.
+# AppRouter and the existing semantic route into Setup are explicitly protected.
 require("final class AppRouter" in router or "class AppRouter" in router,
         "AppRouter declaration missing")
-require("openSettings" in router, "openSettings routing contract missing")
+require_all(router, [
+    "func select(_ section: AppSection)",
+    "case setup",
+], "AppRouter section-selection contract")
+require("router.select(.setup)" in tools_view,
+        "semantic open-Setup routing action disappeared")
 
 # --- Today / selected day ----------------------------------------------------
 require_all(today, [
@@ -127,7 +133,7 @@ require("hasAlpha" in prepare and '"no"' in prepare,
 
 print(
     "LifeRoute v0.7.1 protected regression audit passed: single theme owner/clock, "
-    "12 Core + 12 Dynamic + 20 Scenery catalogs, five-tab shell, AppRouter/openSettings, "
+    "12 Core + 12 Dynamic + 20 Scenery catalogs, five-tab shell, AppRouter/Setup routing, "
     "Today split wordmark + full selected-day agenda + horizontal day navigation, Live Day/Live Activity, "
     "calendar/routing/tools/persistence owners, canonical Phase 3 materialization, WebView quarantine, "
     "and official AppIcon release guards remain present."

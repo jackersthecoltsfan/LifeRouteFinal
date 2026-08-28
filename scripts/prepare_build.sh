@@ -178,7 +178,8 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_live_theme_surface_hero.py \
   scripts/audit_v0_7_0_theme_phase_3.py \
   scripts/audit_v0_7_0_testflight.py \
-  scripts/audit_v0_7_1_theme_visual_runtime_fix.py
+  scripts/audit_v0_7_1_theme_visual_runtime_fix.py \
+  scripts/audit_v0_7_1_protected_regressions.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
@@ -227,5 +228,6 @@ python3 scripts/audit_v0_7_0_testflight.py
 # only the failed renderer and foreground-surface behavior.
 python3 scripts/patch_v0_7_1_theme_visual_runtime_fix.py
 python3 scripts/audit_v0_7_1_theme_visual_runtime_fix.py
+python3 scripts/audit_v0_7_1_protected_regressions.py
 
 echo "LifeRoute v0.7.1 exemplar preparation passed: the complete v0.7.0 Build #96 regression chain remains locked; Canyon Day uses bundled cinematic artwork, Royal Current uses broad layered glass currents, and Today reveals either selected exemplar through availability-safe glass surfaces while the protected persistent shell, one live-environment clock, full selected-day agenda, official identity, timer cadence, and quarantined legacy runtime remain intact."

@@ -186,6 +186,7 @@ require_all(
         "python3 scripts/audit_v0_7_0_testflight.py",
         "python3 scripts/patch_v0_7_1_theme_visual_runtime_fix.py",
         "python3 scripts/audit_v0_7_1_theme_visual_runtime_fix.py",
+        "python3 scripts/audit_v0_7_1_protected_regressions.py",
     ],
     "canonical v0.7.1 patch/audit chain",
 )
@@ -194,6 +195,11 @@ require(
     < prepare.index("python3 scripts/patch_v0_7_1_theme_visual_runtime_fix.py")
     < prepare.index("python3 scripts/audit_v0_7_1_theme_visual_runtime_fix.py"),
     "v0.7.1 must materialize only after the complete historical v0.7.0 audit chain",
+)
+require(
+    prepare.index("python3 scripts/audit_v0_7_1_theme_visual_runtime_fix.py")
+    < prepare.index("python3 scripts/audit_v0_7_1_protected_regressions.py"),
+    "protected-regression audit must run after focused exemplar validation",
 )
 
 print(

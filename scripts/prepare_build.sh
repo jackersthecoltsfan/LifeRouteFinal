@@ -261,7 +261,7 @@ python3 scripts/audit_v0_7_1_dynamic_library_finish.py
 python3 scripts/audit_v0_7_1_protected_regressions.py
 
 # Terminal DEBUG-only validation hooks accept all retained identifiers, force a deterministic
-# Reduce Motion phase, and move between real tabs in one process. Production theme ownership,
+# Reduce Motion phase, and use a fixture URL to move between real tabs in one process. Production theme ownership,
 # clocks, navigation, and release behavior remain unchanged.
 python3 scripts/patch_v0_7_1_theme_fixture_matrix.py
 python3 scripts/audit_v0_7_1_theme_fixture_matrix.py

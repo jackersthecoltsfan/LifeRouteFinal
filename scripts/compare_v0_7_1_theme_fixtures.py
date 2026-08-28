@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
+import hashlib
 import math
+import os
+import shutil
 import struct
+import subprocess
 import sys
 import zlib
 from pathlib import Path
@@ -10,7 +14,38 @@ def fail(message: str) -> None:
     raise SystemExit(f"v0.7.1 theme fixture validation failed: {message}")
 
 
+def png_dimensions(path: Path) -> tuple[int, int]:
+    header = path.read_bytes()[:24]
+    if header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+        fail(f"{path} is not a PNG")
+    return struct.unpack(">II", header[16:24])
+
+
+def analysis_png(path: Path) -> Path:
+    sips = shutil.which("sips")
+    cache_value = os.environ.get("LIFEROUTE_FIXTURE_ANALYSIS_DIR")
+    if sys.platform != "darwin" or not sips or not cache_value:
+        return path
+    cache = Path(cache_value)
+    cache.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha256(str(path.resolve()).encode("utf-8")).hexdigest()[:16]
+    target = cache / f"{digest}-{path.name}"
+    if target.is_file() and target.stat().st_mtime_ns >= path.stat().st_mtime_ns:
+        return target
+    result = subprocess.run(
+        [sips, "-Z", "320", str(path), "--out", str(target)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not target.is_file():
+        fail(f"sips could not create analysis fixture for {path}: {result.stderr.strip()}")
+    return target
+
+
 def decode_png(path: Path) -> tuple[int, int, bytes]:
+    path = analysis_png(path)
     payload = path.read_bytes()
     if payload[:8] != b"\x89PNG\r\n\x1a\n":
         fail(f"{path} is not a PNG")
@@ -89,9 +124,10 @@ def difference_metrics(first: tuple[int, int, bytes], second: tuple[int, int, by
 
 
 def validate_health(path: Path) -> None:
-    width, height, pixels = decode_png(path)
-    if width < 700 or height < 1400 or height <= width:
-        fail(f"{path} is not a modern portrait iPhone capture ({width}x{height})")
+    original_width, original_height = png_dimensions(path)
+    _, _, pixels = decode_png(path)
+    if original_width < 700 or original_height < 1400 or original_height <= original_width:
+        fail(f"{path} is not a modern portrait iPhone capture ({original_width}x{original_height})")
     luminance_sum = luminance_square_sum = 0.0
     near_black = 0
     pixel_count = len(pixels) // 3
@@ -105,7 +141,29 @@ def validate_health(path: Path) -> None:
     black_fraction = near_black / pixel_count
     if not 8.0 <= mean <= 247.0 or deviation < 9.0 or black_fraction > 0.88:
         fail(f"{path} appears blank/flat (mean={mean:.2f}, deviation={deviation:.2f}, near-black={black_fraction:.2%})")
-    print(f"health {path.name}: {width}x{height}, mean={mean:.2f}, deviation={deviation:.2f}, near-black={black_fraction:.2%}")
+    print(f"health {path.name}: {original_width}x{original_height}, mean={mean:.2f}, deviation={deviation:.2f}, near-black={black_fraction:.2%}")
+
+
+def validate_coverage(path: Path) -> None:
+    width, height, pixels = decode_png(path)
+    first_row = int(height * 0.55)
+    final_row = int(height * 0.88)
+    luminance_sum = luminance_square_sum = 0.0
+    near_black = pixel_count = 0
+    for row in range(first_row, final_row):
+        for column in range(width):
+            index = (row * width + column) * 3
+            luminance = pixels[index] * 0.2126 + pixels[index + 1] * 0.7152 + pixels[index + 2] * 0.0722
+            luminance_sum += luminance
+            luminance_square_sum += luminance * luminance
+            near_black += luminance < 4
+            pixel_count += 1
+    mean = luminance_sum / pixel_count
+    deviation = math.sqrt(max(0.0, luminance_square_sum / pixel_count - mean * mean))
+    black_fraction = near_black / pixel_count
+    if mean < 6.0 or deviation < 4.0 or black_fraction > 0.94:
+        fail(f"{path} does not fill the app shell (background mean={mean:.2f}, deviation={deviation:.2f}, near-black={black_fraction:.2%})")
+    print(f"coverage {path.name}: mean={mean:.2f}, deviation={deviation:.2f}, near-black={black_fraction:.2%}")
 
 
 def validate_pair(command: str, first_path: Path, second_path: Path) -> None:
@@ -148,6 +206,9 @@ def main() -> None:
     if command == "validate-health":
         for path in paths:
             validate_health(path)
+    elif command == "validate-coverage":
+        for path in paths:
+            validate_coverage(path)
     elif command in ("validate-motion", "validate-identity") and len(paths) == 2:
         validate_pair(command, paths[0], paths[1])
     elif command == "validate-distinct":

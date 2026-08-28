@@ -175,11 +175,13 @@ replace_once(
         section(for: "-LifeRouteSectionOverride")
     }
 
-    static var cycleSectionOverride: AppSection? {
-        section(for: "-LifeRouteCycleSection")
+    static func sectionOverride(from url: URL) -> AppSection? {
+        guard url.scheme?.lowercased() == "liferoute",
+              url.host?.lowercased() == "fixture" else {
+            return nil
+        }
+        return AppSection(rawValue: url.lastPathComponent.lowercased())
     }
-
-    static let cycleDelayNanoseconds: UInt64 = 9_000_000_000
 
     private static func section(for argument: String) -> AppSection? {
         let arguments = ProcessInfo.processInfo.arguments
@@ -193,20 +195,26 @@ replace_once(
 
 replace_once(
     "LifeRoute/V054ContentView.swift",
-    '''        .onChange(of: router.selectedSection) { _ in''',
-    '''        .task {
+    '''        .onOpenURL { url in
+            if url.scheme?.lowercased() == "liferoute" {
+                router.select(.today)
+            }
+        }''',
+    '''        .onOpenURL { url in
 #if DEBUG
-            guard let section = LifeRouteDebugLaunch.cycleSectionOverride else { return }
-            try? await Task.sleep(nanoseconds: LifeRouteDebugLaunch.cycleDelayNanoseconds)
-            guard !Task.isCancelled else { return }
-            router.select(section)
+            if let section = LifeRouteDebugLaunch.sectionOverride(from: url) {
+                router.select(section)
+                return
+            }
 #endif
-        }
-        .onChange(of: router.selectedSection) { _ in''',
+            if url.scheme?.lowercased() == "liferoute" {
+                router.select(.today)
+            }
+        }''',
 )
 
 print(
     "LifeRoute v0.7.1 theme fixture matrix patch applied: all twenty retained raw theme "
     "identifiers can launch in the standalone renderer or full app shell; Reduce Motion can be "
-    "forced deterministically; and DEBUG validation can move from Today to another tab in-process."
+    "forced deterministically; and a DEBUG-only URL can move from Today to another tab in-process."
 )

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# LifeRoute v0.7.0 Build C preparation. Never reactivate the v0.4 WebView patch stack.
+# LifeRoute v0.7.0 Build D preparation. Never reactivate the v0.4 WebView patch stack.
 rm -rf build
 
 # These two historical audits intentionally lock the pre-v0.6.2 timer/theme behavior.
@@ -21,7 +21,7 @@ python3 scripts/patch_v0_6_3_core_theme_cleanup.py
 
 # v0.7.0 checkpoints accumulate in order: shell/design system, Today/Home, device parity,
 # saved visual-support reuse, the horizontal First -> Then preview, restored native weekly To-Dos,
-# B.2/B.3 real-device QA, then Build C's Schedule-only overhaul and compile compatibility pass.
+# B.2/B.3 real-device QA, Build C Schedule, then Build D Tools/ABA presentation.
 python3 scripts/patch_v0_7_0_build_a.py
 python3 scripts/patch_v0_7_0_build_b.py
 python3 scripts/patch_v0_7_0_build_b1.py
@@ -35,6 +35,7 @@ python3 scripts/patch_v0_7_0_build_b3.py
 python3 scripts/patch_v0_7_0_build_b3_compat.py
 python3 scripts/patch_v0_7_0_build_c.py
 python3 scripts/patch_v0_7_0_build_c_compile_hotfix.py
+python3 scripts/patch_v0_7_0_build_d.py
 
 # The premium LR icon is generated deterministically from checked-in vector-style drawing code
 # so Simulator validation and the signed TestFlight archive ship the exact same 1024×1024 asset.
@@ -73,6 +74,7 @@ python3 -m py_compile \
   scripts/patch_v0_7_0_build_b3_compat.py \
   scripts/patch_v0_7_0_build_c.py \
   scripts/patch_v0_7_0_build_c_compile_hotfix.py \
+  scripts/patch_v0_7_0_build_d.py \
   scripts/audit_v0_5_0_functional_shell.py \
   scripts/audit_v0_5_0_core_navigation.py \
   scripts/audit_v0_5_0_calendar_core.py \
@@ -102,12 +104,13 @@ python3 -m py_compile \
   scripts/audit_v0_7_0_build_b2.py \
   scripts/audit_v0_7_0_build_b3.py \
   scripts/audit_v0_7_0_build_c.py \
+  scripts/audit_v0_7_0_build_d.py \
   scripts/audit_v0_7_0_testflight.py
 
 plutil -lint LifeRoute/Info.plist
 plutil -lint LifeRouteLiveActivityWidget/Info.plist
 
-# Run all non-superseded regression coverage on the fully materialized Build C tree.
+# Run all non-superseded regression coverage on the fully materialized Build D tree.
 python3 scripts/audit_v0_5_0_functional_shell.py
 python3 scripts/audit_v0_5_0_core_navigation.py
 python3 scripts/audit_v0_5_0_calendar_core.py
@@ -134,6 +137,7 @@ python3 scripts/audit_v0_7_0_todos_restore.py
 python3 scripts/audit_v0_7_0_build_b2.py
 python3 scripts/audit_v0_7_0_build_b3.py
 python3 scripts/audit_v0_7_0_build_c.py
+python3 scripts/audit_v0_7_0_build_d.py
 python3 scripts/audit_v0_7_0_testflight.py
 
-echo "LifeRoute v0.7.0 Build C preparation passed: accepted Build A/B/B.1/B.2/B.3 behavior remains intact, Schedule is rebuilt as a compact premium Agenda/Week/Month experience with native date browsing, event timelines, selected-day route planning, and compact modal provider/manual-event workflows, accumulated regressions stay green, and legacy WebView runtime remains quarantined."
+echo "LifeRoute v0.7.0 Build D preparation passed: accepted Build A/B/B.1/B.2/B.3/C behavior remains intact, Tools now uses the shared premium clinical-first hierarchy, Session Note/Plan and Timer presentation are tightened without changing validated AI/timer/client/persistence behavior, accumulated regressions stay green, and legacy WebView runtime remains quarantined."

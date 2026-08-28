@@ -136,12 +136,40 @@ require("palette.backgroundGradient.ignoresSafeArea()" not in chrome_block, "old
 require_all(shell, ["LifeRouteCinematicBackdrop(", ".background(Color.clear) // v0.6.3 keep cinematic scenery visible"], "transparent tab shell")
 
 # Main screen can browse any date, generate/launch that date, and route-plan against it.
+# The original v0.6.3 implementation owned selectedDay locally. Post-Build-E swipe paging intentionally
+# supersedes only that ownership detail by binding the same validated behavior to CalendarCoreState.selectedDate,
+# which is also Schedule's selected-day owner. Accept either spelling, but require the full shared-owner contract
+# when the superseding implementation is present.
+legacy_selected_day_owner = all(
+    token in today
+    for token in [
+        "@State private var selectedDay = Calendar.current.startOfDay(for: Date())",
+        'DatePicker("Choose day", selection: $selectedDay, displayedComponents: .date)',
+    ]
+)
+shared_selected_day_owner = all(
+    token in today
+    for token in [
+        "v0.7.0 swipeable day overview",
+        "private var selectedDay: Date",
+        "Calendar.current.startOfDay(for: calendarState.selectedDate)",
+        "calendarState.selectedDate = Calendar.current.startOfDay(for: newValue)",
+        "private var selectedDayBinding: Binding<Date>",
+        'DatePicker("Choose day", selection: selectedDayBinding, displayedComponents: .date)',
+        "TabView(selection: selectedDayBinding)",
+    ]
+)
+require(
+    legacy_selected_day_owner or shared_selected_day_owner,
+    "selected-day main screen must retain the reviewed v0.6.3 owner or the stricter shared CalendarCoreState owner",
+)
+if shared_selected_day_owner:
+    require("@State private var selectedDay" not in today, "superseding shared selected-day contract must not retain a duplicate Today state owner")
+
 require_all(
     today,
     [
-        "@State private var selectedDay = Calendar.current.startOfDay(for: Date())",
         "private var daySelector: some View",
-        'DatePicker("Choose day", selection: $selectedDay, displayedComponents: .date)',
         "v0.6.3 responsive day selector layout",
         'Label("Choose date", systemImage: "calendar")',
         ".layoutPriority(1)",
@@ -153,7 +181,7 @@ require_all(
         'Label("Generate + launch selected day", systemImage: "sparkles")',
         "day: selectedDay",
     ],
-    "selected-day main screen",
+    "selected-day main screen behavior",
 )
 require_all(
     planner,

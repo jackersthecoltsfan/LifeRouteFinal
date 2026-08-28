@@ -46,6 +46,7 @@ jobs:
     # Verify archived v0.7.0 Theme Phase 2 identity
     # LifeRoute v0.7.0 Theme Phase 2 sent to TestFlight
     # name: LifeRoute-v0.7.0-Theme-Phase-2-TestFlight-build-
+    # v0.7.0 Theme Phase 2 Theme Center
     # v0.7.0 Theme Phase 2 persistent environment host
 
     steps:

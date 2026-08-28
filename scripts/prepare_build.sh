@@ -247,4 +247,15 @@ python3 -m py_compile scripts/patch_v0_8_0_master_aba_note.py scripts/audit_v0_8
 python3 scripts/patch_v0_8_0_master_aba_note.py
 python3 scripts/audit_v0_8_0_master_aba_note.py
 
+# Re-run non-superseded protected architecture after the note generator changes. These audits are
+# intentionally post-v0.8.0 so a note-only patch cannot silently regress navigation/state/persistence.
+python3 scripts/audit_v0_5_0_functional_shell.py
+python3 scripts/audit_v0_5_0_core_navigation.py
+python3 scripts/audit_v0_5_0_calendar_core.py
+python3 scripts/audit_v0_5_0_routing_location_core.py
+python3 scripts/audit_v0_5_0_clients_core.py
+python3 scripts/audit_v0_5_0_session_tools_core.py
+python3 scripts/audit_v0_5_0_stability_architecture.py
+python3 scripts/audit_v0_7_1_protected_regressions.py
+
 echo "LifeRoute v0.8.0 functionality pass 1 preparation passed: Master ABA session-note behavior is materialized and regression-audited on top of the protected v0.7.1 candidate state."

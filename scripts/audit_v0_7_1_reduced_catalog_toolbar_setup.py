@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from pathlib import Path
 
+from audit_v0_7_1_shipping_theme_hold import main as audit_shipping_theme_hold
+
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "LifeRoute/LifeRouteApp.swift"
 SHELL = ROOT / "LifeRoute/V054ContentView.swift"
@@ -29,7 +31,7 @@ def main() -> None:
     themes = THEMES.read_text(encoding="utf-8")
 
     # Catalog contract: historical Phase 1 already locks exactly 12 Core choices. This finishing pass
-    # changes only Dynamic/Scenery visibility, so require the exact approved Phase 1 identities.
+    # keeps the broader unfinished implementation intact underneath the final shipping hold.
     dynamic = between(app, "static let phaseTwoDynamicCatalog", "var isPhaseTwoDynamic")
     scenery = between(app, "static let phaseThreeSceneryCatalog", "var isPhaseThreeScenery")
     core = between(app, "static let phaseOneCoreGlassCatalog", "var isPhaseOneCoreGlass")
@@ -62,15 +64,15 @@ def main() -> None:
     for token in kept_core:
         require(core, token, f"protected Core {token}")
     for token in kept_dynamic:
-        require(dynamic, token, f"retained Dynamic {token}")
+        require(dynamic, token, f"retained Dynamic implementation {token}")
     for token in removed_dynamic:
         if token in dynamic:
-            raise SystemExit(f"v0.7.1 reduced catalog/toolbar/setup audit failed: retired Dynamic still visible: {token}")
+            raise SystemExit(f"v0.7.1 reduced catalog/toolbar/setup audit failed: retired Dynamic still in retained implementation catalog: {token}")
     for token in kept_scenery:
-        require(scenery, token, f"retained Scenery {token}")
+        require(scenery, token, f"retained Scenery implementation {token}")
     for token in removed_scenery:
         if token in scenery:
-            raise SystemExit(f"v0.7.1 reduced catalog/toolbar/setup audit failed: retired Scenery still visible: {token}")
+            raise SystemExit(f"v0.7.1 reduced catalog/toolbar/setup audit failed: retired Scenery still in retained implementation catalog: {token}")
 
     for identifier in [
         'case "dynamic.arcticHalo"', 'case "dynamic.roseEmber"',
@@ -82,10 +84,10 @@ def main() -> None:
     ]:
         require(app, identifier, f"retired-theme migration {identifier}")
 
-    # Theme Center must describe the production-sized library truthfully.
-    require(themes, "8 live full-frame Liquid Glass environments", "8-theme Dynamic copy")
-    require(themes, "12 cinematic Day/Night environments across 6 landscape families", "12-theme Scenery copy")
-    require(themes, "All 12 retained Scenery thumbnails are deterministic still frames", "retained Scenery preview copy")
+    # Historical reduced-catalog copy remains as audit anchors; the final shipping audit verifies actual visibility.
+    require(themes, "8 live full-frame Liquid Glass environments", "8-theme Dynamic historical anchor")
+    require(themes, "12 cinematic Day/Night environments across 6 landscape families", "12-theme Scenery historical anchor")
+    require(themes, "All 12 retained Scenery thumbnails are deterministic still frames", "retained Scenery historical anchor")
 
     # Preserve the proven Build #98 architecture: one shared live clock and root environment.
     if app.count("TimelineView(\n            .animation(") != 1:
@@ -138,10 +140,13 @@ def main() -> None:
     ]:
         require(setup, token, f"preserved Setup functionality {token}")
 
+    # Final shipping layer owns what users can actually select and whether only one toolbar is physically visible.
+    audit_shipping_theme_hold()
+
     print(
-        "LifeRoute v0.7.1 reduced catalog/toolbar/Setup audit passed: 12 Core + 8 Dynamic + 12 Scenery are visible, "
-        "retired identifiers migrate safely, Build #98's single live-theme architecture remains intact, the existing "
-        "five-tab router drives one custom vector LifeRoute toolbar, and Setup preserves every control behind six disclosure groups."
+        "LifeRoute v0.7.1 reduced catalog/toolbar/Setup audit passed: the broader 8-Dynamic / 12-Scenery "
+        "implementation remains preserved for future completion, Build #98's single live-theme architecture remains "
+        "intact, Setup preserves every control behind six disclosure groups, and the final shipping-hold audit passes."
     )
 
 

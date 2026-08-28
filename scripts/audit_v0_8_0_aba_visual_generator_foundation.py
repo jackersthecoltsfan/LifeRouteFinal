@@ -50,7 +50,8 @@ check(
     and "v0.8.0 ABA visual-support Image Playground 26.4 gate" in VIEWS,
 )
 check("pre-26.4 generator type gate removed", "@available(iOS 26.0, *)\nprivate struct ABAVisualSupportImageGeneratorButton" not in VIEWS)
-check("system availability environment", "@Environment(\\.supportsImageGeneration)" in VIEWS)
+check("correct system availability environment", "@Environment(\\.supportsImagePlayground) private var supportsImagePlayground" in VIEWS)
+check("obsolete environment key removed", "supportsImageGeneration" not in VIEWS)
 check("system generation sheet used", ".imagePlaygroundSheet(" in VIEWS)
 check("square generation requested", "options.sizeSpecification = .closest(to: CGSize(width: 1_024, height: 1_024))" in VIEWS)
 check("person personalization disabled", "options.personalization = .disabled" in VIEWS)
@@ -108,7 +109,13 @@ check("later checkpoints are disclosed", "Batch generation and printable PDF she
 # Deterministic materialization and post-change protection.
 check("visual patch wired into preparation", "python3 scripts/patch_v0_8_0_aba_visual_generator_foundation.py" in PREP)
 check("performance wrapper wired into preparation", "python3 scripts/patch_v0_8_0_aba_visual_generator_performance_hotfix.py" in PREP)
-check("compile hotfix exists", "Image Playground 26.4 gate" in COMPILE_HOTFIX and "@available(iOS 26.4, *)" in COMPILE_HOTFIX)
+check(
+    "compile hotfix has correct availability key",
+    "Image Playground 26.4 gate" in COMPILE_HOTFIX
+    and "@available(iOS 26.4, *)" in COMPILE_HOTFIX
+    and "supportsImagePlayground" in COMPILE_HOTFIX
+    and "supportsImageGeneration" in COMPILE_HOTFIX,
+)
 check(
     "compile hotfix wired through canonical wrapper",
     "runpy.run_path" in WRAPPER

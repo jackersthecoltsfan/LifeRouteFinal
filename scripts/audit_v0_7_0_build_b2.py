@@ -18,6 +18,24 @@ def require_all(text: str, tokens: list[str], label: str) -> None:
     require(not missing, f"{label} missing: {', '.join(missing)}")
 
 
+def selected_day_owner_is_valid(today: str) -> bool:
+    legacy = "@State private var selectedDay = Calendar.current.startOfDay(for: Date())" in today
+    shared = all(
+        token in today
+        for token in [
+            "v0.7.0 swipeable day overview",
+            "private var selectedDay: Date",
+            "Calendar.current.startOfDay(for: calendarState.selectedDate)",
+            "calendarState.selectedDate = Calendar.current.startOfDay(for: newValue)",
+            "private var selectedDayBinding: Binding<Date>",
+            "TabView(selection: selectedDayBinding)",
+        ]
+    )
+    if shared:
+        require("@State private var selectedDay" not in today, "shared selected-day owner must not coexist with duplicate Today state")
+    return legacy or shared
+
+
 def main() -> None:
     today = read("LifeRoute/V054TodayView.swift")
     tools = read("LifeRoute/SessionToolsViews.swift")
@@ -40,10 +58,10 @@ def main() -> None:
         "real-device Home density pass",
     )
 
+    require(selected_day_owner_is_valid(today), "protected Home selected-day owner must remain reviewed or use the stricter shared CalendarCoreState owner")
     require_all(
         today,
         [
-            "@State private var selectedDay = Calendar.current.startOfDay(for: Date())",
             "selectedDayContext",
             "dayPickerSheet",
             "routingState.requestCurrentLocation()",
@@ -112,7 +130,7 @@ def main() -> None:
     require('TOOLS = ROOT / "LifeRoute/SessionToolsViews.swift"' in patch, "B.2 patch must explicitly scope Visual Supports changes")
 
     print(
-        "LifeRoute v0.7.0 Build B.2 audit passed: Home is tightened to the real-device reference rhythm, Choice Boards and Visual Schedules expose persistent Save & Preview actions, previews are true full-screen session surfaces, and accepted B.1 behavior remains intact."
+        "LifeRoute v0.7.0 Build B.2 audit passed: Home retains the real-device reference rhythm under the reviewed or superseding shared selected-day owner, Choice Boards and Visual Schedules expose persistent Save & Preview actions, previews are true full-screen session surfaces, and accepted B.1 behavior remains intact."
     )
 
 

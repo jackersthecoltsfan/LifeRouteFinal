@@ -362,16 +362,20 @@ private struct LifeRouteTodaySelectedExemplarArtwork: View {
 
     @ViewBuilder
     var body: some View {
-        if theme == .sceneryCanyonDay {
-            Image(decorative: "SceneryCanyonDay")
-                .resizable()
-                .scaledToFill()
-        } else if theme == .royalCurrent {
-            Image(decorative: "DynamicRoyalCurrent")
-                .resizable()
-                .scaledToFill()
-        } else {
-            Color.clear
+        GeometryReader { proxy in
+            if theme == .sceneryCanyonDay {
+                Image(decorative: "SceneryCanyonDay")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+            } else if theme == .royalCurrent {
+                Image(decorative: "DynamicRoyalCurrent")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+            } else {
+                Color.clear
+            }
         }
     }
 }

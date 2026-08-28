@@ -152,6 +152,7 @@ require_all(
         "v0.7.1 Today reuses the selected exemplar's production artwork; no local competing renderer or clock",
         "LifeRouteTodaySelectedExemplarArtwork(theme: themeStore.selectedTheme)",
         'Image(decorative: "SceneryCanyonDay")', 'Image(decorative: "DynamicRoyalCurrent")',
+        "GeometryReader { proxy in", ".frame(width: proxy.size.width, height: proxy.size.height)",
         'Text("Life")', 'Text("Route")', ".foregroundStyle(brandGold)",
         "ForEach(selectedDayEvents)", "LifeRouteTodayGlassCardModifier",
         "if #available(iOS 26.0, *)", "GlassEffectContainer(spacing: 8)",

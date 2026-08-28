@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from pathlib import Path
 
+from audit_v0_7_1_reduced_catalog_toolbar_setup import main as audit_reduced_catalog_toolbar_setup
+
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "LifeRoute/LifeRouteApp.swift"
 SHELL = ROOT / "LifeRoute/V054ContentView.swift"
@@ -63,11 +65,13 @@ def main() -> None:
     if "LifeRouteTodaySelectedExemplarArtwork" not in today:
         raise SystemExit("v0.7.1 physical runtime audit failed: Today exemplar artwork contract missing")
 
+    # The final v0.7.1 presentation layer is intentionally audited after the proven Build #98 runtime contract.
+    audit_reduced_catalog_toolbar_setup()
+
     print(
-        "LifeRoute v0.7.1 physical runtime audit passed: the single shared live-theme clock remains unique, "
-        "all 12 Dynamic phase rates plus Canyon ambience are perceptible, all five tab roots are transparent, "
-        "UIKit host surfaces are cleared after launch/theme/tab/scene materialization, DEBUG validation can "
-        "launch each real tab root, and Today retains the approved exemplar artwork contract."
+        "LifeRoute v0.7.1 physical runtime + finishing audit passed: the single shared live-theme clock remains unique, "
+        "renderer motion stays perceptible, all five tab roots remain transparent, UIKit host surfaces are cleared after "
+        "launch/theme/tab/scene materialization, and the reduced catalog, custom toolbar, and Setup disclosure system pass."
     )
 
 

@@ -1,5 +1,5 @@
 name: Send to TestFlight
-run-name: LifeRoute v0.8.1 exact-SHA TestFlight #${{ github.run_number }}
+run-name: LifeRoute v0.8.2 exact-SHA TestFlight #${{ github.run_number }}
 
 on:
   workflow_dispatch:
@@ -30,7 +30,7 @@ jobs:
       SCHEME: LifeRoute
       BUNDLE_ID: Com.Brandongood.LifeRoute
       LIVE_ACTIVITY_BUNDLE_ID: Com.Brandongood.LifeRoute.LiveDay
-      RELEASE_MARKETING_VERSION: 0.8.1
+      RELEASE_MARKETING_VERSION: 0.8.2
       AUTHORIZED_SHA: ${{ inputs.authorized_sha }}
       REQUEST_ISSUE: ${{ inputs.request_issue }}
       GH_TOKEN: ${{ github.token }}
@@ -109,7 +109,7 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: ruby scripts/apple_ci_assets.rb snapshot "$RUNNER_TEMP/apple-signing-baseline.json"
 
-      - name: Archive LifeRoute v0.8.1
+      - name: Archive LifeRoute v0.8.2
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
@@ -133,7 +133,7 @@ jobs:
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             archive
 
-      - name: Verify archived LifeRoute v0.8.1 identity
+      - name: Verify archived LifeRoute v0.8.2 identity
         run: |
           set -euo pipefail
           APP_PLIST="build/LifeRoute.xcarchive/Products/Applications/LifeRoute.app/Info.plist"
@@ -194,7 +194,7 @@ jobs:
       - name: Save IPA artifact
         uses: actions/upload-artifact@v6
         with:
-          name: LifeRoute-v0.8.1-TestFlight-build-${{ github.run_number }}
+          name: LifeRoute-v0.8.2-TestFlight-build-${{ github.run_number }}
           path: build/export/*.ipa
           if-no-files-found: error
           retention-days: 7

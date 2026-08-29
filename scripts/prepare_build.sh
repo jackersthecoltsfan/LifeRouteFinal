@@ -4,6 +4,41 @@ set -euo pipefail
 # LifeRoute v0.7.0 Build E preparation. Never reactivate the v0.4 WebView patch stack.
 rm -rf build
 
+validate_png_release_asset() {
+python3 - "$1" <<'PY'
+import struct
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+data = path.read_bytes()
+if len(data) < 33 or data[:8] != b"\x89PNG\r\n\x1a\n":
+    raise SystemExit(f"AppIcon release guard failed: {path} is not a PNG.")
+length = struct.unpack(">I", data[8:12])[0]
+if data[12:16] != b"IHDR" or length != 13:
+    raise SystemExit(f"AppIcon release guard failed: {path} is missing a valid IHDR chunk.")
+width, height, bit_depth, color_type, compression, filter_method, interlace = struct.unpack(">IIBBBBB", data[16:29])
+if (width, height) != (1024, 1024):
+    raise SystemExit(f"AppIcon release guard failed: {path} is {width}×{height}, expected 1024×1024.")
+if color_type in {4, 6}:
+    raise SystemExit(f"AppIcon release guard failed: {path} contains an alpha channel.")
+print(f"Official LifeRoute AppIcon release guard passed: {width}×{height} opaque PNG with no alpha channel.")
+PY
+}
+
+validate_plist_file() {
+python3 - "$1" <<'PY'
+import plistlib
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+with path.open('rb') as handle:
+    plistlib.load(handle)
+print(f"Plist validation passed: {path}")
+PY
+}
+
 # These two historical audits intentionally lock the pre-v0.6.2 timer/theme behavior.
 # Run them on the shipped v0.6.1 source before materializing the requested v0.6.2+ replacements.
 python3 scripts/audit_v0_5_0_session_tools_core.py
@@ -86,17 +121,15 @@ python3 scripts/patch_v0_7_0_official_branding.py
 # The official refined 1E/1F hybrid AppIcon is generated deterministically from checked-in vector-style
 # drawing code so Simulator validation and the signed TestFlight archive ship the same 1024×1024 identity.
 ICON="LifeRoute/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
-swift scripts/generate_v0_7_0_official_app_icon.swift "$ICON"
+if command -v swift >/dev/null 2>&1; then
+  swift scripts/generate_v0_7_0_official_app_icon.swift "$ICON"
+else
+  echo "Swift toolchain unavailable; validating the checked-in AppIcon asset without regeneration."
+fi
 
 # App Store Connect rejects large app icons that contain an alpha channel, even when they appear opaque.
 test -s "$ICON"
-test "$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/ {print $2}')" = "1024"
-test "$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/ {print $2}')" = "1024"
-test "$(sips -g hasAlpha "$ICON" | awk '/hasAlpha/ {print $2}')" = "no" || {
-  echo "AppIcon release guard failed: $ICON contains an alpha channel."
-  exit 1
-}
-echo "Official LifeRoute AppIcon release guard passed: 1024×1024 opaque RGB PNG with no alpha channel."
+validate_png_release_asset "$ICON"
 
 python3 -m py_compile \
   scripts/patch_v0_6_2_native.py \
@@ -188,10 +221,13 @@ python3 -m py_compile \
   scripts/audit_v0_7_1_dynamic_library_finish.py \
   scripts/audit_v0_7_1_scenery_library_finish.py \
   scripts/audit_v0_7_1_theme_fixture_matrix.py \
-  scripts/compare_v0_7_1_theme_fixtures.py
+  scripts/compare_v0_7_1_theme_fixtures.py \
+  scripts/audit_v0_8_1_session_note_and_visual_prompt.py \
+  scripts/audit_v0_8_1_navigation_toolbar_schedule.py \
+  scripts/audit_v0_8_1_release_prep.py
 
-plutil -lint LifeRoute/Info.plist
-plutil -lint LifeRouteLiveActivityWidget/Info.plist
+validate_plist_file LifeRoute/Info.plist
+validate_plist_file LifeRouteLiveActivityWidget/Info.plist
 
 # Run non-superseded regression coverage on the fully materialized branded Phase 2 tree.
 python3 scripts/audit_v0_5_0_functional_shell.py
@@ -380,3 +416,32 @@ python3 scripts/audit_v0_5_0_stability_architecture.py
 python3 scripts/audit_v0_5_0_second_functionality_pass.py
 
 echo "LifeRoute v0.8.0 post-Build #104 follow-up preparation passed: session notes use RBT-only grounded clinical prose with ordered multi-screenshot and typed-measurement evidence; the illustrated visual-support generator is visibly reachable and preserves library persistence; Rainforest and Arctic scenery gain bounded root-driven ambient detail; the Visual Timer advances gently from 432 to 864 Hz and one to six ticks per second; and retained navigation, visual-support, persistence, performance, and stability contracts remain locked."
+
+# v0.8.1 physical-regression and performance checkpoint: repair the known Build #106 failure paths,
+# remove the exposed Visual Schedule entry, and introduce horizontal paging plus toolbar policy on
+# top of the same authoritative router and theme root.
+python3 -m py_compile \
+  scripts/audit_v0_8_1_session_note_and_visual_prompt.py \
+  scripts/audit_v0_8_1_navigation_toolbar_schedule.py \
+  scripts/audit_v0_8_1_release_prep.py
+python3 scripts/audit_v0_8_1_session_note_and_visual_prompt.py
+python3 scripts/audit_v0_8_1_navigation_toolbar_schedule.py
+python3 scripts/audit_v0_8_1_release_prep.py
+
+# Re-run inherited regression coverage on the final tree after the v0.8.1 follow-up.
+python3 scripts/audit_v0_5_0_functional_shell.py
+python3 scripts/audit_v0_5_0_core_navigation.py
+python3 scripts/audit_v0_5_0_calendar_core.py
+python3 scripts/audit_v0_5_0_routing_location_core.py
+python3 scripts/audit_v0_5_0_clients_core.py
+python3 scripts/audit_v0_5_0_calendar_providers.py
+python3 scripts/audit_v0_5_0_client_visual_supports.py
+python3 scripts/audit_v0_5_0_client_visual_persistence.py
+python3 scripts/audit_v0_5_0_routing_calendar_persistence.py
+python3 scripts/audit_v0_5_0_legacy_migration.py
+python3 scripts/audit_v0_5_0_performance_architecture.py
+python3 scripts/audit_v0_5_0_stability_architecture.py
+python3 scripts/audit_v0_5_0_second_functionality_pass.py
+python3 scripts/audit_v0_7_1_protected_regressions.py
+
+echo "LifeRoute v0.8.1 physical-regression preparation passed: the Build #106 session-note failure path is bounded and recoverable, the ABA visual-support generator interprets concepts before prompt formation, Visual Schedule is removed from the exposed UI, main sections page horizontally with synchronized toolbar selection, the toolbar hides on deep routes, and inherited navigation, persistence, performance, and stability contracts remain locked."

@@ -14,7 +14,7 @@ enum AppSection: String, CaseIterable, Hashable, Identifiable {
     var title: String {
         switch self {
         case .today: return "Today"
-        case .schedule: return "Schedule"
+        case .schedule: return "Calendar"
         case .tools: return "Tools"
         case .resources: return "Resources"
         case .setup: return "Setup"
@@ -25,7 +25,7 @@ enum AppSection: String, CaseIterable, Hashable, Identifiable {
         switch self {
         case .today: return "sun.max"
         case .schedule: return "calendar"
-        case .tools: return "wrench.and.screwdriver"
+        case .tools: return "wrench.and.screwdriver.fill"
         case .resources: return "books.vertical"
         case .setup: return "gearshape"
         }
@@ -42,7 +42,7 @@ enum AppRoute: Hashable {
     var title: String {
         switch self {
         case .todayDetails: return "Today"
-        case .scheduleDetails: return "Schedule"
+        case .scheduleDetails: return "Calendar"
         case .toolsDetails: return "Session Tools"
         case .resourcesDetails: return "Resources"
         case .setupDetails: return "Setup"
@@ -119,6 +119,21 @@ final class AppRouter: ObservableObject {
             resourcesPath = NavigationPath()
         case .setup:
             setupPath = NavigationPath()
+        }
+    }
+
+    var shouldShowBottomToolbar: Bool {
+        switch selectedSection {
+        case .today:
+            return todayPath.isEmpty
+        case .schedule:
+            return schedulePath.isEmpty
+        case .tools:
+            return toolsPath.isEmpty
+        case .resources:
+            return resourcesPath.isEmpty
+        case .setup:
+            return setupPath.isEmpty
         }
     }
 }

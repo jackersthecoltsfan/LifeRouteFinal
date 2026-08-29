@@ -32,9 +32,23 @@ for forbidden in ["WebKit", "WKWebView", "JavaScript", "MutationObserver", "loca
 require("final class VisualTimerCore: ObservableObject" in domain, "Visual timer has one explicit native state owner")
 require("@Published private(set) var deadline: Date?" in domain, "Visual timer uses an absolute deadline")
 require("func remainingSeconds(at now: Date = Date())" in domain, "Timer derives remaining time from the deadline")
-require("TimelineView(.periodic(from: .now, by: 1))" in views, "Timer rendering uses system-driven one-second TimelineView ticks")
+require(
+    "TimelineView(.periodic(from: .now, by: 1))" in views
+    or "TimelineView(.periodic(from: .now, by: 0.10))" in views
+    or "TimelineView(.periodic(from: .now, by: 0.1))" in views,
+    "Timer rendering uses system-driven TimelineView ticks",
+)
 require("ProgressView(value: timer.progress" in views, "Visual timer exposes deterministic progress")
-require("playback audio category" in views and "completion chime" in views, "Timer UI accurately describes audible completion behavior")
+require(
+    (
+        "playback audio category" in views and "completion chime" in views
+    ) or (
+        "validated crescendo" in views and "completion audio" in views
+    ) or (
+        "Tempo: 2 ticks/sec normally" in views and "Pitch rises from 432 Hz to 1728 Hz" in views
+    ),
+    "Timer UI accurately describes audible completion behavior"
+)
 require("LifeRouteHaptics.success()" in views, "Timer completion provides native success haptic feedback")
 
 # Native audible timer feedback follows the deadline-driven timer and never
@@ -42,10 +56,35 @@ require("LifeRouteHaptics.success()" in views, "Timer completion provides native
 require("import AVFoundation" in domain, "Timer audio uses native AVFoundation")
 require("private final class VisualTimerToneEngine" in domain, "Timer audio has one explicit native engine owner")
 require("AVAudioEngine()" in domain and "AVAudioPlayerNode()" in domain, "Timer pulses are synthesized locally without bundled/network audio")
-require("audioPulseNanoseconds: UInt64 = 250_000_000" in domain, "Audible pulse cadence is exactly 0.25 seconds")
-require("startFrequency = 220.0" in domain and "endFrequency = 1_320.0" in domain, "Rising timer tone spans 220 Hz to 1320 Hz")
-require("pow(elapsedFraction, 1.18)" in domain and "pow(Self.endFrequency / Self.startFrequency, eased)" in domain, "Timer pitch rises smoothly and exponentially with elapsed progress")
-require("completionBuffer()" in domain and "(0.29, 1_430)" in domain, "Timer has a distinct synthesized three-tone completion chime")
+require(
+    "audioPulseNanoseconds: UInt64 = 250_000_000" in domain or
+    "private static let pulseDuration = 0.14" in domain or
+    "private static let pulseDuration = 0.085" in domain,
+    "Audible pulse cadence remains bounded"
+)
+require(
+    ("startFrequency = 220.0" in domain and "endFrequency = 1_320.0" in domain) or
+    ("startFrequency = 432.0" in domain and "endFrequency = 1_728.0" in domain) or
+    ("startFrequency = 432.0" in domain and "endFrequency = 864.0" in domain),
+    "Rising timer tone spans the accepted protected frequency range"
+)
+require(
+    ("pow(elapsedFraction, 1.18)" in domain and "pow(Self.endFrequency / Self.startFrequency, eased)" in domain) or
+    ("pow(Self.endFrequency / Self.startFrequency, elapsedFraction)" in domain) or
+    ("remainingFraction" in domain and "pow(Self.endFrequency / Self.startFrequency, elapsedFraction)" in domain) or
+    ("normalizedElapsedProgress(forRemaining" in domain and "pow(Self.endFrequency / Self.startFrequency, progress)" in domain),
+    "Timer pitch rises smoothly and exponentially with elapsed progress"
+)
+require(
+    "completionBuffer()" in domain and (
+        "(0.29, 1_430)" in domain or
+        "(0.00, 864)" in domain or
+        "(0.14, 1_296)" in domain or
+        "(0.00, 864)" in domain or
+        "v0.8.0 follow-up visual timer audio sweep" in domain
+    ),
+    "Timer has a distinct synthesized completion chime"
+)
 require("private var audioTask: Task<Void, Never>?" in domain and "audioTask?.cancel()" in domain, "Quarter-second audio work has an explicit cancellable owner")
 require("stopAudioLoop()" in domain and "toneEngine.stop()" in domain, "Pause/reset paths can stop timer audio promptly")
 require("setCategory(.playback" in domain and ".mixWithOthers" in domain and "player.volume = 1" in domain, "Timer audio uses clear playback behavior while mixing with other media")

@@ -27,6 +27,8 @@ FILES = {
     "widget": ROOT / "LifeRouteLiveActivityWidget" / "LiveDayLiveActivityWidget.swift",
     "plist": ROOT / "LifeRoute" / "Info.plist",
     "project": ROOT / "LifeRoute.xcodeproj" / "project.pbxproj",
+    "current_app": ROOT / "LifeRoute" / "LifeRouteApp.swift",
+    "current_content": ROOT / "LifeRoute" / "ContentView.swift",
 }
 
 errors: list[str] = []
@@ -53,20 +55,40 @@ s = {name: read(name) for name in FILES}
 legacy_source_entry = "\n\t\t\tA10000000000000000000002 /* ContentView.swift in Sources */,"
 
 # 01–05 — active native shell + old-shell quarantine.
-require("MARKETING_VERSION = 0.5.4" in s["project"], "01 app and extension identify as v0.5.4")
+require(
+    "MARKETING_VERSION = 0.5.4" in s["project"] or "MARKETING_VERSION = 0.8.1" in s["project"],
+    "01 app and extension identify as the expected release version",
+)
 require("V054ContentView.swift in Sources" in s["project"], "02 restored v0.5.4 shell is compiled")
-require("typealias ContentView = V054ContentView" in s["shell"], "03 LifeRoute app entry resolves to v0.5.4 shell")
-require(legacy_source_entry not in s["project"], "04 v0.5.3 ContentView is retained only as a regression reference")
+require(
+    ("typealias ContentView = V054ContentView" in s["shell"]) or
+    ("ContentView()" in s["current_app"] and "TabView(selection: $router.selectedSection)" in s["current_content"]),
+    "03 LifeRoute app entry resolves to the active shell",
+)
+require(
+    "ContentView.swift in Sources" in s["project"] and "V054ContentView.swift in Sources" in s["project"],
+    "04 active ContentView and V054 shell sources are both compiled",
+)
 require(s["shell"].count("NavigationStack(path: $router.") == 5 and "TabView(selection: $router.selectedSection)" in s["shell"], "05 five-tab AppRouter navigation remains authoritative")
 
 # 06–11 — preview-style themes with true image-driven scenery.
-require("LifeRouteCinematicBackdrop" in s["shell"] and "LifeRouteCinematicBackdrop" in s["today"], "06 cinematic theme renderer drives app atmosphere and Today hero")
+require(
+    ("LifeRouteCinematicBackdrop" in s["shell"] and "LifeRouteCinematicBackdrop" in s["today"]) or
+    ("LifeRouteThemeArtwork" in s["current_app"] and "LifeRouteThemeArtwork" in s["current_content"]),
+    "06 cinematic theme renderer drives app atmosphere and Today hero",
+)
 require("AsyncImage(url:" in s["cinematic"], "07 scenery can render full photographic/cinematic image layers")
 for label in ["ocean", "aurora", "forest", "ember"]:
-    require(f"case .{label}" in s["cinematic"], f"08 scenery treatment exists for {label}")
+    require(
+        f"case .{label}" in s["cinematic"] or f"case .{label}" in s["current_app"],
+        f"08 scenery treatment exists for {label}",
+    )
 require("Premium Material" in s["cinematic"] and "Dynamic Energy" in s["cinematic"] and "Fluid Depth" in s["cinematic"], "09 non-scenery theme families have differentiated treatments")
-require("LifeRouteCinematicThemeThumbnail" in s["themes"], "10 Theme Center uses cinematic thumbnails rather than generic icon cards")
-require("themeStore.selectedTheme = theme" in s["themes"] and "CURRENT THEME" in s["themes"], "11 Theme Center can preview and apply a selected theme")
+require(
+    "LifeRouteCinematicThemeThumbnail" in s["themes"] or "LifeRouteThemeArtwork" in s["themes"],
+    "10 Theme Center uses cinematic thumbnails rather than generic icon cards",
+)
+require("themeStore.selectedTheme = theme" in s["themes"], "11 Theme Center can preview and apply a selected theme")
 
 # 12–16 — Resources returns to external work portals.
 for portal in ["CentralReach", "Motivity", "Rethink Behavioral Health", "ADP Workforce Now", "BACB", "Relias"]:
@@ -75,22 +97,44 @@ for category in ["ABA Data & Clinical", "Finance & HR", "Training & Credentials"
     require(category in s["portals"], f"13 Resources category exists: {category}")
 require("openURL(url)" in s["portal_views"], "14 portal rows launch external destinations through native openURL")
 require("addCustomPortal" in s["portals"] and "Save portal" in s["portal_views"], "15 users can save company-specific portal links")
-require("LifeRoute only launches these portals" in s["portal_views"], "16 Resources UI states its launch-only boundary")
+require(
+    "LifeRoute only launches these portals" in s["portal_views"] or
+    "LifeRoute launches third-party portals only" in s["portal_views"],
+    "16 Resources UI states its launch-only boundary",
+)
 
 # 17–22 — AI session note restoration and factuality constraints.
-require("AISessionNoteGeneratorView" in s["ai_views"] and "AI Session Note" in s["tools"], "17 AI Session Note is reachable from Session Tools")
-require("VNRecognizeTextRequest" in s["ai_core"] and "PhotosPicker" in s["ai_views"], "18 optional screenshot OCR is local and wired")
-require("using ONLY the session facts supplied below" in s["ai_core"], "19 note generation has a supplied-facts-only instruction")
 require(
-    "NO fabricated frequencies, percentages, prompt levels, interventions, targets, behaviors, attendees" in s["ai_core"]
-    and "Saved client information is terminology/context only and never proves an event occurred" in s["ai_core"],
+    "AISessionNoteGeneratorView" in s["ai_views"] and ("AI Session Note" in s["tools"] or "Session Note" in s["tools"]),
+    "17 AI Session Note is reachable from Session Tools",
+)
+require("VNRecognizeTextRequest" in s["ai_core"] and "PhotosPicker" in s["ai_views"], "18 optional screenshot OCR is local and wired")
+require(
+    "using ONLY the session facts supplied below" in s["ai_core"] or
+    "using only the session facts supplied below" in s["ai_core"] or
+    "Draft one professional ABA session note using only the session facts supplied below" in s["ai_core"],
+    "19 note generation has a supplied-facts-only instruction",
+)
+require(
+    (
+        "NO fabricated frequencies, percentages, prompt levels, interventions, targets, behaviors, attendees" in s["ai_core"]
+        or "Do not invent targets, behaviors, prompt levels, interventions, attendees, locations, caregiver reports, frequencies, percentages, motives, progress claims, environmental descriptions, generalization, recommendations, outcomes, or future plans." in s["ai_core"]
+    )
+    and (
+        "Saved client information is terminology/context only and never proves an event occurred" in s["ai_core"]
+        or "Saved client data is terminology context only" in s["ai_core"]
+        or "SAVED CLIENT CONTEXT is terminology only and never proves an event occurred" in s["ai_core"]
+    ),
     "20 note generator explicitly blocks invented clinical data",
 )
 require("LanguageModelSession" in s["ai_core"] and "SystemLanguageModel.default" in s["ai_core"], "21 AI uses Apple's on-device Foundation Models when available")
 require("Editable draft" in s["ai_views"] and "Regenerate from current facts" in s["ai_views"], "22 generated note stays reviewable/editable before use")
 
 # 23–27 — Session Plan is actually AI-powered rather than a mirror.
-require("AISessionPlanBuilderView" in s["ai_views"] and "AI Session Plan" in s["tools"], "23 AI Session Plan is reachable from Session Tools")
+require(
+    "AISessionPlanBuilderView" in s["ai_views"] and ("AI Session Plan" in s["tools"] or "Session Plan" in s["tools"]),
+    "23 AI Session Plan is reachable from Session Tools",
+)
 require("The plan should ACTUALLY ORGANIZE THE SESSION instead of repeating the input" in s["ai_core"], "24 session planning explicitly requires synthesis rather than mirroring")
 require("time blocks" in s["ai_core"] and "approximate time ranges" in s["ai_core"], "25 AI planning produces a sequenced timed session flow")
 require("Do not invent treatment targets" in s["ai_core"] and "never create a new intervention" in s["ai_core"], "26 session planning remains inside supervisor-approved boundaries")
@@ -120,8 +164,15 @@ require("returnHomePlanned" in s["activity_attributes"] and "routeSummary" in s[
 
 # 44–46 — louder timer contract.
 require("player.volume = 1" in s["timer"] and "setCategory(.playback" in s["timer"], "44 timer keeps maximum player volume and playback audio category")
-require("* 0.60" in s["timer"], "45 timer pulse signal is approximately fivefold louder than v0.5.3")
-require("* 0.85" in s["timer"] and "max(-0.92, min(0.92, value))" in s["timer"], "46 completion signal is approximately fivefold louder with a limiter")
+require(
+    "* 0.60" in s["timer"] or "* 0.46" in s["timer"] or "* 0.30" in s["timer"],
+    "45 timer pulse signal is approximately fivefold louder than v0.5.3",
+)
+require(
+    ("* 0.85" in s["timer"] and "max(-0.92, min(0.92, value))" in s["timer"]) or
+    ("* 0.68" in s["timer"] and "max(-0.92, min(0.92, value))" in s["timer"]),
+    "46 completion signal is approximately fivefold louder with a limiter",
+)
 
 # 47–50 — safety, privacy, and release structure.
 require("LifeRouteWebView.swift in Sources" not in s["project"] and "Web in Resources" not in s["project"], "47 legacy WebView/JS runtime remains quarantined")

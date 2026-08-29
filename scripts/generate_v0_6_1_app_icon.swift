@@ -33,7 +33,8 @@ let full = NSRect(origin: .zero, size: size)
 navyTop.setFill()
 NSBezierPath(rect: full).fill()
 
-let outer = NSBezierPath(roundedRect: full.insetBy(dx: 20, dy: 20), xRadius: 118, yRadius: 118)
+// v0.6.2 safe-area refinement: keep the complete mark comfortably inside iOS's final icon mask.
+let outer = NSBezierPath(roundedRect: full.insetBy(dx: 58, dy: 58), xRadius: 164, yRadius: 164)
 ctx.saveGState()
 outer.addClip()
 let bgGradient = NSGradient(colors: [navyTop, navyBottom])!
@@ -63,11 +64,11 @@ for i in 0..<9 {
 ctx.restoreGState()
 
 // Premium beveled gold inner rim.
-let border = NSBezierPath(roundedRect: full.insetBy(dx: 34, dy: 34), xRadius: 104, yRadius: 104)
-border.lineWidth = 24
+let border = NSBezierPath(roundedRect: full.insetBy(dx: 72, dy: 72), xRadius: 150, yRadius: 150)
+border.lineWidth = 20
 gold.setStroke()
 border.stroke()
-let innerBorder = NSBezierPath(roundedRect: full.insetBy(dx: 48, dy: 48), xRadius: 92, yRadius: 92)
+let innerBorder = NSBezierPath(roundedRect: full.insetBy(dx: 86, dy: 86), xRadius: 138, yRadius: 138)
 innerBorder.lineWidth = 4
 goldLight.setStroke()
 innerBorder.stroke()
@@ -79,7 +80,7 @@ func drawLetter(_ string: String, rect: NSRect) {
     shadow.shadowColor = NSColor.black.withAlphaComponent(0.65)
     shadow.shadowBlurRadius = 18
     shadow.shadowOffset = NSSize(width: 0, height: -10)
-    let font = NSFont(name: "Times New Roman Bold", size: 500) ?? NSFont.systemFont(ofSize: 500, weight: .black)
+    let font = NSFont(name: "Times New Roman Bold", size: 450) ?? NSFont.systemFont(ofSize: 450, weight: .black)
     let attrs: [NSAttributedString.Key: Any] = [
         .font: font,
         .foregroundColor: goldLight,
@@ -91,8 +92,8 @@ func drawLetter(_ string: String, rect: NSRect) {
     NSAttributedString(string: string, attributes: attrs).draw(in: rect)
 }
 
-drawLetter("L", rect: NSRect(x: 105, y: 220, width: 370, height: 610))
-drawLetter("R", rect: NSRect(x: 520, y: 205, width: 410, height: 610))
+drawLetter("L", rect: NSRect(x: 130, y: 236, width: 350, height: 560))
+drawLetter("R", rect: NSRect(x: 512, y: 228, width: 372, height: 560))
 
 // Location navigation pin between L and R.
 let pin = NSBezierPath()
@@ -113,7 +114,7 @@ road.move(to: NSPoint(x: 510, y: 615))
 road.curve(to: NSPoint(x: 620, y: 500), controlPoint1: NSPoint(x: 575, y: 586), controlPoint2: NSPoint(x: 653, y: 570))
 road.curve(to: NSPoint(x: 392, y: 340), controlPoint1: NSPoint(x: 572, y: 420), controlPoint2: NSPoint(x: 422, y: 444))
 road.curve(to: NSPoint(x: 265, y: 72), controlPoint1: NSPoint(x: 350, y: 220), controlPoint2: NSPoint(x: 294, y: 150))
-road.lineWidth = 48
+road.lineWidth = 42
 road.lineCapStyle = .round
 road.lineJoinStyle = .round
 gold.setStroke(); road.stroke()

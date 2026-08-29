@@ -18,7 +18,6 @@ struct ContentView: View {
                         RouteDetailView(route: route, router: router)
                     }
             }
-            .tabItem { Label(AppSection.today.title, systemImage: AppSection.today.systemImage) }
             .tag(AppSection.today)
 
             NavigationStack(path: $router.schedulePath) {
@@ -27,7 +26,6 @@ struct ContentView: View {
                         RouteDetailView(route: route, router: router)
                     }
             }
-            .tabItem { Label(AppSection.schedule.title, systemImage: AppSection.schedule.systemImage) }
             .tag(AppSection.schedule)
 
             NavigationStack(path: $router.toolsPath) {
@@ -36,7 +34,6 @@ struct ContentView: View {
                         RouteDetailView(route: route, router: router)
                     }
             }
-            .tabItem { Label(AppSection.tools.title, systemImage: AppSection.tools.systemImage) }
             .tag(AppSection.tools)
 
             NavigationStack(path: $router.resourcesPath) {
@@ -45,7 +42,6 @@ struct ContentView: View {
                         RouteDetailView(route: route, router: router)
                     }
             }
-            .tabItem { Label(AppSection.resources.title, systemImage: AppSection.resources.systemImage) }
             .tag(AppSection.resources)
 
             NavigationStack(path: $router.setupPath) {
@@ -54,8 +50,18 @@ struct ContentView: View {
                         RouteDetailView(route: route, router: router)
                     }
             }
-            .tabItem { Label(AppSection.setup.title, systemImage: AppSection.setup.systemImage) }
             .tag(AppSection.setup)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .toolbar(.hidden, for: .tabBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if router.shouldShowBottomToolbar {
+                LifeRouteBottomToolbar(selectedSection: $router.selectedSection)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
+                    .padding(.bottom, 10)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .onChange(of: scenePhase) { phase in
             if phase == .active {
@@ -68,6 +74,70 @@ struct ContentView: View {
                 routingState.cancelPendingOperations()
             }
         }
+    }
+}
+
+private struct LifeRouteBottomToolbar: View {
+    @Binding var selectedSection: AppSection
+
+    private let railTop = Color(red: 0.03, green: 0.07, blue: 0.12)
+    private let railBottom = Color(red: 0.02, green: 0.04, blue: 0.07)
+    private let selectedNavy = Color(red: 0.07, green: 0.13, blue: 0.23)
+    private let gold = Color(red: 0.90, green: 0.73, blue: 0.33)
+    private let goldSoft = Color(red: 0.98, green: 0.86, blue: 0.55)
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(AppSection.allCases) { section in
+                Button {
+                    guard selectedSection != section else { return }
+                    selectedSection = section
+                    LifeRouteHaptics.selection()
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: section.systemImage)
+                            .font(.system(size: 16, weight: .bold))
+                        Text(section.title)
+                            .font(.caption2.weight(.bold))
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 50)
+                    .foregroundStyle(selectedSection == section ? goldSoft : Color.white.opacity(0.80))
+                    .background {
+                        if selectedSection == section {
+                            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                .fill(selectedNavy)
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                        .stroke(gold.opacity(0.70), lineWidth: 1)
+                                }
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(section.title)
+                .accessibilityHint("Switch to the \(section.title) section")
+                .accessibilityAddTraits(selectedSection == section ? .isSelected : [])
+            }
+        }
+        .padding(8)
+        .background {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [railTop, railBottom],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(gold.opacity(0.72), lineWidth: 1)
+                }
+        }
+        .shadow(color: Color.black.opacity(0.22), radius: 20, x: 0, y: 10)
+        .accessibilityElement(children: .contain)
     }
 }
 

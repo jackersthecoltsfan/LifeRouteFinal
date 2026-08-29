@@ -20,6 +20,13 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
+def replace_first_existing(text: str, olds: list[str], new: str, label: str) -> str:
+    matches = [old for old in olds if text.count(old) == 1]
+    if len(matches) != 1:
+        raise SystemExit(f"v0.6.3 patch failed: {label} expected once, found {len(matches)}")
+    return text.replace(matches[0], new, 1)
+
+
 def sub_once(text: str, pattern: str, replacement: str, label: str, flags: int = re.S) -> str:
     text, count = re.subn(pattern, replacement, text, count=1, flags=flags)
     if count != 1:
@@ -186,15 +193,21 @@ def patch_theme_center() -> None:
     if desired in text:
         return
 
-    text = replace_once(
+    text = replace_first_existing(
         text,
-        "[.royal, .obsidian, .carbon, .midnight, .navyNoir, .titanium, .slate, .moltenGold, .phantomSilver]",
+        [
+            "[.royal, .obsidian, .carbon, .midnight, .navyNoir, .titanium, .slate, .moltenGold, .phantomSilver]",
+            "return LifeRouteTheme.phaseOneCoreGlassCatalog",
+        ],
         desired,
         "ordered v0.6.3 Core theme catalog",
     )
-    text = replace_once(
+    text = replace_first_existing(
         text,
-        "Core combines the original LifeRoute and metallic color systems. Dynamic themes use animated shimmering light waves across every screen. Scenery contains six persistent cinematic environments: Mountain, Ocean, Space, Desert, Forest, and Sunshine.",
+        [
+            "Core combines the original LifeRoute and metallic color systems. Dynamic themes use animated shimmering light waves across every screen. Scenery contains six persistent cinematic environments: Mountain, Ocean, Space, Desert, Forest, and Sunshine.",
+            "12 still app-wide glass environments with no continuous ambient motion.",
+        ],
         "Core contains ten polished metallic color systems, ordered from LifeRoute’s signature Royal through expressive colorways and then minimal utility themes. Dynamic keeps animated shimmering light waves. Scenery keeps six cinematic environments whose imagery persists across every app page.",
         "v0.6.3 Theme Center description",
     )
@@ -204,7 +217,7 @@ def patch_theme_center() -> None:
 def patch_cinematic_backdrop() -> None:
     path = "LifeRoute/CinematicThemeViews.swift"
     text = read(path)
-    if "v0.6.3 polished Core treatment" in text:
+    if "v0.6.3 polished Core treatment" in text or "v0.6.3 Core color-scheme-only cleanup" in text:
         return
 
     text = replace_once(text, 'case .core: return "Premium Dark"', 'case .core: return "Polished Metallic"', "Core treatment label")
@@ -290,6 +303,9 @@ def patch_shell_transparency() -> None:
     path = "LifeRoute/V054ContentView.swift"
     text = read(path)
     if ".background(Color.clear) // v0.6.3 keep cinematic scenery visible" in text:
+        return
+    current_content = read("LifeRoute/ContentView.swift")
+    if "TabView(selection: $router.selectedSection)" in current_content and ".toolbar(.hidden, for: .tabBar)" in current_content:
         return
 
     text = replace_once(

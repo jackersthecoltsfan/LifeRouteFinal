@@ -20,20 +20,57 @@ struct V054SetupView: View {
     @State private var gapSuggestion = true
     @State private var message: String?
 
+    @State private var todoTitle = ""
+    @State private var todoCategory: LifeRouteTodoCategory = .errand
+    @State private var todoDurationMinutes = 30
+    @State private var todoSavedPlaceID = ""
+    @State private var todoAddress = ""
+    @State private var todoPriority: LifeRouteTodoPriority = .normal
+    @State private var todoDueDate = Calendar.current.date(byAdding: .day, value: 7, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+    @State private var todoNotes = ""
+    @State private var todoMessage: String?
+
     var body: some View {
+        // v0.7.0 Build E Setup Control Center: grouped presentation over existing native owners.
         ScrollView {
-            LazyVStack(spacing: 16) {
+            LazyVStack(spacing: 12) {
                 hero
+
+                LifeRouteSectionLabel(title: "Profile / Work Identity")
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 rbtProfileCard
+
+                LifeRouteSectionLabel(title: "Navigation & Places")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 2)
                 navigationAppCard
-                themeCard
-                clientCard
                 homeCard
                 savedPlacesCard
                 addPlaceCard
+
+                LifeRouteSectionLabel(title: "Weekly To-Dos")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 2)
+                weeklyTodosCard
+                addTodoCard
+
+                LifeRouteSectionLabel(title: "Clinical")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 2)
+                clientCard
+
+                LifeRouteSectionLabel(title: "Appearance")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 2)
+                themeCard
+
+                LifeRouteSectionLabel(title: "Privacy")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 2)
                 privacyCard
             }
-            .padding(18)
+            .padding(.horizontal, LifeRouteDesign.Layout.pageHorizontal)
+            .padding(.top, 10)
             .padding(.bottom, 30)
         }
         .navigationTitle("Setup")
@@ -44,37 +81,38 @@ struct V054SetupView: View {
     }
 
     private var hero: some View {
-        ZStack(alignment: .bottomLeading) {
-            LifeRouteCinematicBackdrop(
-                theme: themeStore.selectedTheme,
-                palette: themeStore.selectedTheme.palette
-            )
-            LinearGradient(
-                colors: [.clear, Color.black.opacity(0.82)],
-                startPoint: .center,
-                endPoint: .bottom
-            )
+        HStack(spacing: 12) {
+            // v0.7.0 official branding Setup header.
+            LifeRouteBrandMark(variant: .small)
+                .frame(width: 48, height: 48)
+                .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 7) {
-                Text("SETUP")
-                    .font(.caption2.weight(.black))
-                    .tracking(1.5)
-                    .foregroundStyle(.white.opacity(0.70))
-                Spacer(minLength: 92)
-                Text("Make LifeRoute yours.")
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Setup")
                     .font(.system(size: 29, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                Text("Your RBT profile, navigation app, appearance, clients, home base, and saved places — all in one place.")
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(palette.textPrimary)
+                Text("Your LifeRoute control center.")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(palette.textSecondary)
             }
-            .padding(19)
+
+            Spacer(minLength: 8)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("\(routingState.savedPlaces.count)")
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(palette.accent)
+                Text("PLACES")
+                    .font(.caption2.weight(.black))
+                    .tracking(0.6)
+                    .foregroundStyle(palette.textSecondary)
+            }
         }
-        .frame(height: 220)
-        .clipShape(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous))
+        .padding(13)
+        .background(palette.panel.opacity(0.62), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
-                .stroke(palette.accent.opacity(0.34), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(palette.accent.opacity(0.18), lineWidth: 1)
         }
     }
 
@@ -104,7 +142,7 @@ struct V054SetupView: View {
                     .foregroundStyle(palette.accent)
             }
 
-            Text("Keep your own work identity separate from client profiles. These fields stay on this iPhone and can be used by future LifeRoute personalization features.")
+            Text("Your work identity stays separate from client profiles and is stored locally.")
                 .font(.caption)
                 .foregroundStyle(palette.textSecondary)
 
@@ -131,7 +169,7 @@ struct V054SetupView: View {
                     .foregroundStyle(palette.accent)
             }
 
-            Text("Choose which app LifeRoute should use when you open a route. Route estimates still use Apple MapKit inside LifeRoute.")
+            Text("Choose the app used when you open a route. Estimates remain MapKit-powered inside LifeRoute.")
                 .font(.caption)
                 .foregroundStyle(palette.textSecondary)
 
@@ -171,26 +209,39 @@ struct V054SetupView: View {
             V054ThemeCenterView()
         } label: {
             HStack(spacing: 12) {
-                LifeRouteCinematicThemeThumbnail(theme: themeStore.selectedTheme)
-                    .frame(width: 102, height: 82)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Themes")
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(themeStore.selectedTheme.palette.backgroundGradient)
+                    Circle()
+                        .fill(themeStore.selectedTheme.palette.accent)
+                        .frame(width: 18, height: 18)
+                    Circle()
+                        .stroke(themeStore.selectedTheme.palette.accentSecondary, lineWidth: 2)
+                        .frame(width: 28, height: 28)
+                }
+                .frame(width: 48, height: 48)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Theme Center")
                         .font(.headline)
                         .foregroundStyle(palette.textPrimary)
                     Text(themeStore.selectedTheme.name)
-                        .font(.subheadline.weight(.bold))
+                        .font(.caption.weight(.bold))
                         .foregroundStyle(palette.accentSecondary)
-                    Text("Cinematic scenery + premium materials")
+                    Text("Color and material system")
                         .font(.caption2)
                         .foregroundStyle(palette.textSecondary)
                 }
+
                 Spacer()
                 Image(systemName: "chevron.right")
+                    .font(.caption.weight(.black))
                     .foregroundStyle(palette.textSecondary)
             }
+            .padding(12)
+            .background(palette.panel.opacity(0.56), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
-        .lifeRouteCard()
     }
 
     private var clientCard: some View {
@@ -229,7 +280,7 @@ struct V054SetupView: View {
             Label("Home base", systemImage: "house.fill")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(palette.textPrimary)
-            Text("Home is the routing fallback when live current location is unavailable, and it powers Return Home planning.")
+            Text("Routing fallback when live location is unavailable; also powers Return Home.")
                 .font(.caption)
                 .foregroundStyle(palette.textSecondary)
 
@@ -315,6 +366,189 @@ struct V054SetupView: View {
         .lifeRouteCard()
     }
 
+    private var weeklyTodosCard: some View {
+        let openTodos = routingState.todos.filter { !$0.completed }
+        let completedTodos = routingState.todos.filter(\.completed).prefix(3)
+
+        return VStack(alignment: .leading, spacing: 11) {
+            HStack {
+                Label("Weekly To-Dos", systemImage: "checklist")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(palette.textPrimary)
+                Spacer()
+                Text("\(openTodos.count) open")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(palette.accent)
+            }
+
+            Text("Flexible errands and tasks LifeRoute can fit around the rest of your week.")
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
+
+            if openTodos.isEmpty {
+                Text("No open to-dos. Add an errand, shopping trip, pickup, chore, call, or other flexible task below.")
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+            } else {
+                ForEach(openTodos) { todo in
+                    HStack(alignment: .top, spacing: 11) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                .fill(palette.accent.opacity(0.13))
+                            Image(systemName: todo.category.systemImage)
+                                .foregroundStyle(palette.accent)
+                        }
+                        .frame(width: 42, height: 42)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(todo.title)
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(palette.textPrimary)
+                            Text("\(todo.category.rawValue) · \(todo.durationMinutes) min · due \(todo.dueDate.formatted(date: .abbreviated, time: .omitted))")
+                                .font(.caption2)
+                                .foregroundStyle(palette.textSecondary)
+                            if !todo.address.isEmpty {
+                                Label(todo.address, systemImage: "mappin.and.ellipse")
+                                    .font(.caption2)
+                                    .foregroundStyle(palette.textSecondary)
+                                    .lineLimit(1)
+                            }
+                            if todo.priority == .high {
+                                Text("HIGH PRIORITY")
+                                    .font(.caption2.weight(.black))
+                                    .tracking(0.6)
+                                    .foregroundStyle(palette.accentSecondary)
+                            }
+                        }
+
+                        Spacer(minLength: 6)
+
+                        VStack(spacing: 9) {
+                            Button {
+                                routingState.setTodoCompleted(id: todo.id, completed: true)
+                                LifeRouteHaptics.success()
+                            } label: {
+                                Image(systemName: "checkmark.circle.fill")
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(palette.accentSecondary)
+                            .accessibilityLabel("Complete \(todo.title)")
+
+                            Button(role: .destructive) {
+                                routingState.removeTodo(id: todo.id)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Delete \(todo.title)")
+                        }
+                    }
+                    .padding(10)
+                    .background(palette.panelElevated.opacity(0.27), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            }
+
+            if !completedTodos.isEmpty {
+                Divider().overlay(palette.textSecondary.opacity(0.18))
+                Text("RECENTLY COMPLETED")
+                    .font(.caption2.weight(.black))
+                    .tracking(1)
+                    .foregroundStyle(palette.textSecondary)
+
+                ForEach(Array(completedTodos)) { todo in
+                    HStack(spacing: 9) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(palette.accentSecondary)
+                        Text(todo.title)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(palette.textSecondary)
+                            .strikethrough()
+                        Spacer()
+                        Button("Undo") {
+                            routingState.setTodoCompleted(id: todo.id, completed: false)
+                            LifeRouteHaptics.selection()
+                        }
+                        .font(.caption.weight(.bold))
+                    }
+                }
+            }
+        }
+        .lifeRouteCard()
+    }
+
+    private var addTodoCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Add to-do", systemImage: "plus.circle.fill")
+                .font(.title3.weight(.bold))
+                .foregroundStyle(palette.textPrimary)
+
+            TextField("What needs to get done?", text: $todoTitle)
+                .padding(12)
+                .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            Picker("Category", selection: $todoCategory) {
+                ForEach(LifeRouteTodoCategory.allCases) { category in
+                    Label(category.rawValue, systemImage: category.systemImage).tag(category)
+                }
+            }
+            .pickerStyle(.menu)
+
+            Picker("Estimated task time", selection: $todoDurationMinutes) {
+                Text("10 min").tag(10)
+                Text("15 min").tag(15)
+                Text("20 min").tag(20)
+                Text("30 min").tag(30)
+                Text("45 min").tag(45)
+                Text("1 hour").tag(60)
+                Text("1.5 hours").tag(90)
+            }
+            .pickerStyle(.menu)
+
+            Picker("Saved place (optional)", selection: $todoSavedPlaceID) {
+                Text("No saved place").tag("")
+                ForEach(routingState.savedPlaces) { place in
+                    Text(place.name).tag(place.id.uuidString)
+                }
+            }
+            .pickerStyle(.menu)
+            .onChange(of: todoSavedPlaceID) { value in
+                guard let id = UUID(uuidString: value),
+                      let place = routingState.savedPlaces.first(where: { $0.id == id }) else { return }
+                todoAddress = place.address
+            }
+
+            V054AddressField("Location / store (optional)", text: $todoAddress, mode: .todoDestination)
+
+            Picker("Priority", selection: $todoPriority) {
+                ForEach(LifeRouteTodoPriority.allCases) { priority in
+                    Text(priority.title).tag(priority)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            DatePicker("Do by", selection: $todoDueDate, displayedComponents: .date)
+
+            TextField("Notes (optional)", text: $todoNotes, axis: .vertical)
+                .lineLimit(2...4)
+                .padding(12)
+                .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            Button {
+                addTodo()
+            } label: {
+                Label("Add to-do", systemImage: "checkmark.circle.fill")
+            }
+            .buttonStyle(LifeRoutePrimaryButtonStyle())
+
+            if let todoMessage {
+                Text(todoMessage)
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+            }
+        }
+        .lifeRouteCard()
+    }
+
     private var addPlaceCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Add place", systemImage: "mappin.and.ellipse")
@@ -355,7 +589,7 @@ struct V054SetupView: View {
             Label("Local-first setup", systemImage: "lock.shield.fill")
                 .font(.headline)
                 .foregroundStyle(palette.textPrimary)
-            Text("RBT profile preferences, home, saved places, client profiles, and visual supports are stored locally in LifeRoute app data. Current GPS coordinates and route estimates are not persisted.")
+            Text("RBT profile preferences, home, saved places, weekly to-dos, client profiles, and visual supports are stored locally in LifeRoute app data. Current GPS coordinates and route estimates are not persisted.")
                 .font(.caption)
                 .foregroundStyle(palette.textSecondary)
         }
@@ -380,6 +614,33 @@ struct V054SetupView: View {
             .textInputAutocapitalization(.words)
             .padding(12)
             .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func addTodo() {
+        do {
+            try routingState.addTodo(
+                title: todoTitle,
+                category: todoCategory,
+                durationMinutes: todoDurationMinutes,
+                savedPlaceID: UUID(uuidString: todoSavedPlaceID),
+                address: todoAddress,
+                priority: todoPriority,
+                dueDate: todoDueDate,
+                notes: todoNotes
+            )
+            todoTitle = ""
+            todoCategory = .errand
+            todoDurationMinutes = 30
+            todoSavedPlaceID = ""
+            todoAddress = ""
+            todoPriority = .normal
+            todoDueDate = Calendar.current.date(byAdding: .day, value: 7, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+            todoNotes = ""
+            todoMessage = "To-do added for this week."
+            LifeRouteHaptics.success()
+        } catch {
+            todoMessage = error.localizedDescription
+        }
     }
 
     private func addPlace() {

@@ -144,16 +144,20 @@ def patch_toolbar() -> None:
         text,
         "            .tint(themeStore.palette.accent)\n",
         '''            .tint(themeStore.palette.accent)
-            // v0.7.1 custom LifeRoute bottom toolbar: keep TabView/router ownership, replace only presentation.
+            // v0.8.1 paged root navigation: keep TabView/router ownership, replace only presentation.
+            .tabViewStyle(.page(indexDisplayMode: .never))
             .toolbar(.hidden, for: .tabBar)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                LifeRouteBottomToolbar(
-                    selection: $router.selectedSection,
-                    palette: themeStore.palette
-                )
-                .padding(.horizontal, 10)
-                .padding(.top, 6)
-                .padding(.bottom, 4)
+                if router.shouldShowBottomToolbar {
+                    LifeRouteBottomToolbar(
+                        selection: $router.selectedSection,
+                        palette: themeStore.palette
+                    )
+                    .padding(.horizontal, 10)
+                    .padding(.top, 6)
+                    .padding(.bottom, 4)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
 ''',
         "custom toolbar host",

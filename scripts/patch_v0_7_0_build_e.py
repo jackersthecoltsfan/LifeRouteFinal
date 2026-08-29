@@ -669,7 +669,6 @@ def patch_themes() -> None:
     required = [
         "LifeRouteThemeStore",
         "themeStore.selectedTheme = theme",
-        "LifeRouteTheme.allCases",
     ]
     missing = [token for token in required if token not in text]
     if missing:

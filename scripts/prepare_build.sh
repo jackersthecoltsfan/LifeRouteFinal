@@ -333,3 +333,50 @@ python3 scripts/audit_v0_5_0_performance_architecture.py
 python3 scripts/audit_v0_5_0_stability_architecture.py
 
 echo "LifeRoute v0.8.0 session-note runtime preparation passed: every generation resolves to a visible success, unavailable, failed, timed-out, or cancelled state; session facts, screenshot input, and prior drafts survive failures; the Master ABA repair pass is visible and bounded; and the complete inherited clinical/theme/stability contracts remain locked."
+
+# v0.8.0 post-Build #104 targeted refinement pass. Keep each feature as a separate cumulative
+# materialization layer so the shipped runtime remains the auditable base and generated Swift is
+# never edited by hand. The follow-up audits own the intentionally superseded screenshot, timer,
+# visual-generator entry, and scenery-detail contracts.
+python3 -m py_compile \
+  scripts/patch_v0_8_0_session_note_followup.py \
+  scripts/audit_v0_8_0_session_note_followup.py \
+  scripts/patch_v0_8_0_visual_generator_followup.py \
+  scripts/audit_v0_8_0_visual_generator_followup.py \
+  scripts/patch_v0_8_0_scenery_motion_followup.py \
+  scripts/audit_v0_8_0_scenery_motion_followup.py \
+  scripts/patch_v0_8_0_visual_timer_audio_followup.py \
+  scripts/audit_v0_8_0_visual_timer_audio_followup.py
+
+# Clinical-note refinement: RBT-only narrative language, stronger grounded clinical synthesis,
+# ordered multi-screenshot OCR, and measurement-type-aware evidence handling.
+python3 scripts/patch_v0_8_0_session_note_followup.py
+python3 scripts/audit_v0_8_0_session_note_followup.py
+
+# Visual-support refinement: expose the existing illustrated workflow from the primary dashboard,
+# clarify reference-versus-generated review, and retain the protected library persistence path.
+python3 scripts/patch_v0_8_0_visual_generator_followup.py
+python3 scripts/audit_v0_8_0_visual_generator_followup.py
+
+# Scenery refinement: add only bounded, deterministic Rainforest leaves and Arctic snow to the
+# existing single root clock; no new timers, random state, or independent animation ownership.
+python3 scripts/patch_v0_8_0_scenery_motion_followup.py
+python3 scripts/audit_v0_8_0_scenery_motion_followup.py
+
+# Visual-timer refinement: a gentle deterministic pulse maps normalized elapsed progress from
+# 432 to 864 Hz and from one to six ticks per second while preserving mute and timer controls.
+python3 scripts/patch_v0_8_0_visual_timer_audio_followup.py
+python3 scripts/audit_v0_8_0_visual_timer_audio_followup.py
+
+# Re-run only non-superseded broad contracts on the final tree. The earlier historical audits lock
+# their own checkpoints before the intentional follow-up replacements; the focused audits above
+# own the new behavior while these checks protect navigation, persistence, stability, and performance.
+python3 scripts/audit_v0_5_0_functional_shell.py
+python3 scripts/audit_v0_5_0_core_navigation.py
+python3 scripts/audit_v0_5_0_client_visual_supports.py
+python3 scripts/audit_v0_5_0_client_visual_persistence.py
+python3 scripts/audit_v0_5_0_performance_architecture.py
+python3 scripts/audit_v0_5_0_stability_architecture.py
+python3 scripts/audit_v0_5_0_second_functionality_pass.py
+
+echo "LifeRoute v0.8.0 post-Build #104 follow-up preparation passed: session notes use RBT-only grounded clinical prose with ordered multi-screenshot and typed-measurement evidence; the illustrated visual-support generator is visibly reachable and preserves library persistence; Rainforest and Arctic scenery gain bounded root-driven ambient detail; the Visual Timer advances gently from 432 to 864 Hz and one to six ticks per second; and retained navigation, visual-support, persistence, performance, and stability contracts remain locked."

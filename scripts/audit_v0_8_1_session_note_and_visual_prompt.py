@@ -21,7 +21,7 @@ check("v0.8.1 session-note repair marker", "v0.8.1 session-note repair" in SESSI
 check("sanitized repair result returned", "cleanedRepairedDraft" in SESSION_PATCH and "return cleanedRepairedDraft" in SESSION_PATCH)
 check("sanitizer keeps line cleanup", "headingPrefixes" in SESSION_PATCH and "replacingOccurrences(of: \"\\n{3,}\"" in SESSION_PATCH)
 check("multi-screenshot request remains bounded", "screenshotDataItems: [Data]" in SESSION_PATCH and "Array(imageDataItems.prefix(6))" in SESSION_PATCH)
-check("typed narrative still primary", "cleanNarrative" in SESSION_PATCH and "recognizedScreenshots.contains(where: { !$0.isEmpty })" in SESSION_PATCH)
+check("typed narrative still primary", "cleanNarrative" in CORE and "recognizedScreenshots.contains(where: { !$0.isEmpty })" in CORE)
 check("RBT identity remains normalized", 'replacingOccurrences(of: "Brandon Good", with: "the RBT"' in SESSION_PATCH)
 check("mixed measurement contract preserved", "INDEPENDENT/PROMPTED" in SESSION_PATCH and "DURATION" in SESSION_PATCH and "LATENCY" in SESSION_PATCH)
 check("session-note view keeps six-attachment state", "selectedPhotoItems: [PhotosPickerItem]" in VIEW and "screenshotAttachments: [SessionNoteScreenshotAttachment]" in VIEW and "maxSelectionCount: 6" in VIEW)

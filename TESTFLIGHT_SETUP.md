@@ -61,11 +61,11 @@ The same App Store Connect API key can generally be reused for routine LifeRoute
 ## App identifiers
 
 - Bundle ID: `Com.Brandongood.LifeRoute`
-- Live Activity bundle ID: `Com.Brandongood.LifeRoute.LiveActivity`
+- Live Activity bundle ID: `Com.Brandongood.LifeRoute.LiveDay`
 - Xcode project: `LifeRoute.xcodeproj`
 - Scheme: `LifeRoute`
 
-The GitHub TestFlight workflow run number becomes the TestFlight build number.
+The Xcode project owns synchronized app/extension marketing version `0.8.0` and one synchronized source development build number. The GitHub TestFlight workflow intentionally overrides the app and extension build number with its run number.
 
 ## Signing cleanup
 

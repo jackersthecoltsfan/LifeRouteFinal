@@ -7,178 +7,149 @@ import ImagePlayground
 #endif
 
 struct V054ToolsDashboard: View {
+    // v0.7.0 Build D Tools/ABA: clinical-first hierarchy with all existing tools preserved.
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject var router: AppRouter
     @ObservedObject var toolsState: SessionToolsCore
     @ObservedObject var clientState: ClientProfileCore
     @StateObject private var visualState = ClientVisualSupportCore()
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 10),
-        GridItem(.flexible(), spacing: 10)
-    ]
+    private var sessionColumns: [GridItem] {
+        if dynamicTypeSize.isAccessibilitySize {
+            return [GridItem(.flexible(), spacing: 10)]
+        }
+        return [
+            GridItem(.flexible(), spacing: 10),
+            GridItem(.flexible(), spacing: 10),
+        ]
+    }
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 17) {
-                hero
+            LazyVStack(spacing: 13) {
+                toolsHeader
+                readinessStrip
 
-                LazyVGrid(columns: columns, spacing: 10) {
+                LifeRouteSectionLabel(title: "Clinical")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                NavigationLink {
+                    AISessionNoteGeneratorView(clientState: clientState, toolsState: toolsState)
+                } label: {
+                    clinicalCard(
+                        title: "Session Note",
+                        subtitle: "Turn supplied session facts into a reviewable ABA draft.",
+                        systemImage: "sparkles.rectangle.stack.fill",
+                        eyebrow: "DOCUMENTATION"
+                    )
+                }
+                .buttonStyle(.plain)
+                .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
+
+                NavigationLink {
+                    AISessionPlanBuilderView(clientState: clientState)
+                } label: {
+                    clinicalCard(
+                        title: "Session Plan",
+                        subtitle: "Organize approved targets, reinforcers, and session time into a usable flow.",
+                        systemImage: "brain.head.profile",
+                        eyebrow: "PREP"
+                    )
+                }
+                .buttonStyle(.plain)
+                .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
+
+                LifeRouteSectionLabel(title: "In Session")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 2)
+
+                LazyVGrid(columns: sessionColumns, spacing: 10) {
                     NavigationLink {
                         VisualTimerView(timer: toolsState.timer)
                     } label: {
-                        toolCard("Visual Timer", "Reliable session timing", "timer", palette.accent)
+                        sessionToolCard("Visual Timer", "Reliable timing", "timer")
                     }
                     .buttonStyle(.plain)
-                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
-
-                    NavigationLink {
-                        ClientFirstThenVisualView(visualState: visualState, clientState: clientState)
-                    } label: {
-                        toolCard("First / Then", "Build a clear visual sequence", "arrow.right.circle.fill", palette.accentSecondary)
-                    }
-                    .buttonStyle(.plain)
-                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
-
-                    NavigationLink {
-                        VisualAIAssistedStudioView(visualState: visualState, clientState: clientState)
-                    } label: {
-                        toolCard("Visual Supports", "AI + manual icons and schedules", "photo.on.rectangle.angled", palette.accent)
-                    }
-                    .buttonStyle(.plain)
-                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
 
                     NavigationLink {
                         QuickSessionNotesView(toolsState: toolsState, clientState: clientState)
                     } label: {
-                        toolCard("Quick Notes", "Capture scratch notes fast", "note.text", palette.accentSecondary)
+                        sessionToolCard("Quick Notes", "Capture details fast", "note.text")
                     }
                     .buttonStyle(.plain)
-                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
 
                     NavigationLink {
-                        AISessionPlanBuilderView(clientState: clientState)
+                        ClientFirstThenVisualView(visualState: visualState, clientState: clientState)
                     } label: {
-                        toolCard("AI Session Plan", "Build a real session flow", "brain.head.profile.fill", palette.accentSecondary)
+                        sessionToolCard("First / Then", "Clear visual sequence", "arrow.right.circle.fill")
                     }
                     .buttonStyle(.plain)
-                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
 
                     NavigationLink {
-                        AISessionNoteGeneratorView(clientState: clientState, toolsState: toolsState)
+                        VisualAIAssistedStudioView(visualState: visualState, clientState: clientState)
                     } label: {
-                        toolCard("AI Session Note", "Draft from supplied facts", "sparkles.rectangle.stack.fill", palette.accent)
+                        sessionToolCard("Visual Supports", "Icons, boards, schedules", "photo.on.rectangle.angled")
                     }
                     .buttonStyle(.plain)
-                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
                 }
 
                 clientContextCard
 
-                Text("AI features use Apple’s on-device Foundation Model when Apple Intelligence is available. Clinical drafts still require review before use.")
-                    .font(.caption)
-                    .foregroundStyle(palette.textSecondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Label(
+                    "AI drafts use Apple’s on-device model when available. Review clinical output before use.",
+                    systemImage: "lock.shield.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 2)
             }
-            .padding(18)
-            .padding(.bottom, 24)
+            .padding(.horizontal, LifeRouteDesign.Layout.pageHorizontal)
+            .padding(.top, 10)
+            .padding(.bottom, 28)
         }
-        .navigationTitle("Tools")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear { visualState.retainClients(clientState.clients) }
         .onReceive(clientState.$clients) { clients in
             visualState.retainClients(clients)
         }
     }
 
-    private var hero: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
-                .fill(palette.panelGradient)
-
-            LinearGradient(
-                colors: [palette.accent.opacity(0.20), .clear],
-                startPoint: .topTrailing,
-                endPoint: .bottomLeading
-            )
-
-            Image(systemName: "wrench.and.screwdriver.fill")
-                .font(.system(size: 130, weight: .black))
-                .foregroundStyle(palette.accent.opacity(0.055))
-                .offset(x: 190, y: 48)
-
-            VStack(alignment: .leading, spacing: 9) {
-                Text("SESSION TOOLS")
-                    .font(.caption.weight(.black))
-                    .tracking(2)
-                    .foregroundStyle(palette.accent)
-                Text("Your session command center.")
-                    .font(.system(size: 29, weight: .black, design: .rounded))
-                    .foregroundStyle(palette.textPrimary)
-                Text("Visual supports, quick capture, smarter planning, and documentation assistance in one place.")
-                    .font(.subheadline)
-                    .foregroundStyle(palette.textSecondary)
-            }
-            .padding(21)
-        }
-        .frame(minHeight: 205)
-        .overlay {
-            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
-                .stroke(palette.accent.opacity(0.28), lineWidth: 1)
-        }
-    }
-
-    private func toolCard(_ title: String, _ subtitle: String, _ systemImage: String, _ accent: Color) -> some View {
-        VStack(alignment: .leading, spacing: 11) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(accent.opacity(0.16))
-                Image(systemName: systemImage)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(accent)
-            }
-            .frame(width: 48, height: 48)
-
-            Spacer(minLength: 0)
-
-            Text(title)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(palette.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text(subtitle)
-                .font(.caption2)
-                .foregroundStyle(palette.textSecondary)
-                .lineLimit(2)
-        }
-        .frame(maxWidth: .infinity, minHeight: 142, alignment: .leading)
-        .padding(14)
-        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 19, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 19, style: .continuous)
-                .stroke(accent.opacity(0.25), lineWidth: 1)
-        }
-        .shadow(color: accent.opacity(0.07), radius: 14, y: 7)
-    }
-
-    private var clientContextCard: some View {
-        HStack(spacing: 13) {
-            ZStack {
-                Circle().fill(palette.accent.opacity(0.14))
-                Image(systemName: "person.2.fill")
-                    .foregroundStyle(palette.accent)
-            }
-            .frame(width: 46, height: 46)
-
+    private var toolsHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Client context")
-                    .font(.headline)
+                Text("Tools")
+                    .font(.system(size: 31, weight: .black, design: .rounded))
                     .foregroundStyle(palette.textPrimary)
-                Text(clientState.clients.isEmpty ? "General tools ready · no client required" : "\(clientState.clients.count) client profiles + General mode")
-                    .font(.caption)
+                Text("ABA workflow, ready when you are.")
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(palette.textSecondary)
             }
 
             Spacer(minLength: 8)
+
+            LifeRouteIconBadge(systemImage: "wrench.and.screwdriver.fill", prominent: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var readinessStrip: some View {
+        HStack(spacing: 10) {
+            Image(systemName: clientState.clients.isEmpty ? "person.crop.circle.badge.questionmark" : "person.crop.circle.fill")
+                .font(.title3.weight(.bold))
+                .foregroundStyle(palette.accent)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(clientState.clients.isEmpty ? "General mode ready" : "Client context ready")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(palette.textPrimary)
+                Text(clientState.clients.isEmpty ? "No client profile required for core tools." : "\(clientState.clients.count) saved client profile\(clientState.clients.count == 1 ? "" : "s") available.")
+                    .font(.caption2)
+                    .foregroundStyle(palette.textSecondary)
+            }
+
+            Spacer(minLength: 4)
 
             Button("Manage") {
                 LifeRouteHaptics.selection()
@@ -186,8 +157,102 @@ struct V054ToolsDashboard: View {
             }
             .font(.caption.weight(.bold))
             .foregroundStyle(palette.accent)
+            .frame(minHeight: 44)
         }
-        .lifeRouteCard()
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(palette.panel.opacity(0.58), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+        }
+    }
+
+    private func clinicalCard(title: String, subtitle: String, systemImage: String, eyebrow: String) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(palette.accent.opacity(0.14))
+                Image(systemName: systemImage)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(palette.accent)
+            }
+            .frame(width: 50, height: 50)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(eyebrow)
+                    .font(.caption2.weight(.black))
+                    .tracking(0.9)
+                    .foregroundStyle(palette.accentSecondary)
+                Text(title)
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(palette.textPrimary)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(palette.textSecondary)
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: 4)
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.black))
+                .foregroundStyle(palette.textSecondary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(palette.panel.opacity(0.64), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                .stroke(palette.accent.opacity(0.18), lineWidth: 1)
+        }
+    }
+
+    private func sessionToolCard(_ title: String, _ subtitle: String, _ systemImage: String) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            LifeRouteIconBadge(systemImage: systemImage, prominent: true)
+
+            Text(title)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(palette.textPrimary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(subtitle)
+                .font(.caption2)
+                .foregroundStyle(palette.textSecondary)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, minHeight: 118, alignment: .leading)
+        .padding(12)
+        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 17, style: .continuous)
+                .stroke(Color.white.opacity(0.07), lineWidth: 1)
+        }
+    }
+
+    private var clientContextCard: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "person.2.fill")
+                .foregroundStyle(palette.accent)
+                .frame(width: 34, height: 34)
+                .background(palette.accent.opacity(0.12), in: Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Client context")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(palette.textPrimary)
+                Text(clientState.clients.isEmpty ? "General tools only" : "General + saved ABA client codes")
+                    .font(.caption2)
+                    .foregroundStyle(palette.textSecondary)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 11)
+        .frame(minHeight: 48)
+        .background(palette.panel.opacity(0.42), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
@@ -255,46 +320,37 @@ struct VisualAIAssistedStudioView: View {
 
     private var studioContent: some View {
         ScrollView {
-            LazyVStack(spacing: 16) {
+            LazyVStack(spacing: 12) {
                 hero
                 libraryCard
                 scheduleAICard
                 iconAICard
                 manualWorkspaceCard
             }
-            .padding(18)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
             .padding(.bottom, 28)
         }
     }
 
     private var hero: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
-                .fill(palette.panelGradient)
-            Circle()
-                .fill(palette.accent.opacity(0.16))
-                .frame(width: 180, height: 180)
-                .offset(x: 205, y: -70)
+        VStack(alignment: .leading, spacing: 10) {
+            LifeRouteScreenHeader(
+                title: "Visual Supports",
+                subtitle: "Create and reuse client-scoped or General icons, schedules, and visual supports.",
+                systemImage: "photo.on.rectangle.angled"
+            )
 
-            VStack(alignment: .leading, spacing: 9) {
-                Label("AI + MANUAL", systemImage: "apple.intelligence")
-                    .font(.caption.weight(.black))
-                    .tracking(1.4)
-                    .foregroundStyle(palette.accent)
-                Text("Visual Support Studio")
-                    .font(.system(size: 29, weight: .black, design: .rounded))
-                    .foregroundStyle(palette.textPrimary)
-                Text("Draft visual schedules with on-device AI, create icon artwork with Image Playground, or open the full manual visual workspace anytime.")
-                    .font(.subheadline)
-                    .foregroundStyle(palette.textSecondary)
-            }
-            .padding(21)
+            Label("AI + MANUAL WORKSPACE", systemImage: "wand.and.stars")
+                .font(.caption2.weight(.black))
+                .tracking(0.7)
+                .foregroundStyle(palette.accentSecondary)
+                .padding(.horizontal, 11)
+                .frame(minHeight: 34)
+                .background(palette.panelElevated.opacity(0.34), in: Capsule())
         }
-        .frame(minHeight: 205)
-        .overlay {
-            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
-                .stroke(palette.accent.opacity(0.27), lineWidth: 1)
-        }
+        .padding(12)
+        .background(palette.panel.opacity(0.58), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
     }
 
     private var libraryCard: some View {
@@ -443,80 +499,97 @@ struct VisualAIAssistedStudioView: View {
         .lifeRouteCard()
     }
 
+    // v0.8.0 follow-up visible ABA visual generator:
+    // Route the primary Visual Supports experience to the real photo/text illustrated workflow.
     private var iconAICard: some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("AI Icon Creator")
+                    Text("Illustrated Icon Generator")
                         .font(.title3.weight(.bold))
                         .foregroundStyle(palette.textPrimary)
-                    Text("Create clear visual artwork, then save it into the existing icon library.")
+                    Text("Turn a text description or reference photo into a consistent ABA visual-support icon.")
                         .font(.caption)
                         .foregroundStyle(palette.textSecondary)
                 }
                 Spacer()
-                Image(systemName: "photo.badge.plus")
+                Image(systemName: "paintbrush.pointed.fill")
                     .font(.title2)
                     .foregroundStyle(palette.accent)
             }
 
-            TextField("Icon label · e.g. Brush Teeth", text: $iconLabel)
-                .textInputAutocapitalization(.words)
-                .padding(12)
-                .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-            TextField("Optional image description", text: $iconPrompt, axis: .vertical)
-                .lineLimit(2...5)
-                .padding(12)
-                .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-            if let generatedImageData, let image = UIImage(data: generatedImageData) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 260)
-                    .frame(maxWidth: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(palette.accent.opacity(0.25), lineWidth: 1)
-                    }
+            HStack(spacing: 8) {
+                visualGeneratorModeBadge("TEXT ONLY", systemImage: "textformat")
+                visualGeneratorModeBadge("PHOTO", systemImage: "photo.fill")
+                visualGeneratorModeBadge("REGENERATE", systemImage: "arrow.clockwise")
             }
 
-            Button {
-                imageMessage = nil
-                showImagePlayground = true
-                LifeRouteHaptics.selection()
-            } label: {
-                Label(generatedImageData == nil ? "Create with Image Playground" : "Create another image", systemImage: "apple.intelligence")
-            }
-            .buttonStyle(LifeRoutePrimaryButtonStyle())
-            .disabled(iconLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !imagePlaygroundAvailable)
-
-            if generatedImageData != nil {
-                Button("Save generated icon to \(libraryDisplayName)") {
-                    saveGeneratedIcon()
+            HStack(spacing: 10) {
+                VStack(spacing: 7) {
+                    Image(systemName: "photo")
+                        .font(.title2)
+                        .foregroundStyle(palette.textSecondary)
+                    Text("REFERENCE")
+                        .font(.caption2.weight(.black))
+                        .foregroundStyle(palette.textSecondary)
                 }
-                .buttonStyle(LifeRouteSecondaryButtonStyle())
-            }
+                .frame(maxWidth: .infinity, minHeight: 94)
+                .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-            if let imageMessage {
-                Label(imageMessage, systemImage: generatedImageData == nil ? "info.circle.fill" : "checkmark.circle.fill")
-                    .font(.caption)
-                    .foregroundStyle(palette.textSecondary)
-            }
+                Image(systemName: "arrow.right")
+                    .font(.headline.weight(.black))
+                    .foregroundStyle(palette.accent)
+                    .accessibilityHidden(true)
 
-            if !imagePlaygroundAvailable {
-                Text("Image Playground is not available on this device right now. The original photo and text icon creator remains available in the manual workspace below.")
-                    .font(.caption)
-                    .foregroundStyle(palette.textSecondary)
-            } else {
-                Text("Image generation stays inside Apple’s Image Playground experience. You approve the image before LifeRoute receives it.")
-                    .font(.caption)
-                    .foregroundStyle(palette.textSecondary)
+                VStack(spacing: 7) {
+                    Image(systemName: "paintbrush.pointed.fill")
+                        .font(.title2)
+                        .foregroundStyle(palette.accent)
+                    Text("ILLUSTRATED ICON")
+                        .font(.caption2.weight(.black))
+                        .foregroundStyle(palette.accentSecondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 94)
+                .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Reference photo or text becomes an illustrated ABA visual-support icon")
+
+            NavigationLink {
+                ClientVisualIconLibraryView(
+                    visualState: visualState,
+                    clientCode: selectedClientCode
+                )
+            } label: {
+                HStack {
+                    Label("Open Illustrated Icon Generator", systemImage: "apple.intelligence")
+                        .font(.subheadline.weight(.bold))
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.black))
+                }
+                .foregroundStyle(Color.black.opacity(0.82))
+                .padding(.horizontal, 13)
+                .frame(minHeight: 48)
+                .background(palette.accent, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
+
+            Text("The generator opens directly in \(libraryDisplayName)’s existing visual library. LifeRoute keeps the exact label separate from the artwork, shows the reference and generated result clearly, and saves only after your review.")
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
         }
         .lifeRouteCard()
+    }
+
+    private func visualGeneratorModeBadge(_ title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.caption2.weight(.black))
+            .foregroundStyle(palette.accentSecondary)
+            .frame(maxWidth: .infinity, minHeight: 34)
+            .background(palette.panelElevated.opacity(0.34), in: Capsule())
+            .accessibilityLabel(title.capitalized)
     }
 
     private var manualWorkspaceCard: some View {

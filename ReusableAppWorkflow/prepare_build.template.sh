@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Reusable hook. Add app-specific generation/patching/validation below.
-# Keep this script deterministic and safe to run more than once.
+# Non-production reusable hook. Keep it deterministic, idempotent, and
+# validation-oriented. The checked-in project should remain the source owner.
 
 # Examples:
-# python3 scripts/patch_feature.py
+# python3 scripts/validate_current.py fast
 # node --check App/Web/app.js
 # plutil -lint App/Info.plist
 

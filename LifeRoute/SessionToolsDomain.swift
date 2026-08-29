@@ -48,7 +48,7 @@ enum SessionToolsCoreError: LocalizedError {
 @MainActor
 private final class VisualTimerToneEngine {
     private static let sampleRate = 44_100.0
-    private static let pulseDuration = 0.10
+    private static let pulseDuration = 0.085
 
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
@@ -59,14 +59,16 @@ private final class VisualTimerToneEngine {
     private var isPrepared = false
     private var completionStopTask: Task<Void, Never>?
 
-    func playPulse(frequency: Double) {
+    func playPulse(frequency: Double, gain: Float) {
         guard prepareIfNeeded(), let buffer = pulseBuffer(frequency: frequency) else { return }
+        player.volume = max(0, min(1, gain))
         player.scheduleBuffer(buffer, at: nil, options: [])
         if !player.isPlaying { player.play() }
     }
 
-    func playCompletion() {
+    func playCompletion(gain: Float) {
         guard prepareIfNeeded(), let buffer = completionBuffer() else { return }
+        player.volume = max(0, min(1, gain))
         player.scheduleBuffer(buffer, at: nil, options: [])
         if !player.isPlaying { player.play() }
 
@@ -117,11 +119,16 @@ private final class VisualTimerToneEngine {
 
         for frame in 0..<Int(frameCount) {
             let t = Double(frame) / Self.sampleRate
-            let attack = min(1, t / 0.006)
-            let decay = exp(-28 * t)
+            let attack = min(1, t / 0.012)
+            let decay = exp(-18 * t)
+            let releaseStart = Self.pulseDuration * 0.62
+            let releaseProgress = max(0, (t - releaseStart) / (Self.pulseDuration - releaseStart))
+            // v0.6.3 cosine release reaches silence smoothly so the buffer cannot end on a click.
+            let release = releaseProgress <= 0 ? 1 : 0.5 * (1 + cos(Double.pi * min(1, releaseProgress)))
             let fundamental = sin(2 * Double.pi * frequency * t)
-            let shimmer = 0.20 * sin(2 * Double.pi * frequency * 2.01 * t)
-            samples[frame] = Float((fundamental + shimmer) * attack * decay * 0.60)
+            let softSecond = 0.12 * sin(2 * Double.pi * frequency * 2.0 * t)
+            let softDetune = 0.025 * sin(2 * Double.pi * frequency * 1.004 * t)
+            samples[frame] = Float((fundamental + softSecond + softDetune) * attack * decay * release * 0.30)
         }
         return buffer
     }
@@ -134,9 +141,9 @@ private final class VisualTimerToneEngine {
         buffer.frameLength = frameCount
 
         let notes: [(start: Double, frequency: Double)] = [
-            (0.00, 950),
-            (0.14, 1_160),
-            (0.29, 1_430),
+            (0.00, 864),
+            (0.14, 1_296),
+            (0.29, 1_728),
         ]
 
         for frame in 0..<Int(frameCount) {
@@ -145,9 +152,14 @@ private final class VisualTimerToneEngine {
             for note in notes {
                 let localTime = t - note.start
                 guard localTime >= 0, localTime <= 0.19 else { continue }
-                let attack = min(1, localTime / 0.008)
-                let decay = exp(-19 * localTime)
-                value += sin(2 * Double.pi * note.frequency * localTime) * attack * decay * 0.85
+                let attack = min(1, localTime / 0.012)
+                let decay = exp(-16 * localTime)
+                let releaseStart = 0.12
+                let releaseProgress = max(0, (localTime - releaseStart) / (0.19 - releaseStart))
+                let release = releaseProgress <= 0 ? 1 : 0.5 * (1 + cos(Double.pi * min(1, releaseProgress)))
+                let fundamental = sin(2 * Double.pi * note.frequency * localTime)
+                let softSecond = 0.10 * sin(2 * Double.pi * note.frequency * 2.0 * localTime)
+                value += (fundamental + softSecond) * attack * decay * release * 0.68
             }
             samples[frame] = Float(max(-0.92, min(0.92, value)))
         }
@@ -155,15 +167,20 @@ private final class VisualTimerToneEngine {
     }
 }
 
+// v0.8.0 follow-up visual timer audio sweep:
+// Normalized elapsed progress owns both the perceptual octave sweep and linear rate ramp.
 @MainActor
 final class VisualTimerCore: ObservableObject {
-    private static let audioPulseNanoseconds: UInt64 = 250_000_000
-    private static let startFrequency = 220.0
-    private static let endFrequency = 1_320.0
+    private static let startFrequency = 432.0
+    private static let endFrequency = 864.0
+    private static let startPulsesPerSecond = 1.0
+    private static let endPulsesPerSecond = 6.0
+    private static let startGainForFiveDecibelCrescendo = pow(10.0, -5.0 / 20.0)
 
     @Published private(set) var durationSeconds: TimeInterval = 5 * 60
     @Published private(set) var deadline: Date?
     @Published private(set) var pausedRemainingSeconds: TimeInterval = 5 * 60
+    @Published private(set) var volume: Double = 0.48
 
     private let toneEngine = VisualTimerToneEngine()
     private var audioTask: Task<Void, Never>?
@@ -215,6 +232,26 @@ final class VisualTimerCore: ObservableObject {
         }
     }
 
+    func setVolume(_ value: Double) {
+        volume = min(1, max(0, value))
+    }
+
+    func normalizedElapsedProgress(forRemaining remaining: TimeInterval) -> Double {
+        guard durationSeconds > 0 else { return 0 }
+        return min(1, max(0, 1 - remaining / durationSeconds))
+    }
+
+    func pulsesPerSecond(forRemaining remaining: TimeInterval) -> Double {
+        let progress = normalizedElapsedProgress(forRemaining: remaining)
+        return Self.startPulsesPerSecond
+            + (Self.endPulsesPerSecond - Self.startPulsesPerSecond) * progress
+    }
+
+    func toneFrequency(forRemaining remaining: TimeInterval) -> Double {
+        let progress = normalizedElapsedProgress(forRemaining: remaining)
+        return Self.startFrequency * pow(Self.endFrequency / Self.startFrequency, progress)
+    }
+
     func reset() {
         deadline = nil
         pausedRemainingSeconds = durationSeconds
@@ -235,13 +272,17 @@ final class VisualTimerCore: ObservableObject {
                     self.pausedRemainingSeconds = 0
                     self.deadline = nil
                     self.audioTask = nil
-                    self.toneEngine.playCompletion()
+                    self.toneEngine.playCompletion(gain: Float(self.volume))
                     return
                 }
 
-                self.toneEngine.playPulse(frequency: self.frequency(forRemaining: remaining))
+                self.toneEngine.playPulse(
+                    frequency: self.toneFrequency(forRemaining: remaining),
+                    gain: Float(self.signalGain(forRemaining: remaining))
+                )
+                let interval = 1.0 / self.pulsesPerSecond(forRemaining: remaining)
                 do {
-                    try await Task.sleep(nanoseconds: Self.audioPulseNanoseconds)
+                    try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
                 } catch {
                     return
                 }
@@ -255,12 +296,10 @@ final class VisualTimerCore: ObservableObject {
         toneEngine.stop()
     }
 
-    private func frequency(forRemaining remaining: TimeInterval) -> Double {
-        guard durationSeconds > 0 else { return Self.startFrequency }
-        let remainingFraction = min(1, max(0, remaining / durationSeconds))
-        let elapsedFraction = 1 - remainingFraction
-        let eased = pow(elapsedFraction, 1.18)
-        return Self.startFrequency * pow(Self.endFrequency / Self.startFrequency, eased)
+    private func signalGain(forRemaining remaining: TimeInterval) -> Double {
+        let elapsed = normalizedElapsedProgress(forRemaining: remaining)
+        let crescendo = Self.startGainForFiveDecibelCrescendo + (1 - Self.startGainForFiveDecibelCrescendo) * elapsed
+        return min(1, max(0, volume * crescendo))
     }
 }
 
@@ -418,7 +457,7 @@ enum ClientVisualSupportError: LocalizedError {
 
 @MainActor
 final class ClientVisualSupportCore: ObservableObject {
-    static let generalClientCode = "GENERAL"
+    nonisolated static let generalClientCode = "GENERAL"
     static let generalDisplayName = "General / no client"
     private static let generalClientID = UUID(uuidString: "7F164E34-BD4A-4A30-AFDB-70A4AE8C7D3E")!
 

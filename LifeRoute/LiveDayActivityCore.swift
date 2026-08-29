@@ -20,7 +20,8 @@ final class LiveDayActivityCore: ObservableObject {
         events: [LifeRouteCalendarEvent],
         savedPlaces: [LifeRouteSavedPlace],
         routeEstimates: [UUID: LifeRouteRouteEstimate],
-        returnHomePlanned: Bool
+        returnHomePlanned: Bool,
+        day: Date = Date()
     ) async {
         guard #available(iOS 16.2, *) else {
             message = "Live Activities require iOS 16.2 or later."
@@ -37,7 +38,7 @@ final class LiveDayActivityCore: ObservableObject {
             returnHomePlanned: returnHomePlanned,
             now: Date()
         ) else {
-            message = "Add a timed event today before starting Live Day on the Lock Screen."
+            message = "Add a timed event on the selected day before starting Live Day on the Lock Screen."
             return
         }
 
@@ -47,7 +48,7 @@ final class LiveDayActivityCore: ObservableObject {
 
         let attributes = LifeRouteLiveDayAttributes(
             launchedAt: Date(),
-            dayLabel: Date().formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+            dayLabel: day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
         )
         let content = ActivityContent(
             state: state,

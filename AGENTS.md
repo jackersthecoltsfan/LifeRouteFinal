@@ -25,7 +25,7 @@
 ## Before implementing changes
 
 1. Read the current handoff and applicable canonical documentation and any more-specific instructions in scope.
-2. Inspect the existing architecture and trace the relevant end-to-end behavior, including SwiftUI, native services, the WebView bridge/runtime, persistence, generated patches, audits, and release preparation when applicable.
+2. Inspect the existing architecture and trace the relevant end-to-end behavior, including SwiftUI, native services, the quarantined WebView history, persistence, current semantic validation, and release preparation when applicable.
 3. Check the working tree and preserve unrelated user changes.
 4. Reuse existing models, services, components, bridge contracts, persistence mechanisms, and workflow infrastructure where appropriate.
 5. Avoid unnecessarily rebuilding working functionality. Preserve existing behavior unless the requested change requires modifying it.
@@ -64,8 +64,9 @@ Use consistent design tokens and reusable components rather than isolated stylin
 
 ## Existing build and release architecture
 
-- `scripts/prepare_build.sh` is the deterministic preparation and preflight entry point shared by preview, iOS CI, and TestFlight. Keep it safe to run repeatedly and ensure the prepared source represents the code that is actually built.
-- Feature patch scripts and audits are part of the current architecture. If a source file is generated or patched during preparation, update the authoritative input and the related patch/audit contracts together; do not make a change that is silently overwritten during preparation.
+- Checked-in `LifeRoute/`, `LifeRouteLiveActivityWidget/`, and `LifeRoute.xcodeproj/` are the canonical v0.8.0 shipping source. Never reconstruct current development by replaying archived v0.x patches.
+- `scripts/prepare_build.sh` is a deterministic, idempotent validation-only preflight. Change canonical source directly and update `validate_fast.sh` or `validate_full.sh` when a current semantic invariant changes.
+- Files under `scripts/archive/` and `docs/archive/` are archaeology only. They must not execute in normal development, pull-request, main, Pages, or release paths.
 - Keep CI and TestFlight aligned with the canonical workflow. Ordinary pushes never authorize or upload a release by themselves.
 - The product owner has granted ChatGPT standing authorization to initiate one TestFlight physical-validation release in any rolling 60-minute window when the current checkpoint is meaningfully worth testing and prerequisite validation/release-state checks have passed.
 - A second or additional TestFlight initiation inside the same rolling 60-minute window requires explicit owner authorization. Explicit owner authorization may also direct a specific TestFlight run at any time.
@@ -78,7 +79,7 @@ Use consistent design tokens and reusable components rather than isolated stylin
 - Do not create commits merely to wake an upstream-degraded Actions queue.
 - During an active GitHub Actions incident, keep workflow-hardening/diagnostic edits on a non-`main` branch and avoid generating replacement runs.
 - When GitHub is operational, use normal cancellation once and force-cancel only for a run that still meets the documented zombie criteria. Do not loop cancellation requests.
-- Keep expensive macOS work narrowly triggered and avoid duplicating audits already owned by `prepare_build.sh`.
+- Keep expensive macOS work narrowly triggered and avoid duplicating current semantic validation unnecessarily.
 - The assistant TestFlight bridge should require already-completed successful validation and fail fast rather than holding a runner while polling CI.
 
 ## Verification and handoff

@@ -9,6 +9,10 @@ xcuserdata/
 # macOS
 .DS_Store
 
+# Python
+__pycache__/
+*.py[cod]
+
 # Secrets
 AuthKey_*.p8
 *.p12

@@ -1,35 +1,27 @@
 # LifeRoute Project Handoff
 
-## Active checkpoint — v0.8.0 note-runtime repair plus completed theme library
+## Active checkpoint — v0.8.0 post-Build #104 follow-up refinements
 
-The active local checkpoint is the isolated branch:
+The current checkpoint is isolated from `main` on:
 
-- Branch: `integration/v0.8.0-note-runtime-plus-theme-design`
-- Authoritative shipped base: `73ab3ac119d37e838fa53a955c4201be2a564db3`
-- Focused note-repair checkpoint: `ca7005b901d4beb15264efbf713b5b16b0e9b042`
-- Theme integration checkpoint before documentation: `3e4ba0353bf4b34d1a7b44f48c9be882bbf1574e`
-- Theme donor: `feature/v0.7.1-theme-library-finish-codex` at `2b57ca6d1d50b9fdcac27ec370bd3ac472b80c17`
-- Theme donor Simulator-validated implementation: `d56ed5deebf084703927964fe714e7faad2de444`
+- Branch: `feature/v0.8.0-followup-note-image-timer-scenery`
+- Shipped TestFlight Build #104 source: `73ab3ac119d37e838fa53a955c4201be2a564db3`
+- Integrated note-runtime/theme base from `origin/main`: `e5eaea40150efe9fc9fde5c6c16976326b4d2084`
+- Follow-up implementation checkpoint: `c2c8fa3` (`Refine v0.8.0 clinical and session tools`)
 
-No branch was pushed or merged. `main` remains at the shipped v0.8.0 Build #104 source. No TestFlight or release workflow was triggered.
+The follow-up remains a cumulative deterministic materialization layer. Checked-in Swift stays at the repository baseline; `scripts/prepare_build.sh` applies the authoritative follow-up patch scripts after the shipped v0.8.0 note-runtime layer.
 
-Read `LIFEROUTE_V0_8_0_NOTE_THEME_INTEGRATION_HANDOFF.md` for the integration details, validation evidence, and remaining gates.
+Implemented behavior:
 
-## Current validation state
+- Session Note uses RBT-only clinical narrative instructions, stronger chronological synthesis, deterministic personal-name scrubbing, up to six stable screenshot attachments, concurrent on-device OCR with ordered results, and measurement-aware percentage/count/duration/latency/rate/trial/independent-versus-prompted evidence handling. Typed narrative remains primary evidence.
+- Visual Supports exposes the actual illustrated text/photo generator from the primary screen, distinguishes reference photos from generated icons, presents regeneration and result-normalization progress, and saves only through the existing protected visual library.
+- Rainforest and Arctic scenery add bounded deterministic leaf and snow detail driven by the existing root phase. No timer, random particle state, or second animation owner was added; lifecycle and Reduce Motion remain root-owned.
+- Visual Timer uses a gentle 0.085-second pulse whose normalized elapsed-progress mapping rises from 432 to 864 Hz and from 1 to 6 ticks per second. Existing absolute-deadline, pause/resume/reset, volume/mute, completion, and audio-session behavior remains intact.
 
-A fresh disposable checkout of the combined integration checkpoint replayed all 121 ordered Python patch/audit steps successfully. This includes the protected single root theme environment/clock, all retained Dynamic and Scenery audits, DEBUG fixture contracts, Master ABA constraints, the new note-runtime audit, and inherited performance/stability coverage.
+A fresh disposable checkout of `c2c8fa3` replayed all 136 ordered Python patch/audit stages from `scripts/prepare_build.sh` successfully. Focused final-tree audits passed for Session Note (53/53), Visual Generator (31/31), Scenery Motion (24/24), and Visual Timer Audio (31/31). Retained functional-shell, navigation, visual-support, persistence, performance, stability, and cross-domain audits also passed, along with `git diff --check` on the materialized output.
 
-This Windows environment has no Xcode, Simulator, or physical Apple-Intelligence-capable iPhone connection. Native compilation, the 20-theme fixture matrix, injected note-state UI fixtures, and real Foundation Models generation remain required before merge or release.
+This Windows environment has no Xcode, Simulator, or XcodeBuildMCP connection. Native compilation and device-only Apple Intelligence, Image Playground, visual/audible timer, ambient-motion, silent-mode, thermal, and Reduce Motion validation remain required. Push only the isolated branch for exact-SHA iOS CI; do not merge to `main` and do not initiate TestFlight without Brandon's explicit authorization after validation.
 
-## Next action
+## Historical checkpoint — v0.8.0 note-runtime repair plus completed theme library
 
-On a Mac/Xcode 26.6 environment, validate the exact integration HEAD without changing release identity:
-
-1. Run `bash scripts/prepare_build.sh` from a fresh checkout.
-2. Build the `LifeRoute` scheme for an iOS Simulator.
-3. Run `scripts/capture_v0_7_1_visual_fixtures.sh` against the built Debug app.
-4. Exercise the DEBUG note fixtures for success, delayed success, unavailable, error, empty output, timeout, cancellation, repair, and failed regeneration.
-5. Validate text-only and screenshot-assisted Foundation Models requests on a supported physical iPhone.
-6. Confirm sustained theme animation smoothness, thermal behavior, OLED contrast, background pausing, Reduce Motion, and five-tab readability.
-
-Do not merge, push, release, or trigger TestFlight without separate authorization.
+Read `LIFEROUTE_V0_8_0_NOTE_THEME_INTEGRATION_HANDOFF.md` for the preceding note-runtime/theme integration history and its validation evidence.

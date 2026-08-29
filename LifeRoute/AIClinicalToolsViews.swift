@@ -10,6 +10,7 @@ enum SessionNoteGenerationState: Equatable {
     case idle
     case checkingAvailability
     case generating
+    case compacting
     case repairing
     case success
     case unavailable(String)
@@ -19,7 +20,7 @@ enum SessionNoteGenerationState: Equatable {
 
     var isActive: Bool {
         switch self {
-        case .checkingAvailability, .generating, .repairing:
+        case .checkingAvailability, .generating, .compacting, .repairing:
             return true
         default:
             return false
@@ -76,121 +77,6 @@ final class FoundationModelSessionNoteGenerator: SessionNoteGenerating {
     }
 }
 
-private enum SessionNoteRequestRaceError: LocalizedError {
-    case timedOut
-
-    var errorDescription: String? {
-        "Apple Intelligence did not finish this generation step in time. Your session facts and any previous draft are still here."
-    }
-}
-
-private final class SessionNoteRequestRace: @unchecked Sendable {
-    private let lock = NSLock()
-    private let timeoutNanoseconds: UInt64
-    private var continuation: CheckedContinuation<String, Error>?
-    private var generationTask: Task<Void, Never>?
-    private var timeoutTask: Task<Void, Never>?
-    private var timeoutGeneration = 0
-    private var isFinished = false
-
-    init(timeoutSeconds: UInt64) {
-        timeoutNanoseconds = timeoutSeconds * 1_000_000_000
-    }
-
-    func run(operation: @escaping () async throws -> String) async throws -> String {
-        try await withTaskCancellationHandler(operation: {
-            try await withCheckedThrowingContinuation { continuation in
-                lock.lock()
-                if isFinished {
-                    lock.unlock()
-                    continuation.resume(throwing: CancellationError())
-                    return
-                }
-                self.continuation = continuation
-                lock.unlock()
-
-                restartTimeout()
-                let task = Task {
-                    do {
-                        resolve(.success(try await operation()))
-                    } catch {
-                        resolve(.failure(error))
-                    }
-                }
-                installGenerationTask(task)
-            }
-        }, onCancel: {
-            self.cancel()
-        })
-    }
-
-    func restartTimeout() {
-        lock.lock()
-        guard !isFinished else {
-            lock.unlock()
-            return
-        }
-        timeoutGeneration += 1
-        let generation = timeoutGeneration
-        let previous = timeoutTask
-        let task = Task { [weak self] in
-            do {
-                try await Task.sleep(nanoseconds: self?.timeoutNanoseconds ?? 0)
-            } catch {
-                return
-            }
-            self?.timeoutFired(generation: generation)
-        }
-        timeoutTask = task
-        lock.unlock()
-        previous?.cancel()
-    }
-
-    func cancel() {
-        resolve(.failure(CancellationError()))
-    }
-
-    private func installGenerationTask(_ task: Task<Void, Never>) {
-        lock.lock()
-        if isFinished {
-            lock.unlock()
-            task.cancel()
-            return
-        }
-        generationTask = task
-        lock.unlock()
-    }
-
-    private func timeoutFired(generation: Int) {
-        lock.lock()
-        let isCurrent = !isFinished && generation == timeoutGeneration
-        lock.unlock()
-        if isCurrent {
-            resolve(.failure(SessionNoteRequestRaceError.timedOut))
-        }
-    }
-
-    private func resolve(_ result: Result<String, Error>) {
-        lock.lock()
-        guard !isFinished else {
-            lock.unlock()
-            return
-        }
-        isFinished = true
-        let continuation = self.continuation
-        self.continuation = nil
-        let generationTask = self.generationTask
-        let timeoutTask = self.timeoutTask
-        self.generationTask = nil
-        self.timeoutTask = nil
-        lock.unlock()
-
-        generationTask?.cancel()
-        timeoutTask?.cancel()
-        continuation?.resume(with: result)
-    }
-}
-
 @MainActor
 final class AISessionNoteRuntimeModel: ObservableObject {
     private static let logger = Logger(
@@ -205,7 +91,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
     private let timeoutSeconds: UInt64
     private var activeTask: Task<Void, Never>?
     private var activeRace: SessionNoteRequestRace?
-    private var requestID: UUID?
+    private var draftLedger = SessionNoteDraftLedger()
 
     init(generator: SessionNoteGenerating, timeoutSeconds: UInt64 = 75) {
         self.generator = generator
@@ -218,7 +104,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
         guard !state.isActive else { return }
 
         let currentRequestID = UUID()
-        requestID = currentRequestID
+        draftLedger.begin(requestID: currentRequestID, preserving: generatedNote)
         state = .checkingAvailability
         Self.logger.notice("Session-note generation started; checking model availability")
 
@@ -227,7 +113,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
         activeTask = Task { [weak self] in
             guard let self else { return }
             let availability = await generator.availability()
-            guard requestID == currentRequestID, !Task.isCancelled else { return }
+            guard draftLedger.isCurrent(currentRequestID), !Task.isCancelled else { return }
 
             guard case .available = availability else {
                 if case .unavailable(let explanation) = availability {
@@ -249,27 +135,28 @@ final class AISessionNoteRuntimeModel: ObservableObject {
                         await self.receive(progress: progress, requestID: currentRequestID)
                     }
                 }
-                guard requestID == currentRequestID else { return }
+                guard draftLedger.isCurrent(currentRequestID) else { return }
                 let cleaned = note.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !cleaned.isEmpty else {
                     state = .failed("Apple Intelligence returned an empty draft. Your session facts and any previous draft were preserved.")
                     finish(requestID: currentRequestID)
                     return
                 }
-                generatedNote = cleaned
+                guard draftLedger.accept(cleaned, for: currentRequestID) else { return }
+                generatedNote = draftLedger.draft
                 state = .success
                 Self.logger.notice("Session-note generation completed successfully")
                 LifeRouteHaptics.success()
             } catch is CancellationError {
-                guard requestID == currentRequestID else { return }
+                guard draftLedger.isCurrent(currentRequestID) else { return }
                 state = .cancelled
                 Self.logger.notice("Session-note generation cancelled")
             } catch is SessionNoteRequestRaceError {
-                guard requestID == currentRequestID else { return }
+                guard draftLedger.isCurrent(currentRequestID) else { return }
                 state = .timedOut
                 Self.logger.error("Session-note generation timed out")
             } catch let error as LifeRouteIntelligenceError {
-                guard requestID == currentRequestID else { return }
+                guard draftLedger.isCurrent(currentRequestID) else { return }
                 switch error {
                 case .unavailable:
                     state = .unavailable(error.localizedDescription)
@@ -277,7 +164,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
                     state = .failed(error.localizedDescription)
                 }
             } catch {
-                guard requestID == currentRequestID else { return }
+                guard draftLedger.isCurrent(currentRequestID) else { return }
                 state = .failed(error.localizedDescription)
             }
             finish(requestID: currentRequestID)
@@ -292,11 +179,15 @@ final class AISessionNoteRuntimeModel: ObservableObject {
     }
 
     private func receive(progress: SessionNoteGenerationProgress, requestID: UUID) async {
-        guard self.requestID == requestID, !Task.isCancelled else { return }
+        guard draftLedger.isCurrent(requestID), !Task.isCancelled else { return }
         switch progress {
         case .generating:
             state = .generating
             Self.logger.notice("Session-note first generation pass active")
+        case .compacting:
+            state = .compacting
+            activeRace?.restartTimeout()
+            Self.logger.notice("Session-note compact context retry active")
         case .repairing:
             state = .repairing
             activeRace?.restartTimeout()
@@ -305,10 +196,10 @@ final class AISessionNoteRuntimeModel: ObservableObject {
     }
 
     private func finish(requestID: UUID) {
-        guard self.requestID == requestID else { return }
+        guard draftLedger.isCurrent(requestID) else { return }
         activeTask = nil
         activeRace = nil
-        self.requestID = nil
+        draftLedger.finish(requestID: requestID)
     }
 
 }
@@ -325,6 +216,9 @@ private final class SessionNoteFixtureGenerator: SessionNoteGenerating {
         case timeout
         case cancellation
         case repair
+        case repairFailure = "repair-failure"
+        case contextRetrySuccess = "context-retry-success"
+        case contextRetryFailure = "context-retry-failure"
         case regenerationFailure = "regeneration-failure"
     }
 
@@ -369,6 +263,16 @@ private final class SessionNoteFixtureGenerator: SessionNoteGenerating {
             await progress(.repairing)
             try await Task.sleep(nanoseconds: 400_000_000)
             return Self.sampleDraft
+        case .repairFailure:
+            await progress(.repairing)
+            throw LifeRouteIntelligenceError.generationFailed("Injected bounded repair failure.")
+        case .contextRetrySuccess:
+            await progress(.compacting)
+            try await Task.sleep(nanoseconds: 300_000_000)
+            return Self.sampleDraft
+        case .contextRetryFailure:
+            await progress(.compacting)
+            throw LifeRouteIntelligenceError.contextWindowExceeded
         case .regenerationFailure:
             if requestCount == 1 { return Self.sampleDraft }
             throw LifeRouteIntelligenceError.generationFailed("Injected regeneration failure.")
@@ -396,6 +300,11 @@ private enum SessionNoteGeneratorFactory {
 
 @MainActor
 struct AISessionNoteGeneratorView: View {
+    private enum FocusedField: Hashable {
+        case sessionFacts
+        case generatedDraft
+    }
+
     @Environment(\.lifeRoutePalette) private var palette
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var clientState: ClientProfileCore
@@ -408,6 +317,7 @@ struct AISessionNoteGeneratorView: View {
     @State private var screenshotAttachments: [SessionNoteScreenshotAttachment] = []
     @State private var isLoadingScreenshots = false
     @State private var localNotice: String?
+    @FocusState private var focusedField: FocusedField?
 
     init(
         clientState: ClientProfileCore,
@@ -427,6 +337,8 @@ struct AISessionNoteGeneratorView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 hero
+                    .contentShape(Rectangle())
+                    .onTapGesture { finishEditing() }
                 inputCard
                 actionCard
                 if !runtime.generatedNote.isEmpty { resultCard }
@@ -435,14 +347,31 @@ struct AISessionNoteGeneratorView: View {
             .padding(.top, 10)
             .padding(.bottom, 24)
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Session Note")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { finishEditing() }
+                    .fontWeight(.semibold)
+            }
+        }
         .task(id: selectedPhotoItems) {
             await loadSelectedScreenshots()
         }
         .onDisappear {
+            focusedField = nil
             runtime.cancel()
+        }
+        .onChange(of: focusedField) { field in
+            if field != .sessionFacts {
+                narrative = ABATerminologyNormalizer.normalize(narrative)
+            }
+            if field != .generatedDraft {
+                runtime.generatedNote = ABATerminologyNormalizer.normalize(runtime.generatedNote)
+            }
         }
         .onChange(of: scenePhase) { phase in
             if phase != .active {
@@ -546,6 +475,9 @@ struct AISessionNoteGeneratorView: View {
 
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $narrative)
+                    .focused($focusedField, equals: .sessionFacts)
+                    .textInputAutocapitalization(.sentences)
+                    .autocorrectionDisabled(false)
                     .frame(minHeight: 160)
                     .scrollContentBackground(.hidden)
                     .padding(8)
@@ -728,6 +660,9 @@ struct AISessionNoteGeneratorView: View {
             }
 
             TextEditor(text: $runtime.generatedNote)
+                .focused($focusedField, equals: .generatedDraft)
+                .textInputAutocapitalization(.sentences)
+                .autocorrectionDisabled(false)
                 .frame(minHeight: 230)
                 .scrollContentBackground(.hidden)
                 .padding(8)
@@ -779,6 +714,7 @@ struct AISessionNoteGeneratorView: View {
         case .idle: return "Ready"
         case .checkingAvailability: return "Checking Apple Intelligence"
         case .generating: return "Drafting on device"
+        case .compacting: return "Fitting evidence on device"
         case .repairing: return "Checking clinical format"
         case .success: return "Draft ready"
         case .unavailable: return "Apple Intelligence unavailable"
@@ -796,6 +732,8 @@ struct AISessionNoteGeneratorView: View {
             return "Confirming that the on-device model is ready."
         case .generating:
             return "LifeRoute is creating a draft from the facts you supplied."
+        case .compacting:
+            return "Apple Intelligence requested a smaller context. LifeRoute is retrying once with typed facts first and reduced supporting context."
         case .repairing:
             return "The first draft needs a bounded second pass to meet the Master ABA format."
         case .success:
@@ -887,11 +825,20 @@ struct AISessionNoteGeneratorView: View {
 
     private func startGeneration() {
         localNotice = nil
+        focusedField = nil
+        let normalizedFacts = ABATerminologyNormalizer.normalize(narrative)
+        narrative = normalizedFacts
         runtime.start(
-            narrative: narrative,
+            narrative: normalizedFacts,
             screenshotDataItems: screenshotAttachments.map(\.data),
             client: selectedClient
         )
+    }
+
+    private func finishEditing() {
+        narrative = ABATerminologyNormalizer.normalize(narrative)
+        runtime.generatedNote = ABATerminologyNormalizer.normalize(runtime.generatedNote)
+        focusedField = nil
     }
 }
 

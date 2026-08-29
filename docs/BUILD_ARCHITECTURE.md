@@ -2,7 +2,7 @@
 
 ## Authority
 
-LifeRoute v0.8.1 shipping source is checked in directly under `LifeRoute/`,
+LifeRoute v0.8.2 shipping source is checked in directly under `LifeRoute/`,
 `LifeRouteLiveActivityWidget/`, and `LifeRoute.xcodeproj/`. A normal checkout is
 the product tree; no release replay or source mutation is required.
 

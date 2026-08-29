@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UIKit
 import ImageIO
+import AVFoundation
 
 #if canImport(ImagePlayground)
 import ImagePlayground
@@ -866,12 +867,45 @@ private struct VisualLibraryMetric: View {
 }
 
 // v0.8.0 follow-up visible ABA visual generator: reference/result clarity and progress.
+private enum VisualSupportInputMethod: String, CaseIterable, Identifiable {
+    case textOnly
+    case camera
+    case photoLibrary
+
+    var id: Self { self }
+}
+
+private enum VisualSupportFocusedField: Hashable {
+    case label
+    case description
+}
+
+private struct VisualSupportScrollContainer<Content: View>: View {
+    let scrolls: Bool
+    let content: Content
+
+    init(scrolls: Bool, @ViewBuilder content: () -> Content) {
+        self.scrolls = scrolls
+        self.content = content()
+    }
+
+    var body: some View {
+        if scrolls {
+            ScrollView { content }
+        } else {
+            content
+        }
+    }
+}
+
 struct ClientVisualIconLibraryView: View {
     @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var visualState: ClientVisualSupportCore
     let clientCode: String
+    var embedded = false
     @State private var label = ""
     @State private var visualDescription = ""
+    @State private var inputMethod: VisualSupportInputMethod = .textOnly
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var referencePhotoData: Data?
     @State private var referenceSourceImage: Image?
@@ -880,16 +914,20 @@ struct ClientVisualIconLibraryView: View {
     @State private var referencePreviewID = UUID()
     @State private var isGeneratedArtwork = false
     @State private var message: String?
+    @State private var isCameraPresented = false
+    @FocusState private var focusedInput: VisualSupportFocusedField?
 
     var body: some View {
-        ScrollView {
+        VisualSupportScrollContainer(scrolls: !embedded) {
             LazyVStack(spacing: 16) {
-                VisualBuilderHero(
-                    title: "Icon Library",
-                    subtitle: "Create exact-label photo, text, or illustrated ABA visuals for \(libraryName).",
-                    clientCode: libraryName,
-                    systemImage: "photo.on.rectangle.angled"
-                )
+                if !embedded {
+                    VisualBuilderHero(
+                        title: "Icon Library",
+                        subtitle: "Create exact-label photo, text, or illustrated ABA visuals for \(libraryName).",
+                        clientCode: libraryName,
+                        systemImage: "photo.on.rectangle.angled"
+                    )
+                }
 
                 VStack(alignment: .leading, spacing: 13) {
                     HStack {
@@ -903,12 +941,54 @@ struct ClientVisualIconLibraryView: View {
                             .foregroundStyle(photoData == nil ? palette.textSecondary : palette.accentSecondary)
                     }
 
+                    Text("Input method")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(palette.textPrimary)
+
+                    VStack(spacing: 8) {
+                        Button {
+                            selectTextOnly()
+                        } label: {
+                            inputMethodLabel(
+                                "Text only",
+                                subtitle: "Create from the exact label and optional description",
+                                systemImage: "textformat",
+                                method: .textOnly
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            requestCamera()
+                        } label: {
+                            inputMethodLabel(
+                                "Take photo",
+                                subtitle: "Capture a reference without saving it first",
+                                systemImage: "camera.fill",
+                                method: .camera
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                            inputMethodLabel(
+                                "Photo Library",
+                                subtitle: "Choose one reference image",
+                                systemImage: "photo.on.rectangle",
+                                method: .photoLibrary
+                            )
+                        }
+                    }
+
                     TextField("Exact icon label", text: $label)
+                        .focused($focusedInput, equals: .label)
                         .textInputAutocapitalization(.words)
                         .padding(12)
                         .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                     TextField("Optional visual description", text: $visualDescription, axis: .vertical)
+                        .focused($focusedInput, equals: .description)
+                        .textInputAutocapitalization(.sentences)
                         .lineLimit(2...4)
                         .padding(12)
                         .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -916,32 +996,6 @@ struct ClientVisualIconLibraryView: View {
                     Text("Describe only what helps identify the real item, place, activity, or concept. The exact label stays editable and is rendered by LifeRoute beneath the artwork.")
                         .font(.caption)
                         .foregroundStyle(palette.textSecondary)
-
-                    PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                        HStack(spacing: 11) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(palette.accent.opacity(0.14))
-                                Image(systemName: referencePhotoData == nil ? "photo.badge.plus" : "photo.fill")
-                                    .foregroundStyle(palette.accent)
-                            }
-                            .frame(width: 44, height: 44)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(referencePhotoData == nil ? "Choose reference photo" : "Change reference photo")
-                                    .font(.subheadline.weight(.bold))
-                                    .foregroundStyle(palette.textPrimary)
-                                Text("Optional · use the child’s actual item or environment")
-                                    .font(.caption2)
-                                    .foregroundStyle(palette.textSecondary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(palette.textSecondary)
-                        }
-                        .padding(12)
-                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    }
 
                     if let photoData {
                         if isGeneratedArtwork, let referencePhotoData {
@@ -1108,19 +1162,31 @@ struct ClientVisualIconLibraryView: View {
                 }
                 .lifeRouteCard()
             }
-            .padding(18)
+            .padding(.horizontal, embedded ? 0 : 18)
             .padding(.bottom, 24)
         }
-        .navigationTitle("\(libraryName) Icons")
+        .scrollDismissesKeyboard(.interactively)
+        .navigationTitle(embedded ? "Visual AI Studio" : "\(libraryName) Icons")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { focusedInput = nil }
+                    .fontWeight(.semibold)
+            }
+        }
+        .fullScreenCover(isPresented: $isCameraPresented) {
+            VisualSupportCameraPicker { imageData in
+                inputMethod = .camera
+                Task { await prepareReferencePhoto(imageData, sourceMessage: "Camera reference ready.") }
+            } onCancel: {
+                if referencePhotoData == nil { inputMethod = .textOnly }
+            }
+            .ignoresSafeArea()
+        }
         .task(id: selectedPhotoItem) {
             guard let selectedPhotoItem else {
-                referencePhotoData = nil
-                referenceSourceImage = nil
-                photoData = nil
-                isGeneratedArtwork = false
-                referencePreviewID = UUID()
-                photoPreviewID = UUID()
+                if inputMethod != .camera { clearReferencePhoto() }
                 return
             }
             let loadedData = try? await selectedPhotoItem.loadTransferable(type: Data.self)
@@ -1130,27 +1196,126 @@ struct ClientVisualIconLibraryView: View {
                 message = "LifeRoute could not load that photo."
                 return
             }
-            // v0.8.0 ABA visual-support async image decode:
-            // Decode the Image Playground source through the existing actor-owned thumbnail path,
-            // never synchronously from a SwiftUI body or computed view property.
-            let requestID = UUID()
-            let decodedReference = await ClientVisualThumbnailCache.shared.thumbnail(
-                for: ClientVisualThumbnailRequest(
-                    assetID: requestID,
-                    maximumPixelDimension: 1_024
-                ),
-                imageData: loadedData
+            inputMethod = .photoLibrary
+            await prepareReferencePhoto(
+                loadedData,
+                sourceMessage: "Photo Library reference ready."
             )
-            guard !Task.isCancelled,
-                  selectedPhotoItem == self.selectedPhotoItem else { return }
-            referencePhotoData = loadedData
-            referenceSourceImage = decodedReference.map { Image(uiImage: $0) }
-            photoData = loadedData
-            isGeneratedArtwork = false
-            referencePreviewID = requestID
-            photoPreviewID = requestID
-            message = "Reference photo ready. Save it directly or generate an illustrated icon."
         }
+    }
+
+    private func inputMethodLabel(
+        _ title: String,
+        subtitle: String,
+        systemImage: String,
+        method: VisualSupportInputMethod
+    ) -> some View {
+        HStack(spacing: 11) {
+            Image(systemName: systemImage)
+                .font(.title3)
+                .foregroundStyle(inputMethod == method ? Color.black.opacity(0.78) : palette.accent)
+                .frame(width: 38, height: 38)
+                .background(
+                    inputMethod == method ? palette.accent : palette.accent.opacity(0.13),
+                    in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+                )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(palette.textPrimary)
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundStyle(palette.textSecondary)
+            }
+            Spacer()
+            Image(systemName: inputMethod == method ? "checkmark.circle.fill" : "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(inputMethod == method ? palette.accentSecondary : palette.textSecondary)
+        }
+        .padding(11)
+        .frame(minHeight: 58)
+        .background(
+            palette.panelElevated.opacity(inputMethod == method ? 0.48 : 0.28),
+            in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+        )
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(inputMethod == method ? .isSelected : [])
+    }
+
+    private func selectTextOnly() {
+        focusedInput = nil
+        inputMethod = .textOnly
+        selectedPhotoItem = nil
+        clearReferencePhoto()
+        message = "Text-only input selected. Enter the exact label and optional visual description."
+        LifeRouteHaptics.selection()
+    }
+
+    private func requestCamera() {
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            message = "A camera is not available on this device. Text only and Photo Library remain available."
+            return
+        }
+
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            focusedInput = nil
+            selectedPhotoItem = nil
+            inputMethod = .camera
+            isCameraPresented = true
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                Task { @MainActor in
+                    if granted {
+                        focusedInput = nil
+                        selectedPhotoItem = nil
+                        inputMethod = .camera
+                        isCameraPresented = true
+                    } else {
+                        message = "Camera access was not granted. Text only and Photo Library remain available."
+                    }
+                }
+            }
+        case .denied, .restricted:
+            message = "Camera access is off for LifeRoute. Text only and Photo Library remain available."
+        @unknown default:
+            message = "The camera is unavailable right now. Text only and Photo Library remain available."
+        }
+    }
+
+    @MainActor
+    private func prepareReferencePhoto(_ data: Data, sourceMessage: String) async {
+        guard !data.isEmpty else {
+            message = "LifeRoute could not load that reference photo."
+            return
+        }
+        // Decode outside SwiftUI body evaluation and keep the source in memory until explicit save.
+        let requestID = UUID()
+        let decodedReference = await ClientVisualThumbnailCache.shared.thumbnail(
+            for: ClientVisualThumbnailRequest(
+                assetID: requestID,
+                maximumPixelDimension: 1_024
+            ),
+            imageData: data
+        )
+        guard !Task.isCancelled else { return }
+        referencePhotoData = data
+        referenceSourceImage = decodedReference.map { Image(uiImage: $0) }
+        photoData = data
+        isGeneratedArtwork = false
+        referencePreviewID = requestID
+        photoPreviewID = requestID
+        message = "\(sourceMessage) Review it, save it directly, or generate an illustrated icon."
+    }
+
+    private func clearReferencePhoto() {
+        referencePhotoData = nil
+        referenceSourceImage = nil
+        photoData = nil
+        isGeneratedArtwork = false
+        referencePreviewID = UUID()
+        photoPreviewID = UUID()
     }
 
     private var libraryName: String {
@@ -1211,18 +1376,62 @@ struct ClientVisualIconLibraryView: View {
 
     private func saveIcon() {
         do {
+            focusedInput = nil
             _ = try visualState.addIcon(clientCode: clientCode, label: label, imageData: photoData)
             label = ""
             visualDescription = ""
             selectedPhotoItem = nil
-            referencePhotoData = nil
-            referenceSourceImage = nil
-            photoData = nil
-            isGeneratedArtwork = false
-            referencePreviewID = UUID()
-            photoPreviewID = UUID()
+            inputMethod = .textOnly
+            clearReferencePhoto()
             message = "Icon saved to \(libraryName)’s visual library on this iPhone."
         } catch { message = error.localizedDescription }
+    }
+}
+
+private struct VisualSupportCameraPicker: UIViewControllerRepresentable {
+    @Environment(\.dismiss) private var dismiss
+    let onCapture: (Data) -> Void
+    let onCancel: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .camera
+        picker.cameraCaptureMode = .photo
+        picker.modalPresentationStyle = .fullScreen
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        private let parent: VisualSupportCameraPicker
+
+        init(parent: VisualSupportCameraPicker) {
+            self.parent = parent
+        }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            defer { parent.dismiss() }
+            guard let image = info[.originalImage] as? UIImage,
+                  let data = image.jpegData(compressionQuality: 0.90) else {
+                parent.onCancel()
+                return
+            }
+            parent.onCapture(data)
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.onCancel()
+            parent.dismiss()
+        }
     }
 }
 

@@ -277,14 +277,8 @@ struct VisualAIAssistedStudioView: View {
     @State private var isDraftingSchedule = false
     @State private var scheduleMessage: String?
 
-    @State private var iconLabel = ""
-    @State private var iconPrompt = ""
-    @State private var generatedImageData: Data?
-    @State private var imageMessage: String?
-    @State private var showImagePlayground = false
-
     var body: some View {
-        imagePlaygroundContainer
+        studioContent
             .navigationTitle("Visual AI Studio")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
@@ -297,34 +291,8 @@ struct VisualAIAssistedStudioView: View {
             }
             .onChange(of: selectedClientCode) { _ in
                 generatedSteps.removeAll()
-                generatedImageData = nil
                 scheduleMessage = nil
-                imageMessage = nil
             }
-    }
-
-    @ViewBuilder
-    private var imagePlaygroundContainer: some View {
-        #if canImport(ImagePlayground)
-        if #available(iOS 18.2, *) {
-            studioContent
-                .imagePlaygroundSheet(
-                    isPresented: $showImagePlayground,
-                    concept: resolvedIconPrompt,
-                    sourceImage: nil,
-                    onCompletion: { url in
-                        captureGeneratedImage(at: url)
-                    },
-                    onCancellation: {
-                        imageMessage = "Image creation cancelled. Your manual icon tools are unchanged."
-                    }
-                )
-        } else {
-            studioContent
-        }
-        #else
-        studioContent
-        #endif
     }
 
     private var studioContent: some View {
@@ -333,12 +301,14 @@ struct VisualAIAssistedStudioView: View {
                 hero
                 libraryCard
                 iconAICard
+                builderAccessCard
                 manualWorkspaceCard
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
             .padding(.bottom, 28)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var hero: some View {
@@ -507,8 +477,7 @@ struct VisualAIAssistedStudioView: View {
         .lifeRouteCard()
     }
 
-    // v0.8.0 follow-up visible ABA visual generator:
-    // Route the primary Visual Supports experience to the real photo/text illustrated workflow.
+    // v0.8.2 physical-QA correction: keep the useful generator controls on this screen.
     private var iconAICard: some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack {
@@ -526,78 +495,64 @@ struct VisualAIAssistedStudioView: View {
                     .foregroundStyle(palette.accent)
             }
 
-            HStack(spacing: 8) {
-                visualGeneratorModeBadge("TEXT ONLY", systemImage: "textformat")
-                visualGeneratorModeBadge("PHOTO", systemImage: "photo.fill")
-                visualGeneratorModeBadge("REGENERATE", systemImage: "arrow.clockwise")
-            }
-
-            HStack(spacing: 10) {
-                VStack(spacing: 7) {
-                    Image(systemName: "photo")
-                        .font(.title2)
-                        .foregroundStyle(palette.textSecondary)
-                    Text("REFERENCE")
-                        .font(.caption2.weight(.black))
-                        .foregroundStyle(palette.textSecondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 94)
-                .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-                Image(systemName: "arrow.right")
-                    .font(.headline.weight(.black))
-                    .foregroundStyle(palette.accent)
-                    .accessibilityHidden(true)
-
-                VStack(spacing: 7) {
-                    Image(systemName: "paintbrush.pointed.fill")
-                        .font(.title2)
-                        .foregroundStyle(palette.accent)
-                    Text("ILLUSTRATED ICON")
-                        .font(.caption2.weight(.black))
-                        .foregroundStyle(palette.accentSecondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 94)
-                .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Reference photo or text becomes an illustrated ABA visual-support icon")
-
-            NavigationLink {
-                ClientVisualIconLibraryView(
-                    visualState: visualState,
-                    clientCode: selectedClientCode
-                )
-            } label: {
-                HStack {
-                    Label("Open Illustrated Icon Generator", systemImage: "apple.intelligence")
-                        .font(.subheadline.weight(.bold))
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.black))
-                }
-                .foregroundStyle(Color.black.opacity(0.82))
-                .padding(.horizontal, 13)
-                .frame(minHeight: 48)
-                .background(palette.accent, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
-
-            Text("The generator opens directly in \(libraryDisplayName)’s existing visual library. LifeRoute keeps the exact label separate from the artwork, shows the reference and generated result clearly, and saves only after your review.")
-                .font(.caption)
-                .foregroundStyle(palette.textSecondary)
+            ClientVisualIconLibraryView(
+                visualState: visualState,
+                clientCode: selectedClientCode,
+                embedded: true
+            )
+            .id(selectedClientCode)
         }
         .lifeRouteCard()
     }
 
-    private func visualGeneratorModeBadge(_ title: String, systemImage: String) -> some View {
-        Label(title, systemImage: systemImage)
-            .font(.caption2.weight(.black))
-            .foregroundStyle(palette.accentSecondary)
-            .frame(maxWidth: .infinity, minHeight: 34)
-            .background(palette.panelElevated.opacity(0.34), in: Capsule())
-            .accessibilityLabel(title.capitalized)
+    private var builderAccessCard: some View {
+        VStack(alignment: .leading, spacing: 11) {
+            Text("Build with saved visuals")
+                .font(.headline)
+                .foregroundStyle(palette.textPrimary)
+
+            NavigationLink {
+                ClientChoiceBoardBuilderView(
+                    visualState: visualState,
+                    clientCode: selectedClientCode
+                )
+            } label: {
+                visualBuilderLinkLabel("Choice Boards", systemImage: "square.grid.2x2.fill")
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
+                ClientFirstThenVisualView(
+                    visualState: visualState,
+                    clientState: clientState,
+                    initialClientCode: selectedClientCode
+                )
+            } label: {
+                visualBuilderLinkLabel("First / Then", systemImage: "arrow.right.square.fill")
+            }
+            .buttonStyle(.plain)
+        }
+        .lifeRouteCard()
+    }
+
+    private func visualBuilderLinkLabel(_ title: String, systemImage: String) -> some View {
+        HStack(spacing: 11) {
+            Image(systemName: systemImage)
+                .foregroundStyle(palette.accent)
+                .frame(width: 34, height: 34)
+                .background(palette.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            Text(title)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(palette.textPrimary)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.black))
+                .foregroundStyle(palette.textSecondary)
+        }
+        .padding(11)
+        .frame(minHeight: 54)
+        .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .contentShape(Rectangle())
     }
 
     private var manualWorkspaceCard: some View {
@@ -636,25 +591,6 @@ struct VisualAIAssistedStudioView: View {
 
     private var libraryDisplayName: String {
         selectedClientCode == ClientVisualSupportCore.generalClientCode ? "General" : selectedClientCode
-    }
-
-    private var resolvedIconPrompt: String {
-        let custom = iconPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        let label = iconLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        return ABAVisualSupportConceptInterpreter.describe(
-            label: label,
-            visualDescription: custom,
-            hasReference: false
-        )
-    }
-
-    private var imagePlaygroundAvailable: Bool {
-        #if canImport(ImagePlayground)
-        if #available(iOS 18.2, *) {
-            return ImagePlaygroundViewController.isAvailable
-        }
-        #endif
-        return false
     }
 
     @MainActor
@@ -708,42 +644,6 @@ struct VisualAIAssistedStudioView: View {
         guard generatedSteps.indices.contains(index), generatedSteps.indices.contains(destination) else { return }
         generatedSteps.swapAt(index, destination)
         LifeRouteHaptics.selection()
-    }
-
-    private func saveGeneratedIcon() {
-        guard let generatedImageData else { return }
-        do {
-            _ = try visualState.addIcon(
-                clientCode: selectedClientCode,
-                label: iconLabel,
-                imageData: generatedImageData
-            )
-            imageMessage = "Generated icon saved to \(libraryDisplayName)’s visual library."
-            self.generatedImageData = nil
-            iconPrompt = ""
-            LifeRouteHaptics.success()
-        } catch {
-            imageMessage = error.localizedDescription
-        }
-    }
-
-    private func captureGeneratedImage(at url: URL) {
-        Task {
-            do {
-                let data = try await Task.detached(priority: .userInitiated) {
-                    try Data(contentsOf: url)
-                }.value
-                guard UIImage(data: data) != nil else {
-                    imageMessage = "Image Playground returned an image LifeRoute could not read."
-                    return
-                }
-                generatedImageData = data
-                imageMessage = "Image ready — review it, then save it to \(libraryDisplayName)."
-                LifeRouteHaptics.success()
-            } catch {
-                imageMessage = "LifeRoute could not import the generated image: \(error.localizedDescription)"
-            }
-        }
     }
 
     private func validateSelectedLibrary() {

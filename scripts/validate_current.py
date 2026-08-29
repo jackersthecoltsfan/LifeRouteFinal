@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Semantic validation for the canonical LifeRoute v0.8.1 source tree."""
+"""Semantic validation for the canonical LifeRoute v0.8.2 source tree."""
 
 from __future__ import annotations
 
@@ -16,7 +16,8 @@ APP = ROOT / "LifeRoute"
 PROJECT = ROOT / "LifeRoute.xcodeproj" / "project.pbxproj"
 EXTENSION = ROOT / "LifeRouteLiveActivityWidget"
 WORKFLOWS = ROOT / ".github" / "workflows"
-EXPECTED_MARKETING_VERSION = "0.8.1"
+EXPECTED_MARKETING_VERSION = "0.8.2"
+EXPECTED_RELEASE_MARKETING_VERSION = "0.8.1"
 EXPECTED_APP_BUNDLE_ID = "Com.Brandongood.LifeRoute"
 EXPECTED_EXTENSION_BUNDLE_ID = "Com.Brandongood.LifeRoute.LiveDay"
 
@@ -89,6 +90,7 @@ def validate_project_and_version() -> None:
             "LiveDayLiveActivityWidget.swift in Sources",
             "LiveDayActivityAttributes.swift in Sources",
             "Assets.xcassets in Resources",
+            "SessionNoteContracts.swift in Sources",
         ],
         "Xcode app/extension structure",
     )
@@ -101,12 +103,33 @@ def validate_active_build_path() -> None:
     fast = read(ROOT / "scripts" / "validate_fast.sh")
     full = read(ROOT / "scripts" / "validate_full.sh")
     warning_assessor = read(ROOT / "scripts" / "assess_xcode_warnings.py")
-    require_all(prepare, ["validate_fast.sh", "canonical LifeRoute v0.8.1"], "current prepare_build")
+    require_all(prepare, ["validate_fast.sh", "canonical LifeRoute v0.8.2"], "current prepare_build")
     forbidden = ["patch_v0_", "audit_v0_", "scripts/archive/", "generate_v0_", "materialize"]
     present = [token for token in forbidden if token in prepare]
     require(not present, f"prepare_build must not reconstruct historical releases: {present}")
     require("validate_current.py fast" in fast, "validate_fast must invoke the current semantic validator")
     require("validate_current.py full" in full, "validate_full must invoke the current full semantic validator")
+    require("run_session_note_contract_tests.sh" in full, "validate_full must run executable Session Note contracts")
+    fixture_runner = read(ROOT / "scripts" / "run_session_note_contract_tests.sh")
+    fixture_source = read(ROOT / "scripts" / "session_note_contract_tests.swift")
+    simulator_smoke = read(ROOT / "scripts" / "run_simulator_smoke.sh")
+    require_all(fixture_runner, ["swiftc", "SessionNoteContracts.swift", "session_note_contract_tests.swift"], "Session Note fixture runner")
+    require_all(
+        fixture_source,
+        [
+            "ambiguous normal-English net stays lowercase",
+            "invented numeric value is rejected",
+            "trial data cannot silently become percentage data",
+            "context retry occurs exactly once",
+            "two context failures stop after the compact retry",
+            "catch is CancellationError",
+            "timeout fixture reaches the safe terminal timeout",
+            "failed request preserves the previous generated draft",
+            "stale request output is rejected",
+        ],
+        "Session Note executable fixtures",
+    )
+    require("run_session_note_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Session Note contracts")
     require_all(
         warning_assessor,
         [
@@ -203,6 +226,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
     dashboard = sources["V054ToolsDashboard.swift"]
     clinical = sources["AIClinicalToolsViews.swift"]
     intelligence = sources["LifeRouteIntelligenceCore.swift"]
+    contracts = sources["SessionNoteContracts.swift"]
     require_all(tools_domain, ["struct ClientChoiceBoard", "struct ClientVisualSchedule", "final class ClientVisualSupportCore", "General visual library"], "ABA visual domain")
     require_all(sources["PersistenceCore.swift"], ["generalVisualLibraryID", "generalVisualLibraryCode", "codeByClientID[Self.generalVisualLibraryID]"], "protected General visual library persistence")
     require_all(tools_views, ["ClientVisualSupportCenter", "ClientVisualIconLibraryView", "ClientChoiceBoardBuilderView", "ClientFirstThenVisualView", "ClientVisualScheduleBuilderView", "VisualTimerView", "QuickSessionNotesView", "SessionPlanOrganizerView"], "Build 106 ABA/session surfaces")
@@ -216,6 +240,12 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
             "generatedNote",
             "TextEditor(text: $runtime.generatedNote)",
             "maxSelectionCount: 6",
+            "@FocusState private var focusedField",
+            ".scrollDismissesKeyboard(.interactively)",
+            "ToolbarItemGroup(placement: .keyboard)",
+            "ABATerminologyNormalizer.normalize(narrative)",
+            'case contextRetrySuccess = "context-retry-success"',
+            'case contextRetryFailure = "context-retry-failure"',
             ".toolbar(.hidden, for: .tabBar)",
         ],
         "reviewable on-device Session Note flow",
@@ -223,16 +253,36 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
     require_all(
         intelligence,
         [
-            "using ONLY the session facts supplied below",
-            'Refer to the clinician only as "the RBT"',
-            "Never use a personal clinician",
-            "Do not fabricate",
+            "SessionNoteEvidencePacket",
+            "SessionNoteGenerationPipeline.run",
+            "maximumResponseTokens: 900",
+            "LanguageModelSession.GenerationError.exceededContextWindowSize",
+            "case contextWindowExceeded",
             "VNRecognizeTextRequest",
             "FoundationModels",
-            "headingPrefixes",
-            "guard !repairedDraft.isEmpty",
         ],
-        "supplied-facts-only on-device clinical boundary and bounded repair recovery",
+        "compact on-device clinical generation and bounded context recovery",
+    )
+    require_all(
+        contracts,
+        [
+            "SessionNoteEvidencePacket",
+            "SessionNoteEvidenceNormalizer",
+            "SessionNoteIdentifierScrubber",
+            "ABATerminologyNormalizer",
+            "SessionNoteOutputSanitizer",
+            "SessionNoteOutputValidator",
+            "SessionNoteNumericClaim",
+            "SessionNoteRequestRace",
+            "SessionNoteDraftLedger",
+            "case compactRetry",
+            "case repair",
+            '"behaviors of concern"',
+            '"BCBA-D"',
+            '"VB-MAPP"',
+            '"ABLLS-R"',
+        ],
+        "deterministic Session Note evidence, identity, terminology, data, and output contracts",
     )
     require_all(
         tools_domain,
@@ -261,6 +311,32 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
     require('VisualWorkspaceCard(title: "Schedules"' not in tools_views, "Visual Schedule must remain hidden from the visual workspace")
     require(dashboard.count("scheduleAICard") == 1, "Visual Schedule AI card must remain dormant rather than exposed")
     require("ClientVisualScheduleBuilderView(" not in dashboard, "Tools dashboard must not expose the dormant Visual Schedule builder")
+    require_all(
+        dashboard,
+        [
+            "ClientVisualIconLibraryView(",
+            "embedded: true",
+            'visualBuilderLinkLabel("Choice Boards"',
+            'visualBuilderLinkLabel("First / Then"',
+            ".scrollDismissesKeyboard(.interactively)",
+        ],
+        "one-screen Visual AI Studio",
+    )
+    require("Open Illustrated Icon Generator" not in dashboard, "Visual AI Studio must not retain the redundant generator subpage action")
+    require_all(
+        tools_views,
+        [
+            '"Text only"',
+            '"Take photo"',
+            '"Photo Library"',
+            "PhotosPicker",
+            "VisualSupportCameraPicker",
+            "AVCaptureDevice.authorizationStatus",
+            "referencePhotoData",
+            "isGeneratedArtwork",
+        ],
+        "explicit text, camera, and photo-library Visual AI input",
+    )
     require_count(dashboard, ".lifeRouteDeepDestination()", 6, "deep Tools destination toolbar suppression")
     forbidden_network = ["URLSession.shared", "api.openai.com", "anthropic.com"]
     present = [token for token in forbidden_network if token in clinical + intelligence]
@@ -320,8 +396,8 @@ def validate_release_and_web_policy() -> None:
     require_all(pages, ["build_web_preview.py", "validate_fast.sh"], "decoupled web preview")
     require("scripts/**" not in pages, "Pages must not trigger for arbitrary scripts changes")
     require_all(bridge, ["AUTHORIZED_TESTFLIGHT_RELEASE=YES", "Require completed release-equivalent iOS validation", "Reconfirm main before TestFlight", "authorized_sha"], "exact-SHA assistant release bridge")
-    require_all(testflight, ["workflow_dispatch", "authorized_sha", "Verify authorized release source", EXPECTED_APP_BUNDLE_ID, EXPECTED_EXTENSION_BUNDLE_ID, "validate_full.sh", "archive", "Verify archived LifeRoute v0.8.1 identity", "Upload to TestFlight", "Clean temporary Apple signing assets", "AppIcon"], "current v0.8.1 TestFlight contract")
-    require(testflight.count("RELEASE_MARKETING_VERSION: 0.8.1") == 1, "TestFlight must expose one active v0.8.1 release contract")
+    require_all(testflight, ["workflow_dispatch", "authorized_sha", "Verify authorized release source", EXPECTED_APP_BUNDLE_ID, EXPECTED_EXTENSION_BUNDLE_ID, "validate_full.sh", "archive", "Verify archived LifeRoute v0.8.1 identity", "Upload to TestFlight", "Clean temporary Apple signing assets", "AppIcon"], "separate unchanged v0.8.1 TestFlight contract")
+    require(testflight.count(f"RELEASE_MARKETING_VERSION: {EXPECTED_RELEASE_MARKETING_VERSION}") == 1, "product branch must leave the separate v0.8.1 release workflow unchanged")
     for name, text in workflows.items():
         if name == "testflight.yml":
             continue
@@ -358,7 +434,7 @@ def main() -> int:
     except (OSError, plistlib.InvalidFileException, ValidationFailure) as error:
         print(f"LifeRoute {args.level} validation failed: {error}", file=sys.stderr)
         return 1
-    print(f"LifeRoute canonical v0.8.1 {args.level} validation passed.")
+    print(f"LifeRoute canonical v0.8.2 {args.level} validation passed.")
     return 0
 
 

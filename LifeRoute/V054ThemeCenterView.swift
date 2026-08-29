@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct V054ThemeCenterView: View {
-    // v0.7.0 Theme Phase 2 Theme Center: 12 still Core Glass + 12 live Dynamic Liquid Glass.
+    // v0.7.0 Theme Phase 3 Theme Center: exactly 12 Core + 12 Dynamic + 20 Scenery themes.
     @Environment(\.lifeRoutePalette) private var palette
     @EnvironmentObject private var themeStore: LifeRouteThemeStore
 
@@ -14,9 +14,6 @@ struct V054ThemeCenterView: View {
 
         var id: String { rawValue }
     }
-
-    // Scenery remains exactly the validated pre-Phase-3 catalog until the dedicated scenery phase.
-    private let sceneryThemes: [LifeRouteTheme] = [.mountain, .ocean, .space, .desert, .forest, .sunshine]
 
     private let columns = [
         GridItem(.flexible(), spacing: 10),
@@ -70,7 +67,7 @@ struct V054ThemeCenterView: View {
         case .dynamic:
             return LifeRouteTheme.phaseTwoDynamicCatalog
         case .scenery:
-            return sceneryThemes
+            return LifeRouteTheme.phaseThreeSceneryCatalog
         }
     }
 
@@ -87,9 +84,9 @@ struct V054ThemeCenterView: View {
         case .core:
             return "12 still app-wide glass environments with no continuous ambient motion."
         case .dynamic:
-            return "12 slow, ambient liquid-glass environments. Reduce Motion keeps the selected theme but renders a still equivalent."
+            return "12 slow, full-frame liquid-glass environments. Reduce Motion retains a still equivalent."
         case .scenery:
-            return "Scenery is retained unchanged until its dedicated Phase 3 renderer."
+            return "20 cinematic environments across 10 families, with Day and Night selected independently. Reduce Motion keeps the chosen scene and freezes ambient motion."
         }
     }
 
@@ -97,14 +94,14 @@ struct V054ThemeCenterView: View {
         switch selectedCategory {
         case .core: return "sparkles"
         case .dynamic: return "waveform.path"
-        case .scenery: return "clock.arrow.circlepath"
+        case .scenery: return "mountain.2.fill"
         }
     }
 
     private func category(for theme: LifeRouteTheme) -> ThemeFilter {
         if theme.isPhaseOneCoreGlass { return .core }
         if theme.isPhaseTwoDynamic { return .dynamic }
-        if sceneryThemes.contains(theme) { return .scenery }
+        if theme.isPhaseThreeScenery { return .scenery }
         return .core
     }
 
@@ -119,25 +116,23 @@ struct V054ThemeCenterView: View {
                 }
 
             VStack(alignment: .leading, spacing: 4) {
-                // v0.7.0 official branding Theme Center: retain theme preview, add the fixed navy/gold identity.
-                HStack(spacing: 6) {
-                    LifeRouteBrandMark(variant: .micro)
-                        .frame(width: 19, height: 19)
-                        .accessibilityHidden(true)
-                    Text("ACTIVE THEME")
-                }
-                .font(.caption2.weight(.black))
-                .tracking(0.8)
-                .foregroundStyle(palette.accentSecondary)
+                Text("ACTIVE THEME")
+                    .font(.caption2.weight(.black))
+                    .tracking(0.8)
+                    .foregroundStyle(palette.accentSecondary)
                 Text(themeStore.selectedTheme.name)
                     .font(.title3.weight(.black))
                     .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.72)
                 HStack(spacing: 5) {
                     Text(category(for: themeStore.selectedTheme).rawValue)
                     if themeStore.selectedTheme.isPhaseTwoDynamic {
                         Image(systemName: "waveform.path")
                             .accessibilityHidden(true)
+                    } else if themeStore.selectedTheme.isPhaseThreeScenery {
+                        Text(themeStore.selectedTheme.sceneryVariantLabel)
+                            .font(.caption2.weight(.black))
                     }
                 }
                 .font(.caption.weight(.semibold))
@@ -152,7 +147,7 @@ struct V054ThemeCenterView: View {
                 .accessibilityHidden(true)
         }
         .padding(12)
-        .background(palette.panel.opacity(0.52), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(palette.panel.opacity(0.42), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(palette.accent.opacity(0.18), lineWidth: 1)
@@ -183,6 +178,7 @@ struct V054ThemeCenterView: View {
         let selected = themeStore.selectedTheme == theme
         let coreGlass = theme.isPhaseOneCoreGlass
         let dynamicGlass = theme.isPhaseTwoDynamic
+        let scenery = theme.isPhaseThreeScenery
 
         return Button {
             themeStore.selectedTheme = theme
@@ -194,17 +190,20 @@ struct V054ThemeCenterView: View {
                         .frame(height: 78)
                         .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
 
-                    if coreGlass || dynamicGlass {
+                    if coreGlass || dynamicGlass || scenery {
                         HStack(spacing: 4) {
                             if dynamicGlass {
                                 Image(systemName: "waveform.path")
                                     .font(.system(size: 8, weight: .black))
+                            } else if scenery {
+                                Image(systemName: theme.sceneryVariantLabel == "NIGHT" ? "moon.stars.fill" : "sun.max.fill")
+                                    .font(.system(size: 8, weight: .black))
                             }
-                            Text(dynamicGlass ? "LIVE" : "STILL")
+                            Text(coreGlass ? "STILL" : (dynamicGlass ? "LIVE" : theme.sceneryVariantLabel))
                                 .font(.system(size: 8, weight: .black))
                                 .tracking(0.7)
                         }
-                        .foregroundStyle(.white.opacity(0.86))
+                        .foregroundStyle(.white.opacity(0.90))
                         .padding(.horizontal, 6)
                         .frame(minHeight: 22)
                         .background(Color.black.opacity(0.30), in: Capsule())
@@ -224,7 +223,7 @@ struct V054ThemeCenterView: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.78)
+                    .minimumScaleFactor(0.70)
 
                 Text(coreGlass ? "CORE GLASS" : (dynamicGlass ? "DYNAMIC GLASS" : "SCENERY"))
                     .font(.caption2.weight(.black))
@@ -232,7 +231,7 @@ struct V054ThemeCenterView: View {
                     .foregroundStyle(selected ? palette.accentSecondary : palette.textSecondary)
             }
             .padding(9)
-            .background(selected ? palette.panelElevated.opacity(0.56) : palette.panel.opacity(0.42), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(selected ? palette.panelElevated.opacity(0.50) : palette.panel.opacity(0.34), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(selected ? palette.accent.opacity(0.72) : Color.white.opacity(0.07), lineWidth: selected ? 2 : 1)
@@ -241,7 +240,7 @@ struct V054ThemeCenterView: View {
         .buttonStyle(.plain)
         .frame(minHeight: 132)
         .accessibilityLabel("Use \(theme.name) theme")
-        .accessibilityValue(selected ? "Selected" : (dynamicGlass ? "Animated theme" : "Not selected"))
+        .accessibilityValue(selected ? "Selected" : (dynamicGlass || scenery ? "Ambient theme" : "Not selected"))
     }
 
     @ViewBuilder
@@ -249,11 +248,18 @@ struct V054ThemeCenterView: View {
         if theme.isPhaseOneCoreGlass {
             LifeRouteCoreGlassEnvironment(theme: theme, palette: theme.palette)
         } else if theme.isPhaseTwoDynamic {
-            // Static representative snapshot only: the grid never starts 12 competing timelines.
+            // Static representative snapshot only: the grid never starts competing timelines.
             LifeRouteDynamicGlassFrame(
                 theme: theme,
                 palette: theme.palette,
                 phase: theme.dynamicPreviewPhase
+            )
+        } else if theme.isPhaseThreeScenery {
+            // All 20 Scenery thumbnails are deterministic still frames; only the selected root scene can animate.
+            LifeRouteSceneryFrame(
+                theme: theme,
+                palette: theme.palette,
+                phase: theme.sceneryPreviewPhase
             )
         } else {
             ZStack {

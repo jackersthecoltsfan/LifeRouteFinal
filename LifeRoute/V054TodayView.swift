@@ -1,5 +1,102 @@
 import SwiftUI
 
+// v0.7.1 Today exemplar surfaces: native Liquid Glass on iOS 26 with an availability-safe material fallback.
+private struct LifeRouteTodaySelectedExemplarArtwork: View {
+    let theme: LifeRouteTheme
+
+    @ViewBuilder
+    var body: some View {
+        GeometryReader { proxy in
+            if theme == .sceneryCanyonDay {
+                Image(decorative: "SceneryCanyonDay")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+            } else if theme == .royalCurrent {
+                Image(decorative: "DynamicRoyalCurrent")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+            } else {
+                Color.clear
+            }
+        }
+    }
+}
+
+private struct LifeRouteTodayGlassCardModifier: ViewModifier {
+    @Environment(\.lifeRoutePalette) private var palette
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .padding(LifeRouteDesign.Spacing.comfortable)
+                .glassEffect(
+                    .regular.tint(palette.panel.opacity(0.16)),
+                    in: .rect(cornerRadius: LifeRouteDesign.Radius.card)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
+                        .stroke(Color.white.opacity(0.15), lineWidth: LifeRouteDesign.Stroke.subtle)
+                }
+                .shadow(color: Color.black.opacity(0.18), radius: 12, y: 6)
+        } else {
+            content
+                .padding(LifeRouteDesign.Spacing.comfortable)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous))
+                .background(
+                    palette.panel.opacity(0.18),
+                    in: RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
+                        .stroke(Color.white.opacity(0.12), lineWidth: LifeRouteDesign.Stroke.subtle)
+                }
+                .shadow(color: Color.black.opacity(0.18), radius: 12, y: 6)
+        }
+    }
+}
+
+private struct LifeRouteTodayQuickActionsContainerModifier: ViewModifier {
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: 8) {
+                content
+            }
+        } else {
+            content
+        }
+    }
+}
+
+private struct LifeRouteTodayQuickActionSurfaceModifier: ViewModifier {
+    let accent: Color
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .padding(.horizontal, 3)
+                .padding(.vertical, 5)
+                .glassEffect(
+                    .regular.tint(accent.opacity(0.12)).interactive(),
+                    in: .rect(cornerRadius: 14)
+                )
+        } else {
+            content
+                .padding(.horizontal, 3)
+                .padding(.vertical, 5)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(accent.opacity(0.16), lineWidth: LifeRouteDesign.Stroke.subtle)
+                }
+        }
+    }
+}
+
 // v0.7.0 Build B Today/Home: the reference implementation for the v0.7 screen language.
 // v0.7.0 Build B.1 Today/Home parity: device-tuned against the approved target screenshot.
 // v0.7.0 Build B.2 device QA: real-iPhone density pass against the approved reference.
@@ -99,7 +196,8 @@ struct V054TodayView: View {
 
     private var hero: some View {
         ZStack(alignment: .topLeading) {
-            LifeRouteTodayHeroScene()
+            // v0.7.1 Today reuses the selected exemplar's production artwork; no local competing renderer or clock.
+            LifeRouteTodaySelectedExemplarArtwork(theme: themeStore.selectedTheme)
 
             LinearGradient(
                 colors: [Color.black.opacity(0.04), Color.black.opacity(0.10), Color.black.opacity(0.60)],
@@ -108,15 +206,14 @@ struct V054TodayView: View {
             )
 
             VStack(alignment: .leading, spacing: 5) {
-                // v0.7.0 official branding Today hero: official mark + stable LifeRoute wordmark.
-                HStack(alignment: .center, spacing: 10) {
-                    LifeRouteBrandMark(variant: .small)
-                        .frame(width: 46, height: 46)
-                        .accessibilityHidden(true)
-
-                    Text("LifeRoute")
+                // v0.7.0 official branding Today hero — the official LR mark remains the
+                // production app identity, while Today returns to the approved preview composition.
+                // v0.7.0 Today hero preview-parity repair.
+                HStack(alignment: .center, spacing: 0) {
+                    Text("Life")
                         .foregroundStyle(.white)
-
+                    Text("Route")
+                        .foregroundStyle(brandGold)
                     Spacer(minLength: 12)
                     Button {
                         showingDayPicker = true
@@ -488,6 +585,7 @@ struct V054TodayView: View {
                 .buttonStyle(.plain)
                 .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
             }
+            .modifier(LifeRouteTodayQuickActionsContainerModifier())
         }
     }
 
@@ -497,15 +595,13 @@ struct V054TodayView: View {
                 title: Calendar.current.isDateInToday(selectedDay) ? "Today’s Overview" : "Day Overview"
             )
 
-            if let event = nextEvent {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    nextEventCard(event, now: context.date)
-                }
-            } else {
+            // v0.7.0 Today overview full-day agenda: show every appointment on the selected
+            // calendar day instead of reducing the overview to only the next appointment.
+            if selectedDayEvents.isEmpty {
                 HStack(spacing: 10) {
                     LifeRouteIconBadge(systemImage: "checkmark.circle.fill", prominent: true)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(Calendar.current.isDateInToday(selectedDay) ? "No more timed events today" : "No timed events on this day")
+                        Text(Calendar.current.isDateInToday(selectedDay) ? "No timed events today" : "No timed events on this day")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(palette.textPrimary)
                         Text("Your selected day is clear.")
@@ -514,8 +610,20 @@ struct V054TodayView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
+                .padding(10)
                 .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            } else {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    VStack(spacing: 7) {
+                        ForEach(selectedDayEvents) { event in
+                            overviewEventCard(
+                                event,
+                                now: context.date,
+                                isFocus: event.id == nextEvent?.id
+                            )
+                        }
+                    }
+                }
             }
 
             LazyVGrid(columns: overviewMetricColumns, spacing: 7) {
@@ -542,23 +650,22 @@ struct V054TodayView: View {
                 )
             }
         }
-        .padding(10)
-        .background(palette.panel.opacity(0.72), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.07), lineWidth: LifeRouteDesign.Stroke.subtle)
-        }
+        .modifier(LifeRouteTodayGlassCardModifier())
     }
 
-    private func nextEventCard(_ event: LifeRouteCalendarEvent, now: Date) -> some View {
+    private func overviewEventCard(
+        _ event: LifeRouteCalendarEvent,
+        now: Date,
+        isFocus: Bool
+    ) -> some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Next Event")
+                Text(isFocus ? "Next Event" : overviewEventLabel(event, now: now))
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(palette.textSecondary)
                 Text(event.title)
                     .font(.headline.weight(.bold))
-                    .foregroundStyle(brandGold)
+                    .foregroundStyle(isFocus ? brandGold : palette.textPrimary)
                     .lineLimit(2)
                 Text(event.isAllDay ? "All day" : "\(event.start.formatted(date: .omitted, time: .shortened)) – \(event.end.formatted(date: .omitted, time: .shortened))")
                     .font(.caption2.weight(.medium))
@@ -574,13 +681,13 @@ struct V054TodayView: View {
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 3) {
-                Text(nextEventCountdownLabel(event, now: now))
+                Text(isFocus ? nextEventCountdownLabel(event, now: now) : overviewEventStatusLabel(event, now: now))
                     .font(.caption2)
                     .foregroundStyle(palette.textSecondary)
-                Text(nextEventCountdownValue(event, now: now))
+                Text(isFocus ? nextEventCountdownValue(event, now: now) : overviewEventStatusValue(event, now: now))
                     .font(.title3.weight(.bold))
                     .monospacedDigit()
-                    .foregroundStyle(routeBlue)
+                    .foregroundStyle(isFocus ? routeBlue : palette.textPrimary.opacity(0.82))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
             }
@@ -588,12 +695,38 @@ struct V054TodayView: View {
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(palette.panelElevated.opacity(0.46))
+                .fill(palette.panelElevated.opacity(isFocus ? 0.46 : 0.30))
         )
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(palette.accent.opacity(0.28), lineWidth: LifeRouteDesign.Stroke.subtle)
+                .stroke(isFocus ? brandGold.opacity(0.28) : Color.white.opacity(0.07), lineWidth: LifeRouteDesign.Stroke.subtle)
         }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func overviewEventLabel(_ event: LifeRouteCalendarEvent, now: Date) -> String {
+        guard Calendar.current.isDateInToday(selectedDay) else { return "Scheduled" }
+        if event.end <= now { return "Completed" }
+        if event.start <= now { return "In Progress" }
+        return "Later Today"
+    }
+
+    private func overviewEventStatusLabel(_ event: LifeRouteCalendarEvent, now: Date) -> String {
+        if event.isAllDay { return "Time" }
+        guard Calendar.current.isDateInToday(selectedDay) else { return "Starts" }
+        if event.end <= now { return "Status" }
+        if event.start <= now { return "Status" }
+        return "Starts"
+    }
+
+    private func overviewEventStatusValue(_ event: LifeRouteCalendarEvent, now: Date) -> String {
+        if event.isAllDay { return "All day" }
+        guard Calendar.current.isDateInToday(selectedDay) else {
+            return event.start.formatted(date: .omitted, time: .shortened)
+        }
+        if event.end <= now { return "Done" }
+        if event.start <= now { return "Now" }
+        return event.start.formatted(date: .omitted, time: .shortened)
     }
 
     private var gapSuggestions: some View {
@@ -624,7 +757,7 @@ struct V054TodayView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .lifeRouteCard()
+                .modifier(LifeRouteTodayGlassCardModifier())
             } else {
                 ForEach(openTodos.prefix(1)) { todo in
                     HStack(spacing: 11) {
@@ -810,7 +943,7 @@ struct V054TodayView: View {
                     .foregroundStyle(palette.textSecondary)
             }
         }
-        .lifeRouteCard()
+        .modifier(LifeRouteTodayGlassCardModifier())
     }
 
     @ViewBuilder
@@ -878,6 +1011,7 @@ struct V054TodayView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 64, alignment: .top)
         .contentShape(Rectangle())
+        .modifier(LifeRouteTodayQuickActionSurfaceModifier(accent: accent))
     }
 
     private func overviewMetric(
@@ -972,228 +1106,4 @@ struct V054TodayView: View {
         case .other: return "mappin.circle.fill"
         }
     }
-}
-
-private struct LifeRouteTodayHeroScene: View {
-    private let gold = Color(red: 0.96, green: 0.72, blue: 0.20)
-    private let goldBright = Color(red: 1.00, green: 0.88, blue: 0.49)
-
-    var body: some View {
-        GeometryReader { proxy in
-            let size = proxy.size
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.008, green: 0.035, blue: 0.085),
-                        Color(red: 0.018, green: 0.12, blue: 0.23),
-                        Color(red: 0.012, green: 0.045, blue: 0.095),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-
-                RadialGradient(
-                    colors: [
-                        Color(red: 0.16, green: 0.52, blue: 0.78).opacity(0.52),
-                        Color(red: 0.05, green: 0.24, blue: 0.42).opacity(0.18),
-                        .clear,
-                    ],
-                    center: UnitPoint(x: 0.50, y: 0.40),
-                    startRadius: 2,
-                    endRadius: max(size.width, size.height) * 0.68
-                )
-
-                Circle()
-                    .fill(Color.white.opacity(0.07))
-                    .frame(width: size.width * 0.58)
-                    .blur(radius: 32)
-                    .offset(x: -size.width * 0.16, y: -size.height * 0.22)
-
-                distantRange(size)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.18, green: 0.40, blue: 0.61).opacity(0.82),
-                                Color(red: 0.035, green: 0.13, blue: 0.24).opacity(0.98),
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .blur(radius: 0.35)
-
-                snowHighlights(size)
-                    .fill(Color(red: 0.56, green: 0.72, blue: 0.84).opacity(0.30))
-                    .blur(radius: 0.25)
-
-                middleRange(size)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.055, green: 0.22, blue: 0.36),
-                                Color(red: 0.012, green: 0.055, blue: 0.11),
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-
-                valleyMist(size)
-                    .fill(Color(red: 0.11, green: 0.36, blue: 0.54).opacity(0.20))
-                    .blur(radius: 13)
-
-                foregroundRange(size)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.018, green: 0.07, blue: 0.12),
-                                Color.black.opacity(0.98),
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-
-                roadPath(size)
-                    .stroke(gold.opacity(0.18), style: StrokeStyle(lineWidth: 24, lineCap: .round, lineJoin: .round))
-                    .blur(radius: 13)
-
-                roadPath(size)
-                    .stroke(gold.opacity(0.34), style: StrokeStyle(lineWidth: 12, lineCap: .round, lineJoin: .round))
-                    .blur(radius: 5)
-
-                roadPath(size)
-                    .stroke(
-                        LinearGradient(colors: [goldBright, gold, goldBright], startPoint: .bottom, endPoint: .top),
-                        style: StrokeStyle(lineWidth: 4.2, lineCap: .round, lineJoin: .round)
-                    )
-
-                roadPath(size)
-                    .stroke(Color.white.opacity(0.48), style: StrokeStyle(lineWidth: 0.70, lineCap: .round, lineJoin: .round))
-            }
-            .clipped()
-        }
-        .accessibilityHidden(true)
-    }
-
-    private func distantRange(_ size: CGSize) -> Path {
-        Path { p in
-            p.move(to: CGPoint(x: 0, y: size.height * 0.60))
-            p.addLine(to: CGPoint(x: size.width * 0.10, y: size.height * 0.48))
-            p.addLine(to: CGPoint(x: size.width * 0.18, y: size.height * 0.34))
-            p.addLine(to: CGPoint(x: size.width * 0.28, y: size.height * 0.47))
-            p.addLine(to: CGPoint(x: size.width * 0.39, y: size.height * 0.27))
-            p.addLine(to: CGPoint(x: size.width * 0.48, y: size.height * 0.44))
-            p.addLine(to: CGPoint(x: size.width * 0.60, y: size.height * 0.22))
-            p.addLine(to: CGPoint(x: size.width * 0.70, y: size.height * 0.43))
-            p.addLine(to: CGPoint(x: size.width * 0.82, y: size.height * 0.29))
-            p.addLine(to: CGPoint(x: size.width, y: size.height * 0.48))
-            p.addLine(to: CGPoint(x: size.width, y: size.height))
-            p.addLine(to: CGPoint(x: 0, y: size.height))
-            p.closeSubpath()
-        }
-    }
-
-    private func snowHighlights(_ size: CGSize) -> Path {
-        Path { p in
-            p.move(to: CGPoint(x: size.width * 0.34, y: size.height * 0.34))
-            p.addLine(to: CGPoint(x: size.width * 0.39, y: size.height * 0.27))
-            p.addLine(to: CGPoint(x: size.width * 0.44, y: size.height * 0.36))
-            p.addLine(to: CGPoint(x: size.width * 0.40, y: size.height * 0.33))
-            p.closeSubpath()
-
-            p.move(to: CGPoint(x: size.width * 0.54, y: size.height * 0.31))
-            p.addLine(to: CGPoint(x: size.width * 0.60, y: size.height * 0.22))
-            p.addLine(to: CGPoint(x: size.width * 0.66, y: size.height * 0.34))
-            p.addLine(to: CGPoint(x: size.width * 0.61, y: size.height * 0.30))
-            p.closeSubpath()
-        }
-    }
-
-    private func middleRange(_ size: CGSize) -> Path {
-        Path { p in
-            p.move(to: CGPoint(x: 0, y: size.height * 0.69))
-            p.addLine(to: CGPoint(x: size.width * 0.13, y: size.height * 0.52))
-            p.addLine(to: CGPoint(x: size.width * 0.26, y: size.height * 0.61))
-            p.addLine(to: CGPoint(x: size.width * 0.42, y: size.height * 0.43))
-            p.addLine(to: CGPoint(x: size.width * 0.57, y: size.height * 0.62))
-            p.addLine(to: CGPoint(x: size.width * 0.73, y: size.height * 0.44))
-            p.addLine(to: CGPoint(x: size.width * 0.86, y: size.height * 0.59))
-            p.addLine(to: CGPoint(x: size.width, y: size.height * 0.50))
-            p.addLine(to: CGPoint(x: size.width, y: size.height))
-            p.addLine(to: CGPoint(x: 0, y: size.height))
-            p.closeSubpath()
-        }
-    }
-
-    private func foregroundRange(_ size: CGSize) -> Path {
-        Path { p in
-            p.move(to: CGPoint(x: 0, y: size.height * 0.80))
-            p.addLine(to: CGPoint(x: size.width * 0.18, y: size.height * 0.66))
-            p.addLine(to: CGPoint(x: size.width * 0.34, y: size.height * 0.77))
-            p.addLine(to: CGPoint(x: size.width * 0.53, y: size.height * 0.60))
-            p.addLine(to: CGPoint(x: size.width * 0.71, y: size.height * 0.76))
-            p.addLine(to: CGPoint(x: size.width * 0.86, y: size.height * 0.64))
-            p.addLine(to: CGPoint(x: size.width, y: size.height * 0.72))
-            p.addLine(to: CGPoint(x: size.width, y: size.height))
-            p.addLine(to: CGPoint(x: 0, y: size.height))
-            p.closeSubpath()
-        }
-    }
-
-    private func valleyMist(_ size: CGSize) -> Path {
-        Path(ellipseIn: CGRect(x: size.width * 0.18, y: size.height * 0.46, width: size.width * 0.72, height: size.height * 0.25))
-    }
-
-    private func roadPath(_ size: CGSize) -> Path {
-        Path { p in
-            p.move(to: CGPoint(x: size.width * 0.48, y: size.height * 1.08))
-            p.addCurve(
-                to: CGPoint(x: size.width * 0.53, y: size.height * 0.78),
-                control1: CGPoint(x: size.width * 0.29, y: size.height * 0.94),
-                control2: CGPoint(x: size.width * 0.72, y: size.height * 0.88)
-            )
-            p.addCurve(
-                to: CGPoint(x: size.width * 0.46, y: size.height * 0.64),
-                control1: CGPoint(x: size.width * 0.60, y: size.height * 0.73),
-                control2: CGPoint(x: size.width * 0.38, y: size.height * 0.71)
-            )
-            p.addCurve(
-                to: CGPoint(x: size.width * 0.61, y: size.height * 0.53),
-                control1: CGPoint(x: size.width * 0.50, y: size.height * 0.59),
-                control2: CGPoint(x: size.width * 0.56, y: size.height * 0.56)
-            )
-            p.addCurve(
-                to: CGPoint(x: size.width * 0.75, y: size.height * 0.48),
-                control1: CGPoint(x: size.width * 0.66, y: size.height * 0.51),
-                control2: CGPoint(x: size.width * 0.71, y: size.height * 0.50)
-            )
-        }
-    }
-
-    // v0.7.0 B.3 legacy hero geometry aliases: retain inherited audit vocabulary
-    // while the actual rendered hero uses the richer B.3 cinematic geometry above.
-    private func mountainBack(_ size: CGSize) -> Path { distantRange(size) }
-    private func mountainMid(_ size: CGSize) -> Path { middleRange(size) }
-    private func mountainFront(_ size: CGSize) -> Path { foregroundRange(size) }
-    private func routePath(_ size: CGSize) -> Path { roadPath(size) }
-
-    // Inherited Build B.1 visual-contract tokens, superseded in rendering by B.3:
-    // private let brandGold = Color(red: 0.96, green: 0.72, blue: 0.20)
-    // private let brandGoldBright = Color(red: 1.00, green: 0.86, blue: 0.43)
-    // style: StrokeStyle(lineWidth: 17
-    // style: StrokeStyle(lineWidth: 3.8
-    // Color.white.opacity(0.50)
-
-    // Inherited B.2 density-contract tokens, intentionally superseded by the B.3 device pass:
-    // LazyVStack(spacing: 9)
-    // .frame(height: dynamicTypeSize.isAccessibilitySize ? 222 : 182)
-    // .frame(maxWidth: .infinity, minHeight: 68, alignment: .top)
-    // .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
-    // ForEach(suggestions.prefix(openTodos.isEmpty ? 4 : 2))
-
-    // Inherited To-Dos Home exposure contract; B.3 keeps the functionality but intentionally
-    // shows one best task on the landing screen instead of three.
-    // ForEach(openTodos.prefix(3))
-
 }

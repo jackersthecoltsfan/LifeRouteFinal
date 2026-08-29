@@ -1961,7 +1961,7 @@ struct ClientVisualSchedulePreviewView: View {
 }
 
 struct ClientFirstThenSessionPreviewView: View {
-    @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.lifeRoutePalette)  private var palette
     @Environment(\.dismiss) private var dismiss
     let libraryName: String
     let firstIcon: ClientVisualIcon?

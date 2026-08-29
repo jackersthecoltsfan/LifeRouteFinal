@@ -704,3 +704,41 @@ final class ClientVisualSupportCore: ObservableObject {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+
+enum ABAVisualSupportConceptInterpreter {
+    static func describe(label: String, visualDescription: String, hasReference: Bool) -> String {
+        let cleanLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanDescription = visualDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowered = "\(cleanLabel) \(cleanDescription)".lowercased()
+
+        let functionalConcept: String
+        switch true {
+        case lowered.contains("water play"):
+            functionalConcept = "A child-friendly water play cue showing hands in a small water table or basin with simple water toys."
+        case lowered.contains("outside"), lowered.contains("outdoor"):
+            functionalConcept = "A clear outside cue showing a doorway, yard, or playground setting that signals going outdoors."
+        case lowered.contains("break"):
+            functionalConcept = "A quiet break cue showing a calm resting spot or a child sitting peacefully for a short pause."
+        case lowered.contains("help"):
+            functionalConcept = "A clear help request cue showing a child asking an adult for assistance."
+        case lowered.contains("more"):
+            functionalConcept = "A simple more request cue showing a child requesting additional access, items, or activity."
+        case lowered.contains("bathroom"), lowered.contains("toilet"), lowered.contains("restroom"):
+            functionalConcept = "A bathroom cue showing a clearly recognizable toilet or bathroom doorway."
+        case lowered.contains("eat"), lowered.contains("food"), lowered.contains("snack"):
+            functionalConcept = "A food or eating cue showing a child with simple meal or snack items."
+        case lowered.contains("sleep"), lowered.contains("bed"), lowered.contains("nap"):
+            functionalConcept = "A sleep cue showing a bed or calm resting environment that clearly signals bedtime or nap time."
+        default:
+            functionalConcept = cleanDescription.isEmpty
+                ? "A simple child-readable ABA visual support for \(cleanLabel)."
+                : cleanDescription
+        }
+
+        let referenceNote = hasReference
+            ? "Preserve the identifying features of the supplied reference image when they help the child connect the visual support to the real item, place, or activity."
+            : "Create the most functionally recognizable version of the concept without decorative distractions."
+
+        return "\(functionalConcept) \(referenceNote)"
+    }
+}

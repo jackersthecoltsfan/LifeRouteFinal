@@ -164,11 +164,47 @@ enum LifeRouteIntelligenceCore {
     }
 
     private static func sanitizedSessionNoteDraft(_ draft: String) -> String {
-        draft.replacingOccurrences(
+        let nameScrubbed = draft.replacingOccurrences(
             of: "Brandon Good",
             with: "the RBT",
             options: [.caseInsensitive]
         )
+
+        let headingPrefixes = [
+            "session narrative note",
+            "date:",
+            "location:",
+            "participants:",
+            "setting:",
+            "session overview:",
+            "behavior data:",
+            "generalization:",
+            "assessment:",
+            "plan:",
+            "conclusion:",
+        ]
+
+        let cleanedLines = nameScrubbed
+            .split(whereSeparator: \.isNewline)
+            .compactMap { rawLine -> String? in
+                var line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                while let first = line.first, "•-*–—".contains(first) {
+                    line.removeFirst()
+                    line = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                guard !line.isEmpty else { return nil }
+
+                let lower = line.lowercased()
+                if headingPrefixes.contains(where: { lower == $0 || lower.hasPrefix($0) }) {
+                    return nil
+                }
+                return line
+            }
+
+        return cleanedLines
+            .joined(separator: "\n")
+            .replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func generateABASessionNote(
@@ -274,7 +310,9 @@ enum LifeRouteIntelligenceCore {
             prompt: prompt
         ))
 
-        guard !sessionNoteNeedsMasterABARepair(repairedDraft) else {
+        // v0.8.1 physical-regression repair: the model already received one bounded correction pass.
+        // Preserve a substantive, sanitized narrative instead of discarding it solely for residual formatting.
+        guard !repairedDraft.isEmpty else {
             throw LifeRouteIntelligenceError.generationFailed(
                 "LifeRoute could not produce a clean Master ABA session note from this generation. Please regenerate from the same session facts."
             )

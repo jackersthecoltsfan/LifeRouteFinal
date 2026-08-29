@@ -14,7 +14,7 @@ enum AppSection: String, CaseIterable, Hashable, Identifiable {
     var title: String {
         switch self {
         case .today: return "Today"
-        case .schedule: return "Schedule"
+        case .schedule: return "Calendar"
         case .tools: return "Tools"
         case .resources: return "Resources"
         case .setup: return "Setup"
@@ -25,7 +25,7 @@ enum AppSection: String, CaseIterable, Hashable, Identifiable {
         switch self {
         case .today: return "sun.max"
         case .schedule: return "calendar"
-        case .tools: return "wrench.and.screwdriver"
+        case .tools: return "wrench.and.screwdriver.fill"
         case .resources: return "books.vertical"
         case .setup: return "gearshape"
         }
@@ -42,7 +42,7 @@ enum AppRoute: Hashable {
     var title: String {
         switch self {
         case .todayDetails: return "Today"
-        case .scheduleDetails: return "Schedule"
+        case .scheduleDetails: return "Calendar"
         case .toolsDetails: return "Session Tools"
         case .resourcesDetails: return "Resources"
         case .setupDetails: return "Setup"
@@ -83,6 +83,7 @@ final class AppRouter: ObservableObject {
     @Published var toolsPath = NavigationPath()
     @Published var resourcesPath = NavigationPath()
     @Published var setupPath = NavigationPath()
+    @Published private var isBottomToolbarSuppressed = false
 
     func select(_ section: AppSection) {
         guard selectedSection != section else { return }
@@ -120,6 +121,43 @@ final class AppRouter: ObservableObject {
         case .setup:
             setupPath = NavigationPath()
         }
+    }
+
+    func setBottomToolbarSuppressed(_ suppressed: Bool) {
+        guard isBottomToolbarSuppressed != suppressed else { return }
+        isBottomToolbarSuppressed = suppressed
+    }
+
+    var shouldShowBottomToolbar: Bool {
+        guard !isBottomToolbarSuppressed else { return false }
+        switch selectedSection {
+        case .today:
+            return todayPath.isEmpty
+        case .schedule:
+            return schedulePath.isEmpty
+        case .tools:
+            return toolsPath.isEmpty
+        case .resources:
+            return resourcesPath.isEmpty
+        case .setup:
+            return setupPath.isEmpty
+        }
+    }
+}
+
+private struct LifeRouteDeepDestinationModifier: ViewModifier {
+    @EnvironmentObject private var router: AppRouter
+
+    func body(content: Content) -> some View {
+        content.onAppear {
+            router.setBottomToolbarSuppressed(true)
+        }
+    }
+}
+
+extension View {
+    func lifeRouteDeepDestination() -> some View {
+        modifier(LifeRouteDeepDestinationModifier())
     }
 }
 

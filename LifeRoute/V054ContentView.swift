@@ -105,17 +105,22 @@ struct V054ContentView: View {
                 .tabItem { Label(AppSection.setup.title, systemImage: AppSection.setup.systemImage) }
                 .tag(AppSection.setup)
             }
+            .environmentObject(router)
             .tint(themeStore.palette.accent)
-            // v0.7.1 custom LifeRoute bottom toolbar: keep TabView/router ownership, replace only presentation.
+            // v0.8.1 paged root navigation: the five root stacks and toolbar share one router selection.
+            .tabViewStyle(.page(indexDisplayMode: .never))
             .toolbar(.hidden, for: .tabBar)
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                LifeRouteBottomToolbar(
-                    selection: $router.selectedSection,
-                    palette: themeStore.palette
-                )
-                .padding(.horizontal, 10)
-                .padding(.top, 6)
-                .padding(.bottom, 4)
+                if router.shouldShowBottomToolbar {
+                    LifeRouteBottomToolbar(
+                        selection: $router.selectedSection,
+                        palette: themeStore.palette
+                    )
+                    .padding(.horizontal, 10)
+                    .padding(.top, 6)
+                    .padding(.bottom, 4)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
         .background(Color.clear) // v0.7.0 Theme Phase 1 reveal the single root environment
         .animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)
@@ -134,6 +139,7 @@ struct V054ContentView: View {
             }
         }
         .onChange(of: router.selectedSection) { _ in
+            router.setBottomToolbarSuppressed(false)
             LifeRouteHaptics.selection()
             // A newly selected tab can materialize a fresh UIKit container after selection changes.
             DispatchQueue.main.async {

@@ -437,6 +437,7 @@ struct AISessionNoteGeneratorView: View {
         }
         .navigationTitle("Session Note")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .task(id: selectedPhotoItems) {
             await loadSelectedScreenshots()
         }

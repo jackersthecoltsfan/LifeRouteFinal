@@ -36,6 +36,7 @@ struct V054ToolsDashboard: View {
 
                 NavigationLink {
                     AISessionNoteGeneratorView(clientState: clientState, toolsState: toolsState)
+                        .lifeRouteDeepDestination()
                 } label: {
                     clinicalCard(
                         title: "Session Note",
@@ -49,6 +50,7 @@ struct V054ToolsDashboard: View {
 
                 NavigationLink {
                     AISessionPlanBuilderView(clientState: clientState)
+                        .lifeRouteDeepDestination()
                 } label: {
                     clinicalCard(
                         title: "Session Plan",
@@ -67,6 +69,7 @@ struct V054ToolsDashboard: View {
                 LazyVGrid(columns: sessionColumns, spacing: 10) {
                     NavigationLink {
                         VisualTimerView(timer: toolsState.timer)
+                            .lifeRouteDeepDestination()
                     } label: {
                         sessionToolCard("Visual Timer", "Reliable timing", "timer")
                     }
@@ -74,6 +77,7 @@ struct V054ToolsDashboard: View {
 
                     NavigationLink {
                         QuickSessionNotesView(toolsState: toolsState, clientState: clientState)
+                            .lifeRouteDeepDestination()
                     } label: {
                         sessionToolCard("Quick Notes", "Capture details fast", "note.text")
                     }
@@ -81,6 +85,7 @@ struct V054ToolsDashboard: View {
 
                     NavigationLink {
                         ClientFirstThenVisualView(visualState: visualState, clientState: clientState)
+                            .lifeRouteDeepDestination()
                     } label: {
                         sessionToolCard("First / Then", "Clear visual sequence", "arrow.right.circle.fill")
                     }
@@ -88,8 +93,9 @@ struct V054ToolsDashboard: View {
 
                     NavigationLink {
                         VisualAIAssistedStudioView(visualState: visualState, clientState: clientState)
+                            .lifeRouteDeepDestination()
                     } label: {
-                        sessionToolCard("Visual Supports", "Icons, boards, schedules", "photo.on.rectangle.angled")
+                        sessionToolCard("Visual Supports", "Icons, boards, and ABA visuals", "photo.on.rectangle.angled")
                     }
                     .buttonStyle(.plain)
                 }
@@ -110,7 +116,10 @@ struct V054ToolsDashboard: View {
             .padding(.bottom, 28)
         }
         .toolbar(.hidden, for: .navigationBar)
-        .onAppear { visualState.retainClients(clientState.clients) }
+        .onAppear {
+            router.setBottomToolbarSuppressed(false)
+            visualState.retainClients(clientState.clients)
+        }
         .onReceive(clientState.$clients) { clients in
             visualState.retainClients(clients)
         }
@@ -323,7 +332,6 @@ struct VisualAIAssistedStudioView: View {
             LazyVStack(spacing: 12) {
                 hero
                 libraryCard
-                scheduleAICard
                 iconAICard
                 manualWorkspaceCard
             }
@@ -337,7 +345,7 @@ struct VisualAIAssistedStudioView: View {
         VStack(alignment: .leading, spacing: 10) {
             LifeRouteScreenHeader(
                 title: "Visual Supports",
-                subtitle: "Create and reuse client-scoped or General icons, schedules, and visual supports.",
+                subtitle: "Create and reuse client-scoped or General icons, choice boards, and visual supports.",
                 systemImage: "photo.on.rectangle.angled"
             )
 
@@ -598,7 +606,7 @@ struct VisualAIAssistedStudioView: View {
                 .font(.headline)
                 .foregroundStyle(palette.textPrimary)
 
-            Text("Your existing icon library, photo/text creator, choice boards, First / Then tools, and manual visual-schedule builder are still here and unchanged.")
+            Text("Your existing icon library, photo/text creator, choice boards, First / Then tools, and manual visual-support workspace are still here and unchanged.")
                 .font(.caption)
                 .foregroundStyle(palette.textSecondary)
 
@@ -632,9 +640,12 @@ struct VisualAIAssistedStudioView: View {
 
     private var resolvedIconPrompt: String {
         let custom = iconPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !custom.isEmpty { return custom }
         let label = iconLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        return "A clear, friendly visual support icon showing \(label). Simple centered subject, uncluttered background, easy to understand at a glance."
+        return ABAVisualSupportConceptInterpreter.describe(
+            label: label,
+            visualDescription: custom,
+            hasReference: false
+        )
     }
 
     private var imagePlaygroundAvailable: Bool {

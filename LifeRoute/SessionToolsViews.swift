@@ -686,19 +686,12 @@ struct ClientVisualSupportCenter: View {
                         }
                         .buttonStyle(.plain)
 
-                        NavigationLink {
-                            ClientVisualScheduleBuilderView(visualState: visualState, clientCode: selectedClientCode)
-                        } label: {
-                            VisualWorkspaceCard(title: "Schedules", subtitle: "Sequence visual steps", systemImage: "list.number")
-                        }
-                        .buttonStyle(.plain)
                     }
                 }
 
                 HStack(spacing: 8) {
                     VisualLibraryMetric(value: visualState.icons(for: selectedClientCode).count, label: "Icons")
                     VisualLibraryMetric(value: visualState.choiceBoards(for: selectedClientCode).count, label: "Boards")
-                    VisualLibraryMetric(value: visualState.schedules(for: selectedClientCode).count, label: "Schedules")
                 }
                 .lifeRouteCard()
 
@@ -723,7 +716,6 @@ struct ClientVisualSupportCenter: View {
 
     private var savedVisualLibrary: some View {
         let boards = visualState.choiceBoards(for: selectedClientCode)
-        let schedules = visualState.schedules(for: selectedClientCode)
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -731,7 +723,7 @@ struct ClientVisualSupportCenter: View {
                     .font(.title3.weight(.bold))
                     .foregroundStyle(palette.textPrimary)
                 Spacer()
-                Text("\(boards.count + schedules.count)")
+                Text("\(boards.count)")
                     .font(.caption.weight(.black))
                     .foregroundStyle(palette.accent)
                     .padding(.horizontal, 9)
@@ -739,10 +731,10 @@ struct ClientVisualSupportCenter: View {
                     .background(palette.accent.opacity(0.12), in: Capsule())
             }
 
-            if boards.isEmpty && schedules.isEmpty {
+            if boards.isEmpty {
                 VisualBuilderEmptyState(
-                    title: "No saved boards or schedules",
-                    subtitle: "Save a Choice Board or Visual Schedule and it will be available here to reopen and use.",
+                    title: "No saved boards yet",
+                    subtitle: "Save a Choice Board and it will be available here to reopen and use.",
                     systemImage: "square.stack.3d.up"
                 )
             } else {
@@ -770,32 +762,6 @@ struct ClientVisualSupportCenter: View {
                         .buttonStyle(.plain)
                     }
                 }
-
-                if !schedules.isEmpty {
-                    Text("VISUAL SCHEDULES")
-                        .font(.caption2.weight(.black))
-                        .tracking(1)
-                        .foregroundStyle(palette.textSecondary)
-                        .padding(.top, boards.isEmpty ? 0 : 3)
-
-                    ForEach(schedules) { schedule in
-                        NavigationLink {
-                            ClientVisualSchedulePreviewView(
-                                visualState: visualState,
-                                schedule: schedule,
-                                clientCode: selectedClientCode
-                            )
-                        } label: {
-                            SavedVisualLibraryRow(
-                                title: schedule.title,
-                                detail: "\(schedule.steps.count) steps",
-                                systemImage: "list.number",
-                                actionLabel: "Open"
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
             }
         }
         .lifeRouteCard()
@@ -816,7 +782,7 @@ struct ClientVisualSupportCenter: View {
                 Text("Visual workspace")
                     .font(.system(size: 28, weight: .black, design: .rounded))
                     .foregroundStyle(palette.textPrimary)
-                Text("Create general or client-specific icons, choice boards, First / Then visuals, and schedules.")
+                Text("Create general or client-specific icons, choice boards, and First / Then visuals.")
                     .font(.subheadline)
                     .foregroundStyle(palette.textSecondary)
             }
@@ -1266,17 +1232,17 @@ private enum ABAVisualSupportPrompt {
     static func make(label: String, visualDescription: String, hasReference: Bool) -> String {
         let cleanLabel = String(label.trimmingCharacters(in: .whitespacesAndNewlines).prefix(120))
         let cleanDescription = String(visualDescription.trimmingCharacters(in: .whitespacesAndNewlines).prefix(700))
-        let subject = cleanDescription.isEmpty ? cleanLabel : "\(cleanLabel). \(cleanDescription)"
-        let referenceRule = hasReference
-            ? "Use the supplied reference image as the basis. Preserve the specific identifying physical characteristics of the real item or environment that help a child recognize and generalize it."
-            : "Create the requested object, location, activity, or concept from the supplied description without adding unrelated details."
+        let functionalConcept = ABAVisualSupportConceptInterpreter.describe(
+            label: cleanLabel,
+            visualDescription: cleanDescription,
+            hasReference: hasReference
+        )
 
         return """
         Create one ABA visual-support icon for the exact user label “\(cleanLabel)”.
-        Subject or concept: \(subject)
-        \(referenceRule)
+        Functional concept: \(functionalConcept)
 
-        Create a realistically illustrated cartoon that remains clearly recognizable as the real object, location, activity, or concept. Use clean bold outlines, soft natural shading, bright but natural colors, strong visual contrast, and a simple child-friendly presentation. Use a clean white background. Center one primary subject and let it occupy most of a square 1:1 composition. Remove distracting or irrelevant background information. Preserve identifying characteristics needed for recognition. Do not introduce unrelated objects or scenery. Do not include people unless a person is necessary to communicate the concept.
+        Create a realistically illustrated cartoon that remains clearly recognizable as the real object, location, activity, or concept. Use clean bold outlines, soft natural shading, bright but natural colors, strong visual contrast, and a simple child-friendly ABA visual-support presentation. Use a clean white background. Center one primary subject and let it occupy most of a square 1:1 composition. Remove distracting or irrelevant background information. Preserve identifying characteristics needed for recognition. Do not introduce unrelated objects or scenery. Do not include people unless a person is necessary to communicate the concept.
 
         Treat the result as part of one coordinated professionally designed ABA visual-support library. Keep the illustration style, line weight, shading, proportions, neutral front or three-quarter viewing angle, pure-white background treatment, and icon scale consistent. Prioritize immediate functional recognition and visual clarity over decorative detail for use in visual schedules, choice boards, First/Then boards, communication books, transition supports, and activity schedules.
 

@@ -60,7 +60,7 @@ It must remain:
 
 - deterministic and safe to rerun;
 - representative of the code actually shipped;
-- validation-only and responsible for proving the checked-in v0.8.1 source has the required current owners and contracts.
+- validation-only and responsible for proving the checked-in v0.8.2 source has the required current owners and contracts.
 
 Do not immediately rerun the same deep audits in every workflow. Workflow-specific independent checks should focus on what that workflow uniquely produces, such as the simulator compile or final browser artifact.
 

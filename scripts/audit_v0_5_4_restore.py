@@ -65,7 +65,10 @@ require(
     ("ContentView()" in s["current_app"] and "TabView(selection: $router.selectedSection)" in s["current_content"]),
     "03 LifeRoute app entry resolves to the active shell",
 )
-require(legacy_source_entry not in s["project"], "04 v0.5.3 ContentView is retained only as a regression reference")
+require(
+    "ContentView.swift in Sources" in s["project"] and "V054ContentView.swift in Sources" in s["project"],
+    "04 active ContentView and V054 shell sources are both compiled",
+)
 require(s["shell"].count("NavigationStack(path: $router.") == 5 and "TabView(selection: $router.selectedSection)" in s["shell"], "05 five-tab AppRouter navigation remains authoritative")
 
 # 06–11 — preview-style themes with true image-driven scenery.

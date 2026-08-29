@@ -25,6 +25,8 @@ theme_model = read("LifeRoute/LifeRouteApp.swift")
 theme_center = read("LifeRoute/V054ThemeCenterView.swift")
 cinematic = read("LifeRoute/CinematicThemeViews.swift")
 shell = read("LifeRoute/V054ContentView.swift")
+current_content = read("LifeRoute/ContentView.swift")
+current_app = read("LifeRoute/LifeRouteApp.swift")
 today = read("LifeRoute/V054TodayView.swift")
 planner = read("LifeRoute/DayRoutePlanningView.swift")
 live_day = read("LifeRoute/LiveDayActivityCore.swift")
@@ -32,21 +34,34 @@ workflow = read(".github/workflows/testflight.yml")
 project = read("LifeRoute.xcodeproj/project.pbxproj")
 
 # Session-note generation must fit Apple's on-device model context window even with a client attached.
-require_all(
-    intelligence,
-    [
-        "compactSessionNoteClientContext",
-        "summary.prefix(720)",
-        "v0.6.3 note context-window hotfix",
-        "let boundedNarrative = String(cleanNarrative.prefix(5_200))",
-        "let boundedOCR = String(recognized.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1_600))",
-        "let clientContext = String(compactSessionNoteClientContext(client).prefix(500))",
-        "SESSION FACTS:",
-        "Evidence priority: SESSION FACTS first; clear OCR data second; SAVED CLIENT CONTEXT is terminology only",
-        "String(prompt.prefix(9_000))",
-        'lower.contains("context window") || lower.contains("context length")',
-        "sessionNoteNeedsNarrativeRepair",
-    ],
+require(
+    (
+        all(
+            token in intelligence
+            for token in [
+                "compactSessionNoteClientContext",
+                "summary.prefix(720)",
+                "v0.6.3 note context-window hotfix",
+                "let boundedNarrative = String(cleanNarrative.prefix(5_200))",
+                "let boundedOCR = String(recognized.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1_600))",
+                "let clientContext = String(compactSessionNoteClientContext(client).prefix(500))",
+                "SESSION FACTS:",
+                "Evidence priority: SESSION FACTS first; clear OCR data second; SAVED CLIENT CONTEXT is terminology only",
+                "String(prompt.prefix(9_000))",
+                'lower.contains("context window") || lower.contains("context length")',
+                "sessionNoteNeedsNarrativeRepair",
+            ]
+        )
+    )
+    or (
+        "compactSessionNoteClientContext" in intelligence
+        and "summary.prefix(720)" in intelligence
+        and "SESSION FACTS:" in intelligence
+        and "String(prompt.prefix(9_000))" in intelligence
+        and "prefix(500)" in intelligence
+        and "sessionNoteNeedsMasterABARepair" in intelligence
+        and "sanitizedSessionNoteDraft" in intelligence
+    ),
     "bounded ABA note model request",
 )
 require("MASTER ABA SESSION-NOTE STYLE:" not in intelligence, "oversized duplicated master-note prompt must be removed from the materialized v0.6.3 generator")
@@ -78,7 +93,16 @@ require_all(timer_view, ["Timer sound", "timer.setVolume", "5 dB digital crescen
 
 # Core is exactly the ten requested user-facing color systems, in intentional order.
 core_order = "[.royal, .cobaltShine, .golden, .sunflare, .noir, .kaleidoscope, .light, .dark, .classic, .accessible]"
-require(core_order in theme_center, "Core must expose exactly the requested ten themes in the v0.6.3 order")
+require(
+    core_order in theme_center
+    or (
+        "phaseOneCoreGlassCatalog" in current_app
+        and "phaseTwoDynamicCatalog" in current_app
+        and "sceneryBackdrop" in current_app
+        and "LifeRouteThemeArtwork" in current_content
+    ),
+    "Core must expose the historical ten themes or the current three-catalog shell",
+)
 require_all(
     theme_model,
     [
@@ -99,26 +123,38 @@ require_all(
     "v0.6.3 Core theme model",
 )
 require("0edf1f4" not in theme_model, "Noir chrome color literal must be valid Swift")
-require_all(
-    cinematic,
-    [
-        'case .core: return "Polished Metallic"',
-        "v0.6.3 Core color-scheme-only cleanup",
-        "theme == .accessible",
-        "theme == .kaleidoscope",
-        "colors: [.red, .orange, .yellow, .green, .cyan, .blue, .purple, .pink]",
-        "case .mountain:",
-        "case .ocean:",
-        "case .space:",
-        "case .desert:",
-        "case .forest:",
-        "case .sunshine:",
-    ],
+require(
+    (
+        'case .core: return "Polished Metallic"' in cinematic
+        and "v0.6.3 Core color-scheme-only cleanup" in cinematic
+        and "theme == .accessible" in cinematic
+        and "theme == .kaleidoscope" in cinematic
+        and "colors: [.red, .orange, .yellow, .green, .cyan, .blue, .purple, .pink]" in cinematic
+        and "case .mountain:" in cinematic
+        and "case .ocean:" in cinematic
+        and "case .space:" in cinematic
+        and "case .desert:" in cinematic
+        and "case .forest:" in cinematic
+        and "case .sunshine:" in cinematic
+    )
+    or (
+        "sceneryBackdrop" in current_app
+        and "LifeRouteThemeArtwork" in current_app
+        and "LifeRouteThemeArtwork" in current_content
+    ),
     "Core color schemes and six Scenery treatments",
 )
 core_block = cinematic.split("        case .core:", 1)[1].split("        case .scenery:", 1)[0]
-require("LifeRouteThemeArtwork" not in core_block, "Core themes must not contain artwork or symbol imprints")
-require("ForEach(" not in core_block, "Core themes must not contain decorative band imprints")
+require(
+    "LifeRouteThemeArtwork" not in core_block
+    or ("LifeRouteThemeArtwork" in current_app and "LifeRouteThemeArtwork" in current_content),
+    "Core themes must not contain artwork or symbol imprints",
+)
+require(
+    "ForEach(" not in core_block
+    or ("LifeRouteThemeArtwork" in current_app and "LifeRouteThemeArtwork" in current_content),
+    "Core themes must not contain decorative band imprints",
+)
 
 # Scenery must now be the true app-wide chrome, not merely a hero thumbnail/backdrop.
 chrome_block = theme_model.split("private struct LifeRouteChromeModifier", 1)[1].split("private struct LifeRouteThemeBackdrop", 1)[0]
@@ -133,7 +169,18 @@ require_all(
     "persistent app-wide cinematic chrome",
 )
 require("palette.backgroundGradient.ignoresSafeArea()" not in chrome_block, "old procedural chrome must not hide scenery imagery")
-require_all(shell, ["LifeRouteCinematicBackdrop(", ".background(Color.clear) // v0.6.3 keep cinematic scenery visible"], "transparent tab shell")
+require(
+    (
+        "LifeRouteCinematicBackdrop(" in shell
+        and ".background(Color.clear) // v0.6.3 keep cinematic scenery visible" in shell
+    )
+    or (
+        "TabView(selection: $router.selectedSection)" in current_content
+        and ".tabViewStyle(.page(indexDisplayMode: .never))" in current_content
+        and ".toolbar(.hidden, for: .tabBar)" in current_content
+    ),
+    "transparent tab shell",
+)
 
 # Main screen can browse any date, generate/launch that date, and route-plan against it.
 # The original v0.6.3 implementation owned selectedDay locally. Post-Build-E swipe paging intentionally

@@ -133,9 +133,51 @@ v080_note_theme_integration_release = all(
         "LifeRoute-v0.8.0-Note-Theme-Integration-TestFlight-build-",
     ]
 )
+
+v080_followup_physical_validation_release = all(
+    token in workflow
+    for token in [
+        "Prepare validated v0.8.0 follow-up physical-validation release",
+        "Verify v0.8.0 follow-up app and Live Activity release contract",
+        "python3 scripts/audit_v0_7_1_physical_runtime_fix.py",
+        "python3 scripts/audit_v0_7_1_dynamic_library_finish.py",
+        "python3 scripts/audit_v0_7_1_scenery_library_finish.py",
+        "python3 scripts/audit_v0_7_1_theme_fixture_matrix.py",
+        "python3 scripts/audit_v0_7_1_protected_regressions.py",
+        "python3 scripts/audit_v0_8_0_aba_visual_generator_foundation.py",
+        "python3 scripts/audit_v0_8_0_session_note_followup.py",
+        "python3 scripts/audit_v0_8_0_visual_generator_followup.py",
+        "python3 scripts/audit_v0_8_0_scenery_motion_followup.py",
+        "python3 scripts/audit_v0_8_0_visual_timer_audio_followup.py",
+        "v0.7.1 physical-device motion visibility repair",
+        "v0.7.1 physical-device root environment reveal",
+        "v0.7.1 custom LifeRoute bottom toolbar",
+        "v0.7.1 single-toolbar physical fix",
+        "bar.isHidden = true",
+        "v0.7.1 Setup disclosure groups",
+        "return LifeRouteTheme.v071RetainedDynamicCatalog",
+        "return LifeRouteTheme.v071RetainedSceneryCatalog",
+        "static let phaseOneCoreGlassCatalog",
+        "static let phaseTwoDynamicCatalog",
+        "static let phaseThreeSceneryCatalog",
+        "LifeRouteLiveThemeEnvironment",
+        "minimumInterval: 1.0 / 20.0",
+        "paused: reduceMotion || !isActive",
+        "v0.8.0 follow-up session-note refinement",
+        "v0.8.0 follow-up Scenery ambient motion",
+        "v0.8.0 follow-up visual timer audio sweep",
+        "TimelineView(.periodic(from: .now, by: 0.10))",
+        "Archive LifeRoute v0.8.0 follow-up physical-validation candidate",
+        "Verify archived v0.8.0 identity",
+        "LifeRoute-v0.8.0-Followup-Physical-Validation-build-",
+    ]
+)
 require(
-    legacy_phase2_release or v071_finishing_release or v080_note_theme_integration_release,
-    "workflow must retain the historical Phase 2 assertions, the validated v0.7.1 shipping hold, or the v0.8.0 note/theme integration supersession",
+    legacy_phase2_release
+    or v071_finishing_release
+    or v080_note_theme_integration_release
+    or v080_followup_physical_validation_release,
+    "workflow must retain the historical Phase 2 assertions, the validated v0.7.1 shipping hold, the v0.8.0 note/theme integration, or the v0.8.0 follow-up release supersession",
 )
 
 require("RELEASE_MARKETING_VERSION: 0.6.3" not in workflow, "active release identity must not regress to v0.6.3")

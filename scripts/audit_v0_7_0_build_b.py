@@ -48,14 +48,30 @@ def main() -> None:
     prepare = read("scripts/prepare_build.sh")
     patch = read("scripts/patch_v0_7_0_build_b.py")
 
-    require_all(
-        today,
-        [
+    build_b_hero = all(
+        token in today
+        for token in [
             "v0.7.0 Build B Today/Home",
             "LifeRouteTodayHeroScene()",
             'Text("Life")',
             'Text("Route")',
             'Text("Plan your day. Optimize every gap.")',
+        ]
+    )
+    official_branding_hero = all(
+        token in today
+        for token in [
+            "v0.7.0 official branding Today hero",
+            "LifeRouteTodayHeroScene()",
+            "LifeRouteBrandMark(variant: .small)",
+            'Text("LifeRoute")',
+            'Text("Plan your day. Optimize every gap.")',
+        ]
+    )
+    require(build_b_hero or official_branding_hero, "approved Today/Home visual hierarchy")
+    require_all(
+        today,
+        [
             "LifeRouteSectionLabel(title: \"Quick Actions\")",
             "LazyVGrid(columns: quickActionColumns",
             '"Plan Route"',
@@ -71,7 +87,7 @@ def main() -> None:
             'Text(liveDayEnabled ? "Live Day" : "Live Day + Lock Screen")',
             ".toolbar(.hidden, for: .navigationBar)",
         ],
-        "approved Today/Home visual hierarchy",
+        "approved Today/Home secondary hierarchy",
     )
 
     # Build B must retain the selected-day behavior introduced in v0.6.3. A later focused
@@ -125,7 +141,6 @@ def main() -> None:
         ],
         "Today hero artwork geometry",
     )
-    build_b_hero = "palette.accentGradient" in today
     build_b1_hero = all(
         token in today
         for token in [

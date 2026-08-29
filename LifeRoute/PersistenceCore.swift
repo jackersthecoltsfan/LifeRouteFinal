@@ -11,8 +11,9 @@ struct RestoredClientVisualSupportState {
 struct RestoredRoutingPersistenceState {
     var homeAddress: String
     var savedPlaces: [LifeRouteSavedPlace]
+    var todos: [LifeRouteTodo]
 
-    static let empty = RestoredRoutingPersistenceState(homeAddress: "", savedPlaces: [])
+    static let empty = RestoredRoutingPersistenceState(homeAddress: "", savedPlaces: [], todos: [])
 }
 
 @MainActor
@@ -126,6 +127,7 @@ final class LifeRoutePersistenceStore {
         var visualSchedules: [PersistedVisualSchedule]
         var homeAddress: String
         var savedPlaces: [LifeRouteSavedPlace]
+        var todos: [LifeRouteTodo]
         var manualCalendarEvents: [LifeRouteCalendarEvent]
         var providerCalendarEvents: [LifeRouteCalendarEvent]
 
@@ -137,6 +139,7 @@ final class LifeRoutePersistenceStore {
             visualSchedules: [PersistedVisualSchedule] = [],
             homeAddress: String = "",
             savedPlaces: [LifeRouteSavedPlace] = [],
+            todos: [LifeRouteTodo] = [],
             manualCalendarEvents: [LifeRouteCalendarEvent] = [],
             providerCalendarEvents: [LifeRouteCalendarEvent] = []
         ) {
@@ -147,6 +150,7 @@ final class LifeRoutePersistenceStore {
             self.visualSchedules = visualSchedules
             self.homeAddress = homeAddress
             self.savedPlaces = savedPlaces
+            self.todos = todos
             self.manualCalendarEvents = manualCalendarEvents
             self.providerCalendarEvents = providerCalendarEvents
         }
@@ -159,6 +163,7 @@ final class LifeRoutePersistenceStore {
             case visualSchedules
             case homeAddress
             case savedPlaces
+            case todos
             case manualCalendarEvents
             case providerCalendarEvents
         }
@@ -172,6 +177,7 @@ final class LifeRoutePersistenceStore {
             visualSchedules = try container.decodeIfPresent([PersistedVisualSchedule].self, forKey: .visualSchedules) ?? []
             homeAddress = try container.decodeIfPresent(String.self, forKey: .homeAddress) ?? ""
             savedPlaces = try container.decodeIfPresent([LifeRouteSavedPlace].self, forKey: .savedPlaces) ?? []
+            todos = try container.decodeIfPresent([LifeRouteTodo].self, forKey: .todos) ?? []
             manualCalendarEvents = try container.decodeIfPresent([LifeRouteCalendarEvent].self, forKey: .manualCalendarEvents) ?? []
             providerCalendarEvents = try container.decodeIfPresent([LifeRouteCalendarEvent].self, forKey: .providerCalendarEvents) ?? []
         }
@@ -420,14 +426,24 @@ final class LifeRoutePersistenceStore {
     }
 
     func loadRoutingState() -> RestoredRoutingPersistenceState {
-        return RestoredRoutingPersistenceState(homeAddress: state.homeAddress, savedPlaces: state.savedPlaces)
+        return RestoredRoutingPersistenceState(
+            homeAddress: state.homeAddress,
+            savedPlaces: state.savedPlaces,
+            todos: state.todos
+        )
     }
 
+    // Keep the existing persistence API available for older call sites and audits.
     func saveRoutingState(homeAddress: String, savedPlaces: [LifeRouteSavedPlace]) {
+        saveRoutingState(homeAddress: homeAddress, savedPlaces: savedPlaces, todos: state.todos)
+    }
+
+    func saveRoutingState(homeAddress: String, savedPlaces: [LifeRouteSavedPlace], todos: [LifeRouteTodo]) {
         var next = state
         next.homeAddress = homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         next.savedPlaces = Self.sanitizedSavedPlaces(savedPlaces)
-        state = next
+        next.todos = todos
+        state = Self.sanitized(next)
         persist()
     }
 
@@ -539,6 +555,8 @@ final class LifeRoutePersistenceStore {
 
         let homeAddress = input.homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         let savedPlaces = sanitizedSavedPlaces(input.savedPlaces)
+        let savedPlaceIDs = Set(savedPlaces.map(\.id))
+        let todos = sanitizedTodos(input.todos, savedPlaceIDs: savedPlaceIDs)
         let manualCalendarEvents = sanitizedManualCalendarEvents(input.manualCalendarEvents)
         let providerCalendarEvents = sanitizedProviderCalendarEvents(input.providerCalendarEvents)
 
@@ -550,6 +568,7 @@ final class LifeRoutePersistenceStore {
             visualSchedules: schedules,
             homeAddress: homeAddress,
             savedPlaces: savedPlaces,
+            todos: todos,
             manualCalendarEvents: manualCalendarEvents,
             providerCalendarEvents: providerCalendarEvents
         )
@@ -594,6 +613,36 @@ final class LifeRoutePersistenceStore {
                 useInGapSuggestions: place.useInGapSuggestions
             )
         }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private static func sanitizedTodos(_ input: [LifeRouteTodo], savedPlaceIDs: Set<UUID>) -> [LifeRouteTodo] {
+        var seenTodoIDs = Set<UUID>()
+        return input.compactMap { todo -> LifeRouteTodo? in
+            let title = todo.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty, seenTodoIDs.insert(todo.id).inserted else { return nil }
+            let safeSavedPlaceID = todo.savedPlaceID.flatMap { savedPlaceIDs.contains($0) ? $0 : nil }
+            return LifeRouteTodo(
+                id: todo.id,
+                title: title,
+                category: todo.category,
+                durationMinutes: todo.durationMinutes,
+                savedPlaceID: safeSavedPlaceID,
+                address: todo.address,
+                priority: todo.priority,
+                dueDate: todo.dueDate,
+                notes: todo.notes,
+                completed: todo.completed,
+                createdAt: todo.createdAt,
+                completedAt: todo.completed ? todo.completedAt : nil
+            )
+        }.sorted { lhs, rhs in
+            if lhs.completed != rhs.completed { return !lhs.completed }
+            if lhs.priority.sortWeight != rhs.priority.sortWeight {
+                return lhs.priority.sortWeight > rhs.priority.sortWeight
+            }
+            if lhs.dueDate != rhs.dueDate { return lhs.dueDate < rhs.dueDate }
+            return lhs.createdAt < rhs.createdAt
+        }
     }
 
     private static func sanitizedManualCalendarEvents(_ input: [LifeRouteCalendarEvent]) -> [LifeRouteCalendarEvent] {

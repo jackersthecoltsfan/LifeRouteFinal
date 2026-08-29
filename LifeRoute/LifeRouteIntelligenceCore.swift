@@ -22,7 +22,38 @@ enum LifeRouteIntelligenceError: LocalizedError {
     }
 }
 
+enum SessionNoteModelAvailability: Equatable {
+    case available
+    case unavailable(String)
+}
+
+enum SessionNoteGenerationProgress: Equatable {
+    case generating
+    case repairing
+}
+
+// v0.8.0 session-note runtime availability
 enum LifeRouteIntelligenceCore {
+    static func sessionNoteModelAvailability() -> SessionNoteModelAvailability {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            switch SystemLanguageModel.default.availability {
+            case .available:
+                return .available
+            case .unavailable(.deviceNotEligible):
+                return .unavailable("Apple Intelligence is not supported on this iPhone.")
+            case .unavailable(.appleIntelligenceNotEnabled):
+                return .unavailable("Turn on Apple Intelligence in Settings, then return to LifeRoute and try again.")
+            case .unavailable(.modelNotReady):
+                return .unavailable("Apple Intelligence is still preparing its on-device model. Keep the iPhone connected to power and Wi-Fi, then try again later.")
+            @unknown default:
+                return .unavailable("Apple Intelligence is not available on this iPhone right now.")
+            }
+        }
+        #endif
+        return .unavailable("AI Session Note requires an Apple Intelligence-capable iPhone running iOS 26 or later.")
+    }
+
     static func recognizeText(in imageData: Data) async -> String {
         guard !imageData.isEmpty else { return "" }
 
@@ -47,123 +78,205 @@ enum LifeRouteIntelligenceCore {
         }.value
     }
 
-    static func generateABASessionNote(
-        narrative: String,
-        screenshotData: Data?,
-        client: LifeRouteClientProfile?
-    ) async throws -> String {
-        let cleanNarrative = narrative.trimmingCharacters(in: .whitespacesAndNewlines)
-        var recognized = ""
-        if let screenshotData {
-            recognized = await recognizeText(in: screenshotData)
+    // v0.8.0 follow-up session-note refinement:
+    // Typed narrative remains primary; up to six screenshot OCR streams are supplemental.
+    private static func recognizeSessionNoteScreenshots(_ imageDataItems: [Data]) async -> [String] {
+        let limitedItems = Array(imageDataItems.prefix(6))
+        return await withTaskGroup(of: (Int, String).self, returning: [String].self) { group in
+            for (index, data) in limitedItems.enumerated() {
+                group.addTask {
+                    (index, await recognizeText(in: data))
+                }
+            }
+
+            var indexedResults: [(Int, String)] = []
+            for await result in group {
+                indexedResults.append(result)
+            }
+            return indexedResults
+                .sorted { $0.0 < $1.0 }
+                .map { $0.1.trimmingCharacters(in: .whitespacesAndNewlines) }
+        }
+    }
+
+    private static func formattedSessionNoteScreenshotEvidence(_ recognizedScreenshots: [String]) -> String {
+        let blocks = recognizedScreenshots.prefix(6).enumerated().map { screenshotIndex, recognized in
+            let compactLines = recognized
+                .split(whereSeparator: \.isNewline)
+                .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+
+            var taggedLines: [String] = []
+            var lineIndex = 0
+            while lineIndex < compactLines.count, taggedLines.count < 12 {
+                var line = String(compactLines[lineIndex].prefix(180))
+                let tags = sessionNoteEvidenceTags(for: line)
+                if !line.contains(where: \.isNumber),
+                   tags != ["AMBIGUOUS OCR"],
+                   compactLines.indices.contains(lineIndex + 1),
+                   compactLines[lineIndex + 1].contains(where: \.isNumber) {
+                    line += " " + String(compactLines[lineIndex + 1].prefix(80))
+                    lineIndex += 1
+                }
+                taggedLines.append("[\(tags.joined(separator: ", "))] \(line)")
+                lineIndex += 1
+            }
+
+            let body = taggedLines.isEmpty ? "No clear OCR text." : taggedLines.joined(separator: "\n")
+            return "SCREENSHOT \(screenshotIndex + 1):\n\(String(body.prefix(400)))"
+        }
+        return String(blocks.joined(separator: "\n\n").prefix(2_800))
+    }
+
+    private static func sessionNoteEvidenceTags(for line: String) -> [String] {
+        let lower = line.lowercased()
+        func matches(_ pattern: String) -> Bool {
+            lower.range(of: pattern, options: .regularExpression) != nil
         }
 
-        guard !cleanNarrative.isEmpty || !recognized.isEmpty else {
+        var tags: [String] = []
+        if matches(#"\b(latency|time to respond|response time|time to begin|initiation delay)\b"#) {
+            tags.append("LATENCY")
+        }
+        if matches(#"\b(rate|per minute|per hour|per session)\b|/(min|hr)\b"#) {
+            tags.append("RATE")
+        }
+        if matches(#"\b(trials?|opportunities|correct out of)\b|\b\d+\s*/\s*\d+\b"#) {
+            tags.append("TRIAL-BASED")
+        }
+        if lower.contains("%") || matches(#"\b(percent|percentage|accuracy)\b"#) {
+            tags.append("PERCENTAGE")
+        }
+        if matches(#"\b(frequency|count|occurrences?|instances?|events?)\b"#) {
+            tags.append("FREQUENCY/COUNT")
+        }
+        if matches(#"\bduration\b"#) || (
+            tags.contains("LATENCY") == false &&
+            tags.contains("RATE") == false &&
+            matches(#"\b\d+(\.\d+)?\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?)\b"#)
+        ) {
+            tags.append("DURATION")
+        }
+        if matches(#"\b(independent|independently|prompted|prompting|verbal prompt|gestural prompt|visual prompt|model prompt|partial physical|full physical)\b"#) {
+            tags.append("INDEPENDENT/PROMPTED")
+        }
+        return tags.isEmpty ? ["AMBIGUOUS OCR"] : tags
+    }
+
+    private static func sanitizedSessionNoteDraft(_ draft: String) -> String {
+        draft.replacingOccurrences(
+            of: "Brandon Good",
+            with: "the RBT",
+            options: [.caseInsensitive]
+        )
+    }
+
+    static func generateABASessionNote(
+        narrative: String,
+        screenshotDataItems: [Data],
+        client: LifeRouteClientProfile?,
+        progress: @escaping (SessionNoteGenerationProgress) async -> Void = { _ in }
+    ) async throws -> String {
+        let cleanNarrative = narrative.trimmingCharacters(in: .whitespacesAndNewlines)
+        let recognizedScreenshots = await recognizeSessionNoteScreenshots(screenshotDataItems)
+
+        guard !cleanNarrative.isEmpty || recognizedScreenshots.contains(where: { !$0.isEmpty }) else {
             throw LifeRouteIntelligenceError.emptyInput
         }
 
+        // v0.8.0 master ABA session-note parity:
+        // Keep the user's chronology and direct facts dominant, preserve exact prompt/data details,
+        // and fit the complete Master ABA contract inside the on-device model's constrained context.
+        let clinicianNeutralNarrative = cleanNarrative.replacingOccurrences(
+            of: "Brandon Good",
+            with: "RBT",
+            options: [.caseInsensitive]
+        )
+        let boundedNarrative = String(clinicianNeutralNarrative.prefix(5_200))
+        let boundedOCR = formattedSessionNoteScreenshotEvidence(recognizedScreenshots)
         let clientCode = client?.code ?? "General / no client"
-        let targets = client?.currentTargets.joined(separator: "; ") ?? "none"
-        let behaviors = client?.behaviorsOfConcern.joined(separator: "; ") ?? "none"
-        let communication = client?.communicationNotes ?? "none"
-        let prompting = client?.promptingNotes ?? "none"
-
-        let prompt = """
-        Write one polished professional ABA session note as a cohesive chronological narrative using ONLY the session facts supplied below.
-
-        MASTER ABA SESSION-NOTE STYLE:
-        - Match the user's established RBT note style: concise, natural, chronological, objective, and written as connected prose rather than a formal report.
-        - When location and attendees are supplied, open naturally by stating that the RBT met with the client at the supplied setting and identify who was present. Do not create separate Location or Participants fields.
-        - Preserve normal ABA vocabulary exactly when supported by the facts, including pairing, manding, FCT, NET, waiting, responding to name, table work, transitions, reinforcement, movement breaks, tolerating denied access, prompting, redirection, and behaviors of concern.
-        - Describe what the RBT did and how the client responded in the same chronological passage. Keep intervention, prompting, behavior, and response linked instead of separating them into report sections.
-        - When a caregiver report explains how the session began, integrate that report naturally near the beginning rather than making it a separate section.
-        - When a prompt level is supplied, state that exact prompt level naturally where the target occurred, including full physical, model, gestural, verbal, or other supplied levels. Never upgrade or downgrade a supplied prompt level.
-        - When the client moves between activities or locations, preserve the order of those transitions. If the session spans more than one location, narrate the transition between locations in the order supplied.
-        - If a behavior of concern or vocal protest is supplied, state the observable event and the supplied RBT response/redirection without adding an interpretation of why it happened unless the antecedent was explicitly supplied.
-        - End by describing the final activity/transition and the client's overall response to treatment only when those closing facts were supplied. Do not add a generic future plan.
-        - Do not over-formalize ordinary user wording. The goal is the same polished ABA narrative style the user uses for LiFe/JaHe notes, not a hospital-style assessment/report.
-
-        REQUIRED WRITING STYLE:
-        - The finished note should read like a human RBT wrote it directly after session, in the same concise chronological narrative style used for professional ABA session documentation.
-        - When enough information exists, use about 3–5 cohesive paragraphs. A shorter session may use fewer paragraphs. Never pad the note just to reach a paragraph count.
-        - Begin with where the RBT met with the client and who was present when those facts are actually supplied. Move naturally through the session in chronological order, then close with the final activity/transition and overall response only when those facts were supplied.
-        - Use "the client" rather than treating the ABA-style client code as the client's name. The saved code is an identifier/context key, not permission to write it as a personal name throughout the note.
-        - Keep related events together. Pairing, NET, FCT/manding, prompting, transitions, reinforcement, behavior events, and closing activities should appear where they occurred rather than in detached sections.
-        - Weave clearly supplied quantitative data into the relevant sentence or event. Do not isolate data into a separate section, table, bullet list, or final data dump.
-        - Prefer direct RBT documentation language such as "RBT began by...", "Throughout the session...", "RBT provided...", "The client demonstrated...", "Following this...", and "Toward the end of the session..." when those constructions fit the supplied facts.
-        - Keep the prose objective, readable, clinically appropriate, and connected. Do not turn routine facts into broad interpretations.
-
-        TARGET NARRATIVE FLOW WHEN THE FACTS SUPPORT IT:
-        - Paragraph 1: setting/participants and how the session began, including pairing/FCT/NET or the first activity.
-        - Paragraph 2: skill-acquisition work, prompting, client responding, and relevant quantitative target data.
-        - Paragraph 3: behavior/transition events, redirection or other supplied intervention, and behavior data when relevant.
-        - Paragraph 4: later reinforcement/activity work, final transition/activity, and the supplied overall response to intervention.
-        - This is a flow guide, not a template. Omit any part that is not supported by the supplied facts.
-
-        DATA / EVIDENCE PRIORITY:
-        - The user's typed/pasted SESSION NARRATIVE is the primary source of what happened.
-        - Clear SCREENSHOT OCR / DATA may supplement the narrative with recorded target/behavior values when the label and value are unambiguous.
-        - Saved client information is terminology/context only and never proves an event occurred.
-        - If a narrative fact and a compact OCR summary appear to conflict, preserve the explicit narrative event and do not erase it because of a summary metric.
-        - A behavior-reduction metric of 0.00% is never evidence that treatment failed, that a behavior "still needs work," or that treatment was unsuccessful.
-        - For an unambiguous behavior-reduction row such as biting or mouthing at 0.00%, and only when no supplied narrative fact says that behavior occurred, it is acceptable to state that the behavior was not observed/recorded during the session. Do not make that inference for skill-acquisition percentages.
-        - If the narrative explicitly says a behavior occurred (for example, one refusal event), describe that event even if a related reduction row shows 0.00%; never convert an explicitly supplied event into "no behavior observed."
-        - Do not dump raw OCR text into the note. Translate only clear, supported data into readable narrative prose.
-
-        PROHIBITED OUTPUT SHAPES AND CONTENT:
-        - NO title or heading such as "Session Narrative Note."
-        - NO Markdown headings, bold labels, bullets, numbered lists, tables, SOAP sections, or report sections.
-        - NO labels such as Date, Location, Participants, Setting, Session Overview, Behavior Data, Generalization, Assessment, Plan, or Conclusion.
-        - NO placeholders such as "[Insert Date]", "[Insert Location]", or "[Insert RBT Name]". If a detail was not supplied, simply omit it.
-        - NO invented environmental descriptions such as saying the environment was conducive to learning, calm, structured, distracting, or well-equipped unless the user explicitly supplied that fact.
-        - NO invented progress/generalization conclusions, treatment-effect claims, motivation claims, clinical interpretations, caregiver recommendations, or future-treatment plans.
-        - NO statements such as "the RBT will continue," "there is still work to be done," "plans for future interventions," or equivalent future-plan language unless the user explicitly supplied that plan as a session fact.
-        - NO fabricated frequencies, percentages, prompt levels, interventions, targets, behaviors, attendees, caregiver statements, locations, billing facts, or outcomes.
-        - Avoid mentalistic language. Use objective, observable descriptions.
-        - Return ONLY the finished narrative paragraphs. No preface, disclaimer, heading, explanation, or closing commentary.
-
-        CLIENT IDENTIFIER — context only: \(clientCode)
-        SAVED TARGETS — context only: \(targets)
-        SAVED BEHAVIORS — context only: \(behaviors)
-        SAVED COMMUNICATION/FCT CONTEXT — context only: \(communication)
-        SAVED PROMPTING/REINFORCEMENT CONTEXT — context only: \(prompting)
-
-        SESSION NARRATIVE:
-        \(cleanNarrative.isEmpty ? "none" : cleanNarrative)
-
-        SCREENSHOT OCR / DATA:
-        \(recognized.isEmpty ? "none" : recognized)
-        """
+        let clientContext = String(
+            compactSessionNoteClientContext(client)
+                .replacingOccurrences(of: "Brandon Good", with: "RBT", options: [.caseInsensitive])
+                .prefix(500)
+        )
 
         let instructions = """
-        You are LifeRoute's factual ABA documentation assistant. Match the user's established master ABA session-note voice: connected chronological RBT narrative paragraphs, normal ABA terminology, supplied prompt levels and data woven into the event where they occurred, and no report formatting or invented interpretation. Treat explicit session narrative facts as primary evidence.
+        Create one professional ABA session note using ONLY the session facts supplied below. Clear screenshot OCR may supplement those facts only as supporting quantitative evidence. Match the user's Master ABA Session Note standard.
+
+        WRITING CONTRACT
+        - Write natural, objective, person-first clinical prose appropriate for high-quality ABA and insurance documentation. Use approximately 2–4 concise cohesive paragraphs; do not pad a sparse session.
+        - Refer to the clinician only as "the RBT" or "RBT." Never use a personal clinician or profile name in the note body.
+        - Convert rough shorthand into connected chronological prose without adding facts. Start with location/people present when supplied, then describe what the RBT implemented, the client's observable response, the exact prompting provided, reinforcement delivered, skill acquisition, transitions, and behaviors where they actually occurred.
+        - Build a cohesive clinical narrative rather than a list: link each supplied intervention to the corresponding client response, prompting, reinforcement, and observable outcome, and use concise transitions between session events.
+        - Use professional ABA terminology when supported, including FCT, manding, waiting, accepting denied access/alternatives, following directions, choice making, visual schedules, PECS/choice boards, toileting, matching, play, imitation, social skills, table instruction, NET, pairing, and transitions.
+        - Say "behaviors of concern," never "maladaptive behaviors." Avoid mentalistic or speculative language.
+        - Preserve every explicitly supplied prompting level exactly: independent, gestural, verbal, visual, model, partial physical, full physical, or another supplied level. Never upgrade, downgrade, or invent a prompt.
+        - Identify reinforcement that was actually delivered and describe its observable effectiveness only when the facts support that outcome.
+        - Avoid repetitive sentence structure. The note should sound individualized to this session rather than copied from a template.
+
+        BEHAVIOR / ABC CONTRACT
+        - Include a behavior of concern only when the session narrative or clear quantitative data shows that it occurred. Do not mention absent/zero behaviors merely because a 0.00% row exists.
+        - For each behavior that occurred, integrate the supplied antecedent, observable behavior, intervention(s), and outcome in chronological prose. If one ABC element was not supplied, omit that element rather than inventing it.
+        - Never infer function, intent, emotion, motivation, or cause unless it was directly supplied as an observable/caregiver-reported fact.
+
+        DATA CONTRACT
+        - SESSION FACTS are the primary source of truth. Clear SCREENSHOT OCR / DATA is supporting quantitative evidence. SAVED CLIENT CONTEXT is terminology/context only and never proves that an event occurred.
+        - Keep every measurement in its supplied type and unit; never flatten unlike data into generic percentages or convert counts, frequency, duration, latency, rate, trials, independent responses, or prompted responses into another type.
+        - Percentage data may describe skill accuracy, opportunities, or success only when the target label supports that meaning. Frequency/count data describes the supplied number of instances or events. Duration describes how long an event or response lasted. Latency describes the supplied time before a response or initiation. Rate preserves the supplied events-per-unit. Trial data preserves the supplied correct/total or trial-based form. Independent and prompted responding remain distinct, including exact prompt levels when present.
+        - OCR evidence is grouped by screenshot and tagged by likely measurement type. Treat an [AMBIGUOUS OCR] tag as uncertain; omit it unless the surrounding label and value make the meaning clear.
+        - Integrate clear values naturally beside the matching target or behavior; never create a separate data dump.
+        - If OCR conflicts with an explicit narrative fact, preserve the narrative fact and omit uncertain OCR rather than overwriting the user's account.
+        - Describe successful or lower-performing skills objectively when clear data supports it. When clear data shows a target still requires intervention, it is acceptable to state that the target continues to require intervention, but do not invent an explanation or unsupported progress claim.
+
+        COLLABORATION CONTRACT
+        - If supplied, integrate caregiver coaching/modeling/education such as PECS, reinforcement, prompt fading, visual schedules, transition strategies, or behavior-management support.
+        - If supplied, integrate BCBA/LBS collaboration such as programming updates, modeled interventions, feedback, protocol modifications, or skill demonstrations.
+        - Do not invent caregiver training, supervisor involvement, programming changes, recommendations, or collaboration that was not supplied.
+
+        CLOSING / MEDICAL-NECESSITY CONTRACT
+        - End with a brief professional conclusion summarizing the client's participation/response using only supplied facts, followed by a concise statement that the RBT will continue implementing the established treatment plan during future sessions.
+        - That generic treatment-plan continuation is required and is not permission to invent new goals, recommendations, protocols, outcomes, or future procedures.
+        - Support medical necessity through concrete documentation of treatment targets, RBT intervention, prompting, reinforcement, behavior response, data, and supervision when present; do not make an unsupported declaration that services were medically necessary.
+
+        HARD BOUNDARIES
+        - Do not fabricate targets, behaviors, antecedents, prompt levels, interventions, attendees, locations, caregiver reports, frequencies, percentages, reinforcement, outcomes, clinical interpretations, diagnoses, billing facts, environmental descriptions, progress/generalization claims, or recommendations.
+        - Use "the client" in the prose; the saved client code is context only and is not a name.
+        - No title, headings, bullets, numbering, tables, SOAP/report sections, markdown, placeholders, data section, preface, disclaimer, or commentary. Return only the finished narrative paragraphs.
         """
 
-        let firstDraft = try await generate(instructions: instructions, prompt: prompt)
-        guard sessionNoteNeedsNarrativeRepair(firstDraft) else {
+        let prompt = """
+        CLIENT IDENTIFIER — context only: \(clientCode)
+        SAVED CLIENT CONTEXT — terminology only: \(clientContext.isEmpty ? "none" : clientContext)
+
+        SESSION FACTS — primary evidence:
+        \(boundedNarrative.isEmpty ? "none" : boundedNarrative)
+
+        SCREENSHOT OCR / DATA — supporting evidence only:
+        \(boundedOCR.isEmpty ? "none" : boundedOCR)
+        """
+
+        await progress(.generating)
+        let firstDraft = sanitizedSessionNoteDraft(
+            try await generate(instructions: instructions, prompt: prompt)
+        )
+        guard sessionNoteNeedsMasterABARepair(firstDraft) else {
             return firstDraft
         }
 
-        let repairPrompt = """
-        \(prompt)
+        await progress(.repairing)
+        let repairedDraft = sanitizedSessionNoteDraft(try await generate(
+            instructions: instructions + """
 
-        FORMAT CORRECTION — the prior generation shape was rejected:
-        - Start over from the supplied SESSION NARRATIVE and clear OCR data; do not reuse or preserve wording from any rejected draft.
-        - Return only plain narrative paragraphs with no title, section labels, markdown, bullets, placeholders, or future-plan language.
-        - Keep explicit session events in chronological order and integrate supported percentages/frequencies into the sentences where those targets or behaviors are discussed.
-        - Use "the client" rather than the client identifier as a personal name.
-        - Do not infer that 0.00% behavior-reduction data means failure or lack of progress. Respect explicit narrative behavior events first.
-        - Omit every environmental, progress, generalization, recommendation, and treatment-planning claim that was not explicitly supplied.
-        """
+            FORMAT / CLINICAL CORRECTION:
+            Re-create the note from the original evidence. Return only 2–4 cohesive chronological paragraphs. Use "behaviors of concern," preserve exact supplied prompts/data, mention only behaviors that occurred, keep supplied ABC details linked, include supplied caregiver/BCBA/LBS collaboration, and end with a brief participation summary plus continuation of the established treatment plan. Do not invent any missing fact.
+            """,
+            prompt: prompt
+        ))
 
-        let repairedDraft = try await generate(
-            instructions: "LifeRoute rejected the prior output format. Re-create it in the user's master ABA session-note style: factual, chronological RBT narrative paragraphs with no headings, labels, markdown, placeholders, lists, invented interpretations, or future plans.",
-            prompt: repairPrompt
-        )
-
-        guard !sessionNoteNeedsNarrativeRepair(repairedDraft) else {
+        guard !sessionNoteNeedsMasterABARepair(repairedDraft) else {
             throw LifeRouteIntelligenceError.generationFailed(
-                "LifeRoute could not produce a clean narrative-only ABA note from this generation. Please regenerate from the same session facts."
+                "LifeRoute could not produce a clean Master ABA session note from this generation. Please regenerate from the same session facts."
             )
         }
         return repairedDraft
@@ -265,6 +378,35 @@ enum LifeRouteIntelligenceCore {
         )
     }
 
+    private static func compactSessionNoteClientContext(_ client: LifeRouteClientProfile?) -> String {
+        guard let client else { return "none" }
+
+        func compactList(_ values: [String], limit: Int) -> String {
+            let cleaned = values
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            guard !cleaned.isEmpty else { return "none" }
+            return cleaned.prefix(limit).joined(separator: "; ")
+        }
+
+        func compactText(_ value: String, limit: Int) -> String {
+            let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !clean.isEmpty else { return "none" }
+            return String(clean.prefix(limit))
+        }
+
+        let summary = [
+            "targets: \(compactList(client.currentTargets, limit: 5))",
+            "behaviors: \(compactList(client.behaviorsOfConcern, limit: 5))",
+            "communication: \(compactText(client.communicationNotes, limit: 180))",
+            "prompting/reinforcement: \(compactText(client.promptingNotes, limit: 180))",
+        ].joined(separator: " | ")
+
+        // Saved profile data is terminology context only. Keep it small so selecting a client
+        // cannot crowd the user's actual session facts out of Apple's on-device model window.
+        return String(summary.prefix(720))
+    }
+
     private static func sanitizeVisualScheduleLine(_ value: String) -> String {
         var cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
         while let first = cleaned.first, "•-*–—".contains(first) {
@@ -278,6 +420,27 @@ enum LifeRouteIntelligenceCore {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return String(cleaned.prefix(90))
+    }
+
+    private static func sessionNoteNeedsMasterABARepair(_ value: String) -> Bool {
+        if sessionNoteNeedsNarrativeRepair(value) {
+            return true
+        }
+
+        let lower = value.lowercased()
+        if lower.contains("maladaptive behavior") || lower.contains("maladaptive behaviours") {
+            return true
+        }
+        if lower.contains("brandon good") {
+            return true
+        }
+
+        // The Master ABA contract requires a brief treatment-plan continuation close.
+        if !lower.contains("treatment plan") {
+            return true
+        }
+
+        return false
     }
 
     private static func sessionNoteNeedsNarrativeRepair(_ value: String) -> Bool {
@@ -326,7 +489,7 @@ enum LifeRouteIntelligenceCore {
 
             do {
                 let session = LanguageModelSession(instructions: instructions)
-                let response = try await session.respond(to: String(prompt.prefix(16_000)))
+                let response = try await session.respond(to: String(prompt.prefix(9_000)))
                 let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !text.isEmpty else {
                     throw LifeRouteIntelligenceError.generationFailed("")
@@ -335,6 +498,12 @@ enum LifeRouteIntelligenceCore {
             } catch let error as LifeRouteIntelligenceError {
                 throw error
             } catch {
+                let lower = error.localizedDescription.lowercased()
+                if lower.contains("context window") || lower.contains("context length") {
+                    throw LifeRouteIntelligenceError.generationFailed(
+                        "Apple Intelligence reported that the note input was too large. LifeRoute now compacts session-note requests automatically; if this still appears, shorten unusually long pasted facts or remove the screenshot and try again."
+                    )
+                }
                 throw LifeRouteIntelligenceError.generationFailed(error.localizedDescription)
             }
         }

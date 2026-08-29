@@ -2,6 +2,26 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
+// v0.7.0 official LifeRoute widget micro mark: simplified LR/pin identity for tiny system surfaces.
+private struct LifeRouteWidgetBrandMark: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .fill(Color(red: 0.01, green: 0.04, blue: 0.10))
+            Text("LR")
+                .font(.system(size: 8.2, weight: .black, design: .serif))
+                .tracking(-0.8)
+                .foregroundStyle(Color(red: 1.0, green: 0.82, blue: 0.34))
+            Circle()
+                .fill(Color(red: 1.0, green: 0.88, blue: 0.46))
+                .frame(width: 2.8, height: 2.8)
+                .offset(y: -4.6)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("LifeRoute")
+    }
+}
+
 @main
 struct LifeRouteLiveActivityWidgetBundle: WidgetBundle {
     var body: some Widget {
@@ -19,8 +39,8 @@ struct LifeRouteLiveDayWidget: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
-                            .foregroundStyle(.yellow)
+                        LifeRouteWidgetBrandMark()
+                            .frame(width: 20, height: 20)
                         Text("LifeRoute")
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(.secondary)
@@ -56,16 +76,16 @@ struct LifeRouteLiveDayWidget: Widget {
                     .foregroundStyle(.secondary)
                 }
             } compactLeading: {
-                Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
-                    .foregroundStyle(.yellow)
+                LifeRouteWidgetBrandMark()
+                    .frame(width: 20, height: 20)
             } compactTrailing: {
                 Text(context.state.countdownTarget, style: .timer)
                     .font(.caption2.weight(.bold))
                     .monospacedDigit()
                     .frame(maxWidth: 46)
             } minimal: {
-                Image(systemName: "location.fill")
-                    .foregroundStyle(.yellow)
+                LifeRouteWidgetBrandMark()
+                    .frame(width: 18, height: 18)
             }
             .widgetURL(URL(string: "liferoute://today"))
             .keylineTint(.yellow)
@@ -80,8 +100,8 @@ private struct LockScreenLiveDayView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 HStack(spacing: 7) {
-                    Image(systemName: "point.topleft.down.to.point.bottomright.curvepath")
-                        .foregroundStyle(.yellow)
+                    LifeRouteWidgetBrandMark()
+                        .frame(width: 20, height: 20)
                     Text("LIFEROUTE · LIVE DAY")
                         .font(.caption2.weight(.black))
                         .tracking(1)

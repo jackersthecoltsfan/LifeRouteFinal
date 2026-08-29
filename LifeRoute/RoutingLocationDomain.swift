@@ -65,6 +65,98 @@ struct LifeRouteSavedPlace: Identifiable, Codable, Hashable {
     }
 }
 
+
+// v0.7.0 native weekly To-Dos restore: recovers the flexible task/errand model
+// that existed in the pre-native LifeRoute experience without reactivating WebView.
+enum LifeRouteTodoCategory: String, CaseIterable, Codable, Identifiable, Hashable {
+    case errand = "Errand"
+    case shopping = "Shopping"
+    case pickup = "Pickup"
+    case chore = "Chore"
+    case call = "Call"
+    case other = "Other"
+
+    var id: Self { self }
+
+    var systemImage: String {
+        switch self {
+        case .errand: return "bag.fill"
+        case .shopping: return "cart.fill"
+        case .pickup: return "shippingbox.fill"
+        case .chore: return "checklist"
+        case .call: return "phone.fill"
+        case .other: return "checkmark.circle.fill"
+        }
+    }
+}
+
+enum LifeRouteTodoPriority: String, CaseIterable, Codable, Identifiable, Hashable {
+    case low
+    case normal
+    case high
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .low: return "Low"
+        case .normal: return "Normal"
+        case .high: return "High"
+        }
+    }
+
+    var sortWeight: Int {
+        switch self {
+        case .low: return 0
+        case .normal: return 1
+        case .high: return 2
+        }
+    }
+}
+
+struct LifeRouteTodo: Identifiable, Codable, Hashable {
+    let id: UUID
+    var title: String
+    var category: LifeRouteTodoCategory
+    var durationMinutes: Int
+    var savedPlaceID: UUID?
+    var address: String
+    var priority: LifeRouteTodoPriority
+    var dueDate: Date
+    var notes: String
+    var completed: Bool
+    var createdAt: Date
+    var completedAt: Date?
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        category: LifeRouteTodoCategory,
+        durationMinutes: Int,
+        savedPlaceID: UUID?,
+        address: String,
+        priority: LifeRouteTodoPriority,
+        dueDate: Date,
+        notes: String,
+        completed: Bool = false,
+        createdAt: Date = Date(),
+        completedAt: Date? = nil
+    ) {
+        self.id = id
+        self.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.category = category
+        self.durationMinutes = max(5, min(240, durationMinutes))
+        self.savedPlaceID = savedPlaceID
+        self.address = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.priority = priority
+        self.dueDate = dueDate
+        self.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.completed = completed
+        self.createdAt = createdAt
+        self.completedAt = completedAt
+    }
+}
+
 struct LifeRouteAddressSuggestion: Identifiable, Hashable {
     let title: String
     let subtitle: String
@@ -77,6 +169,56 @@ struct LifeRouteAddressSuggestion: Identifiable, Hashable {
         guard !cleanSubtitle.isEmpty else { return cleanTitle }
         guard !cleanTitle.localizedCaseInsensitiveContains(cleanSubtitle) else { return cleanTitle }
         return "\(cleanTitle), \(cleanSubtitle)"
+    }
+}
+
+
+// v0.7.0 flexible destination intents: a To-Do may name the kind/brand of place
+// rather than prematurely locking the user to one street address. The stored value
+// stays human-readable while routing adapters receive a clean natural-language query.
+struct LifeRouteDestinationIntent: Identifiable, Hashable {
+    let storedValue: String
+    let naturalLanguageQuery: String
+    let systemImage: String
+    let keywords: [String]
+
+    var id: String { storedValue }
+
+    static let todoOptions: [LifeRouteDestinationIntent] = [
+        .init(storedValue: "Any grocery store", naturalLanguageQuery: "grocery store", systemImage: "cart.fill", keywords: ["grocery", "groceries", "supermarket", "food store"]),
+        .init(storedValue: "Any Walmart", naturalLanguageQuery: "Walmart", systemImage: "cart.fill", keywords: ["walmart", "wal mart"]),
+        .init(storedValue: "Any BJ's", naturalLanguageQuery: "BJ's Wholesale Club", systemImage: "cart.fill", keywords: ["bjs", "bj's", "bj wholesale", "warehouse"]),
+        .init(storedValue: "Any Target", naturalLanguageQuery: "Target", systemImage: "scope", keywords: ["target"]),
+        .init(storedValue: "Any Costco", naturalLanguageQuery: "Costco", systemImage: "cart.fill", keywords: ["costco", "warehouse"]),
+        .init(storedValue: "Any pharmacy", naturalLanguageQuery: "pharmacy", systemImage: "cross.case.fill", keywords: ["pharmacy", "drugstore", "medicine"]),
+        .init(storedValue: "Any gas station", naturalLanguageQuery: "gas station", systemImage: "fuelpump.fill", keywords: ["gas", "fuel", "gas station"]),
+        .init(storedValue: "Any coffee shop", naturalLanguageQuery: "coffee shop", systemImage: "cup.and.saucer.fill", keywords: ["coffee", "cafe", "coffee shop"]),
+        .init(storedValue: "Any convenience store", naturalLanguageQuery: "convenience store", systemImage: "storefront.fill", keywords: ["convenience", "corner store"]),
+        .init(storedValue: "Any hardware store", naturalLanguageQuery: "hardware store", systemImage: "wrench.and.screwdriver.fill", keywords: ["hardware", "home improvement"]),
+        .init(storedValue: "Any bank", naturalLanguageQuery: "bank", systemImage: "building.columns.fill", keywords: ["bank", "atm"]),
+        .init(storedValue: "Any post office", naturalLanguageQuery: "post office", systemImage: "envelope.fill", keywords: ["post", "mail", "usps", "post office"]),
+    ]
+
+    static func matches(_ input: String) -> [LifeRouteDestinationIntent] {
+        let query = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard query.count >= 2 else { return [] }
+
+        return todoOptions.filter { option in
+            let searchable = ([option.storedValue, option.naturalLanguageQuery] + option.keywords)
+                .joined(separator: " ")
+                .lowercased()
+            return searchable.contains(query)
+        }.prefix(6).map { $0 }
+    }
+
+    static func naturalLanguageQuery(forStoredValue value: String) -> String {
+        let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let intent = todoOptions.first(where: {
+            $0.storedValue.compare(cleaned, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        }) else {
+            return cleaned
+        }
+        return intent.naturalLanguageQuery
     }
 }
 
@@ -115,19 +257,26 @@ final class LifeRouteAddressAutocomplete: NSObject, ObservableObject, MKLocalSea
     }
 
     func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        // Ignore a stale delegate callback that arrives after a user has already selected/cleared a result.
+        let requestedQuery = lastQuery
+        guard !requestedQuery.isEmpty else { return }
         let next = Array(completer.results.prefix(6)).map {
             LifeRouteAddressSuggestion(title: $0.title, subtitle: $0.subtitle)
         }
         DispatchQueue.main.async { [weak self] in
-            self?.suggestions = next
-            self?.message = nil
+            guard let self, self.lastQuery == requestedQuery, !requestedQuery.isEmpty else { return }
+            self.suggestions = next
+            self.message = nil
         }
     }
 
     func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+        let requestedQuery = lastQuery
+        guard !requestedQuery.isEmpty else { return }
         DispatchQueue.main.async { [weak self] in
-            self?.suggestions = []
-            self?.message = "Address suggestions are temporarily unavailable. You can still type the address manually."
+            guard let self, self.lastQuery == requestedQuery, !requestedQuery.isEmpty else { return }
+            self.suggestions = []
+            self.message = "Address suggestions are temporarily unavailable. You can still type the address manually."
         }
     }
 }
@@ -159,6 +308,7 @@ enum RoutingLocationCoreError: LocalizedError {
     case originUnavailable
     case destinationNotFound
     case routeUnavailable
+    case missingTodoTitle
 
     var errorDescription: String? {
         switch self {
@@ -167,6 +317,7 @@ enum RoutingLocationCoreError: LocalizedError {
         case .originUnavailable: return "Current location is not ready. Allow location access or add a home address as a fallback."
         case .destinationNotFound: return "LifeRoute could not find that destination."
         case .routeUnavailable: return "A route could not be calculated for that destination."
+        case .missingTodoTitle: return "Add what you need to get done."
         }
     }
 }
@@ -177,6 +328,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
     @Published private(set) var currentLocation: CLLocation?
     @Published private(set) var locationMessage = "Location not requested"
     @Published private(set) var savedPlaces: [LifeRouteSavedPlace] = []
+    @Published private(set) var todos: [LifeRouteTodo] = []
     @Published private(set) var routeEstimates: [UUID: LifeRouteRouteEstimate] = [:]
     @Published private(set) var routeMessage: String?
     @Published private(set) var homeAddress = ""
@@ -197,6 +349,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
     override init() {
         let restored = LifeRoutePersistenceStore.shared.loadRoutingState()
         self.savedPlaces = restored.savedPlaces
+        self.todos = restored.todos
         self.homeAddress = restored.homeAddress
         super.init()
         locationManager.delegate = self
@@ -293,6 +446,63 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
         savedPlaces.removeAll { $0.id == id }
         routeEstimates[id] = nil
         persistRoutingInputs()
+    }
+
+    func addTodo(
+        title: String,
+        category: LifeRouteTodoCategory,
+        durationMinutes: Int,
+        savedPlaceID: UUID?,
+        address: String,
+        priority: LifeRouteTodoPriority,
+        dueDate: Date,
+        notes: String
+    ) throws {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTitle.isEmpty else { throw RoutingLocationCoreError.missingTodoTitle }
+
+        let linkedPlace = savedPlaceID.flatMap { id in savedPlaces.first(where: { $0.id == id }) }
+        let cleanAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedAddress = cleanAddress.isEmpty ? (linkedPlace?.address ?? "") : cleanAddress
+
+        todos.append(
+            LifeRouteTodo(
+                title: cleanTitle,
+                category: category,
+                durationMinutes: durationMinutes,
+                savedPlaceID: linkedPlace?.id,
+                address: resolvedAddress,
+                priority: priority,
+                dueDate: dueDate,
+                notes: notes
+            )
+        )
+        sortTodos()
+        persistTodoInputs()
+    }
+
+    func setTodoCompleted(id: UUID, completed: Bool) {
+        guard let index = todos.firstIndex(where: { $0.id == id }) else { return }
+        todos[index].completed = completed
+        todos[index].completedAt = completed ? Date() : nil
+        sortTodos()
+        persistTodoInputs()
+    }
+
+    func removeTodo(id: UUID) {
+        todos.removeAll { $0.id == id }
+        persistTodoInputs()
+    }
+
+    private func sortTodos() {
+        todos.sort { lhs, rhs in
+            if lhs.completed != rhs.completed { return !lhs.completed }
+            if lhs.priority.sortWeight != rhs.priority.sortWeight {
+                return lhs.priority.sortWeight > rhs.priority.sortWeight
+            }
+            if lhs.dueDate != rhs.dueDate { return lhs.dueDate < rhs.dueDate }
+            return lhs.createdAt < rhs.createdAt
+        }
     }
 
     func calculateRoute(to place: LifeRouteSavedPlace, mode: LifeRouteTransportMode) {
@@ -504,7 +714,19 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
     }
 
     private func persistRoutingInputs() {
-        LifeRoutePersistenceStore.shared.saveRoutingState(homeAddress: homeAddress, savedPlaces: savedPlaces)
+        LifeRoutePersistenceStore.shared.saveRoutingState(
+            homeAddress: homeAddress,
+            savedPlaces: savedPlaces,
+            todos: todos
+        )
+    }
+
+    private func persistTodoInputs() {
+        LifeRoutePersistenceStore.shared.saveRoutingState(
+            homeAddress: homeAddress,
+            savedPlaces: savedPlaces,
+            todos: todos
+        )
     }
 
     private func updateLocationMessage(for status: CLAuthorizationStatus) {
@@ -549,7 +771,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDe
         let cleaned = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { throw RoutingLocationCoreError.missingAddress }
         let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = cleaned
+        request.naturalLanguageQuery = LifeRouteDestinationIntent.naturalLanguageQuery(forStoredValue: cleaned)
         let response = try await MKLocalSearch(request: request).start()
         guard let item = response.mapItems.first else { throw RoutingLocationCoreError.destinationNotFound }
         return item

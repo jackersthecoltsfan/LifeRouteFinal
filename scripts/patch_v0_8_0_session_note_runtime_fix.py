@@ -73,7 +73,7 @@ final class FoundationModelSessionNoteGenerator: SessionNoteGenerating {
         }
         isBusy = true
         defer { isBusy = false }
-        try await LifeRouteIntelligenceCore.generateABASessionNote(
+        return try await LifeRouteIntelligenceCore.generateABASessionNote(
             narrative: narrative,
             screenshotData: screenshotData,
             client: client,

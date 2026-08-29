@@ -42,7 +42,11 @@ check("actual Foundation Models availability reasons exposed", all(token in CORE
     ".unavailable(.appleIntelligenceNotEnabled)",
     ".unavailable(.modelNotReady)",
 ]))
-check("production generator remains on-device", "FoundationModelSessionNoteGenerator" in VIEW and "LifeRouteIntelligenceCore.generateABASessionNote(" in VIEW)
+check(
+    "production generator remains on-device and returns its generated draft",
+    "FoundationModelSessionNoteGenerator" in VIEW
+    and "return try await LifeRouteIntelligenceCore.generateABASessionNote(" in VIEW,
+)
 check("timed-out request cannot overlap a still-cancelling model session", "private var isBusy = false" in VIEW and "previous on-device model request is still cancelling" in VIEW)
 check("generation progress crosses service boundary", "SessionNoteGenerationProgress" in CORE and "await progress(.generating)" in CORE and "await progress(.repairing)" in CORE)
 check("successful draft updates only after nonempty result", "generatedNote = cleaned" in VIEW and "guard !cleaned.isEmpty" in VIEW)

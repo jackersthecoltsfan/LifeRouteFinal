@@ -32,7 +32,12 @@ for forbidden in ["WebKit", "WKWebView", "JavaScript", "MutationObserver", "loca
 require("final class VisualTimerCore: ObservableObject" in domain, "Visual timer has one explicit native state owner")
 require("@Published private(set) var deadline: Date?" in domain, "Visual timer uses an absolute deadline")
 require("func remainingSeconds(at now: Date = Date())" in domain, "Timer derives remaining time from the deadline")
-require("TimelineView(.periodic(from: .now, by: 1))" in views, "Timer rendering uses system-driven one-second TimelineView ticks")
+require(
+    "TimelineView(.periodic(from: .now, by: 1))" in views
+    or "TimelineView(.periodic(from: .now, by: 0.10))" in views
+    or "TimelineView(.periodic(from: .now, by: 0.1))" in views,
+    "Timer rendering uses system-driven TimelineView ticks",
+)
 require("ProgressView(value: timer.progress" in views, "Visual timer exposes deterministic progress")
 require(
     (

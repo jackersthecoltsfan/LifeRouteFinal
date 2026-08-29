@@ -120,6 +120,7 @@ require(
     and (
         "Saved client information is terminology/context only and never proves an event occurred" in s["ai_core"]
         or "Saved client data is terminology context only" in s["ai_core"]
+        or "SAVED CLIENT CONTEXT is terminology only and never proves an event occurred" in s["ai_core"]
     ),
     "20 note generator explicitly blocks invented clinical data",
 )

@@ -479,6 +479,13 @@ struct AISessionNoteGeneratorView: View {
     }
 
     private var inputCard: some View {
+        let hasScreenshots = !screenshotAttachments.isEmpty
+        let loadingScreenshots = isLoadingScreenshots
+        let pickerAccent = palette.accent
+        let pickerTextPrimary = palette.textPrimary
+        let pickerTextSecondary = palette.textSecondary
+        let pickerPanelElevated = palette.panelElevated
+
         VStack(alignment: .leading, spacing: 13) {
             Text("Session facts")
                 .font(.title3.weight(.bold))
@@ -556,31 +563,38 @@ struct AISessionNoteGeneratorView: View {
                 selection: $selectedPhotoItems,
                 maxSelectionCount: 6,
                 matching: .images
-            ) {
+            ) { [
+                hasScreenshots,
+                loadingScreenshots,
+                pickerAccent,
+                pickerTextPrimary,
+                pickerTextSecondary,
+                pickerPanelElevated
+            ] in
                 HStack(spacing: 11) {
-                    Image(systemName: screenshotAttachments.isEmpty ? "photo.badge.plus" : "photo.stack.fill")
+                    Image(systemName: hasScreenshots ? "photo.stack.fill" : "photo.badge.plus")
                         .font(.title3)
-                        .foregroundStyle(palette.accent)
+                        .foregroundStyle(pickerAccent)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(screenshotAttachments.isEmpty ? "Attach data screenshots" : "Add or change screenshots")
+                        Text(hasScreenshots ? "Add or change screenshots" : "Attach data screenshots")
                             .font(.subheadline.weight(.bold))
-                            .foregroundStyle(palette.textPrimary)
+                            .foregroundStyle(pickerTextPrimary)
                         Text("Up to 6 · text recognition runs locally")
                             .font(.caption2)
-                            .foregroundStyle(palette.textSecondary)
+                            .foregroundStyle(pickerTextSecondary)
                     }
                     Spacer()
-                    if isLoadingScreenshots {
+                    if loadingScreenshots {
                         ProgressView()
-                            .tint(palette.accent)
+                            .tint(pickerAccent)
                     } else {
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.bold))
-                            .foregroundStyle(palette.textSecondary)
+                            .foregroundStyle(pickerTextSecondary)
                     }
                 }
                 .padding(12)
-                .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .background(pickerPanelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
 
             if !screenshotAttachments.isEmpty {

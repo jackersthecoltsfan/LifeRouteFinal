@@ -457,7 +457,7 @@ enum ClientVisualSupportError: LocalizedError {
 
 @MainActor
 final class ClientVisualSupportCore: ObservableObject {
-    static let generalClientCode = "GENERAL"
+    nonisolated static let generalClientCode = "GENERAL"
     static let generalDisplayName = "General / no client"
     private static let generalClientID = UUID(uuidString: "7F164E34-BD4A-4A30-AFDB-70A4AE8C7D3E")!
 

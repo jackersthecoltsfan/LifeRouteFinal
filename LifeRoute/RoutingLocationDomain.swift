@@ -323,7 +323,7 @@ enum RoutingLocationCoreError: LocalizedError {
 }
 
 @MainActor
-final class RoutingLocationCore: NSObject, ObservableObject, CLLocationManagerDelegate {
+final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLLocationManagerDelegate {
     @Published private(set) var authorizationStatus: CLAuthorizationStatus = .notDetermined
     @Published private(set) var currentLocation: CLLocation?
     @Published private(set) var locationMessage = "Location not requested"

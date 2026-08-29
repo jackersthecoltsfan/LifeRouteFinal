@@ -8,10 +8,12 @@
 - Rollback reference: `checkpoint/pre-canonical-baseline-build106`
 - Canonical source promotion: `d6fa77321bcb4fb03421cc6883ebb222ae7fffdd`
 
-Phase A consolidates the historical deterministic reconstruction chain into
-checked-in canonical source. Product behavior, including known Build #106
-physical defects, is intentionally unchanged. No v0.8.1 donor has been merged,
-cherry-picked, or copied.
+Phase A consolidated the historical deterministic reconstruction chain into
+checked-in canonical source. Phase B removes the remaining source-level Swift
+concurrency warnings and adds a strict unexpected-warning gate plus cache
+hygiene. Product behavior, including known Build #106 physical defects, remains
+intentionally unchanged. No v0.8.1 donor has been merged, cherry-picked, or
+copied.
 
 ## Current architecture
 
@@ -38,7 +40,11 @@ archive verification, and explicit dispatch.
 PR #101 and `preserve/v0.8.1-uncommitted-product-donor` remain frozen donor
 references for the later selective v0.8.1 re-port. They are out of scope here.
 
-## Required next checkpoint
+## Phase B validation boundary
 
-Complete Phase A equivalence and GitHub macOS native validation, then stop at the
-mandatory model/reasoning gate before any Phase B repository-health work.
+Phase B is limited to warning debt and repository-quality cleanup. It does not
+redesign or repair Build #106 product behavior. Before this branch advances,
+run fast and full canonical validation, prove warning-assessor fixtures, and
+require the GitHub macOS Debug/Release/extension/Simulator check to pass with
+zero unexpected compiler-warning lines. Keep PR #102 unmerged until separately
+authorized.

@@ -21,6 +21,8 @@ targets.
 - `scripts/validate_full.sh`: fast validation plus calendar/routing,
   persistence/migrations, ABA tools, timer, Live Activity, WebView quarantine,
   and release-policy contracts.
+- `scripts/assess_xcode_warnings.py`: rejects unexpected warning lines from
+  native Debug/Release build logs while classifying one exact Xcode 26.6 notice.
 - `scripts/run_simulator_smoke.sh`: GitHub macOS runner smoke for the five root
   sections, repeated-launch persistence, and live-theme/Reduce Motion modes.
 
@@ -29,7 +31,10 @@ targets.
 Pull requests run current semantic validation and native Debug/Release
 Simulator compilation. The shared `LifeRoute` scheme compiles the embedded Live
 Day extension. Simulator smoke launches Today, Calendar (`schedule` internally),
-Tools, Resources, and Setup.
+Tools, Resources, and Setup. Native CI rejects all unexpected compiler warnings.
+Xcode 26.6's exact no-AppIntents metadata notice is classified separately because
+LifeRoute does not link App Intents and adding that framework would change the
+product solely to suppress toolchain noise.
 
 Main uses the same current contract. TestFlight has one production owner:
 `.github/workflows/testflight.yml`. It requires a full exact current-main SHA,

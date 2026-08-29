@@ -100,12 +100,22 @@ def validate_active_build_path() -> None:
     prepare = read(ROOT / "scripts" / "prepare_build.sh")
     fast = read(ROOT / "scripts" / "validate_fast.sh")
     full = read(ROOT / "scripts" / "validate_full.sh")
+    warning_assessor = read(ROOT / "scripts" / "assess_xcode_warnings.py")
     require_all(prepare, ["validate_fast.sh", "canonical LifeRoute v0.8.0"], "current prepare_build")
     forbidden = ["patch_v0_", "audit_v0_", "scripts/archive/", "generate_v0_", "materialize"]
     present = [token for token in forbidden if token in prepare]
     require(not present, f"prepare_build must not reconstruct historical releases: {present}")
     require("validate_current.py fast" in fast, "validate_fast must invoke the current semantic validator")
     require("validate_current.py full" in full, "validate_full must invoke the current full semantic validator")
+    require_all(
+        warning_assessor,
+        [
+            "Metadata extraction skipped. No AppIntents.framework dependency found.",
+            "Unexpected compiler warning lines",
+            "return 1",
+        ],
+        "current Xcode warning assessor",
+    )
     active_historical = sorted(
         path.name
         for pattern in ("patch_*.py", "audit_v*.py")
@@ -209,7 +219,19 @@ def validate_release_and_web_policy() -> None:
     bridge = read(WORKFLOWS / "chatgpt-testflight-request.yml")
     testflight = read(WORKFLOWS / "testflight.yml")
     workflows = {path.name: read(path) for path in sorted(WORKFLOWS.glob("*.yml"))}
-    require_all(ios, ["validate_fast.sh", "validate_full.sh", "configuration Debug", "configuration Release", "iphonesimulator"], "current native CI")
+    require_all(
+        ios,
+        [
+            "validate_fast.sh",
+            "validate_full.sh",
+            "configuration Debug",
+            "configuration Release",
+            "iphonesimulator",
+            "assess_xcode_warnings.py",
+            "Enforce compiler warning budget",
+        ],
+        "current native CI",
+    )
     require_all(policy, ["validate_fast.sh", "release policy"], "lightweight policy validation")
     require_all(pages, ["build_web_preview.py", "validate_fast.sh"], "decoupled web preview")
     require("scripts/**" not in pages, "Pages must not trigger for arbitrary scripts changes")

@@ -85,7 +85,7 @@ def validate_project_and_version() -> None:
         project,
         [
             "LifeRouteLiveActivityWidget.appex in Embed App Extensions",
-            "LifeRouteLiveActivityWidget /* PBXTargetDependency */",
+            "target = W50000000000000000000001 /* LifeRouteLiveActivityWidget */",
             "LiveDayLiveActivityWidget.swift in Sources",
             "LiveDayActivityAttributes.swift in Sources",
             "Assets.xcassets in Resources",

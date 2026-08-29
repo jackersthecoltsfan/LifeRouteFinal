@@ -17,7 +17,7 @@ PROJECT = ROOT / "LifeRoute.xcodeproj" / "project.pbxproj"
 EXTENSION = ROOT / "LifeRouteLiveActivityWidget"
 WORKFLOWS = ROOT / ".github" / "workflows"
 EXPECTED_MARKETING_VERSION = "0.8.2"
-EXPECTED_RELEASE_MARKETING_VERSION = "0.8.1"
+EXPECTED_RELEASE_MARKETING_VERSION = "0.8.2"
 EXPECTED_APP_BUNDLE_ID = "Com.Brandongood.LifeRoute"
 EXPECTED_EXTENSION_BUNDLE_ID = "Com.Brandongood.LifeRoute.LiveDay"
 
@@ -396,8 +396,8 @@ def validate_release_and_web_policy() -> None:
     require_all(pages, ["build_web_preview.py", "validate_fast.sh"], "decoupled web preview")
     require("scripts/**" not in pages, "Pages must not trigger for arbitrary scripts changes")
     require_all(bridge, ["AUTHORIZED_TESTFLIGHT_RELEASE=YES", "Require completed release-equivalent iOS validation", "Reconfirm main before TestFlight", "authorized_sha"], "exact-SHA assistant release bridge")
-    require_all(testflight, ["workflow_dispatch", "authorized_sha", "Verify authorized release source", EXPECTED_APP_BUNDLE_ID, EXPECTED_EXTENSION_BUNDLE_ID, "validate_full.sh", "archive", "Verify archived LifeRoute v0.8.1 identity", "Upload to TestFlight", "Clean temporary Apple signing assets", "AppIcon"], "separate unchanged v0.8.1 TestFlight contract")
-    require(testflight.count(f"RELEASE_MARKETING_VERSION: {EXPECTED_RELEASE_MARKETING_VERSION}") == 1, "product branch must leave the separate v0.8.1 release workflow unchanged")
+    require_all(testflight, ["workflow_dispatch", "authorized_sha", "Verify authorized release source", EXPECTED_APP_BUNDLE_ID, EXPECTED_EXTENSION_BUNDLE_ID, "validate_full.sh", "archive", "Verify archived LifeRoute v0.8.2 identity", "Upload to TestFlight", "Clean temporary Apple signing assets", "AppIcon"], "current v0.8.2 TestFlight contract")
+    require(testflight.count(f"RELEASE_MARKETING_VERSION: {EXPECTED_RELEASE_MARKETING_VERSION}") == 1, "release workflow must match current v0.8.2 product")
     for name, text in workflows.items():
         if name == "testflight.yml":
             continue

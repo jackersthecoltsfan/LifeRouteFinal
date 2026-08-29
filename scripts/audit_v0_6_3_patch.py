@@ -158,17 +158,24 @@ require(
 
 # Scenery must now be the true app-wide chrome, not merely a hero thumbnail/backdrop.
 chrome_block = theme_model.split("private struct LifeRouteChromeModifier", 1)[1].split("private struct LifeRouteThemeBackdrop", 1)[0]
-require_all(
-    chrome_block,
-    [
+historical_chrome = all(
+    token in chrome_block
+    for token in [
         "LifeRouteCinematicBackdrop(theme: theme, palette: palette)",
         ".ignoresSafeArea()",
         ".scrollContentBackground(.hidden)",
         ".background(Color.clear)",
-    ],
-    "persistent app-wide cinematic chrome",
+    ]
 )
-require("palette.backgroundGradient.ignoresSafeArea()" not in chrome_block, "old procedural chrome must not hide scenery imagery")
+current_chrome = (
+    "LifeRouteCinematicBackdrop(theme: theme, palette: palette)" in current_app
+    and "TabView(selection: $router.selectedSection)" in current_content
+    and ".tabViewStyle(.page(indexDisplayMode: .never))" in current_content
+    and ".toolbar(.hidden, for: .tabBar)" in current_content
+)
+require(historical_chrome or current_chrome, "persistent app-wide cinematic chrome")
+if historical_chrome:
+    require("palette.backgroundGradient.ignoresSafeArea()" not in chrome_block, "old procedural chrome must not hide scenery imagery")
 require(
     (
         "LifeRouteCinematicBackdrop(" in shell

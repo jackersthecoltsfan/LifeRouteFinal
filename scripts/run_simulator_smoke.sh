@@ -8,6 +8,8 @@ BUNDLE_ID="Com.Brandongood.LifeRoute"
 test -d "$APP_PATH"
 mkdir -p "$OUTPUT_DIRECTORY"
 
+bash "$(cd "$(dirname "$0")" && pwd)/run_session_note_contract_tests.sh"
+
 DEVICE_ID="$(xcrun simctl list --json devices available | python3 -c '
 import json, sys
 devices = json.load(sys.stdin)["devices"]

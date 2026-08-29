@@ -1,14 +1,21 @@
 name: Publish Web Preview
-run-name: LifeRoute web preview
+run-name: LifeRoute non-authoritative web preview
 
 on:
   push:
     branches: [main]
     paths:
       - 'LifeRoute/Web/**'
-      - 'scripts/**'
-      - '!scripts/audit_release_isolation.py'
-      - '!scripts/audit_workflow_efficiency.py'
+      - 'scripts/build_web_preview.py'
+      - 'scripts/web-preview.js'
+      - 'scripts/validate_web_preview.py'
+      - '.github/workflows/pages.yml'
+  pull_request:
+    paths:
+      - 'LifeRoute/Web/**'
+      - 'scripts/build_web_preview.py'
+      - 'scripts/web-preview.js'
+      - 'scripts/validate_web_preview.py'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -17,99 +24,40 @@ permissions:
   pages: write
   id-token: write
 
-# Keep only the newest preview for this workflow/ref.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    # v0.6.1 is native-first. prepare_build.sh owns the full shipping-app
-    # regression contract. The Pages job must validate the browser artifact,
-    # not require the quarantined v0.4 WebView runtime to be restored.
-    runs-on: macos-26
-    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Prepare exact current LifeRoute build
-        run: bash scripts/prepare_build.sh
+      - name: Validate canonical native boundary
+        run: bash scripts/validate_fast.sh
 
       - name: Build browser preview
         run: python3 scripts/build_web_preview.py
 
-      - name: Audit current browser preview contract
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import os
-          import re
-          import subprocess
-
-          root = Path('.')
-          dist = root / 'dist'
-          index = dist / 'index.html'
-          preview = dist / 'web-preview.js'
-
-          assert dist.is_dir(), 'dist directory missing'
-          assert index.is_file(), 'dist/index.html missing'
-          assert preview.is_file(), 'dist/web-preview.js missing'
-
-          html = index.read_text(errors='ignore')
-          sha = (os.environ.get('GITHUB_SHA') or '')[:8]
-          assert sha and f'name="liferoute-web-build" content="{sha}"' in html, 'exact-SHA web build marker missing'
-
-          script_refs = re.findall(r'<script[^>]+src=["\']([^"\']+\.js)(?:\?[^"\']*)?["\']', html, flags=re.I)
-          assert script_refs.count('web-preview.js') == 1, 'web-preview bootstrap must load exactly once'
-          assert len(script_refs) == len(set(script_refs)), 'duplicate script reference in deployed HTML'
-
-          for ref in script_refs:
-              assert (dist / ref).is_file(), f'loaded script does not resolve in artifact: {ref}'
-
-          # These belong to the retired WKWebView runtime and must not become
-          # active dependencies of the v0.6.1 native-first preview shell.
-          quarantined = {
-              'global-bridge.js',
-              'auth-gate.js',
-              'stability-runtime.js',
-              'day-navigation-runtime.js',
-          }
-          active_quarantined = sorted(quarantined.intersection(script_refs))
-          assert not active_quarantined, f'quarantined runtime loaded by preview: {active_quarantined}'
-
-          # Syntax-check only scripts that the final HTML directly loads plus
-          # the preview bootstrap. Dormant historical files may remain as
-          # migration/reference source without becoming release dependencies.
-          for name in sorted(set(script_refs + ['web-preview.js'])):
-              path = dist / name
-              result = subprocess.run(['node', '--check', str(path)], capture_output=True, text=True)
-              assert result.returncode == 0, f'JavaScript syntax failed for {name}: {result.stderr or result.stdout}'
-
-          corpus = '\n'.join(path.read_text(errors='ignore') for path in dist.rglob('*') if path.is_file())
-          for forbidden in ['BEGIN PRIVATE KEY', 'BEGIN RSA PRIVATE KEY', 'BEGIN EC PRIVATE KEY', 'APPLE_PRIVATE_KEY', 'MATCH_PASSWORD', 'FASTLANE_PASSWORD']:
-              assert forbidden.lower() not in corpus.lower(), f'forbidden secret marker present: {forbidden}'
-
-          print(f'Current LifeRoute web preview contract passed for {sha}: exact build marker, resolved/unique active scripts, quarantined runtime excluded, syntax and secret checks green.')
-          PY
+      - name: Validate browser preview
+        run: python3 scripts/validate_web_preview.py
 
       - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
 
-      - name: Report browser artifact budget
-        run: |
-          echo "### LifeRoute web artifact" >> "$GITHUB_STEP_SUMMARY"
-          du -sh dist | tee -a "$GITHUB_STEP_SUMMARY"
-          find dist -type f | wc -l | awk '{print "Files: "$1}' | tee -a "$GITHUB_STEP_SUMMARY"
-
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
         with:
           name: github-pages-${{ github.run_id }}-${{ github.run_attempt }}
           path: dist
 
   deploy:
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

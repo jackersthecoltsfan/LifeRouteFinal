@@ -90,7 +90,7 @@ The product owner has granted ChatGPT standing authorization to initiate **one T
 
 ### Keep expensive work single-owned
 
-`scripts/prepare_build.sh` is the shared deterministic preparation/preflight owner. If it already runs a deep audit, Pages should not immediately run the same audit again. Independent browser-artifact and browser-interaction checks remain appropriate after preparation.
+`scripts/prepare_build.sh` is a fast validation-only preflight over canonical source. `validate_fast.sh` supplies development feedback and `validate_full.sh` supplies merge/release-grade semantic validation. Pages is independently triggered only by Web preview owners and builds the browser artifact without historical native reconstruction.
 
 ### Keep release authorization short-lived
 

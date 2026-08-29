@@ -1,5 +1,5 @@
 name: Release Policy Check
-run-name: LifeRoute release policy check
+run-name: LifeRoute current release policy check
 
 on:
   push:
@@ -7,15 +7,17 @@ on:
     paths:
       - 'TESTFLIGHT_SETUP.md'
       - 'APP_CREATION_PLAYBOOK.md'
-      - 'scripts/audit_release_isolation.py'
-      - 'scripts/audit_workflow_efficiency.py'
+      - 'GITHUB_ACTIONS_RUNBOOK.md'
+      - 'scripts/validate_current.py'
+      - 'scripts/validate_fast.sh'
       - '.github/workflows/**'
   pull_request:
     paths:
       - 'TESTFLIGHT_SETUP.md'
       - 'APP_CREATION_PLAYBOOK.md'
-      - 'scripts/audit_release_isolation.py'
-      - 'scripts/audit_workflow_efficiency.py'
+      - 'GITHUB_ACTIONS_RUNBOOK.md'
+      - 'scripts/validate_current.py'
+      - 'scripts/validate_fast.sh'
       - '.github/workflows/**'
   workflow_dispatch:
 
@@ -34,8 +36,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Audit release isolation
-        run: python3 scripts/audit_release_isolation.py
-
-      - name: Audit workflow efficiency
-        run: python3 scripts/audit_workflow_efficiency.py
+      - name: Validate current release policy
+        run: bash scripts/validate_fast.sh

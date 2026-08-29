@@ -1,23 +1,29 @@
-name: iOS Build Check
-run-name: LifeRoute build check · ${{ github.ref_name }}
+name: iOS Current Baseline
+run-name: LifeRoute current validation · ${{ github.ref_name }}
 
 on:
   push:
     branches: [main]
     paths:
       - 'LifeRoute/**'
+      - 'LifeRouteLiveActivityWidget/**'
       - 'LifeRoute.xcodeproj/**'
-      - 'scripts/**'
-      - '!scripts/audit_release_isolation.py'
-      - '!scripts/audit_workflow_efficiency.py'
+      - 'scripts/prepare_build.sh'
+      - 'scripts/validate_current.py'
+      - 'scripts/validate_fast.sh'
+      - 'scripts/validate_full.sh'
+      - 'scripts/run_simulator_smoke.sh'
       - '.github/workflows/ios-ci.yml'
   pull_request:
     paths:
       - 'LifeRoute/**'
+      - 'LifeRouteLiveActivityWidget/**'
       - 'LifeRoute.xcodeproj/**'
-      - 'scripts/**'
-      - '!scripts/audit_release_isolation.py'
-      - '!scripts/audit_workflow_efficiency.py'
+      - 'scripts/prepare_build.sh'
+      - 'scripts/validate_current.py'
+      - 'scripts/validate_fast.sh'
+      - 'scripts/validate_full.sh'
+      - 'scripts/run_simulator_smoke.sh'
       - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
 
@@ -29,89 +35,91 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  current-validation:
+    name: Current semantic validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Prepare canonical source
+        run: |
+          start=$SECONDS
+          bash scripts/prepare_build.sh
+          echo "prepare_build_seconds=$((SECONDS-start))" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Run fast validation
+        run: |
+          start=$SECONDS
+          bash scripts/validate_fast.sh
+          echo "validate_fast_seconds=$((SECONDS-start))" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Run full validation
+        run: |
+          start=$SECONDS
+          bash scripts/validate_full.sh
+          echo "validate_full_seconds=$((SECONDS-start))" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  native-validation:
+    name: Debug, Release, extension, and Simulator
+    needs: current-validation
     runs-on: macos-26
-    # The isolated v0.7.1 theme branch boots a cold iOS Simulator and captures the complete
-    # twenty-theme matrix. GitHub's macOS 26 image can spend ~5 minutes in first-boot migration.
     timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-      - name: Prepare v0.5.0 functional core
+
+      - name: Prepare canonical source
         run: bash scripts/prepare_build.sh
-      - name: Audit checkpoint 03F client visual supports
-        run: python3 scripts/audit_v0_5_0_client_visual_supports.py
-      - name: Audit checkpoint 04A client visual persistence
-        run: python3 scripts/audit_v0_5_0_client_visual_persistence.py
-      - name: Audit checkpoint 04B routing calendar persistence
-        run: python3 scripts/audit_v0_5_0_routing_calendar_persistence.py
-      - name: Audit checkpoint 04C legacy migration
-        run: python3 scripts/audit_v0_5_0_legacy_migration.py
-      - name: Audit checkpoint 05A performance architecture
-        run: python3 scripts/audit_v0_5_0_performance_architecture.py
-      - name: Audit checkpoint 06 stability architecture
-        run: python3 scripts/audit_v0_5_0_stability_architecture.py
-      - name: Audit checkpoint 07 second functionality pass
-        run: python3 scripts/audit_v0_5_0_second_functionality_pass.py
-      - name: Build LifeRoute for iOS Simulator
+
+      - name: Debug-equivalent app and extension compile
         run: |
-          set -uo pipefail
-          LOG_FILE="$RUNNER_TEMP/liferoute-xcodebuild.log"
-          set +e
+          set -o pipefail
           xcodebuild \
             -project LifeRoute.xcodeproj \
             -scheme LifeRoute \
             -configuration Debug \
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath "$RUNNER_TEMP/liferoute-derived-data" \
+            -derivedDataPath "$RUNNER_TEMP/liferoute-debug" \
             SWIFT_ACTIVE_COMPILATION_CONDITIONS=DEBUG \
             CODE_SIGNING_ALLOWED=NO \
-            build >"$LOG_FILE" 2>&1
-          status=$?
-          set -e
+            build | tee "$RUNNER_TEMP/liferoute-debug.log"
 
-          if [ "$status" -ne 0 ]; then
-            echo "Xcode build failed. Compiler diagnostics:"
-            diagnostics="$(grep -E '(^|[[:space:]])(error|fatal error):|:[0-9]+:[0-9]+: error:' "$LOG_FILE" | head -80 || true)"
-            if [ -z "$diagnostics" ]; then
-              diagnostics="$(tail -120 "$LOG_FILE")"
-            fi
-            printf '%s\n' "$diagnostics"
-            while IFS= read -r diagnostic; do
-              [ -n "$diagnostic" ] && echo "::error::$diagnostic"
-            done <<< "$diagnostics"
-            exit "$status"
-          fi
-
-          tail -40 "$LOG_FILE"
-      - name: Capture v0.7.1 visual fixtures
-        if: >-
-          (github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/v0.7.1-theme-runtime-visual-regression') ||
-          (github.event_name == 'workflow_dispatch' && github.ref_name == 'feature/v0.7.1-theme-library-finish-codex') ||
-          (github.event_name == 'workflow_dispatch' && github.ref_name == 'integration/v0.8.0-note-runtime-plus-theme-design') ||
-          (github.event_name == 'pull_request' && (
-            github.head_ref == 'fix/v0.7.1-theme-runtime-visual-regression' ||
-            github.head_ref == 'integration/v0.8.0-note-runtime-plus-theme-design'
-          ))
+      - name: Release-equivalent app and extension compile
         run: |
-          bash scripts/capture_v0_7_1_visual_fixtures.sh \
-            "$RUNNER_TEMP/liferoute-derived-data/Build/Products/Debug-iphonesimulator/LifeRoute.app" \
-            "$RUNNER_TEMP/liferoute-visual-validation"
-      - name: Upload v0.7.1 visual fixtures
-        if: >-
-          always() && (
-            (github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/v0.7.1-theme-runtime-visual-regression') ||
-            (github.event_name == 'workflow_dispatch' && github.ref_name == 'feature/v0.7.1-theme-library-finish-codex') ||
-            (github.event_name == 'workflow_dispatch' && github.ref_name == 'integration/v0.8.0-note-runtime-plus-theme-design') ||
-            (github.event_name == 'pull_request' && (
-              github.head_ref == 'fix/v0.7.1-theme-runtime-visual-regression' ||
-              github.head_ref == 'integration/v0.8.0-note-runtime-plus-theme-design'
-            ))
-          )
+          set -o pipefail
+          xcodebuild \
+            -project LifeRoute.xcodeproj \
+            -scheme LifeRoute \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/liferoute-release" \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tee "$RUNNER_TEMP/liferoute-release.log"
+
+      - name: Run native Simulator smoke
+        run: |
+          bash scripts/run_simulator_smoke.sh \
+            "$RUNNER_TEMP/liferoute-debug/Build/Products/Debug-iphonesimulator/LifeRoute.app" \
+            "$RUNNER_TEMP/liferoute-simulator-smoke"
+
+      - name: Assess compiler warnings
+        if: always()
+        run: |
+          count=$(grep -hE 'warning:' "$RUNNER_TEMP"/liferoute-{debug,release}.log 2>/dev/null | wc -l | tr -d ' ')
+          echo "Compiler warning lines across Debug and Release: $count" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload native validation evidence
+        if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: liferoute-v0.7.1-theme-matrix
-          path: ${{ runner.temp }}/liferoute-visual-validation/**
-          if-no-files-found: error
+          name: liferoute-current-native-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/liferoute-debug.log
+            ${{ runner.temp }}/liferoute-release.log
+            ${{ runner.temp }}/liferoute-simulator-smoke/**
+          if-no-files-found: warn
           retention-days: 14

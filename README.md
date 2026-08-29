@@ -1,15 +1,20 @@
 # LifeRoute
 
-LifeRoute is an iPhone-first schedule and routing app designed to combine calendar inputs, identify useful gaps, save frequent places, and hand routes to Apple Maps or Google Maps.
+LifeRoute v0.8.0 is a native SwiftUI schedule, routing, and ABA clinical-support
+app with an embedded Live Day Activity extension. The checked-in Swift, Xcode
+project, assets, and extension are the canonical shipping source represented by
+Build #106.
 
-## Current branch architecture
+Start current engineering work with:
 
-- Apple Calendar: native EventKit read path implemented.
-- Google Calendar: read-only OAuth configuration scaffolded.
-- CentralReach: read-only schedule API scaffolded.
-- Apple Maps + Google Maps: route/place handoff implemented.
-- Saved places: local storage with membership/frequent-place gap suggestions.
-- Customizable blue/gold, light, ocean, and graphite themes.
-- GitHub Actions: simulator compile check plus manual TestFlight release workflow.
+- `LIFEROUTE_HANDOFF.md`
+- `docs/BUILD_ARCHITECTURE.md`
+- `scripts/prepare_build.sh`
+- `scripts/validate_fast.sh`
+- `scripts/validate_full.sh`
 
-See `INTEGRATIONS.md` and `TESTFLIGHT_SETUP.md` for the remaining credential/setup work.
+Native/TestFlight is authoritative. `LifeRoute/Web/` is a separately published,
+non-authoritative preview and is not embedded in the shipping app.
+
+See `INTEGRATIONS.md` for provider configuration and `TESTFLIGHT_SETUP.md` for
+the exact-SHA, explicitly authorized release process.

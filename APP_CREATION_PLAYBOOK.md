@@ -45,7 +45,7 @@ LifeRoute should remain premium, sleek, intelligent, streamlined, professional, 
 2. Inspect the existing end-to-end behavior before editing.
 3. Preserve unrelated changes and existing working architecture.
 4. Implement the smallest maintainable change that satisfies the product request.
-5. Update authoritative patch/generated inputs together when `prepare_build.sh` owns generation.
+5. Update canonical checked-in source and the relevant current semantic validation together.
 6. Add/update focused deterministic audits or tests.
 7. Commit to GitHub.
 8. Inspect the resulting validation rather than assuming success.
@@ -54,13 +54,13 @@ Prefer native SwiftUI/current Apple APIs where practical, while preserving the e
 
 ## Deterministic build ownership
 
-`scripts/prepare_build.sh` is the shared source-preparation/preflight owner for native CI, Pages, and TestFlight.
+`scripts/prepare_build.sh` is the small shared canonical-source preflight for native CI and local development. Pages uses its own browser-artifact builder; TestFlight runs the full current validation contract.
 
 It must remain:
 
 - deterministic and safe to rerun;
 - representative of the code actually shipped;
-- responsible for ordered patch application, syntax/contracts, and the deep shared audits it already owns.
+- validation-only and responsible for proving the checked-in v0.8.0 source has the required current owners and contracts.
 
 Do not immediately rerun the same deep audits in every workflow. Workflow-specific independent checks should focus on what that workflow uniquely produces, such as the simulator compile or final browser artifact.
 
@@ -88,7 +88,7 @@ It should:
 - run full regression plus independent web-specific checks;
 - build and audit the final browser artifact;
 - deploy GitHub Pages;
-- avoid duplicating deep audits already run by `prepare_build.sh`.
+- avoid replaying or renaming archived historical audits.
 
 ### Release Policy Check
 

@@ -31,7 +31,6 @@ render() {
 }
 
 render "$TEMPLATE_DIR/ios-ci.template.yml" "$ROOT/.github/workflows/ios-ci.yml"
-render "$TEMPLATE_DIR/auto-testflight.template.yml" "$ROOT/.github/workflows/auto-testflight.yml"
 render "$TEMPLATE_DIR/testflight.template.yml" "$ROOT/.github/workflows/testflight.yml"
 
 if [ ! -f "$ROOT/scripts/prepare_build.sh" ]; then
@@ -42,5 +41,5 @@ fi
 cp "$TEMPLATE_DIR/apple_ci_assets.rb" "$ROOT/scripts/apple_ci_assets.rb"
 chmod +x "$ROOT/scripts/apple_ci_assets.rb"
 
-echo "Reusable iOS workflows installed for $APP_NAME."
-echo "Next: add the four required GitHub Apple secrets and customize scripts/prepare_build.sh."
+echo "Non-production iOS workflow templates installed for $APP_NAME."
+echo "Review exact-SHA authorization, targets, validation, and signing before use."

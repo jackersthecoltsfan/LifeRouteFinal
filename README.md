@@ -1,6 +1,6 @@
 # LifeRoute
 
-LifeRoute v0.8.0 is a native SwiftUI schedule, routing, and ABA clinical-support
+LifeRoute v0.8.1 is a native SwiftUI schedule, routing, and ABA clinical-support
 app with an embedded Live Day Activity extension. The checked-in Swift, Xcode
 project, assets, and extension are the canonical shipping source represented by
 Build #106.

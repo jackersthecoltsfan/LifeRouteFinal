@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Semantic validation for the canonical LifeRoute v0.8.0 source tree."""
+"""Semantic validation for the canonical LifeRoute v0.8.1 source tree."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ APP = ROOT / "LifeRoute"
 PROJECT = ROOT / "LifeRoute.xcodeproj" / "project.pbxproj"
 EXTENSION = ROOT / "LifeRouteLiveActivityWidget"
 WORKFLOWS = ROOT / ".github" / "workflows"
-EXPECTED_MARKETING_VERSION = "0.8.0"
+EXPECTED_MARKETING_VERSION = "0.8.1"
 EXPECTED_APP_BUNDLE_ID = "Com.Brandongood.LifeRoute"
 EXPECTED_EXTENSION_BUNDLE_ID = "Com.Brandongood.LifeRoute.LiveDay"
 
@@ -101,7 +101,7 @@ def validate_active_build_path() -> None:
     fast = read(ROOT / "scripts" / "validate_fast.sh")
     full = read(ROOT / "scripts" / "validate_full.sh")
     warning_assessor = read(ROOT / "scripts" / "assess_xcode_warnings.py")
-    require_all(prepare, ["validate_fast.sh", "canonical LifeRoute v0.8.0"], "current prepare_build")
+    require_all(prepare, ["validate_fast.sh", "canonical LifeRoute v0.8.1"], "current prepare_build")
     forbidden = ["patch_v0_", "audit_v0_", "scripts/archive/", "generate_v0_", "materialize"]
     present = [token for token in forbidden if token in prepare]
     require(not present, f"prepare_build must not reconstruct historical releases: {present}")
@@ -129,13 +129,44 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
     root = sources["V054ContentView.swift"]
     corpus = "\n".join(sources.values())
     require_count(corpus, "final class AppRouter: ObservableObject", 1, "shipping Swift")
-    require_all(navigation, ["case today", "case schedule", "case tools", "case resources", "case setup"], "five-section AppSection")
+    require_all(
+        navigation,
+        [
+            "case today",
+            "case schedule",
+            "case tools",
+            "case resources",
+            "case setup",
+            'case .schedule: return "Calendar"',
+            'case .tools: return "wrench.and.screwdriver.fill"',
+            "isBottomToolbarSuppressed",
+            "func setBottomToolbarSuppressed(_ suppressed: Bool)",
+            "var shouldShowBottomToolbar: Bool",
+            "return todayPath.isEmpty",
+            "return schedulePath.isEmpty",
+            "return toolsPath.isEmpty",
+            "return resourcesPath.isEmpty",
+            "return setupPath.isEmpty",
+        ],
+        "five-section AppSection and deep-route toolbar policy",
+    )
     require_all(navigation, ["todayPath = NavigationPath()", "schedulePath = NavigationPath()", "toolsPath = NavigationPath()", "resourcesPath = NavigationPath()", "setupPath = NavigationPath()"], "independent router paths")
     require_count(root, "@StateObject private var router = AppRouter()", 1, "root router ownership")
     require_count(root, "NavigationStack(path: $router.", 5, "five independent navigation stacks")
     require_count(root, ".tag(AppSection.", 5, "five section tags")
     require_count(root, "private struct LifeRouteBottomToolbar: View", 1, "custom toolbar ownership")
-    require_all(root, ["selection: $router.selectedSection", ".toolbar(.hidden, for: .tabBar)", "bar.isHidden = true"], "toolbar/router synchronization and UIKit suppression")
+    require_all(
+        root,
+        [
+            "selection: $router.selectedSection",
+            ".tabViewStyle(.page(indexDisplayMode: .never))",
+            "if router.shouldShowBottomToolbar",
+            ".environmentObject(router)",
+            ".toolbar(.hidden, for: .tabBar)",
+            "bar.isHidden = true",
+        ],
+        "paged toolbar/router synchronization and UIKit suppression",
+    )
     require("LifeRouteWebView(" not in root, "shipping root must not activate the quarantined WebView")
 
 
@@ -176,8 +207,61 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
     require_all(sources["PersistenceCore.swift"], ["generalVisualLibraryID", "generalVisualLibraryCode", "codeByClientID[Self.generalVisualLibraryID]"], "protected General visual library persistence")
     require_all(tools_views, ["ClientVisualSupportCenter", "ClientVisualIconLibraryView", "ClientChoiceBoardBuilderView", "ClientFirstThenVisualView", "ClientVisualScheduleBuilderView", "VisualTimerView", "QuickSessionNotesView", "SessionPlanOrganizerView"], "Build 106 ABA/session surfaces")
     require_all(dashboard, ["AISessionNoteGeneratorView", "AISessionPlanBuilderView", 'title: "Session Note"', 'title: "Session Plan"'], "Tools clinical entry points")
-    require_all(clinical, ["SessionNoteGenerationState", "SessionNoteGenerating", "AISessionNoteRuntimeModel", "generatedNote", "TextEditor(text: $runtime.generatedNote)"], "reviewable on-device Session Note flow")
-    require_all(intelligence, ["using ONLY the session facts supplied below", 'Refer to the clinician only as "the RBT"', "Never use a personal clinician", "Do not fabricate", "VNRecognizeTextRequest", "FoundationModels"], "supplied-facts-only on-device clinical boundary")
+    require_all(
+        clinical,
+        [
+            "SessionNoteGenerationState",
+            "SessionNoteGenerating",
+            "AISessionNoteRuntimeModel",
+            "generatedNote",
+            "TextEditor(text: $runtime.generatedNote)",
+            "maxSelectionCount: 6",
+            ".toolbar(.hidden, for: .tabBar)",
+        ],
+        "reviewable on-device Session Note flow",
+    )
+    require_all(
+        intelligence,
+        [
+            "using ONLY the session facts supplied below",
+            'Refer to the clinician only as "the RBT"',
+            "Never use a personal clinician",
+            "Do not fabricate",
+            "VNRecognizeTextRequest",
+            "FoundationModels",
+            "headingPrefixes",
+            "guard !repairedDraft.isEmpty",
+        ],
+        "supplied-facts-only on-device clinical boundary and bounded repair recovery",
+    )
+    require_all(
+        tools_domain,
+        [
+            "enum ABAVisualSupportConceptInterpreter",
+            "water play",
+            "outside",
+            "break",
+            "help",
+            "more",
+            "bathroom",
+            "eat",
+            "sleep",
+        ],
+        "functional ABA visual-concept interpretation",
+    )
+    require_all(
+        tools_views + dashboard,
+        [
+            "ABAVisualSupportConceptInterpreter.describe",
+            "Functional concept:",
+            "Do not render letters, words, captions, labels",
+        ],
+        "interpreted visual-support prompt contract",
+    )
+    require('VisualWorkspaceCard(title: "Schedules"' not in tools_views, "Visual Schedule must remain hidden from the visual workspace")
+    require(dashboard.count("scheduleAICard") == 1, "Visual Schedule AI card must remain dormant rather than exposed")
+    require("ClientVisualScheduleBuilderView(" not in dashboard, "Tools dashboard must not expose the dormant Visual Schedule builder")
+    require_count(dashboard, ".lifeRouteDeepDestination()", 6, "deep Tools destination toolbar suppression")
     forbidden_network = ["URLSession.shared", "api.openai.com", "anthropic.com"]
     present = [token for token in forbidden_network if token in clinical + intelligence]
     require(not present, f"clinical generation must not add a cloud fallback: {present}")
@@ -236,8 +320,8 @@ def validate_release_and_web_policy() -> None:
     require_all(pages, ["build_web_preview.py", "validate_fast.sh"], "decoupled web preview")
     require("scripts/**" not in pages, "Pages must not trigger for arbitrary scripts changes")
     require_all(bridge, ["AUTHORIZED_TESTFLIGHT_RELEASE=YES", "Require completed release-equivalent iOS validation", "Reconfirm main before TestFlight", "authorized_sha"], "exact-SHA assistant release bridge")
-    require_all(testflight, ["workflow_dispatch", "authorized_sha", "Verify authorized release source", EXPECTED_APP_BUNDLE_ID, EXPECTED_EXTENSION_BUNDLE_ID, "validate_full.sh", "archive", "Verify archived LifeRoute v0.8.0 identity", "Upload to TestFlight", "Clean temporary Apple signing assets", "AppIcon"], "current v0.8.0 TestFlight contract")
-    require(testflight.count("RELEASE_MARKETING_VERSION: 0.8.0") == 1, "TestFlight must expose one active v0.8.0 release contract")
+    require_all(testflight, ["workflow_dispatch", "authorized_sha", "Verify authorized release source", EXPECTED_APP_BUNDLE_ID, EXPECTED_EXTENSION_BUNDLE_ID, "validate_full.sh", "archive", "Verify archived LifeRoute v0.8.1 identity", "Upload to TestFlight", "Clean temporary Apple signing assets", "AppIcon"], "current v0.8.1 TestFlight contract")
+    require(testflight.count("RELEASE_MARKETING_VERSION: 0.8.1") == 1, "TestFlight must expose one active v0.8.1 release contract")
     for name, text in workflows.items():
         if name == "testflight.yml":
             continue
@@ -274,7 +358,7 @@ def main() -> int:
     except (OSError, plistlib.InvalidFileException, ValidationFailure) as error:
         print(f"LifeRoute {args.level} validation failed: {error}", file=sys.stderr)
         return 1
-    print(f"LifeRoute canonical v0.8.0 {args.level} validation passed.")
+    print(f"LifeRoute canonical v0.8.1 {args.level} validation passed.")
     return 0
 
 

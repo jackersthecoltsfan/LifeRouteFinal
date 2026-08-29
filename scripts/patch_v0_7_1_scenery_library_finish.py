@@ -13,6 +13,15 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
+def replace_one_of(text: str, candidates: list[str], new: str, label: str) -> str:
+    matches = [candidate for candidate in candidates if candidate in text]
+    if len(matches) != 1:
+        raise SystemExit(
+            f"v0.7.1 Scenery finish patch failed: expected one compatible {label}, found {len(matches)}"
+        )
+    return text.replace(matches[0], new, 1)
+
+
 app = APP_PATH.read_text()
 themes = THEME_CENTER_PATH.read_text()
 
@@ -282,15 +291,39 @@ NEW_SCENERY_DISPATCH = r'''    @ViewBuilder
 
 app = replace_once(app, OLD_SCENERY_DISPATCH, NEW_SCENERY_DISPATCH, "Scenery renderer dispatch")
 
-themes = replace_once(
+# Build #104 keeps the physically validated shipping canonicalizer. Expand only its retained
+# Scenery allow-list so retired migration identifiers still resolve to Canyon Day.
+app = replace_one_of(
+    app,
+    [
+        '''        if theme == .sceneryCanyonDay { return theme }
+        if theme.category == .scenery { return .sceneryCanyonDay }
+''',
+        '''        if theme.isV071RetainedScenery { return theme }
+        if theme.category == .scenery { return .sceneryCanyonDay }
+''',
+    ],
+    '''        if theme.isV071RetainedScenery { return theme }
+        if theme.category == .scenery { return .sceneryCanyonDay }
+''',
+    "Build #104 Scenery shipping canonicalizer",
+)
+
+themes = replace_one_of(
     themes,
-    "            return LifeRouteTheme.phaseThreeSceneryCatalog\n",
+    [
+        "            return LifeRouteTheme.phaseThreeSceneryCatalog\n",
+        "            return [.sceneryCanyonDay]\n",
+    ],
     "            return LifeRouteTheme.v071RetainedSceneryCatalog\n",
     "Theme Center Scenery catalog",
 )
-themes = replace_once(
+themes = replace_one_of(
     themes,
-    '            return "20 cinematic environments across 10 families, with Day and Night selected independently. Reduce Motion keeps the chosen scene and freezes ambient motion."\n',
+    [
+        '            return "20 cinematic environments across 10 families, with Day and Night selected independently. Reduce Motion keeps the chosen scene and freezes ambient motion."\n',
+        '            return "Canyon Day is the currently validated Scenery theme. Additional scenery environments are being finished separately."\n',
+    ],
     '            return "12 finished cinematic environments across 6 Day/Night families. Reduce Motion keeps the selected scene and freezes ambience."\n',
     "Theme Center Scenery description",
 )

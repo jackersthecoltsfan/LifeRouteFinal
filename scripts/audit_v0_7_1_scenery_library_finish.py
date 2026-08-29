@@ -173,6 +173,8 @@ require("phase: reduceMotion ? signature.stillPhase : livePhase" in root, "stabl
 require("return LifeRouteTheme.v071RetainedSceneryCatalog" in themes, "Theme Center does not use retained Scenery catalog")
 require("12 finished cinematic environments across 6 Day/Night families" in themes, "Theme Center Scenery description is stale")
 require("TimelineView(" not in themes, "Theme Center previews must remain deterministic/static")
+require("if theme.isV071RetainedScenery { return theme }" in app, "Build #104 shipping canonicalizer does not preserve retained Scenery selections")
+require("if theme.category == .scenery { return .sceneryCanyonDay }" in app, "retired Scenery migration fallback changed")
 
 print(
     "LifeRoute v0.7.1 retained Scenery library audit passed: twelve user-facing identities across six "

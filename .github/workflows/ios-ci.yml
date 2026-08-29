@@ -89,7 +89,11 @@ jobs:
         if: >-
           (github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/v0.7.1-theme-runtime-visual-regression') ||
           (github.event_name == 'workflow_dispatch' && github.ref_name == 'feature/v0.7.1-theme-library-finish-codex') ||
-          (github.event_name == 'pull_request' && github.head_ref == 'fix/v0.7.1-theme-runtime-visual-regression')
+          (github.event_name == 'workflow_dispatch' && github.ref_name == 'integration/v0.8.0-note-runtime-plus-theme-design') ||
+          (github.event_name == 'pull_request' && (
+            github.head_ref == 'fix/v0.7.1-theme-runtime-visual-regression' ||
+            github.head_ref == 'integration/v0.8.0-note-runtime-plus-theme-design'
+          ))
         run: |
           bash scripts/capture_v0_7_1_visual_fixtures.sh \
             "$RUNNER_TEMP/liferoute-derived-data/Build/Products/Debug-iphonesimulator/LifeRoute.app" \
@@ -99,7 +103,11 @@ jobs:
           always() && (
             (github.event_name == 'workflow_dispatch' && github.ref_name == 'fix/v0.7.1-theme-runtime-visual-regression') ||
             (github.event_name == 'workflow_dispatch' && github.ref_name == 'feature/v0.7.1-theme-library-finish-codex') ||
-            (github.event_name == 'pull_request' && github.head_ref == 'fix/v0.7.1-theme-runtime-visual-regression')
+            (github.event_name == 'workflow_dispatch' && github.ref_name == 'integration/v0.8.0-note-runtime-plus-theme-design') ||
+            (github.event_name == 'pull_request' && (
+              github.head_ref == 'fix/v0.7.1-theme-runtime-visual-regression' ||
+              github.head_ref == 'integration/v0.8.0-note-runtime-plus-theme-design'
+            ))
           )
         uses: actions/upload-artifact@v6
         with:

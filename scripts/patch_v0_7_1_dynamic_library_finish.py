@@ -13,6 +13,15 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
+def replace_one_of(text: str, candidates: list[str], new: str, label: str) -> str:
+    matches = [candidate for candidate in candidates if candidate in text]
+    if len(matches) != 1:
+        raise SystemExit(
+            f"v0.7.1 Dynamic finish patch failed: expected one compatible {label}, found {len(matches)}"
+        )
+    return text.replace(matches[0], new, 1)
+
+
 app = APP_PATH.read_text()
 themes = THEME_CENTER_PATH.read_text()
 
@@ -795,15 +804,39 @@ NEW_DYNAMIC_DISPATCH = r'''    @ViewBuilder
 
 app = replace_once(app, OLD_DYNAMIC_DISPATCH, NEW_DYNAMIC_DISPATCH, "Dynamic renderer dispatch")
 
-themes = replace_once(
+# Build #104 keeps the physically validated shipping canonicalizer. Expand only its retained
+# Dynamic allow-list so retired migration identifiers still resolve to Royal Current.
+app = replace_one_of(
+    app,
+    [
+        '''        if theme == .royalCurrent { return theme }
+        if theme.category == .dynamic { return .royalCurrent }
+''',
+        '''        if theme.isV071RetainedDynamic { return theme }
+        if theme.category == .dynamic { return .royalCurrent }
+''',
+    ],
+    '''        if theme.isV071RetainedDynamic { return theme }
+        if theme.category == .dynamic { return .royalCurrent }
+''',
+    "Build #104 Dynamic shipping canonicalizer",
+)
+
+themes = replace_one_of(
     themes,
-    "            return LifeRouteTheme.phaseTwoDynamicCatalog\n",
+    [
+        "            return LifeRouteTheme.phaseTwoDynamicCatalog\n",
+        "            return [.royalCurrent]\n",
+    ],
     "            return LifeRouteTheme.v071RetainedDynamicCatalog\n",
     "Theme Center Dynamic catalog",
 )
-themes = replace_once(
+themes = replace_one_of(
     themes,
-    '            return "12 slow, full-frame liquid-glass environments. Reduce Motion retains a still equivalent."\n',
+    [
+        '            return "12 slow, full-frame liquid-glass environments. Reduce Motion retains a still equivalent."\n',
+        '            return "Royal Current is the currently validated live Dynamic theme. Additional Dynamic themes are being finished separately."\n',
+    ],
     '            return "8 distinct full-frame Liquid Glass environments. Reduce Motion retains a finished still phase."\n',
     "Theme Center Dynamic description",
 )

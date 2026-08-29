@@ -131,6 +131,8 @@ require_all(
 require("return LifeRouteTheme.v071RetainedDynamicCatalog" in themes, "Theme Center does not use retained Dynamic catalog")
 require("8 distinct full-frame Liquid Glass environments" in themes, "Theme Center Dynamic description is stale")
 require("TimelineView(" not in themes, "Theme Center previews must remain deterministic/static")
+require("if theme.isV071RetainedDynamic { return theme }" in app, "Build #104 shipping canonicalizer does not preserve retained Dynamic selections")
+require("if theme.category == .dynamic { return .royalCurrent }" in app, "retired Dynamic migration fallback changed")
 
 print(
     "LifeRoute v0.7.1 retained Dynamic library audit passed: eight user-facing identities have explicit "

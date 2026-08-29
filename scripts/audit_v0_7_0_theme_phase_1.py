@@ -107,7 +107,7 @@ def main() -> None:
     )
     require(phase1_host or current_host, "single persistent app-wide environment host")
 
-    core_renderer = APP.split("struct LifeRouteCoreGlassEnvironment: View", 1)[1].split("private struct LifeRouteChromeModifier", 1)[0]
+    core_renderer = APP.split("struct LifeRouteCoreGlassEnvironment: View", 1)[1].split("struct LifeRouteDynamicGlassEnvironment: View", 1)[0]
     for forbidden in ["TimelineView", "repeatForever", "withAnimation", "Animation.", "Task {", "Timer."]:
         require(forbidden not in core_renderer, f"Core Glass must remain still; found continuous-motion primitive {forbidden}")
     require_all(

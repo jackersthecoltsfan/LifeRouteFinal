@@ -113,7 +113,10 @@ require(
     "19 note generation has a supplied-facts-only instruction",
 )
 require(
-    "NO fabricated frequencies, percentages, prompt levels, interventions, targets, behaviors, attendees" in s["ai_core"]
+    (
+        "NO fabricated frequencies, percentages, prompt levels, interventions, targets, behaviors, attendees" in s["ai_core"]
+        or "Do not invent targets, behaviors, prompt levels, interventions, attendees, locations, caregiver reports, frequencies, percentages, motives, progress claims, environmental descriptions, generalization, recommendations, outcomes, or future plans." in s["ai_core"]
+    )
     and (
         "Saved client information is terminology/context only and never proves an event occurred" in s["ai_core"]
         or "Saved client data is terminology context only" in s["ai_core"]

@@ -486,7 +486,7 @@ struct AISessionNoteGeneratorView: View {
         let pickerTextSecondary = palette.textSecondary
         let pickerPanelElevated = palette.panelElevated
 
-        VStack(alignment: .leading, spacing: 13) {
+        return VStack(alignment: .leading, spacing: 13) {
             Text("Session facts")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(palette.textPrimary)

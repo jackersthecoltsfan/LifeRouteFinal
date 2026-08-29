@@ -27,6 +27,8 @@ phase2_patch = read("scripts/patch_v0_7_0_theme_phase_2.py")
 phase2_audit = read("scripts/audit_v0_7_0_theme_phase_2.py")
 project = read("LifeRoute.xcodeproj/project.pbxproj")
 
+# The historical Phase 2 release contract remains auditable, while later validated release
+# workflows may supersede its UI-marker greps. Common signing/exact-SHA guards must never regress.
 require_all(
     workflow,
     [
@@ -36,36 +38,74 @@ require_all(
         "Verify v0.7.0 Theme Phase 2 app and Live Activity release contract",
         "Archive LifeRoute v0.7.0 Theme Phase 2",
         "Verify archived v0.7.0 Theme Phase 2 identity",
-        "MARKETING_VERSION=\"$RELEASE_MARKETING_VERSION\"",
-        "CURRENT_PROJECT_VERSION=\"${GITHUB_RUN_NUMBER}\"",
         "LifeRoute v0.7.0 Theme Phase 2 sent to TestFlight",
         "name: LifeRoute-v0.7.0-Theme-Phase-2-TestFlight-build-",
-        "v0.7.0 Build E Resources",
-        "v0.7.0 Build E Client Hub",
-        "v0.7.0 Build E Setup Control Center",
         "v0.7.0 Theme Phase 2 Theme Center",
-        "LifeRouteTheme.phaseTwoDynamicCatalog",
-        "v0.7.0 Theme Phase 1 Core Glass catalog",
-        "static let phaseOneCoreGlassCatalog",
-        "v0.7.0 Theme Phase 2 Dynamic Liquid Glass catalog",
-        "static let phaseTwoDynamicCatalog",
         "v0.7.0 Theme Phase 2 persistent environment host",
-        "minimumInterval: 1.0 / 20.0",
-        "paused: reduceMotion || !isActive",
-        "v0.7.0 Build D audit compatibility anchor",
-        "TimelineView(.periodic(from: .now, by: 0.10))",
+        "MARKETING_VERSION=\"$RELEASE_MARKETING_VERSION\"",
+        "CURRENT_PROJECT_VERSION=\"${GITHUB_RUN_NUMBER}\"",
         "authorized_sha:",
         'test "$GITHUB_SHA" = "$AUTHORIZED_SHA"',
         "xcrun altool",
         "--upload-app",
         "Clean temporary Apple signing assets",
     ],
-    "v0.7.0 Theme Phase 2 TestFlight workflow",
+    "guarded TestFlight workflow",
 )
+
+legacy_phase2_release = all(
+    token in workflow
+    for token in [
+        "v0.7.0 Build E Resources",
+        "v0.7.0 Build E Client Hub",
+        "v0.7.0 Build E Setup Control Center",
+        "LifeRouteTheme.phaseTwoDynamicCatalog",
+        "v0.7.0 Theme Phase 1 Core Glass catalog",
+        "static let phaseOneCoreGlassCatalog",
+        "v0.7.0 Theme Phase 2 Dynamic Liquid Glass catalog",
+        "static let phaseTwoDynamicCatalog",
+        "minimumInterval: 1.0 / 20.0",
+        "paused: reduceMotion || !isActive",
+        "v0.7.0 Build D audit compatibility anchor",
+        "TimelineView(.periodic(from: .now, by: 0.10))",
+    ]
+)
+
+v071_finishing_release = all(
+    token in workflow
+    for token in [
+        "Prepare validated v0.7.1 finishing release",
+        "Verify v0.7.1 finishing app and Live Activity release contract",
+        "python3 scripts/audit_v0_7_1_physical_runtime_fix.py",
+        "python3 scripts/audit_v0_7_1_shipping_theme_hold.py",
+        "v0.7.1 physical-device motion visibility repair",
+        "v0.7.1 physical-device root environment reveal",
+        "v0.7.1 custom LifeRoute bottom toolbar",
+        "v0.7.1 single-toolbar physical fix",
+        "bar.isHidden = true",
+        "v0.7.1 Setup disclosure groups",
+        "v0.7.1 shipping theme hold",
+        "static let phaseOneCoreGlassCatalog",
+        "static let phaseTwoDynamicCatalog",
+        "static let phaseThreeSceneryCatalog",
+        "LifeRouteLiveThemeEnvironment",
+        "minimumInterval: 1.0 / 20.0",
+        "paused: reduceMotion || !isActive",
+        "TimelineView(.periodic(from: .now, by: 0.10))",
+        "12 protected Core themes + Royal Current + Canyon Day",
+        "Archive LifeRoute v0.7.1 finishing candidate",
+        "Verify archived v0.7.1 finishing identity",
+        "LifeRoute-v0.7.1-Finishing-TestFlight-build-",
+    ]
+)
+require(
+    legacy_phase2_release or v071_finishing_release,
+    "workflow must retain either the historical Phase 2 release assertions or the validated v0.7.1 shipping-hold supersession",
+)
+
 require("RELEASE_MARKETING_VERSION: 0.6.3" not in workflow, "active release identity must not regress to v0.6.3")
 require("LifeRoute v0.7.0 Build B.2 sent to TestFlight" not in workflow, "active release summary must not regress to Build B.2")
 require("LifeRoute-v0.7.0-Build-B2-TestFlight-build-" not in workflow, "active IPA artifact must not regress to Build B.2")
-require("LifeRoute v0.7.0 Build E sent to TestFlight — Theme Phase 1" not in workflow, "active release summary must identify Theme Phase 2")
 
 require_all(
     prepare,
@@ -94,13 +134,13 @@ require_all(
         "python3 scripts/patch_v0_7_0_theme_phase_2_category_compat.py",
         "python3 scripts/patch_v0_7_0_theme_phase_2.py",
         "python3 scripts/patch_v0_7_0_theme_phase_2_compile_hotfix.py",
-        "python3 scripts/audit_v0_7_0_build_b2.py",
-        "python3 scripts/audit_v0_7_0_build_b3.py",
-        "python3 scripts/audit_v0_7_0_build_c.py",
-        "python3 scripts/audit_v0_7_0_build_d.py",
-        "python3 scripts/audit_v0_7_0_theme_phase_2.py",
+        "python3 scripts/patch_v0_7_0_theme_phase_3.py",
+        "python3 scripts/patch_v0_7_1_theme_visual_runtime_fix.py",
+        "python3 scripts/patch_v0_7_1_physical_runtime_fix.py",
+        "python3 scripts/audit_v0_7_1_physical_runtime_fix.py",
+        "python3 scripts/audit_v0_7_1_protected_regressions.py",
     ],
-    "accumulated v0.7.0 Build A-through-E, QA, and Theme Phase 2 preparation",
+    "accumulated v0.7.0 through v0.7.1 canonical preparation",
 )
 
 require_all(
@@ -177,5 +217,5 @@ require("Web in Resources" not in project, "legacy Web resources must remain qua
 require("LifeRouteLiveActivityWidget.appex in Embed App Extensions" in project, "Live Activity extension must remain embedded")
 
 print(
-    "LifeRoute v0.7.0 Theme Phase 2 TestFlight audit passed: release identity remains 0.7.0, exact-SHA authorization and Apple upload remain guarded, canonical materialization accumulates Build A through E plus swipe/location QA and Theme Phase 2, static Core and guarded Dynamic contracts are locked, historical release audit anchors are comments only, Phase 3 Scenery remains excluded, protected timer behavior and native isolation remain intact, and archive/upload identity is protected."
+    "LifeRoute TestFlight audit passed: historical Phase 2 release safeguards remain auditable, the current v0.7.1 shipping-hold workflow may supersede obsolete UI-marker greps, exact-SHA authorization and Apple upload remain guarded, canonical materialization remains cumulative, native isolation and Live Activity embedding remain protected."
 )

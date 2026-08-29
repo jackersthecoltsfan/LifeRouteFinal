@@ -1,5 +1,18 @@
 # LifeRoute Project Handoff
 
+## Current v0.7.1 intermediate physical-validation build — 2026-08-28
+
+The validated v0.7.1 theme-runtime exemplar checkpoint was uploaded successfully to TestFlight from `fix/v0.7.1-theme-runtime-visual-regression` without modifying `main`.
+
+- Exact release SHA: `fd7638f8d811b3821e7c6b85c1b81ed39070e81c`
+- Validated implementation SHA: `01fdde591a52e3a2774dfd95458e92f81a0de136`
+- Fresh iOS validation: run `878`, ID `33192461705` — successful
+- TestFlight release: Build `97`, run ID `33193336126` — upload successful
+- TestFlight identity: LifeRoute `0.7.0 (97)` because the unchanged existing workflow still supplies marketing version `0.7.0`
+- Detailed active handoff: `LIFEROUTE_V0_7_1_DEBUG_HANDOFF.md`
+
+Only Canyon — Day, Royal Current, Today using Canyon — Day, and Today using Royal Current are approved and included as v0.7.1 renderer exemplars. Do not scale the remaining themes until Build 97 completes the physical-iPhone validation gate recorded in the active handoff.
+
 This is the durable LifeRoute thread handoff.
 
 ## Current active development

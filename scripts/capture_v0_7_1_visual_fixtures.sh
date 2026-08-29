@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_PATH="${1:?Usage: capture_v0_7_1_visual_fixtures.sh APP_PATH OUTPUT_DIR}"
+OUTPUT_DIR="${2:?Usage: capture_v0_7_1_visual_fixtures.sh APP_PATH OUTPUT_DIR}"
+BUNDLE_ID="Com.Brandongood.LifeRoute"
+
+test -d "$APP_PATH"
+mkdir -p "$OUTPUT_DIR"
+
+SIMULATOR_JSON="$(xcrun simctl list devices available -j)"
+SIMULATOR_ID="$({ printf '%s' "$SIMULATOR_JSON"; } | python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+candidates = []
+for runtime, devices in data.get("devices", {}).items():
+    if ".iOS-" not in runtime:
+        continue
+    for device in devices:
+        if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+            candidates.append((runtime, device))
+if not candidates:
+    raise SystemExit("No available iPhone Simulator found")
+candidates.sort(
+    key=lambda item: (
+        item[1].get("state") == "Booted",
+        "Pro" in item[1].get("name", ""),
+        item[0],
+        item[1].get("name", ""),
+    ),
+    reverse=True,
+)
+print(candidates[0][1]["udid"])
+')"
+
+SIMULATOR_STATE="$(xcrun simctl list devices -j | python3 -c '
+import json, sys
+target = sys.argv[1]
+data = json.load(sys.stdin)
+for devices in data.get("devices", {}).values():
+    for device in devices:
+        if device.get("udid") == target:
+            print(device.get("state", "Shutdown"))
+            raise SystemExit(0)
+raise SystemExit("Selected Simulator disappeared")
+' "$SIMULATOR_ID")"
+
+BOOTED_BY_SCRIPT=0
+if [ "$SIMULATOR_STATE" != "Booted" ]; then
+  xcrun simctl boot "$SIMULATOR_ID"
+  BOOTED_BY_SCRIPT=1
+fi
+
+cleanup() {
+  xcrun simctl terminate "$SIMULATOR_ID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+  if [ "$BOOTED_BY_SCRIPT" = "1" ]; then
+    xcrun simctl shutdown "$SIMULATOR_ID" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+xcrun simctl bootstatus "$SIMULATOR_ID" -b
+xcrun simctl install "$SIMULATOR_ID" "$APP_PATH"
+xcrun simctl ui "$SIMULATOR_ID" appearance dark
+xcrun simctl status_bar "$SIMULATOR_ID" override \
+  --time 9:41 --batteryState charged --batteryLevel 100 \
+  --wifiBars 3 --cellularBars 4 >/dev/null 2>&1 || true
+
+capture_environment() {
+  local fixture="$1"
+  local output="$2"
+  local launch_output
+  local app_pid
+  launch_output="$(xcrun simctl launch --terminate-running-process "$SIMULATOR_ID" "$BUNDLE_ID" -LifeRouteVisualFixture "$fixture")"
+  printf '%s\n' "$launch_output"
+  app_pid="${launch_output##*: }"
+  sleep 8
+  kill -0 "$app_pid"
+  xcrun simctl io "$SIMULATOR_ID" screenshot "$OUTPUT_DIR/$output"
+}
+
+capture_app() {
+  local theme_id="$1"
+  local section="$2"
+  local output="$3"
+  local launch_output
+  local app_pid
+  launch_output="$(xcrun simctl launch --terminate-running-process "$SIMULATOR_ID" "$BUNDLE_ID" \
+    -LifeRouteThemeOverride "$theme_id" \
+    -LifeRouteSectionOverride "$section")"
+  printf '%s\n' "$launch_output"
+  app_pid="${launch_output##*: }"
+  sleep 8
+  kill -0 "$app_pid"
+  xcrun simctl io "$SIMULATOR_ID" screenshot "$OUTPUT_DIR/$output"
+}
+
+capture_environment "canyon-day" "canyon-day.png"
+capture_environment "royal-current" "royal-current-frame-a.png"
+sleep 3
+xcrun simctl io "$SIMULATOR_ID" screenshot "$OUTPUT_DIR/royal-current-frame-b.png"
+
+if cmp -s "$OUTPUT_DIR/royal-current-frame-a.png" "$OUTPUT_DIR/royal-current-frame-b.png"; then
+  echo "Royal Current motion validation failed: frames captured three seconds apart are byte-identical."
+  exit 1
+fi
+
+echo "Royal Current motion validation passed: frames captured three seconds apart differ."
+
+capture_app "scenery.canyon.day" "today" "today-canyon-day.png"
+capture_app "scenery.canyon.day" "schedule" "schedule-canyon-day.png"
+capture_app "scenery.canyon.day" "tools" "tools-canyon-day.png"
+capture_app "scenery.canyon.day" "resources" "resources-canyon-day.png"
+capture_app "scenery.canyon.day" "setup" "setup-canyon-day.png"
+capture_app "dynamic.royalCurrent" "today" "today-royal-current.png"
+
+for capture in \
+  "$OUTPUT_DIR/canyon-day.png" \
+  "$OUTPUT_DIR/royal-current-frame-a.png" \
+  "$OUTPUT_DIR/royal-current-frame-b.png" \
+  "$OUTPUT_DIR/today-canyon-day.png" \
+  "$OUTPUT_DIR/schedule-canyon-day.png" \
+  "$OUTPUT_DIR/tools-canyon-day.png" \
+  "$OUTPUT_DIR/resources-canyon-day.png" \
+  "$OUTPUT_DIR/setup-canyon-day.png" \
+  "$OUTPUT_DIR/today-royal-current.png"; do
+  test -s "$capture"
+  test "$(wc -c < "$capture")" -ge 150000
+done
+
+echo "Captured v0.7.1 runtime validation fixtures: Canyon Day standalone + all five real app tabs, Royal Current standalone frames three seconds apart, and Today + Royal Current."

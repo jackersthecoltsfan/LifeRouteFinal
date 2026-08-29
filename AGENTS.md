@@ -15,6 +15,13 @@
 - The product owner will usually describe desired features, behavior, and appearance in normal language rather than implementation terms. Translate those requests into appropriate technical designs and implementations. Ask for a product decision only when a consequential ambiguity cannot be resolved safely from existing behavior, repository context, or a reversible sensible default.
 - For significant visual or navigation changes, follow the playbook's fast cosmetic-preview/Figma guidance when a preview would materially reduce ambiguity or rework.
 
+## LifeRoute control-center and execution-budget policy
+
+- ChatGPT is the primary LifeRoute control center for architecture, implementation through connected GitHub, review, CI coordination, release decisions, visual evidence review, and project continuity.
+- Minimize Codex usage. Use Codex when local Xcode/Simulator/native execution, local repository tooling, or another genuinely local-only capability materially improves confidence or speed. Do not spend Codex usage on repository browsing, ordinary edits, or analysis that ChatGPT/GitHub can perform directly.
+- When the product owner identifies a temporary Codex-usage window, prioritize high-value native validation inside that window without transferring general project ownership away from ChatGPT.
+- GitHub remains the committed-code and CI source of truth regardless of which tool performs a local validation pass.
+
 ## Before implementing changes
 
 1. Read the current handoff and applicable canonical documentation and any more-specific instructions in scope.
@@ -59,8 +66,11 @@ Use consistent design tokens and reusable components rather than isolated stylin
 
 - `scripts/prepare_build.sh` is the deterministic preparation and preflight entry point shared by preview, iOS CI, and TestFlight. Keep it safe to run repeatedly and ensure the prepared source represents the code that is actually built.
 - Feature patch scripts and audits are part of the current architecture. If a source file is generated or patched during preparation, update the authoritative input and the related patch/audit contracts together; do not make a change that is silently overwritten during preparation.
-- Keep CI and TestFlight aligned with the canonical workflow. TestFlight is explicit-confirmation-only; ordinary pushes do not authorize or upload a release.
-- Do not push, release, dispatch workflows, or change external systems unless the user's request authorizes that action.
+- Keep CI and TestFlight aligned with the canonical workflow. Ordinary pushes never authorize or upload a release by themselves.
+- The product owner has granted ChatGPT standing authorization to initiate one TestFlight physical-validation release in any rolling 60-minute window when the current checkpoint is meaningfully worth testing and prerequisite validation/release-state checks have passed.
+- A second or additional TestFlight initiation inside the same rolling 60-minute window requires explicit owner authorization. Explicit owner authorization may also direct a specific TestFlight run at any time.
+- Every assistant-initiated TestFlight must remain exact-SHA guarded, must not overlap an unresolved prior upload state, and must still satisfy the repository's release-equivalent validation requirements. The once-per-hour authorization is permission to release when sensible, not permission to bypass safety gates.
+- Do not push, release, dispatch workflows, or change external systems outside the standing permissions above or another explicit user authorization.
 
 ## GitHub Actions reliability
 

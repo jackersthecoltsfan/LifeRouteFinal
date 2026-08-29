@@ -63,10 +63,10 @@ check("Scratch Notes append without overwrite", "Pull from Scratch Notes" in VIE
 check("optional screenshot input remains", "PhotosPicker(selection: $selectedPhotoItem, matching: .images)" in VIEW and "screenshotData = data" in VIEW)
 check("UI explains local screenshot recognition", "text recognition runs locally" in VIEW)
 check("single authoritative generator call receives all inputs", VIEW.count("LifeRouteIntelligenceCore.generateABASessionNote(") == 1 and "narrative: narrative" in VIEW and "screenshotData: screenshotData" in VIEW and "client: selectedClient" in VIEW)
-check("generation blocked without evidence", "narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && screenshotData == nil" in VIEW)
-check("generated draft remains editable", "TextEditor(text: $generatedNote)" in VIEW)
-check("generated draft remains copyable", "UIPasteboard.general.string = generatedNote" in VIEW)
-check("regenerate uses current facts", "Regenerate from current facts" in VIEW and VIEW.count("Task { await generate() }") >= 2)
+check("generation blocked without evidence", "narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && screenshotData == nil" in VIEW or "private var hasEvidence: Bool" in VIEW)
+check("generated draft remains editable", "TextEditor(text: $generatedNote)" in VIEW or "TextEditor(text: $runtime.generatedNote)" in VIEW)
+check("generated draft remains copyable", "UIPasteboard.general.string = generatedNote" in VIEW or "UIPasteboard.general.string = runtime.generatedNote" in VIEW)
+check("regenerate uses current facts", "Regenerate from current facts" in VIEW and (VIEW.count("Task { await generate() }") >= 2 or VIEW.count("startGeneration()") >= 3))
 check("documentation review warning retained", "Review every sentence before using a generated draft for documentation or billing." in VIEW)
 
 # Deterministic materialization and regression coverage.

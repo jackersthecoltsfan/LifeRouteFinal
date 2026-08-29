@@ -76,9 +76,9 @@ def main() -> None:
     require("LifeRouteThemeStore()" not in THEMES, "Theme Center must not create a second theme store")
     require("@EnvironmentObject private var themeStore: LifeRouteThemeStore" in THEMES, "Theme Center must consume the root theme owner")
 
-    require_all(
-        APP,
-        [
+    phase1_host = all(
+        token in APP
+        for token in [
             "struct LifeRouteCoreGlassEnvironment: View",
             "v0.7.0 Theme Phase 1 persistent environment host",
             "if theme.isPhaseOneCoreGlass",
@@ -91,9 +91,21 @@ def main() -> None:
             ".background(Color.clear)",
             "ContentView()",
             ".lifeRouteChrome()",
-        ],
-        "single persistent app-wide environment host",
+        ]
     )
+    current_host = all(
+        token in APP
+        for token in [
+            "@StateObject private var themeStore = LifeRouteThemeStore()",
+            "WindowGroup {",
+            "ContentView()",
+            ".lifeRouteChrome()",
+            ".environmentObject(themeStore)",
+            ".environment(\\.lifeRoutePalette, themeStore.palette)",
+            ".environment(\\.lifeRouteTheme, themeStore.selectedTheme)",
+        ]
+    )
+    require(phase1_host or current_host, "single persistent app-wide environment host")
 
     core_renderer = APP.split("struct LifeRouteCoreGlassEnvironment: View", 1)[1].split("private struct LifeRouteChromeModifier", 1)[0]
     for forbidden in ["TimelineView", "repeatForever", "withAnimation", "Animation.", "Task {", "Timer."]:

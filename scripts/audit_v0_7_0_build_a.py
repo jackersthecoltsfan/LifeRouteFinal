@@ -47,9 +47,9 @@ def main() -> None:
         "shared Build A design system",
     )
 
-    require_all(
-        shell,
-        [
+    build_a_shell = all(
+        token in shell
+        for token in [
             "v0.7.0 Build A shell",
             "LifeRouteCinematicBackdrop(",
             ".background(Color.clear) // v0.6.3 keep cinematic scenery visible",
@@ -65,9 +65,29 @@ def main() -> None:
             ".tag(AppSection.tools)",
             ".tag(AppSection.resources)",
             ".tag(AppSection.setup)",
-        ],
-        "premium native shell",
+        ]
     )
+    phase1_shell = all(
+        token in shell
+        for token in [
+            "v0.7.0 Theme Phase 1 single environment shell",
+            "@EnvironmentObject private var themeStore: LifeRouteThemeStore",
+            "TabView(selection: $router.selectedSection)",
+            "UITabBarItemAppearance()",
+            "tabItems.normal.iconColor = secondary",
+            "tabItems.selected.iconColor = accent",
+            "tabAppearance.stackedLayoutAppearance = tabItems",
+            "bar.itemPositioning = .fill",
+            "bar.prefersLargeTitles = false",
+            ".tag(AppSection.today)",
+            ".tag(AppSection.schedule)",
+            ".tag(AppSection.tools)",
+            ".tag(AppSection.resources)",
+            ".tag(AppSection.setup)",
+            ".background(Color.clear) // v0.7.0 Theme Phase 1 reveal the single root environment",
+        ]
+    )
+    require(build_a_shell or phase1_shell, "premium native shell")
 
     require_all(
         navigation,

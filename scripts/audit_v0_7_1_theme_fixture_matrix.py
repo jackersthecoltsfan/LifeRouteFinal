@@ -22,6 +22,7 @@ app = read("LifeRoute/LifeRouteApp.swift")
 content = read("LifeRoute/V054ContentView.swift")
 capture = read("scripts/capture_v0_7_1_visual_fixtures.sh")
 compare = read("scripts/compare_v0_7_1_theme_fixtures.py")
+text_validator = read("scripts/validate_v0_7_1_fixture_text.swift")
 workflow = read(".github/workflows/ios-ci.yml")
 prepare = read("scripts/prepare_build.sh")
 
@@ -79,6 +80,17 @@ require_all(
         "validate-motion", "validate-identity", "validate-distinct", "validate-coverage", "validate-health",
     ],
     "pixel validation helper",
+)
+require_all(
+    text_validator,
+    [
+        "observation.boundingBox.midY > 0.78",
+        'expected == "liferoute"',
+        "hasAtMostOneSubstitution",
+        'normalized.contains("openinliferoute")',
+        'normalized.contains("cancelopen")',
+    ],
+    "bounded top-title OCR validation",
 )
 require_all(
     workflow,

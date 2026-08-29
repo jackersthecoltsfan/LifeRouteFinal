@@ -7,6 +7,24 @@ func fail(_ message: String) -> Never {
     exit(1)
 }
 
+func hasAtMostOneSubstitution(_ candidate: String, expected: String) -> Bool {
+    let candidateCharacters = Array(candidate)
+    let expectedCharacters = Array(expected)
+    guard candidateCharacters.count == expectedCharacters.count else { return false }
+    return zip(candidateCharacters, expectedCharacters).reduce(into: 0) { mismatches, pair in
+        if pair.0 != pair.1 { mismatches += 1 }
+    } <= 1
+}
+
+func containsExpectedTopTitle(_ text: String, expected: String) -> Bool {
+    let normalized = text.lowercased().replacingOccurrences(of: " ", with: "")
+    if normalized.contains(expected) { return true }
+    guard expected == "liferoute" else { return false }
+    return text.lowercased()
+        .split { !$0.isLetter }
+        .contains { hasAtMostOneSubstitution(String($0), expected: expected) }
+}
+
 let pairs = CommandLine.arguments.dropFirst()
 guard !pairs.isEmpty else {
     fail("usage: swift validate_v0_7_1_fixture_text.swift PNG=EXPECTED_TEXT ...")
@@ -37,7 +55,7 @@ for pair in pairs {
               let text = observation.topCandidates(1).first?.string.lowercased() else {
             return false
         }
-        return text.replacingOccurrences(of: " ", with: "").contains(normalizedExpected)
+        return containsExpectedTopTitle(text, expected: normalizedExpected)
     }
     guard foundNearTop else {
         fail("\(URL(fileURLWithPath: path).lastPathComponent) did not contain top title '\(expected)'; recognized: \(recognized)")

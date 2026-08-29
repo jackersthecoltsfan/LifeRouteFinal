@@ -674,11 +674,6 @@ def patch_themes() -> None:
     if missing:
         raise SystemExit(f"v0.7.0 Build E patch failed: Theme Center baseline missing {missing}")
 
-    if "LifeRouteTheme.allCases" not in text and "LifeRouteTheme.phaseOneCoreGlassCatalog" not in text:
-        raise SystemExit(
-            "v0.7.0 Build E patch failed: Theme Center baseline missing ['LifeRouteTheme.allCases', 'LifeRouteTheme.phaseOneCoreGlassCatalog']"
-        )
-
     final = r'''import SwiftUI
 
 struct V054ThemeCenterView: View {

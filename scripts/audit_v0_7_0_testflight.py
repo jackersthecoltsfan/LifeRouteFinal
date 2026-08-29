@@ -98,9 +98,44 @@ v071_finishing_release = all(
         "LifeRoute-v0.7.1-Finishing-TestFlight-build-",
     ]
 )
+
+v080_note_theme_integration_release = all(
+    token in workflow
+    for token in [
+        "Prepare validated v0.8.0 note runtime and theme integration release",
+        "Verify v0.8.0 note runtime, theme library, app, and Live Activity release contract",
+        "python3 scripts/audit_v0_7_1_physical_runtime_fix.py",
+        "python3 scripts/audit_v0_7_1_dynamic_library_finish.py",
+        "python3 scripts/audit_v0_7_1_scenery_library_finish.py",
+        "python3 scripts/audit_v0_7_1_theme_fixture_matrix.py",
+        "python3 scripts/audit_v0_7_1_protected_regressions.py",
+        "python3 scripts/audit_v0_8_0_master_aba_note.py",
+        "python3 scripts/audit_v0_8_0_aba_visual_generator_foundation.py",
+        "python3 scripts/audit_v0_8_0_session_note_runtime_fix.py",
+        "v0.7.1 physical-device motion visibility repair",
+        "v0.7.1 physical-device root environment reveal",
+        "v0.7.1 custom LifeRoute bottom toolbar",
+        "v0.7.1 single-toolbar physical fix",
+        "bar.isHidden = true",
+        "v0.7.1 Setup disclosure groups",
+        "return LifeRouteTheme.v071RetainedDynamicCatalog",
+        "return LifeRouteTheme.v071RetainedSceneryCatalog",
+        "static let phaseOneCoreGlassCatalog",
+        "static let phaseTwoDynamicCatalog",
+        "static let phaseThreeSceneryCatalog",
+        "LifeRouteLiveThemeEnvironment",
+        "minimumInterval: 1.0 / 20.0",
+        "paused: reduceMotion || !isActive",
+        "v0.8.0 session-note runtime repair",
+        "TimelineView(.periodic(from: .now, by: 0.10))",
+        "Archive LifeRoute v0.8.0 note runtime and theme integration",
+        "Verify archived v0.8.0 identity",
+        "LifeRoute-v0.8.0-Note-Theme-Integration-TestFlight-build-",
+    ]
+)
 require(
-    legacy_phase2_release or v071_finishing_release,
-    "workflow must retain either the historical Phase 2 release assertions or the validated v0.7.1 shipping-hold supersession",
+    legacy_phase2_release or v071_finishing_release or v080_note_theme_integration_release,
+    "workflow must retain the historical Phase 2 assertions, the validated v0.7.1 shipping hold, or the v0.8.0 note/theme integration supersession",
 )
 
 require("RELEASE_MARKETING_VERSION: 0.6.3" not in workflow, "active release identity must not regress to v0.6.3")
@@ -217,5 +252,5 @@ require("Web in Resources" not in project, "legacy Web resources must remain qua
 require("LifeRouteLiveActivityWidget.appex in Embed App Extensions" in project, "Live Activity extension must remain embedded")
 
 print(
-    "LifeRoute TestFlight audit passed: historical Phase 2 release safeguards remain auditable, the current v0.7.1 shipping-hold workflow may supersede obsolete UI-marker greps, exact-SHA authorization and Apple upload remain guarded, canonical materialization remains cumulative, native isolation and Live Activity embedding remain protected."
+    "LifeRoute TestFlight audit passed: historical Phase 2 release safeguards remain auditable, the current validated v0.7.1 or v0.8.0 release contract may supersede obsolete UI-marker greps, exact-SHA authorization and Apple upload remain guarded, canonical materialization remains cumulative, native isolation and Live Activity embedding remain protected."
 )

@@ -182,7 +182,7 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
     today = sources["V054TodayView.swift"]
     persistence = sources["PersistenceCore.swift"]
     migration = sources["LegacyMigrationCore.swift"]
-    require_all(calendar, ["case day", "case week", "case month", "manualCalendarEvents", "deleteManualEvent"], "calendar range/manual appointment behavior")
+    require_all(calendar, ["case day", "case week", "case month", "loadManualCalendarEvents", "addManualEvent", "removeEvent", "persistManualEvents"], "calendar range/manual appointment behavior")
     require_all(providers, ["EKEventStore", "https://www.googleapis.com/auth/calendar.readonly", "ASWebAuthenticationSession", "kSecClassGenericPassword"], "Apple/Google read-only calendar providers")
     require_all(routing, ["CLLocationManager", "requestWhenInUseAuthorization", "allowsBackgroundLocationUpdates = false", "savedPlaces", "todos", "MKDirections", "openInMaps"], "foreground routing and saved-place ownership")
     require_all(day_route, ["case appleMaps", "case googleMaps", "case waze", "returnHome", "MKMapItem.openMaps"], "day-route handoff behavior")

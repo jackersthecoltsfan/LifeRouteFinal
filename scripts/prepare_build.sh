@@ -279,3 +279,21 @@ python3 scripts/audit_v0_5_0_second_functionality_pass.py
 python3 scripts/audit_v0_7_1_protected_regressions.py
 
 echo "LifeRoute v0.8.0 ABA visual-support foundation preparation passed: the canonical Master Image Prompt, exact native labels, supported Image Playground review, square icon normalization, existing protected visual libraries, and all retained regression contracts are locked."
+
+# v0.8.0 shipped-runtime repair: keep this cumulative layer last among current note-owned changes.
+# It replaces the unbounded loose UI flags with a cancellable state machine, exposes actual model
+# availability reasons, bounds both the initial and repair pass, and supplies DEBUG-only fixtures.
+python3 -m py_compile \
+  scripts/patch_v0_8_0_session_note_runtime_fix.py \
+  scripts/audit_v0_8_0_session_note_runtime_fix.py
+python3 scripts/patch_v0_8_0_session_note_runtime_fix.py
+python3 scripts/audit_v0_8_0_session_note_runtime_fix.py
+
+# Re-lock clinical, visual, protected-theme, stability, and performance contracts after the runtime fix.
+python3 scripts/audit_v0_8_0_master_aba_note.py
+python3 scripts/audit_v0_8_0_aba_visual_generator_foundation.py
+python3 scripts/audit_v0_7_1_protected_regressions.py
+python3 scripts/audit_v0_5_0_performance_architecture.py
+python3 scripts/audit_v0_5_0_stability_architecture.py
+
+echo "LifeRoute v0.8.0 session-note runtime preparation passed: every generation resolves to a visible success, unavailable, failed, timed-out, or cancelled state; session facts, screenshot input, and prior drafts survive failures; the Master ABA repair pass is visible and bounded; and the complete inherited clinical/theme/stability contracts remain locked."

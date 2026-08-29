@@ -256,7 +256,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
             "SessionNoteEvidencePacket",
             "SessionNoteGenerationPipeline.run",
             "maximumResponseTokens: 900",
-            "LanguageModelError.contextSizeExceeded",
+            "LanguageModelSession.GenerationError.exceededContextWindowSize",
             "case contextWindowExceeded",
             "VNRecognizeTextRequest",
             "FoundationModels",

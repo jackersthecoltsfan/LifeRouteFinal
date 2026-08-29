@@ -423,7 +423,7 @@ enum LifeRouteIntelligenceCore {
                     throw LifeRouteIntelligenceError.generationFailed("")
                 }
                 return String(text.prefix(8_000))
-            } catch LanguageModelError.contextSizeExceeded(_) {
+            } catch LanguageModelSession.GenerationError.exceededContextWindowSize(_) {
                 throw SessionNotePipelineError.contextTooLarge
             } catch let error as LifeRouteIntelligenceError {
                 throw error

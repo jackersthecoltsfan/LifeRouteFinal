@@ -2,8 +2,6 @@ import SwiftUI
 import UIKit
 import AVFoundation
 
-typealias ContentView = V054ContentView
-
 struct V054ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var themeStore: LifeRouteThemeStore
@@ -17,14 +15,8 @@ struct V054ContentView: View {
     @StateObject private var toolsState = SessionToolsCore()
 
     var body: some View {
-        ZStack {
-            LifeRouteCinematicBackdrop(
-                theme: themeStore.selectedTheme,
-                palette: themeStore.palette
-            )
-            .ignoresSafeArea()
-
-            TabView(selection: $router.selectedSection) {
+        // v0.7.0 Theme Phase 1 single environment shell: background is mounted once by LifeRouteApp chrome.
+        TabView(selection: $router.selectedSection) {
                 NavigationStack(path: $router.todayPath) {
                     V054TodayView(
                         router: router,
@@ -38,7 +30,8 @@ struct V054ContentView: View {
                 NavigationStack(path: $router.schedulePath) {
                     V054ScheduleView(
                         calendarState: calendarState,
-                        providerState: providerState
+                        providerState: providerState,
+                        routingState: routingState
                     )
                 }
                 .tabItem { Label(AppSection.schedule.title, systemImage: AppSection.schedule.systemImage) }
@@ -69,8 +62,8 @@ struct V054ContentView: View {
                 .tabItem { Label(AppSection.setup.title, systemImage: AppSection.setup.systemImage) }
                 .tag(AppSection.setup)
             }
-            .tint(themeStore.palette.accent)
-        }
+        .tint(themeStore.palette.accent)
+        .background(Color.clear) // v0.7.0 Theme Phase 1 reveal the single root environment
         .animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)
         .onChange(of: router.selectedSection) { _ in
             LifeRouteHaptics.selection()
@@ -104,28 +97,49 @@ extension LifeRouteAppearance {
     static func refreshVisibleChrome(theme: LifeRouteTheme) {
         let palette = theme.palette
         let accent = UIColor(palette.accent)
-        let secondary = UIColor.white.withAlphaComponent(0.58)
+        let primary = UIColor(palette.textPrimary)
+        let secondary = UIColor(palette.textSecondary)
         let background = UIColor(palette.backgroundTop)
+
+        // v0.7.0 Build A shell: premium native navigation and tab chrome; routing remains unchanged.
+        let chromeBlurStyle: UIBlurEffect.Style = theme == .light ? .systemUltraThinMaterialLight : .systemUltraThinMaterialDark
 
         let navigationAppearance = UINavigationBarAppearance()
         navigationAppearance.configureWithTransparentBackground()
-        navigationAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-        navigationAppearance.backgroundColor = background.withAlphaComponent(0.78)
-        navigationAppearance.shadowColor = accent.withAlphaComponent(0.10)
+        navigationAppearance.backgroundEffect = UIBlurEffect(style: chromeBlurStyle)
+        navigationAppearance.backgroundColor = background.withAlphaComponent(theme == .light ? 0.84 : 0.76)
+        navigationAppearance.shadowColor = accent.withAlphaComponent(0.12)
         navigationAppearance.titleTextAttributes = [
-            .foregroundColor: UIColor.white,
-            .font: UIFont.systemFont(ofSize: 17, weight: .semibold)
+            .foregroundColor: primary,
+            .font: UIFontMetrics(forTextStyle: .headline).scaledFont(for: UIFont.systemFont(ofSize: 17, weight: .semibold))
         ]
         navigationAppearance.largeTitleTextAttributes = [
-            .foregroundColor: UIColor.white,
-            .font: UIFont.systemFont(ofSize: 34, weight: .bold)
+            .foregroundColor: primary,
+            .font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: UIFont.systemFont(ofSize: 32, weight: .bold))
+        ]
+
+        let normalTabFont = UIFontMetrics(forTextStyle: .caption2).scaledFont(for: UIFont.systemFont(ofSize: 10, weight: .medium))
+        let selectedTabFont = UIFontMetrics(forTextStyle: .caption2).scaledFont(for: UIFont.systemFont(ofSize: 10, weight: .semibold))
+        let tabItems = UITabBarItemAppearance()
+        tabItems.normal.iconColor = secondary
+        tabItems.normal.titleTextAttributes = [
+            .foregroundColor: secondary,
+            .font: normalTabFont
+        ]
+        tabItems.selected.iconColor = accent
+        tabItems.selected.titleTextAttributes = [
+            .foregroundColor: accent,
+            .font: selectedTabFont
         ]
 
         let tabAppearance = UITabBarAppearance()
         tabAppearance.configureWithTransparentBackground()
-        tabAppearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-        tabAppearance.backgroundColor = background.withAlphaComponent(0.88)
-        tabAppearance.shadowColor = accent.withAlphaComponent(0.09)
+        tabAppearance.backgroundEffect = UIBlurEffect(style: chromeBlurStyle)
+        tabAppearance.backgroundColor = background.withAlphaComponent(theme == .light ? 0.90 : 0.91)
+        tabAppearance.shadowColor = accent.withAlphaComponent(0.14)
+        tabAppearance.stackedLayoutAppearance = tabItems
+        tabAppearance.inlineLayoutAppearance = tabItems
+        tabAppearance.compactInlineLayoutAppearance = tabItems
 
         for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
             for window in scene.windows where !window.isHidden {
@@ -156,6 +170,8 @@ extension LifeRouteAppearance {
             bar.scrollEdgeAppearance = navigationAppearance
             bar.compactAppearance = navigationAppearance
             bar.tintColor = accent
+            bar.prefersLargeTitles = false
+            bar.isTranslucent = true
         }
 
         if let tabBarController = viewController as? UITabBarController {
@@ -164,6 +180,13 @@ extension LifeRouteAppearance {
             bar.scrollEdgeAppearance = tabAppearance
             bar.tintColor = accent
             bar.unselectedItemTintColor = secondary
+            bar.itemPositioning = .fill
+            bar.isTranslucent = true
+            bar.layer.masksToBounds = false
+            bar.layer.shadowColor = UIColor.black.cgColor
+            bar.layer.shadowOpacity = 0.14
+            bar.layer.shadowRadius = 10
+            bar.layer.shadowOffset = CGSize(width: 0, height: -2)
         }
 
         if let presented = viewController.presentedViewController {

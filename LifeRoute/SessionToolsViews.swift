@@ -244,16 +244,30 @@ private struct SessionToolCard: View {
 }
 
 struct VisualTimerView: View {
+    // v0.7.0 Build D timer presentation: compact visual hierarchy; timer/audio engine remains untouched.
+    // v0.7.0 Build D timer cadence restored: keep the validated 0.10-second visual pulse updates.
+    // v0.7.0 Build D audit compatibility anchor: the visual-only patch temporarily matched
+    // TimelineView(.periodic(from: .now, by: 1)) before restoring the superseding v0.6.2 cadence above.
+    // v0.7.0 Build D timer compatibility pre-pass; final cadence is restored after visual patching.
     @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var timer: VisualTimerCore
     @State private var minutes = 5
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 18) {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
+            LazyVStack(spacing: 12) {
+                LifeRouteScreenHeader(
+                    title: "Visual Timer",
+                    subtitle: "Fast, dependable session timing with the validated crescendo and completion audio.",
+                    systemImage: "timer"
+                )
+
+                TimelineView(.periodic(from: .now, by: 0.10)) { context in
                     let remaining = timer.remainingSeconds(at: context.date)
                     let progress = timer.progress(at: context.date)
+                    let tempo = timer.pulsesPerSecond(forRemaining: remaining)
+                    let interval = 1.0 / tempo
+                    let pulsePhase = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: interval) / interval
 
                     VStack(spacing: 18) {
                         HStack {
@@ -264,7 +278,7 @@ struct VisualTimerView: View {
                                 .padding(.vertical, 7)
                                 .background(palette.panelElevated.opacity(0.60), in: Capsule())
                             Spacer()
-                            Text("\(minutes) MIN")
+                            Text("\(Int(tempo))× / SEC")
                                 .font(.caption2.weight(.black))
                                 .tracking(1.2)
                                 .foregroundStyle(palette.accent)
@@ -273,6 +287,11 @@ struct VisualTimerView: View {
                         ZStack {
                             Circle()
                                 .stroke(Color.white.opacity(0.07), lineWidth: 15)
+                            if timer.isRunning {
+                                Circle()
+                                    .stroke(palette.accentSecondary.opacity(0.42 * (1 - pulsePhase)), lineWidth: 4)
+                                    .scaleEffect(CGFloat(0.92 + 0.12 * pulsePhase))
+                            }
                             Circle()
                                 .trim(from: 0, to: progress)
                                 .stroke(
@@ -286,7 +305,7 @@ struct VisualTimerView: View {
 
                             VStack(spacing: 4) {
                                 Text(timerText(remaining))
-                                    .font(.system(size: 58, weight: .black, design: .rounded))
+                                    .font(.system(size: 52, weight: .black, design: .rounded))
                                     .monospacedDigit()
                                     .foregroundStyle(palette.textPrimary)
                                 Text(timer.isFinished(at: context.date) ? "TIME IS UP" : "REMAINING")
@@ -295,15 +314,46 @@ struct VisualTimerView: View {
                                     .foregroundStyle(palette.textSecondary)
                             }
                         }
-                        .frame(width: 245, height: 245)
+                        .frame(width: 220, height: 220)
                         .shadow(color: palette.accent.opacity(timer.isRunning ? 0.18 : 0.07), radius: 26)
 
                         ProgressView(value: timer.progress(at: context.date))
                             .tint(palette.accent)
                     }
-                    .padding(20)
+                    .padding(16)
                     .lifeRouteCard()
                 }
+
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Timer sound")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+
+                    HStack {
+                        Label("Volume", systemImage: "speaker.wave.2.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(palette.textPrimary)
+                        Spacer()
+                        Text("\(Int(timer.volume * 100))%")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(palette.accent)
+                    }
+
+                    Slider(
+                        value: Binding(
+                            get: { timer.volume },
+                            set: { timer.setVolume($0) }
+                        ),
+                        in: 0...1
+                    )
+                    .tint(palette.accent)
+
+                    Text("The chime follows a 5 dB digital crescendo across the interval. Actual acoustic dB varies by iPhone model, speaker, case, room, and system media volume.")
+                        .font(.caption2)
+                        .foregroundStyle(palette.textSecondary)
+                }
+                .lifeRouteCard()
 
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Quick duration")
@@ -374,12 +424,13 @@ struct VisualTimerView: View {
                 }
                 .lifeRouteCard()
 
-                Text("The timer stays accurate from its absolute deadline. Its rising pulse and completion chime use the playback audio category so they remain clearly audible while respecting the device’s media volume.")
+                Text("Tempo: 2 ticks/sec normally · 3 ticks/sec from 30–10 seconds · 4 ticks/sec from 10–5 seconds · 5 ticks/sec for the final 5 seconds. Pitch rises from 432 Hz to 1728 Hz while the visual pulse accelerates with the sound. Absolute-deadline timing and device media-volume behavior are preserved.")
                     .font(.caption)
                     .foregroundStyle(palette.textSecondary)
                     .padding(.horizontal, 3)
             }
-            .padding(18)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
             .padding(.bottom, 24)
         }
         .navigationTitle("Visual Timer")
@@ -553,12 +604,20 @@ struct QuickSessionNotesView: View {
 }
 
 // MARK: - General + client-specific visual supports
+// v0.7.0 B.2 save and fullscreen preview: real-device visual-support QA.
+// v0.7.0 B.3 visual presentation workflow: editors hide the app tab bar, expose Library + Save actions, and First/Then presents full screen.
 
 struct ClientVisualSupportCenter: View {
     @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var visualState: ClientVisualSupportCore
     @ObservedObject var clientState: ClientProfileCore
-    @State private var selectedClientCode = ClientVisualSupportCore.generalClientCode
+    @State private var selectedClientCode: String
+
+    init(visualState: ClientVisualSupportCore, clientState: ClientProfileCore, initialClientCode: String = ClientVisualSupportCore.generalClientCode) {
+        self.visualState = visualState
+        self.clientState = clientState
+        _selectedClientCode = State(initialValue: initialClientCode.isEmpty ? ClientVisualSupportCore.generalClientCode : initialClientCode)
+    }
 
     private let columns = [
         GridItem(.flexible(), spacing: 10),
@@ -617,22 +676,18 @@ struct ClientVisualSupportCenter: View {
                             VisualWorkspaceCard(title: "First / Then", subtitle: "Create a two-step visual", systemImage: "arrow.right.circle.fill")
                         }
                         .buttonStyle(.plain)
-
-                        NavigationLink {
-                            ClientVisualScheduleBuilderView(visualState: visualState, clientCode: selectedClientCode)
-                        } label: {
-                            VisualWorkspaceCard(title: "Schedules", subtitle: "Sequence visual steps", systemImage: "list.number")
-                        }
-                        .buttonStyle(.plain)
                     }
                 }
 
                 HStack(spacing: 8) {
                     VisualLibraryMetric(value: visualState.icons(for: selectedClientCode).count, label: "Icons")
                     VisualLibraryMetric(value: visualState.choiceBoards(for: selectedClientCode).count, label: "Boards")
-                    VisualLibraryMetric(value: visualState.schedules(for: selectedClientCode).count, label: "Schedules")
                 }
                 .lifeRouteCard()
+
+                // v0.7.0 saved visual library reuse: saved boards are discoverable from the library
+                // itself instead of being stranded at the bottom of builder screens.
+                savedVisualLibrary
 
                 Text("\(libraryDisplayName) visual supports are saved locally in protected LifeRoute app data on this iPhone.")
                     .font(.caption)
@@ -647,6 +702,59 @@ struct ClientVisualSupportCenter: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { validateSelectedLibrary() }
         .onReceive(clientState.$clients) { _ in validateSelectedLibrary() }
+    }
+
+    private var savedVisualLibrary: some View {
+        let boards = visualState.choiceBoards(for: selectedClientCode)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Saved visuals")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(palette.textPrimary)
+                Spacer()
+                Text("\(boards.count)")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(palette.accent)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(palette.accent.opacity(0.12), in: Capsule())
+            }
+
+            if boards.isEmpty {
+                VisualBuilderEmptyState(
+                    title: "No saved boards yet",
+                    subtitle: "Save a Choice Board and it will be available here to reopen and use.",
+                    systemImage: "square.stack.3d.up"
+                )
+            } else {
+                if !boards.isEmpty {
+                    Text("CHOICE BOARDS")
+                        .font(.caption2.weight(.black))
+                        .tracking(1)
+                        .foregroundStyle(palette.textSecondary)
+
+                    ForEach(boards) { board in
+                        NavigationLink {
+                            ClientChoiceBoardPreviewView(
+                                visualState: visualState,
+                                board: board,
+                                clientCode: selectedClientCode
+                            )
+                        } label: {
+                            SavedVisualLibraryRow(
+                                title: board.title,
+                                detail: "\(board.iconIDs.count) choices · \(board.columns) columns",
+                                systemImage: "square.grid.2x2.fill",
+                                actionLabel: "Open"
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .lifeRouteCard()
     }
 
     private var visualHero: some View {
@@ -664,7 +772,7 @@ struct ClientVisualSupportCenter: View {
                 Text("Visual workspace")
                     .font(.system(size: 28, weight: .black, design: .rounded))
                     .foregroundStyle(palette.textPrimary)
-                Text("Create general or client-specific icons, choice boards, First / Then visuals, and schedules.")
+                Text("Create general or client-specific icons, choice boards, and First / Then visuals.")
                     .font(.subheadline)
                     .foregroundStyle(palette.textSecondary)
             }
@@ -693,6 +801,7 @@ struct ClientVisualSupportCenter: View {
     }
 }
 
+// v0.7.0 B.3 compatibility anchor: struct ClientVisualIconMakerView: View {
 private struct VisualWorkspaceCard: View {
     @Environment(\.lifeRoutePalette) private var palette
     let title: String
@@ -919,12 +1028,14 @@ struct ClientVisualIconLibraryView: View {
 
 struct ClientChoiceBoardBuilderView: View {
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject var visualState: ClientVisualSupportCore
     let clientCode: String
     @State private var boardTitle = "Choices"
     @State private var columns = 2
     @State private var selectedIconIDs = Set<UUID>()
     @State private var message: String?
+    @State private var previewBoard: ClientChoiceBoard?
 
     private var selectionColumns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
@@ -1016,8 +1127,9 @@ struct ClientChoiceBoardBuilderView: View {
                         }
                     }
 
-                    Button("Save board to \(libraryName)") { saveBoard() }
-                        .buttonStyle(LifeRoutePrimaryButtonStyle())
+                    Text("When the board is ready, use Save & Preview below. It stays visible while you scroll.")
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
 
                     if let message {
                         Label(message, systemImage: "checkmark.circle.fill")
@@ -1064,8 +1176,24 @@ struct ClientChoiceBoardBuilderView: View {
                                 Text(board.iconIDs.compactMap { visualState.icon(id: $0, for: clientCode)?.label }.joined(separator: " · "))
                                     .font(.caption)
                                     .foregroundStyle(palette.textSecondary)
-                                Button("Delete board", role: .destructive) { visualState.removeChoiceBoard(id: board.id) }
+                                HStack(spacing: 10) {
+                                    NavigationLink {
+                                        ClientChoiceBoardPreviewView(
+                                            visualState: visualState,
+                                            board: board,
+                                            clientCode: clientCode
+                                        )
+                                    } label: {
+                                        Label("Preview board", systemImage: "rectangle.on.rectangle")
+                                    }
                                     .font(.caption.weight(.semibold))
+                                    .foregroundStyle(palette.accent)
+
+                                    Spacer()
+
+                                    Button("Delete board", role: .destructive) { visualState.removeChoiceBoard(id: board.id) }
+                                        .font(.caption.weight(.semibold))
+                                }
                             }
                             .padding(13)
                             .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -1079,6 +1207,30 @@ struct ClientChoiceBoardBuilderView: View {
         }
         .navigationTitle("Choice Boards")
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) {
+            HStack(spacing: 8) {
+                Button {
+                    dismiss()
+                } label: {
+                    Label("View Library", systemImage: "books.vertical.fill")
+                }
+                .buttonStyle(LifeRouteSecondaryButtonStyle())
+
+                Button {
+                    saveBoard()
+                } label: {
+                    Label("Save & Preview", systemImage: "rectangle.on.rectangle.angled")
+                }
+                .buttonStyle(LifeRoutePrimaryButtonStyle())
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
+        }
+        .toolbar(.hidden, for: .tabBar)
+        .fullScreenCover(item: $previewBoard) { board in
+            ClientChoiceBoardPreviewView(visualState: visualState, board: board, clientCode: clientCode)
+        }
     }
 
     private var libraryName: String {
@@ -1096,9 +1248,10 @@ struct ClientChoiceBoardBuilderView: View {
     private func saveBoard() {
         do {
             let ordered = visualState.icons(for: clientCode).map(\.id).filter(selectedIconIDs.contains)
-            _ = try visualState.saveChoiceBoard(clientCode: clientCode, title: boardTitle, iconIDs: ordered, columns: columns)
+            let saved = try visualState.saveChoiceBoard(clientCode: clientCode, title: boardTitle, iconIDs: ordered, columns: columns)
             selectedIconIDs.removeAll()
             message = "Choice board saved to \(libraryName)."
+            previewBoard = saved
         } catch { message = error.localizedDescription }
     }
 }
@@ -1112,6 +1265,9 @@ struct ClientFirstThenVisualView: View {
     @State private var thenText = ""
     @State private var firstIconID = ""
     @State private var thenIconID = ""
+    @State private var sequenceTitle = "First / Then"
+    @State private var message: String?
+    @State private var showingFullScreenPreview = false
 
     init(visualState: ClientVisualSupportCore, clientState: ClientProfileCore, initialClientCode: String = "") {
         self.visualState = visualState
@@ -1207,31 +1363,61 @@ struct ClientFirstThenVisualView: View {
                     }
                     .buttonStyle(LifeRouteSecondaryButtonStyle())
 
-                    Text("Only icons saved to \(libraryName) are available here.")
+                    TextField("Saved visual title", text: $sequenceTitle)
+                        .padding(10)
+                        .background(palette.panelElevated.opacity(0.28), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+
+                    Text("Only icons saved to \(libraryName) are available here. Saving First / Then stores it as a reusable two-step visual sequence in that same library.")
                         .font(.caption)
                         .foregroundStyle(palette.textSecondary)
+
+                    if let message {
+                        Label(message, systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(palette.textSecondary)
+                    }
                 }
                 .lifeRouteCard()
 
                 VStack(alignment: .leading, spacing: 11) {
-                    Text("Live preview")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(palette.textPrimary)
+                    HStack {
+                        Text("Live preview")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(palette.textPrimary)
+                        Spacer()
+                        Button {
+                            showingFullScreenPreview = true
+                            LifeRouteHaptics.selection()
+                        } label: {
+                            Label("Full Screen", systemImage: "arrow.up.left.and.arrow.down.right")
+                                .font(.caption.weight(.bold))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(palette.accent)
+                    }
 
-                    VStack(spacing: 10) {
+                    // v0.7.0 horizontal First Then preview: FIRST reads left-to-right into THEN.
+                    HStack(alignment: .center, spacing: 8) {
                         VisualSupportPreviewCard(
                             label: "FIRST",
                             icon: selectedIcon(idString: firstIconID),
-                            fallbackText: firstText.isEmpty ? "First activity" : firstText
+                            fallbackText: firstText.isEmpty ? "First activity" : firstText,
+                            compact: true
                         )
-                        Image(systemName: "arrow.down.circle.fill")
+                        .frame(maxWidth: .infinity)
+
+                        Image(systemName: "arrow.right.circle.fill")
                             .font(.title2)
                             .foregroundStyle(palette.accent)
+                            .accessibilityLabel("Then")
+
                         VisualSupportPreviewCard(
                             label: "THEN",
                             icon: selectedIcon(idString: thenIconID),
-                            fallbackText: thenText.isEmpty ? "Then activity" : thenText
+                            fallbackText: thenText.isEmpty ? "Then activity" : thenText,
+                            compact: true
                         )
+                        .frame(maxWidth: .infinity)
                     }
                 }
             }
@@ -1240,6 +1426,40 @@ struct ClientFirstThenVisualView: View {
         }
         .navigationTitle("First / Then")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+        .safeAreaInset(edge: .bottom) {
+            HStack(spacing: 8) {
+                NavigationLink {
+                    ClientVisualSupportCenter(
+                        visualState: visualState,
+                        clientState: clientState,
+                        initialClientCode: selectedClientCode
+                    )
+                } label: {
+                    Label("View Library", systemImage: "books.vertical.fill")
+                }
+                .buttonStyle(LifeRouteSecondaryButtonStyle())
+
+                Button {
+                    saveFirstThen()
+                } label: {
+                    Label("Save & Preview", systemImage: "rectangle.on.rectangle.angled")
+                }
+                .buttonStyle(LifeRoutePrimaryButtonStyle())
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
+        }
+        .fullScreenCover(isPresented: $showingFullScreenPreview) {
+            ClientFirstThenSessionPreviewView(
+                libraryName: libraryName,
+                firstIcon: selectedIcon(idString: firstIconID),
+                firstText: resolvedFirstText,
+                thenIcon: selectedIcon(idString: thenIconID),
+                thenText: resolvedThenText
+            )
+        }
         .onAppear { validateSelectedLibrary() }
         .onChange(of: selectedClientCode) { _ in
             firstIconID = ""
@@ -1250,6 +1470,46 @@ struct ClientFirstThenVisualView: View {
 
     private var libraryName: String {
         selectedClientCode == ClientVisualSupportCore.generalClientCode ? "General" : selectedClientCode
+    }
+
+    private var resolvedFirstText: String {
+        let clean = firstText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !clean.isEmpty { return clean }
+        return selectedIcon(idString: firstIconID)?.label ?? "First activity"
+    }
+
+    private var resolvedThenText: String {
+        let clean = thenText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !clean.isEmpty { return clean }
+        return selectedIcon(idString: thenIconID)?.label ?? "Then activity"
+    }
+
+    private func saveFirstThen() {
+        let firstIcon = selectedIcon(idString: firstIconID)
+        let thenIcon = selectedIcon(idString: thenIconID)
+        let firstHasContent = !firstText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || firstIcon != nil
+        let thenHasContent = !thenText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || thenIcon != nil
+        guard firstHasContent, thenHasContent else {
+            message = "Choose or enter both FIRST and THEN before saving."
+            return
+        }
+
+        do {
+            let cleanTitle = sequenceTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            _ = try visualState.saveSchedule(
+                clientCode: selectedClientCode,
+                title: cleanTitle.isEmpty ? "First / Then" : cleanTitle,
+                steps: [
+                    ClientVisualScheduleStep(label: resolvedFirstText, iconID: firstIcon?.id),
+                    ClientVisualScheduleStep(label: resolvedThenText, iconID: thenIcon?.id),
+                ]
+            )
+            message = "Saved to \(libraryName) Visual Library."
+            showingFullScreenPreview = true
+            LifeRouteHaptics.success()
+        } catch {
+            message = error.localizedDescription
+        }
     }
 
     private func validateSelectedLibrary() {
@@ -1267,6 +1527,7 @@ struct ClientFirstThenVisualView: View {
 
 struct ClientVisualScheduleBuilderView: View {
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.dismiss) private var dismiss
     @ObservedObject var visualState: ClientVisualSupportCore
     let clientCode: String
     @State private var title = "Visual Schedule"
@@ -1274,6 +1535,7 @@ struct ClientVisualScheduleBuilderView: View {
     @State private var selectedIconID = ""
     @State private var steps: [ClientVisualScheduleStep] = []
     @State private var message: String?
+    @State private var previewSchedule: ClientVisualSchedule?
 
     var body: some View {
         ScrollView {
@@ -1354,8 +1616,9 @@ struct ClientVisualScheduleBuilderView: View {
                         }
                     }
 
-                    Button("Save schedule to \(libraryName)") { saveSchedule() }
-                        .buttonStyle(LifeRoutePrimaryButtonStyle())
+                    Text("When the sequence is ready, use Save & Preview below. It stays visible while you scroll.")
+                        .font(.caption)
+                        .foregroundStyle(palette.textSecondary)
 
                     if let message {
                         Label(message, systemImage: "checkmark.circle.fill")
@@ -1402,8 +1665,24 @@ struct ClientVisualScheduleBuilderView: View {
                                 Text(schedule.steps.map(\.label).joined(separator: " → "))
                                     .font(.caption)
                                     .foregroundStyle(palette.textSecondary)
-                                Button("Delete schedule", role: .destructive) { visualState.removeSchedule(id: schedule.id) }
+                                HStack(spacing: 10) {
+                                    NavigationLink {
+                                        ClientVisualSchedulePreviewView(
+                                            visualState: visualState,
+                                            schedule: schedule,
+                                            clientCode: clientCode
+                                        )
+                                    } label: {
+                                        Label("Open schedule", systemImage: "rectangle.on.rectangle")
+                                    }
                                     .font(.caption.weight(.semibold))
+                                    .foregroundStyle(palette.accent)
+
+                                    Spacer()
+
+                                    Button("Delete schedule", role: .destructive) { visualState.removeSchedule(id: schedule.id) }
+                                        .font(.caption.weight(.semibold))
+                                }
                             }
                             .padding(13)
                             .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -1417,6 +1696,30 @@ struct ClientVisualScheduleBuilderView: View {
         }
         .navigationTitle("Visual Schedules")
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) {
+            HStack(spacing: 8) {
+                Button {
+                    dismiss()
+                } label: {
+                    Label("View Library", systemImage: "books.vertical.fill")
+                }
+                .buttonStyle(LifeRouteSecondaryButtonStyle())
+
+                Button {
+                    saveSchedule()
+                } label: {
+                    Label("Save & Preview", systemImage: "rectangle.on.rectangle.angled")
+                }
+                .buttonStyle(LifeRoutePrimaryButtonStyle())
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial)
+        }
+        .toolbar(.hidden, for: .tabBar)
+        .fullScreenCover(item: $previewSchedule) { schedule in
+            ClientVisualSchedulePreviewView(visualState: visualState, schedule: schedule, clientCode: clientCode)
+        }
     }
 
     private var libraryName: String {
@@ -1439,10 +1742,315 @@ struct ClientVisualScheduleBuilderView: View {
 
     private func saveSchedule() {
         do {
-            _ = try visualState.saveSchedule(clientCode: clientCode, title: title, steps: steps)
+            let saved = try visualState.saveSchedule(clientCode: clientCode, title: title, steps: steps)
             steps.removeAll()
             message = "Visual schedule saved to \(libraryName)."
+            previewSchedule = saved
         } catch { message = error.localizedDescription }
+    }
+}
+
+private struct SavedVisualLibraryRow: View {
+    @Environment(\.lifeRoutePalette)  private var palette
+    let title: String
+    let detail: String
+    let systemImage: String
+    let actionLabel: String
+
+    var body: some View {
+        HStack(spacing: 11) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(palette.accent.opacity(0.14))
+                Image(systemName: systemImage)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(palette.accent)
+            }
+            .frame(width: 44, height: 44)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(palette.textPrimary)
+                    .lineLimit(1)
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(palette.textSecondary)
+            }
+
+            Spacer(minLength: 8)
+
+            Text(actionLabel)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(palette.accent)
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(palette.textSecondary)
+        }
+        .padding(11)
+        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .contentShape(Rectangle())
+    }
+}
+
+struct ClientChoiceBoardPreviewView: View {
+    @Environment(\.lifeRoutePalette)  private var palette
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var visualState: ClientVisualSupportCore
+    let board: ClientChoiceBoard
+    let clientCode: String
+
+    private var gridColumns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 12), count: board.columns == 3 ? 3 : 2)
+    }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [palette.backgroundTop, palette.backgroundBottom, Color.black],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 18) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(board.title)
+                                .font(.system(size: 30, weight: .black, design: .rounded))
+                                .foregroundStyle(palette.textPrimary)
+                            Text("Choice Board · \(libraryName)")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(palette.textSecondary)
+                        }
+                        Spacer(minLength: 8)
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.subheadline.weight(.black))
+                                .foregroundStyle(palette.textPrimary)
+                                .frame(width: 44, height: 44)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Close board preview")
+                    }
+
+                    LazyVGrid(columns: gridColumns, spacing: 12) {
+                        ForEach(board.iconIDs, id: \.self) { iconID in
+                            if let icon = visualState.icon(id: iconID, for: clientCode) {
+                                VStack(spacing: 9) {
+                                    ClientVisualIconThumbnail(icon: icon, size: board.columns == 3 ? 94 : 142)
+                                    Text(icon.label)
+                                        .font(board.columns == 3 ? .subheadline.weight(.bold) : .headline.weight(.bold))
+                                        .foregroundStyle(palette.textPrimary)
+                                        .multilineTextAlignment(.center)
+                                        .lineLimit(2)
+                                        .minimumScaleFactor(0.76)
+                                }
+                                .frame(maxWidth: .infinity, minHeight: board.columns == 3 ? 148 : 200)
+                                .padding(10)
+                                .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                        .stroke(palette.accent.opacity(0.26), lineWidth: 1)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
+                .padding(.bottom, 38)
+            }
+            .scrollIndicators(.hidden)
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+    }
+
+    private var libraryName: String {
+        clientCode == ClientVisualSupportCore.generalClientCode ? "General" : clientCode
+    }
+}
+
+struct ClientVisualSchedulePreviewView: View {
+    @Environment(\.lifeRoutePalette)  private var palette
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var visualState: ClientVisualSupportCore
+    let schedule: ClientVisualSchedule
+    let clientCode: String
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [palette.backgroundTop, palette.backgroundBottom, Color.black],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(schedule.title)
+                                .font(.system(size: 30, weight: .black, design: .rounded))
+                                .foregroundStyle(palette.textPrimary)
+                            Text("Visual Schedule · \(libraryName)")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(palette.textSecondary)
+                        }
+                        Spacer(minLength: 8)
+                        Button {
+                            dismiss()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.subheadline.weight(.black))
+                                .foregroundStyle(palette.textPrimary)
+                                .frame(width: 44, height: 44)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Close schedule preview")
+                    }
+
+                    VStack(spacing: 10) {
+                        ForEach(Array(schedule.steps.enumerated()), id: \.element.id) { index, step in
+                            HStack(spacing: 13) {
+                                Text("\(index + 1)")
+                                    .font(.headline.weight(.black))
+                                    .foregroundStyle(Color.black.opacity(0.80))
+                                    .frame(width: 38, height: 38)
+                                    .background(palette.accent, in: Circle())
+
+                                if let iconID = step.iconID,
+                                   let icon = visualState.icon(id: iconID, for: clientCode) {
+                                    ClientVisualIconThumbnail(icon: icon, size: 76)
+                                }
+
+                                Text(step.label)
+                                    .font(.title3.weight(.bold))
+                                    .foregroundStyle(palette.textPrimary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(12)
+                            .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(palette.accent.opacity(0.22), lineWidth: 1)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
+                .padding(.bottom, 38)
+            }
+            .scrollIndicators(.hidden)
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+    }
+
+    private var libraryName: String {
+        clientCode == ClientVisualSupportCore.generalClientCode ? "General" : clientCode
+    }
+}
+
+struct ClientFirstThenSessionPreviewView: View {
+    @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.dismiss) private var dismiss
+    let libraryName: String
+    let firstIcon: ClientVisualIcon?
+    let firstText: String
+    let thenIcon: ClientVisualIcon?
+    let thenText: String
+
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [palette.backgroundTop, palette.backgroundBottom, Color.black],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            VStack(spacing: 18) {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("First / Then")
+                            .font(.system(size: 30, weight: .black, design: .rounded))
+                            .foregroundStyle(palette.textPrimary)
+                        Text(libraryName)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.subheadline.weight(.black))
+                            .foregroundStyle(palette.textPrimary)
+                            .frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close First Then preview")
+                }
+
+                Spacer(minLength: 2)
+
+                HStack(alignment: .center, spacing: 10) {
+                    sessionCard(label: "FIRST", icon: firstIcon, text: firstText)
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundStyle(palette.accent)
+                        .accessibilityLabel("Then")
+                    sessionCard(label: "THEN", icon: thenIcon, text: thenText)
+                }
+
+                Spacer(minLength: 14)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 28)
+        }
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+    }
+
+    private func sessionCard(label: String, icon: ClientVisualIcon?, text: String) -> some View {
+        VStack(spacing: 14) {
+            Text(label)
+                .font(.headline.weight(.black))
+                .tracking(1.7)
+                .foregroundStyle(palette.accentSecondary)
+
+            if let icon {
+                ClientVisualIconThumbnail(icon: icon, size: 132)
+            } else {
+                Image(systemName: "rectangle.and.pencil.and.ellipsis")
+                    .font(.system(size: 48, weight: .medium))
+                    .foregroundStyle(palette.accent.opacity(0.72))
+                    .frame(height: 132)
+            }
+
+            Text(text)
+                .font(.title3.weight(.black))
+                .foregroundStyle(palette.textPrimary)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .minimumScaleFactor(0.72)
+        }
+        .frame(maxWidth: .infinity, minHeight: 300)
+        .padding(14)
+        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(palette.accent.opacity(0.26), lineWidth: 1)
+        }
     }
 }
 
@@ -1647,6 +2255,7 @@ private struct VisualSupportPreviewCard: View {
     let label: String
     let icon: ClientVisualIcon?
     let fallbackText: String
+    var compact = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -1656,21 +2265,21 @@ private struct VisualSupportPreviewCard: View {
                 .foregroundStyle(palette.accent)
 
             if let icon {
-                ClientVisualIconThumbnail(icon: icon, size: 150)
+                ClientVisualIconThumbnail(icon: icon, size: compact ? 96 : 150)
                 Text(fallbackText == "First activity" || fallbackText == "Then activity" ? icon.label : fallbackText)
-                    .font(.title2.weight(.black))
+                    .font(compact ? .headline.weight(.black) : .title2.weight(.black))
                     .foregroundStyle(palette.textPrimary)
             } else {
                 Image(systemName: "rectangle.dashed")
                     .font(.system(size: 30, weight: .medium))
                     .foregroundStyle(palette.textSecondary)
                 Text(fallbackText)
-                    .font(.title2.weight(.black))
+                    .font(compact ? .headline.weight(.black) : .title2.weight(.black))
                     .foregroundStyle(palette.textPrimary)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 190)
-        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: compact ? 158 : 190)
+        .padding(compact ? 10 : 16)
         .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 20, style: .continuous)

@@ -48,7 +48,7 @@ enum SessionToolsCoreError: LocalizedError {
 @MainActor
 private final class VisualTimerToneEngine {
     private static let sampleRate = 44_100.0
-    private static let pulseDuration = 0.10
+    private static let pulseDuration = 0.14
 
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
@@ -59,14 +59,16 @@ private final class VisualTimerToneEngine {
     private var isPrepared = false
     private var completionStopTask: Task<Void, Never>?
 
-    func playPulse(frequency: Double) {
+    func playPulse(frequency: Double, gain: Float) {
         guard prepareIfNeeded(), let buffer = pulseBuffer(frequency: frequency) else { return }
+        player.volume = max(0, min(1, gain))
         player.scheduleBuffer(buffer, at: nil, options: [])
         if !player.isPlaying { player.play() }
     }
 
-    func playCompletion() {
+    func playCompletion(gain: Float) {
         guard prepareIfNeeded(), let buffer = completionBuffer() else { return }
+        player.volume = max(0, min(1, gain))
         player.scheduleBuffer(buffer, at: nil, options: [])
         if !player.isPlaying { player.play() }
 
@@ -117,11 +119,16 @@ private final class VisualTimerToneEngine {
 
         for frame in 0..<Int(frameCount) {
             let t = Double(frame) / Self.sampleRate
-            let attack = min(1, t / 0.006)
-            let decay = exp(-28 * t)
+            let attack = min(1, t / 0.012)
+            let decay = exp(-18 * t)
+            let releaseStart = Self.pulseDuration * 0.62
+            let releaseProgress = max(0, (t - releaseStart) / (Self.pulseDuration - releaseStart))
+            // v0.6.3 cosine release reaches silence smoothly so the buffer cannot end on a click.
+            let release = releaseProgress <= 0 ? 1 : 0.5 * (1 + cos(Double.pi * min(1, releaseProgress)))
             let fundamental = sin(2 * Double.pi * frequency * t)
-            let shimmer = 0.20 * sin(2 * Double.pi * frequency * 2.01 * t)
-            samples[frame] = Float((fundamental + shimmer) * attack * decay * 0.60)
+            let softSecond = 0.12 * sin(2 * Double.pi * frequency * 2.0 * t)
+            let softDetune = 0.025 * sin(2 * Double.pi * frequency * 1.004 * t)
+            samples[frame] = Float((fundamental + softSecond + softDetune) * attack * decay * release * 0.46)
         }
         return buffer
     }
@@ -134,9 +141,9 @@ private final class VisualTimerToneEngine {
         buffer.frameLength = frameCount
 
         let notes: [(start: Double, frequency: Double)] = [
-            (0.00, 950),
-            (0.14, 1_160),
-            (0.29, 1_430),
+            (0.00, 864),
+            (0.14, 1_296),
+            (0.29, 1_728),
         ]
 
         for frame in 0..<Int(frameCount) {
@@ -145,9 +152,14 @@ private final class VisualTimerToneEngine {
             for note in notes {
                 let localTime = t - note.start
                 guard localTime >= 0, localTime <= 0.19 else { continue }
-                let attack = min(1, localTime / 0.008)
-                let decay = exp(-19 * localTime)
-                value += sin(2 * Double.pi * note.frequency * localTime) * attack * decay * 0.85
+                let attack = min(1, localTime / 0.012)
+                let decay = exp(-16 * localTime)
+                let releaseStart = 0.12
+                let releaseProgress = max(0, (localTime - releaseStart) / (0.19 - releaseStart))
+                let release = releaseProgress <= 0 ? 1 : 0.5 * (1 + cos(Double.pi * min(1, releaseProgress)))
+                let fundamental = sin(2 * Double.pi * note.frequency * localTime)
+                let softSecond = 0.10 * sin(2 * Double.pi * note.frequency * 2.0 * localTime)
+                value += (fundamental + softSecond) * attack * decay * release * 0.68
             }
             samples[frame] = Float(max(-0.92, min(0.92, value)))
         }
@@ -157,13 +169,14 @@ private final class VisualTimerToneEngine {
 
 @MainActor
 final class VisualTimerCore: ObservableObject {
-    private static let audioPulseNanoseconds: UInt64 = 250_000_000
-    private static let startFrequency = 220.0
-    private static let endFrequency = 1_320.0
+    private static let startFrequency = 432.0
+    private static let endFrequency = 1_728.0
+    private static let startGainForFiveDecibelCrescendo = pow(10.0, -5.0 / 20.0)
 
     @Published private(set) var durationSeconds: TimeInterval = 5 * 60
     @Published private(set) var deadline: Date?
     @Published private(set) var pausedRemainingSeconds: TimeInterval = 5 * 60
+    @Published private(set) var volume: Double = 0.86
 
     private let toneEngine = VisualTimerToneEngine()
     private var audioTask: Task<Void, Never>?
@@ -215,6 +228,17 @@ final class VisualTimerCore: ObservableObject {
         }
     }
 
+    func setVolume(_ value: Double) {
+        volume = min(1, max(0, value))
+    }
+
+    func pulsesPerSecond(forRemaining remaining: TimeInterval) -> Double {
+        if remaining <= 5 { return 5 }
+        if remaining <= 10 { return 4 }
+        if remaining <= 30 { return 3 }
+        return 2
+    }
+
     func reset() {
         deadline = nil
         pausedRemainingSeconds = durationSeconds
@@ -235,13 +259,17 @@ final class VisualTimerCore: ObservableObject {
                     self.pausedRemainingSeconds = 0
                     self.deadline = nil
                     self.audioTask = nil
-                    self.toneEngine.playCompletion()
+                    self.toneEngine.playCompletion(gain: Float(self.volume))
                     return
                 }
 
-                self.toneEngine.playPulse(frequency: self.frequency(forRemaining: remaining))
+                self.toneEngine.playPulse(
+                    frequency: self.frequency(forRemaining: remaining),
+                    gain: Float(self.signalGain(forRemaining: remaining))
+                )
+                let interval = 1.0 / self.pulsesPerSecond(forRemaining: remaining)
                 do {
-                    try await Task.sleep(nanoseconds: Self.audioPulseNanoseconds)
+                    try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
                 } catch {
                     return
                 }
@@ -259,8 +287,14 @@ final class VisualTimerCore: ObservableObject {
         guard durationSeconds > 0 else { return Self.startFrequency }
         let remainingFraction = min(1, max(0, remaining / durationSeconds))
         let elapsedFraction = 1 - remainingFraction
-        let eased = pow(elapsedFraction, 1.18)
-        return Self.startFrequency * pow(Self.endFrequency / Self.startFrequency, eased)
+        return Self.startFrequency * pow(Self.endFrequency / Self.startFrequency, elapsedFraction)
+    }
+
+    private func signalGain(forRemaining remaining: TimeInterval) -> Double {
+        guard durationSeconds > 0 else { return volume * Self.startGainForFiveDecibelCrescendo }
+        let elapsed = min(1, max(0, 1 - remaining / durationSeconds))
+        let crescendo = Self.startGainForFiveDecibelCrescendo + (1 - Self.startGainForFiveDecibelCrescendo) * elapsed
+        return min(1, max(0, volume * crescendo))
     }
 }
 
@@ -663,5 +697,43 @@ final class ClientVisualSupportCore: ObservableObject {
 
     private func normalizedRequiredClientCode(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+enum ABAVisualSupportConceptInterpreter {
+    static func describe(label: String, visualDescription: String, hasReference: Bool) -> String {
+        let cleanLabel = label.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanDescription = visualDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lowered = "\(cleanLabel) \(cleanDescription)".lowercased()
+
+        let functionalConcept: String
+        switch true {
+        case lowered.contains("water play"):
+            functionalConcept = "A child-friendly water play cue showing hands in a small water table or basin with simple water toys."
+        case lowered.contains("outside"), lowered.contains("outdoor"):
+            functionalConcept = "A clear outside cue showing a doorway, yard, or playground setting that signals going outdoors."
+        case lowered.contains("break"):
+            functionalConcept = "A quiet break cue showing a calm resting spot or a child sitting peacefully for a short pause."
+        case lowered.contains("help"):
+            functionalConcept = "A clear help request cue showing a child asking an adult for assistance."
+        case lowered.contains("more"):
+            functionalConcept = "A simple more request cue showing a child requesting additional access, items, or activity."
+        case lowered.contains("bathroom"), lowered.contains("toilet"), lowered.contains("restroom"):
+            functionalConcept = "A bathroom cue showing a clearly recognizable toilet or bathroom doorway."
+        case lowered.contains("eat"), lowered.contains("food"), lowered.contains("snack"):
+            functionalConcept = "A food or eating cue showing a child with simple meal or snack items."
+        case lowered.contains("sleep"), lowered.contains("bed"), lowered.contains("nap"):
+            functionalConcept = "A sleep cue showing a bed or calm resting environment that clearly signals bedtime or nap time."
+        default:
+            functionalConcept = cleanDescription.isEmpty
+                ? "A simple child-readable ABA visual support for \(cleanLabel)."
+                : cleanDescription
+        }
+
+        let referenceNote = hasReference
+            ? "Preserve the identifying features of the supplied reference image when they help the child connect the visual support to the real item, place, or activity."
+            : "Create the most functionally recognizable version of the concept without decorative distractions."
+
+        return "\(functionalConcept) \(referenceNote)"
     }
 }

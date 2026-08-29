@@ -215,11 +215,11 @@ final class DayRoutePlanningCore: ObservableObject {
         var components = URLComponents(string: "https://www.google.com/maps/dir/")
         var items = [
             URLQueryItem(name: "api", value: "1"),
-            URLQueryItem(name: "destination", value: leg.toAddress),
+            URLQueryItem(name: "destination", value: LifeRouteDestinationIntent.naturalLanguageQuery(forStoredValue: leg.toAddress)),
             URLQueryItem(name: "travelmode", value: googleTravelMode(mode))
         ]
         if leg.fromAddress != "Current Location" {
-            items.append(URLQueryItem(name: "origin", value: leg.fromAddress))
+            items.append(URLQueryItem(name: "origin", value: LifeRouteDestinationIntent.naturalLanguageQuery(forStoredValue: leg.fromAddress)))
         }
         components?.queryItems = items
         return components?.url
@@ -228,7 +228,7 @@ final class DayRoutePlanningCore: ObservableObject {
     private func wazeURL(for leg: LifeRouteDayRouteLeg) -> URL? {
         var components = URLComponents(string: "https://www.waze.com/ul")
         components?.queryItems = [
-            URLQueryItem(name: "q", value: leg.toAddress),
+            URLQueryItem(name: "q", value: LifeRouteDestinationIntent.naturalLanguageQuery(forStoredValue: leg.toAddress)),
             URLQueryItem(name: "navigate", value: "yes")
         ]
         return components?.url
@@ -319,7 +319,7 @@ final class DayRoutePlanningCore: ObservableObject {
 
     private static func mapItem(for query: String, fallbackName: String) async throws -> MKMapItem {
         let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = query
+        request.naturalLanguageQuery = LifeRouteDestinationIntent.naturalLanguageQuery(forStoredValue: query)
         let response = try await MKLocalSearch(request: request).start()
         guard let item = response.mapItems.first else {
             throw DayRoutePlanningError.locationNotFound(query)

@@ -4,6 +4,7 @@ struct DayRoutePlanningView: View {
     @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var calendarState: CalendarCoreState
     @ObservedObject var routingState: RoutingLocationCore
+    var day: Date = Date()
 
     @StateObject private var planState = DayRoutePlanningCore()
     @StateObject private var stopAutocomplete = LifeRouteAddressAutocomplete()
@@ -16,6 +17,8 @@ struct DayRoutePlanningView: View {
     @State private var stopAddress = ""
     @State private var stopPosition: LifeRouteDayStop.Position = .before
     @State private var message: String?
+    @State private var suppressStopAutocompleteQuery = false
+    @FocusState private var stopAddressFocused: Bool
 
     var body: some View {
         ScrollView {
@@ -34,19 +37,19 @@ struct DayRoutePlanningView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if selectedEventID.isEmpty {
-                selectedEventID = todayEvents.first?.id ?? ""
+                selectedEventID = dayEvents.first?.id ?? ""
             }
         }
     }
 
-    private var todayEvents: [LifeRouteCalendarEvent] {
-        calendarState.events(on: Date())
+    private var dayEvents: [LifeRouteCalendarEvent] {
+        calendarState.events(on: day)
             .filter { !$0.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .sorted { $0.start < $1.start }
     }
 
     private var selectedEvent: LifeRouteCalendarEvent? {
-        todayEvents.first { $0.id == selectedEventID }
+        dayEvents.first { $0.id == selectedEventID }
     }
 
     private var beforeStops: [LifeRouteDayStop] {
@@ -79,13 +82,13 @@ struct DayRoutePlanningView: View {
                 .font(.title3.weight(.bold))
                 .foregroundStyle(palette.textPrimary)
 
-            if todayEvents.isEmpty {
-                Text("No calendar events with locations are available today. Add or refresh an event location in Schedule first.")
+            if dayEvents.isEmpty {
+                Text("No calendar events with locations are available on \(day.formatted(date: .abbreviated, time: .omitted)). Add or refresh an event location in Schedule first.")
                     .font(.subheadline)
                     .foregroundStyle(palette.textSecondary)
             } else {
                 Picker("Appointment", selection: $selectedEventID) {
-                    ForEach(todayEvents) { event in
+                    ForEach(dayEvents) { event in
                         Text("\(event.start.formatted(date: .omitted, time: .shortened)) · \(event.title)")
                             .tag(event.id)
                     }
@@ -155,16 +158,28 @@ struct DayRoutePlanningView: View {
 
             TextField("Stop address", text: $stopAddress)
                 .textContentType(.fullStreetAddress)
+                .focused($stopAddressFocused)
                 .onChange(of: stopAddress) { value in
+                    if suppressStopAutocompleteQuery {
+                        suppressStopAutocompleteQuery = false
+                        return
+                    }
                     stopAutocomplete.update(query: value)
+                }
+                .onSubmit {
+                    stopAutocomplete.clear()
+                    stopAddressFocused = false
                 }
                 .padding(12)
                 .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             ForEach(stopAutocomplete.suggestions) { suggestion in
                 Button {
+                    suppressStopAutocompleteQuery = true
                     stopAddress = suggestion.addressText
                     stopAutocomplete.clear()
+                    stopAddressFocused = false
+                    LifeRouteHaptics.selection()
                 } label: {
                     HStack(spacing: 9) {
                         Image(systemName: "mappin.circle.fill")
@@ -371,8 +386,10 @@ struct DayRoutePlanningView: View {
             )
         )
         stopTitle = ""
+        suppressStopAutocompleteQuery = true
         stopAddress = ""
         stopAutocomplete.clear()
+        stopAddressFocused = false
         message = "Stop added."
     }
 

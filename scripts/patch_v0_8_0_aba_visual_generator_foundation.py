@@ -301,17 +301,18 @@ private enum ABAVisualSupportPrompt {
     static func make(label: String, visualDescription: String, hasReference: Bool) -> String {
         let cleanLabel = String(label.trimmingCharacters(in: .whitespacesAndNewlines).prefix(120))
         let cleanDescription = String(visualDescription.trimmingCharacters(in: .whitespacesAndNewlines).prefix(700))
-        let subject = cleanDescription.isEmpty ? cleanLabel : "\(cleanLabel). \(cleanDescription)"
-        let referenceRule = hasReference
-            ? "Use the supplied reference image as the basis. Preserve the specific identifying physical characteristics of the real item or environment that help a child recognize and generalize it."
-            : "Create the requested object, location, activity, or concept from the supplied description without adding unrelated details."
+        // v0.8.1 functional visual-concept interpretation: use the child-readable ABA concept before any art prompt is formed.
+        let functionalConcept = ABAVisualSupportConceptInterpreter.describe(
+            label: cleanLabel,
+            visualDescription: cleanDescription,
+            hasReference: hasReference
+        )
 
         return """
         Create one ABA visual-support icon for the exact user label “\(cleanLabel)”.
-        Subject or concept: \(subject)
-        \(referenceRule)
+        Functional concept: \(functionalConcept)
 
-        Create a realistically illustrated cartoon that remains clearly recognizable as the real object, location, activity, or concept. Use clean bold outlines, soft natural shading, bright but natural colors, strong visual contrast, and a simple child-friendly presentation. Use a clean white background. Center one primary subject and let it occupy most of a square 1:1 composition. Remove distracting or irrelevant background information. Preserve identifying characteristics needed for recognition. Do not introduce unrelated objects or scenery. Do not include people unless a person is necessary to communicate the concept.
+        Create a realistically illustrated cartoon that remains clearly recognizable as the real object, location, activity, or concept. Use clean bold outlines, soft natural shading, bright but natural colors, strong visual contrast, and a simple child-friendly ABA visual-support presentation. Use a clean white background. Center one primary subject and let it occupy most of a square 1:1 composition. Remove distracting or irrelevant background information. Preserve identifying characteristics needed for recognition. Do not introduce unrelated objects or scenery. Do not include people unless a person is necessary to communicate the concept.
 
         Treat the result as part of one coordinated professionally designed ABA visual-support library. Keep the illustration style, line weight, shading, proportions, background treatment, and icon scale consistent. Prioritize immediate functional recognition and visual clarity over decorative detail for use in visual schedules, choice boards, First/Then boards, communication books, transition supports, and activity schedules.
 

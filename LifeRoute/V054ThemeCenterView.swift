@@ -1,181 +1,285 @@
 import SwiftUI
 
 struct V054ThemeCenterView: View {
+    // v0.7.0 Theme Phase 2 Theme Center: 12 still Core Glass + 12 live Dynamic Liquid Glass.
     @Environment(\.lifeRoutePalette) private var palette
     @EnvironmentObject private var themeStore: LifeRouteThemeStore
 
-    @State private var selectedCategory: ThemeFilter = .all
+    @State private var selectedCategory: ThemeFilter = .core
 
     private enum ThemeFilter: String, CaseIterable, Identifiable {
-        case all = "All"
         case core = "Core"
-        case scenery = "Scenery"
-        case metallic = "Metallic"
         case dynamic = "Dynamic"
-        case fluid = "Fluid"
+        case scenery = "Scenery"
 
         var id: String { rawValue }
-
-        func matches(_ theme: LifeRouteTheme) -> Bool {
-            switch self {
-            case .all:
-                return true
-            case .core:
-                return [.royal, .obsidian, .carbon, .midnight, .navyNoir].contains(theme)
-            case .scenery:
-                return [.forest, .plum, .ember].contains(theme)
-            case .metallic:
-                return [.titanium, .slate, .moltenGold, .phantomSilver].contains(theme)
-            case .dynamic:
-                return [.solarFlare, .electricStorm, .ultraviolet, .arcticPulse].contains(theme)
-            case .fluid:
-                return [.ocean, .aurora, .sapphireTide].contains(theme)
-            }
-        }
     }
 
+    // Scenery remains exactly the validated pre-Phase-3 catalog until the dedicated scenery phase.
+    private let sceneryThemes: [LifeRouteTheme] = [.mountain, .ocean, .space, .desert, .forest, .sunshine]
+
     private let columns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10),
     ]
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 17) {
-                selectedThemeHero
+            LazyVStack(spacing: 12) {
+                selectedThemeHeader
                 categoryStrip
 
-                LazyVGrid(columns: columns, spacing: 12) {
+                HStack {
+                    LifeRouteSectionLabel(title: sectionTitle)
+                    Spacer()
+                    Text("\(filteredThemes.count)")
+                        .font(.caption2.weight(.black))
+                        .foregroundStyle(palette.accentSecondary)
+                }
+
+                LazyVGrid(columns: columns, spacing: 10) {
                     ForEach(filteredThemes) { theme in
                         themeCard(theme)
                     }
                 }
 
-                Text("Core stays premium and dark. Scenery is environment-led. Metallic themes use material depth, Dynamic themes use energy treatments, and Fluid themes emphasize water, aurora, and flowing light. Every category now has at least three distinct choices.")
+                Label(sectionDescription, systemImage: sectionIcon)
                     .font(.caption)
                     .foregroundStyle(palette.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 2)
             }
-            .padding(18)
+            .padding(.horizontal, LifeRouteDesign.Layout.pageHorizontal)
+            .padding(.top, 10)
             .padding(.bottom, 30)
         }
         .navigationTitle("Themes")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            selectedCategory = category(for: themeStore.selectedTheme)
+        }
+        .onChange(of: themeStore.selectedTheme) { theme in
+            selectedCategory = category(for: theme)
+        }
     }
 
     private var filteredThemes: [LifeRouteTheme] {
-        LifeRouteTheme.allCases.filter(selectedCategory.matches)
+        switch selectedCategory {
+        case .core:
+            return LifeRouteTheme.phaseOneCoreGlassCatalog
+        case .dynamic:
+            return LifeRouteTheme.phaseTwoDynamicCatalog
+        case .scenery:
+            return sceneryThemes
+        }
     }
 
-    private var selectedThemeHero: some View {
-        ZStack(alignment: .bottomLeading) {
-            LifeRouteCinematicBackdrop(
-                theme: themeStore.selectedTheme,
-                palette: themeStore.selectedTheme.palette
-            )
+    private var sectionTitle: String {
+        switch selectedCategory {
+        case .core: return "Core Glass"
+        case .dynamic: return "Dynamic Liquid Glass"
+        case .scenery: return "Scenery"
+        }
+    }
 
-            LinearGradient(
-                colors: [.clear, Color.black.opacity(0.82)],
-                startPoint: .center,
-                endPoint: .bottom
-            )
+    private var sectionDescription: String {
+        switch selectedCategory {
+        case .core:
+            return "12 still app-wide glass environments with no continuous ambient motion."
+        case .dynamic:
+            return "12 slow, ambient liquid-glass environments. Reduce Motion keeps the selected theme but renders a still equivalent."
+        case .scenery:
+            return "Scenery is retained unchanged until its dedicated Phase 3 renderer."
+        }
+    }
 
-            VStack(alignment: .leading, spacing: 7) {
-                HStack {
-                    Text("CURRENT THEME")
-                        .font(.caption2.weight(.black))
-                        .tracking(1.4)
-                        .foregroundStyle(.white.opacity(0.70))
-                    Spacer()
-                    Label("ACTIVE", systemImage: "checkmark.circle.fill")
-                        .font(.caption2.weight(.black))
-                        .foregroundStyle(themeStore.selectedTheme.palette.accentSecondary)
+    private var sectionIcon: String {
+        switch selectedCategory {
+        case .core: return "sparkles"
+        case .dynamic: return "waveform.path"
+        case .scenery: return "clock.arrow.circlepath"
+        }
+    }
+
+    private func category(for theme: LifeRouteTheme) -> ThemeFilter {
+        if theme.isPhaseOneCoreGlass { return .core }
+        if theme.isPhaseTwoDynamic { return .dynamic }
+        if sceneryThemes.contains(theme) { return .scenery }
+        return .core
+    }
+
+    private var selectedThemeHeader: some View {
+        HStack(spacing: 12) {
+            themePreview(themeStore.selectedTheme)
+                .frame(width: 82, height: 74)
+                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        .stroke(themeStore.selectedTheme.palette.accent.opacity(0.42), lineWidth: 1)
                 }
 
-                Spacer(minLength: 100)
-
+            VStack(alignment: .leading, spacing: 4) {
+                // v0.7.0 official branding Theme Center: retain theme preview, add the fixed navy/gold identity.
+                HStack(spacing: 6) {
+                    LifeRouteBrandMark(variant: .micro)
+                        .frame(width: 19, height: 19)
+                        .accessibilityHidden(true)
+                    Text("ACTIVE THEME")
+                }
+                .font(.caption2.weight(.black))
+                .tracking(0.8)
+                .foregroundStyle(palette.accentSecondary)
                 Text(themeStore.selectedTheme.name)
-                    .font(.system(size: 31, weight: .black, design: .rounded))
-                    .foregroundStyle(.white)
-                Text(themeStore.selectedTheme.cinematicTreatmentLabel)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.78))
+                    .font(.title3.weight(.black))
+                    .foregroundStyle(palette.textPrimary)
+                    .lineLimit(1)
+                HStack(spacing: 5) {
+                    Text(category(for: themeStore.selectedTheme).rawValue)
+                    if themeStore.selectedTheme.isPhaseTwoDynamic {
+                        Image(systemName: "waveform.path")
+                            .accessibilityHidden(true)
+                    }
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(palette.textSecondary)
             }
-            .padding(18)
+
+            Spacer(minLength: 4)
+
+            Image(systemName: "checkmark.circle.fill")
+                .font(.title3.weight(.bold))
+                .foregroundStyle(palette.accent)
+                .accessibilityHidden(true)
         }
-        .frame(height: 245)
-        .clipShape(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous))
+        .padding(12)
+        .background(palette.panel.opacity(0.52), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
-                .stroke(themeStore.selectedTheme.palette.accent.opacity(0.42), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(palette.accent.opacity(0.18), lineWidth: 1)
         }
-        .shadow(color: themeStore.selectedTheme.palette.accent.opacity(0.18), radius: 24, y: 12)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Active theme, \(themeStore.selectedTheme.name), \(category(for: themeStore.selectedTheme).rawValue)")
     }
 
     private var categoryStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(ThemeFilter.allCases) { filter in
-                    Button {
-                        selectedCategory = filter
-                        LifeRouteHaptics.selection()
-                    } label: {
-                        HStack(spacing: 5) {
-                            Text(filter.rawValue)
-                            if filter != .all {
-                                Text("\(LifeRouteTheme.allCases.filter(filter.matches).count)")
-                                    .font(.caption2.weight(.black))
-                                    .opacity(0.72)
-                            }
-                        }
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(selectedCategory == filter ? Color.black.opacity(0.82) : palette.textPrimary)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 9)
-                        .background(
-                            selectedCategory == filter ? palette.accent : palette.panelElevated.opacity(0.72),
-                            in: Capsule()
-                        )
-                        .overlay {
-                            Capsule()
-                                .stroke(palette.accent.opacity(selectedCategory == filter ? 0 : 0.22), lineWidth: 1)
-                        }
-                    }
-                    .buttonStyle(.plain)
+        HStack(spacing: 7) {
+            ForEach(ThemeFilter.allCases) { filter in
+                Button {
+                    selectedCategory = filter
+                    LifeRouteHaptics.selection()
+                } label: {
+                    LifeRoutePill(title: filter.rawValue, isSelected: selectedCategory == filter)
+                        .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.plain)
+                .frame(minHeight: LifeRouteDesign.Layout.minimumTouchTarget)
+                .accessibilityLabel("\(filter.rawValue) themes")
+                .accessibilityValue(selectedCategory == filter ? "Selected" : "Not selected")
             }
         }
     }
 
     private func themeCard(_ theme: LifeRouteTheme) -> some View {
-        Button {
+        let selected = themeStore.selectedTheme == theme
+        let coreGlass = theme.isPhaseOneCoreGlass
+        let dynamicGlass = theme.isPhaseTwoDynamic
+
+        return Button {
             themeStore.selectedTheme = theme
             LifeRouteHaptics.success()
         } label: {
-            ZStack(alignment: .topTrailing) {
-                LifeRouteCinematicThemeThumbnail(theme: theme)
-                    .frame(height: 165)
+            VStack(alignment: .leading, spacing: 8) {
+                ZStack(alignment: .topTrailing) {
+                    themePreview(theme)
+                        .frame(height: 78)
+                        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
 
-                if themeStore.selectedTheme == theme {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 22, weight: .black))
-                        .foregroundStyle(theme.palette.accentSecondary)
-                        .padding(10)
-                        .shadow(color: .black.opacity(0.55), radius: 5)
+                    if coreGlass || dynamicGlass {
+                        HStack(spacing: 4) {
+                            if dynamicGlass {
+                                Image(systemName: "waveform.path")
+                                    .font(.system(size: 8, weight: .black))
+                            }
+                            Text(dynamicGlass ? "LIVE" : "STILL")
+                                .font(.system(size: 8, weight: .black))
+                                .tracking(0.7)
+                        }
+                        .foregroundStyle(.white.opacity(0.86))
+                        .padding(.horizontal, 6)
+                        .frame(minHeight: 22)
+                        .background(Color.black.opacity(0.30), in: Capsule())
+                        .padding(7)
+                    }
+
+                    if selected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.headline.weight(.black))
+                            .foregroundStyle(theme.palette.accentSecondary)
+                            .padding(8)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    }
                 }
+
+                Text(theme.name)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(palette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+
+                Text(coreGlass ? "CORE GLASS" : (dynamicGlass ? "DYNAMIC GLASS" : "SCENERY"))
+                    .font(.caption2.weight(.black))
+                    .tracking(0.5)
+                    .foregroundStyle(selected ? palette.accentSecondary : palette.textSecondary)
             }
+            .padding(9)
+            .background(selected ? palette.panelElevated.opacity(0.56) : palette.panel.opacity(0.42), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(
-                        themeStore.selectedTheme == theme ? theme.palette.accentSecondary : Color.white.opacity(0.08),
-                        lineWidth: themeStore.selectedTheme == theme ? 2 : 1
-                    )
+                    .stroke(selected ? palette.accent.opacity(0.72) : Color.white.opacity(0.07), lineWidth: selected ? 2 : 1)
             }
-            .shadow(color: theme.palette.accent.opacity(0.10), radius: 12, y: 7)
         }
         .buttonStyle(.plain)
+        .frame(minHeight: 132)
         .accessibilityLabel("Use \(theme.name) theme")
-        .accessibilityValue(themeStore.selectedTheme == theme ? "Selected" : "Not selected")
+        .accessibilityValue(selected ? "Selected" : (dynamicGlass ? "Animated theme" : "Not selected"))
+    }
+
+    @ViewBuilder
+    private func themePreview(_ theme: LifeRouteTheme) -> some View {
+        if theme.isPhaseOneCoreGlass {
+            LifeRouteCoreGlassEnvironment(theme: theme, palette: theme.palette)
+        } else if theme.isPhaseTwoDynamic {
+            // Static representative snapshot only: the grid never starts 12 competing timelines.
+            LifeRouteDynamicGlassFrame(
+                theme: theme,
+                palette: theme.palette,
+                phase: theme.dynamicPreviewPhase
+            )
+        } else {
+            ZStack {
+                theme.palette.backgroundGradient
+                LifeRouteThemeArtwork(theme: theme, palette: theme.palette, compact: true)
+            }
+        }
+    }
+}
+
+private extension LifeRouteTheme {
+    var dynamicPreviewPhase: Double {
+        switch self {
+        case .royalCurrent: return 0.7
+        case .midnightPrism: return 1.4
+        case .auroraBloom: return 2.1
+        case .solarPulse: return 0.2
+        case .emeraldFlow: return 1.8
+        case .arcticHalo: return 2.7
+        case .oceanGlass: return 1.1
+        case .roseEmber: return 2.4
+        case .obsidianSpectra: return 0.9
+        case .plasmaOrchid: return 1.6
+        case .verdantMist: return 2.9
+        case .titaniumGlow: return 0.4
+        default: return 0.8
+        }
     }
 }

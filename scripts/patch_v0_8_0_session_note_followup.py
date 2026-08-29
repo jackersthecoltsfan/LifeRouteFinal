@@ -386,11 +386,23 @@ core = replace_once(
     '''            prompt: prompt
         )
 
-        guard !sessionNoteNeedsMasterABARepair(repairedDraft) else {''',
+        guard !sessionNoteNeedsMasterABARepair(repairedDraft) else {
+            throw LifeRouteIntelligenceError.generationFailed(
+                "LifeRoute could not produce a clean Master ABA session note from this generation. Please regenerate from the same session facts."
+            )
+        }
+        return repairedDraft''',
     '''            prompt: prompt
         ))
 
-        guard !sessionNoteNeedsMasterABARepair(repairedDraft) else {''',
+        // v0.8.1 session-note repair: preserve a usable sanitized note when the bounded repair pass is substantively good.
+        let cleanedRepairedDraft = sanitizedSessionNoteDraft(repairedDraft)
+        guard !cleanedRepairedDraft.isEmpty else {
+            throw LifeRouteIntelligenceError.generationFailed(
+                "LifeRoute could not produce a clean Master ABA session note from this generation. Please regenerate from the same session facts."
+            )
+        }
+        return cleanedRepairedDraft''',
     "repair-draft sanitizer closing",
 )
 
@@ -481,11 +493,47 @@ helpers = r'''    private static func recognizeSessionNoteScreenshots(_ imageDat
     }
 
     private static func sanitizedSessionNoteDraft(_ draft: String) -> String {
-        draft.replacingOccurrences(
+        let nameScrubbed = draft.replacingOccurrences(
             of: "Brandon Good",
             with: "the RBT",
             options: [.caseInsensitive]
         )
+
+        let headingPrefixes = [
+            "session narrative note",
+            "date:",
+            "location:",
+            "participants:",
+            "setting:",
+            "session overview:",
+            "behavior data:",
+            "generalization:",
+            "assessment:",
+            "plan:",
+            "conclusion:",
+        ]
+
+        let cleanedLines = nameScrubbed
+            .split(whereSeparator: \.isNewline)
+            .compactMap { rawLine -> String? in
+                var line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+                while let first = line.first, "•-*–—".contains(first) {
+                    line.removeFirst()
+                    line = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                guard !line.isEmpty else { return nil }
+
+                let lower = line.lowercased()
+                if headingPrefixes.contains(where: { lower == $0 || lower.hasPrefix($0) }) {
+                    return nil
+                }
+                return line
+            }
+
+        return cleanedLines
+            .joined(separator: "\n")
+            .replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
 '''

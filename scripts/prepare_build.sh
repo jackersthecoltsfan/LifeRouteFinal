@@ -11,4 +11,4 @@ test -f LifeRouteLiveActivityWidget/LiveDayLiveActivityWidget.swift
 
 bash scripts/validate_fast.sh
 
-echo "Prepared canonical LifeRoute v0.8.2 source."
+echo "Prepared canonical LifeRoute v0.8.3 source."

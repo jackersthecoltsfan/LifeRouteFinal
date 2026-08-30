@@ -432,6 +432,32 @@ struct AISessionNoteGeneratorView: View {
             .padding(.horizontal, 11)
             .frame(minHeight: 34)
             .background(palette.panelElevated.opacity(0.34), in: Capsule())
+
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.body.weight(.bold))
+                    .foregroundStyle(palette.accentSecondary)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Experimental AI Tool")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    Text("AI-generated Session Notes may be incomplete or inaccurate. Review and edit every note before use. Do not rely on this tool as final clinical documentation.")
+                        .font(.subheadline)
+                        .foregroundStyle(palette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(palette.accentSecondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(palette.accentSecondary.opacity(0.32), lineWidth: 1)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Experimental AI Tool. AI-generated Session Notes may be incomplete or inaccurate. Review and edit every note before use. Do not rely on this tool as final clinical documentation.")
         }
         .padding(12)
         .background(palette.panel.opacity(0.58), in: RoundedRectangle(cornerRadius: 17, style: .continuous))

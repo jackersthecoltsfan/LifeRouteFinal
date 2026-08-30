@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 python3 scripts/validate_current.py full
+bash scripts/run_day_route_contract_tests.sh
 bash scripts/run_session_note_contract_tests.sh
 
 echo "LifeRoute full validation complete."

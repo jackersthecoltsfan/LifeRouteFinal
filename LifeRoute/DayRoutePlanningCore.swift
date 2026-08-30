@@ -41,27 +41,6 @@ enum LifeRouteNavigationApp: String, CaseIterable, Identifiable {
     }
 }
 
-struct LifeRouteDayStop: Identifiable, Hashable {
-    enum Position: String, CaseIterable, Identifiable {
-        case before = "Before appointment"
-        case after = "After appointment"
-
-        var id: String { rawValue }
-    }
-
-    let id: UUID
-    var title: String
-    var address: String
-    var position: Position
-
-    init(id: UUID = UUID(), title: String, address: String, position: Position) {
-        self.id = id
-        self.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.address = address.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.position = position
-    }
-}
-
 struct LifeRouteDayRouteLeg: Identifiable, Hashable {
     let id: UUID
     let sequence: Int
@@ -96,7 +75,7 @@ enum DayRoutePlanningError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingDestination:
-            return "Choose a calendar event with a location before building the route."
+            return "Add at least one calendar event with a location before building the route."
         case .missingOrigin:
             return "Start live location or save a home address before building the route."
         case .locationNotFound(let value):
@@ -118,8 +97,7 @@ final class DayRoutePlanningCore: ObservableObject {
     private var calculationTask: Task<Void, Never>?
 
     func calculate(
-        eventTitle: String,
-        eventAddress: String,
+        appointments: [LifeRouteRouteAppointment],
         beforeStops: [LifeRouteDayStop],
         afterStops: [LifeRouteDayStop],
         returnHome: Bool,
@@ -136,8 +114,7 @@ final class DayRoutePlanningCore: ObservableObject {
             guard let self else { return }
             do {
                 let built = try await Self.buildLegs(
-                    eventTitle: eventTitle,
-                    eventAddress: eventAddress,
+                    appointments: appointments,
                     beforeStops: beforeStops,
                     afterStops: afterStops,
                     returnHome: returnHome,
@@ -243,8 +220,7 @@ final class DayRoutePlanningCore: ObservableObject {
     }
 
     private static func buildLegs(
-        eventTitle: String,
-        eventAddress: String,
+        appointments: [LifeRouteRouteAppointment],
         beforeStops: [LifeRouteDayStop],
         afterStops: [LifeRouteDayStop],
         returnHome: Bool,
@@ -252,8 +228,14 @@ final class DayRoutePlanningCore: ObservableObject {
         currentLocation: CLLocation?,
         mode: LifeRouteTransportMode
     ) async throws -> [LifeRouteDayRouteLeg] {
-        let cleanEventAddress = eventAddress.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanEventAddress.isEmpty else { throw DayRoutePlanningError.missingDestination }
+        let plannedWaypoints = LifeRouteDaySequenceBuilder.waypoints(
+            appointments: appointments.filter { !$0.address.isEmpty },
+            beforeStops: beforeStops,
+            afterStops: afterStops
+        )
+        guard !plannedWaypoints.isEmpty else {
+            throw DayRoutePlanningError.missingDestination
+        }
 
         var waypoints: [(title: String, address: String, item: MKMapItem)] = []
 
@@ -267,16 +249,14 @@ final class DayRoutePlanningCore: ObservableObject {
             waypoints.append(("Home", cleanHome, try await mapItem(for: cleanHome, fallbackName: "Home")))
         }
 
-        for stop in beforeStops {
-            guard !stop.address.isEmpty else { continue }
-            waypoints.append((stop.title.isEmpty ? "Stop" : stop.title, stop.address, try await mapItem(for: stop.address, fallbackName: stop.title)))
-        }
-
-        waypoints.append((eventTitle.isEmpty ? "Appointment" : eventTitle, cleanEventAddress, try await mapItem(for: cleanEventAddress, fallbackName: eventTitle)))
-
-        for stop in afterStops {
-            guard !stop.address.isEmpty else { continue }
-            waypoints.append((stop.title.isEmpty ? "Stop" : stop.title, stop.address, try await mapItem(for: stop.address, fallbackName: stop.title)))
+        for waypoint in plannedWaypoints {
+            waypoints.append(
+                (
+                    waypoint.title,
+                    waypoint.address,
+                    try await mapItem(for: waypoint.address, fallbackName: waypoint.title)
+                )
+            )
         }
 
         if returnHome {

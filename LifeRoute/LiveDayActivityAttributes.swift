@@ -10,6 +10,7 @@ struct LifeRouteLiveDayAttributes: ActivityAttributes {
         var eventStart: Date
         var eventEnd: Date
         var routeSummary: String
+        var plannedStopSummary: String?
         var returnHomePlanned: Bool
     }
 

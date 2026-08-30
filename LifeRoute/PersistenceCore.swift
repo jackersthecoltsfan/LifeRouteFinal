@@ -12,8 +12,9 @@ struct RestoredRoutingPersistenceState {
     var homeAddress: String
     var savedPlaces: [LifeRouteSavedPlace]
     var todos: [LifeRouteTodo]
+    var dayStops: [LifeRouteDayStop]
 
-    static let empty = RestoredRoutingPersistenceState(homeAddress: "", savedPlaces: [], todos: [])
+    static let empty = RestoredRoutingPersistenceState(homeAddress: "", savedPlaces: [], todos: [], dayStops: [])
 }
 
 @MainActor
@@ -128,11 +129,12 @@ final class LifeRoutePersistenceStore {
         var homeAddress: String
         var savedPlaces: [LifeRouteSavedPlace]
         var todos: [LifeRouteTodo]
+        var dayStops: [LifeRouteDayStop]
         var manualCalendarEvents: [LifeRouteCalendarEvent]
         var providerCalendarEvents: [LifeRouteCalendarEvent]
 
         init(
-            schemaVersion: Int = 4,
+            schemaVersion: Int = 5,
             clients: [LifeRouteClientProfile] = [],
             visualIcons: [PersistedVisualIcon] = [],
             choiceBoards: [PersistedChoiceBoard] = [],
@@ -140,6 +142,7 @@ final class LifeRoutePersistenceStore {
             homeAddress: String = "",
             savedPlaces: [LifeRouteSavedPlace] = [],
             todos: [LifeRouteTodo] = [],
+            dayStops: [LifeRouteDayStop] = [],
             manualCalendarEvents: [LifeRouteCalendarEvent] = [],
             providerCalendarEvents: [LifeRouteCalendarEvent] = []
         ) {
@@ -151,6 +154,7 @@ final class LifeRoutePersistenceStore {
             self.homeAddress = homeAddress
             self.savedPlaces = savedPlaces
             self.todos = todos
+            self.dayStops = dayStops
             self.manualCalendarEvents = manualCalendarEvents
             self.providerCalendarEvents = providerCalendarEvents
         }
@@ -164,6 +168,7 @@ final class LifeRoutePersistenceStore {
             case homeAddress
             case savedPlaces
             case todos
+            case dayStops
             case manualCalendarEvents
             case providerCalendarEvents
         }
@@ -178,6 +183,7 @@ final class LifeRoutePersistenceStore {
             homeAddress = try container.decodeIfPresent(String.self, forKey: .homeAddress) ?? ""
             savedPlaces = try container.decodeIfPresent([LifeRouteSavedPlace].self, forKey: .savedPlaces) ?? []
             todos = try container.decodeIfPresent([LifeRouteTodo].self, forKey: .todos) ?? []
+            dayStops = try container.decodeIfPresent([LifeRouteDayStop].self, forKey: .dayStops) ?? []
             manualCalendarEvents = try container.decodeIfPresent([LifeRouteCalendarEvent].self, forKey: .manualCalendarEvents) ?? []
             providerCalendarEvents = try container.decodeIfPresent([LifeRouteCalendarEvent].self, forKey: .providerCalendarEvents) ?? []
         }
@@ -429,7 +435,8 @@ final class LifeRoutePersistenceStore {
         return RestoredRoutingPersistenceState(
             homeAddress: state.homeAddress,
             savedPlaces: state.savedPlaces,
-            todos: state.todos
+            todos: state.todos,
+            dayStops: state.dayStops
         )
     }
 
@@ -439,10 +446,25 @@ final class LifeRoutePersistenceStore {
     }
 
     func saveRoutingState(homeAddress: String, savedPlaces: [LifeRouteSavedPlace], todos: [LifeRouteTodo]) {
+        saveRoutingState(
+            homeAddress: homeAddress,
+            savedPlaces: savedPlaces,
+            todos: todos,
+            dayStops: state.dayStops
+        )
+    }
+
+    func saveRoutingState(
+        homeAddress: String,
+        savedPlaces: [LifeRouteSavedPlace],
+        todos: [LifeRouteTodo],
+        dayStops: [LifeRouteDayStop]
+    ) {
         var next = state
         next.homeAddress = homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         next.savedPlaces = Self.sanitizedSavedPlaces(savedPlaces)
         next.todos = todos
+        next.dayStops = LifeRouteDayStopCollection.sanitized(dayStops)
         state = Self.sanitized(next)
         persist()
     }
@@ -557,11 +579,12 @@ final class LifeRoutePersistenceStore {
         let savedPlaces = sanitizedSavedPlaces(input.savedPlaces)
         let savedPlaceIDs = Set(savedPlaces.map(\.id))
         let todos = sanitizedTodos(input.todos, savedPlaceIDs: savedPlaceIDs)
+        let dayStops = LifeRouteDayStopCollection.sanitized(input.dayStops)
         let manualCalendarEvents = sanitizedManualCalendarEvents(input.manualCalendarEvents)
         let providerCalendarEvents = sanitizedProviderCalendarEvents(input.providerCalendarEvents)
 
         return NativeState(
-            schemaVersion: max(4, input.schemaVersion),
+            schemaVersion: max(5, input.schemaVersion),
             clients: clients,
             visualIcons: icons,
             choiceBoards: boards,
@@ -569,6 +592,7 @@ final class LifeRoutePersistenceStore {
             homeAddress: homeAddress,
             savedPlaces: savedPlaces,
             todos: todos,
+            dayStops: dayStops,
             manualCalendarEvents: manualCalendarEvents,
             providerCalendarEvents: providerCalendarEvents
         )

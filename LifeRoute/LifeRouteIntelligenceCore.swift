@@ -103,70 +103,6 @@ enum LifeRouteIntelligenceCore {
         }
     }
 
-    private static func formattedSessionNoteScreenshotEvidence(_ recognizedScreenshots: [String]) -> String {
-        let blocks = recognizedScreenshots.prefix(6).enumerated().map { screenshotIndex, recognized in
-            let compactLines = recognized
-                .split(whereSeparator: \.isNewline)
-                .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-
-            var taggedLines: [String] = []
-            var lineIndex = 0
-            while lineIndex < compactLines.count, taggedLines.count < 12 {
-                var line = String(compactLines[lineIndex].prefix(180))
-                let tags = sessionNoteEvidenceTags(for: line)
-                if !line.contains(where: \.isNumber),
-                   tags != ["AMBIGUOUS OCR"],
-                   compactLines.indices.contains(lineIndex + 1),
-                   compactLines[lineIndex + 1].contains(where: \.isNumber) {
-                    line += " " + String(compactLines[lineIndex + 1].prefix(80))
-                    lineIndex += 1
-                }
-                taggedLines.append("[\(tags.joined(separator: ", "))] \(line)")
-                lineIndex += 1
-            }
-
-            let body = taggedLines.isEmpty ? "No clear OCR text." : taggedLines.joined(separator: "\n")
-            return "SCREENSHOT \(screenshotIndex + 1):\n\(String(body.prefix(400)))"
-        }
-        return String(blocks.joined(separator: "\n\n").prefix(2_800))
-    }
-
-    private static func sessionNoteEvidenceTags(for line: String) -> [String] {
-        let lower = line.lowercased()
-        func matches(_ pattern: String) -> Bool {
-            lower.range(of: pattern, options: .regularExpression) != nil
-        }
-
-        var tags: [String] = []
-        if matches(#"\b(latency|time to respond|response time|time to begin|initiation delay)\b"#) {
-            tags.append("LATENCY")
-        }
-        if matches(#"\b(rate|per minute|per hour|per session)\b|/(min|hr)\b"#) {
-            tags.append("RATE")
-        }
-        if matches(#"\b(trials?|opportunities|correct out of)\b|\b\d+\s*/\s*\d+\b"#) {
-            tags.append("TRIAL-BASED")
-        }
-        if lower.contains("%") || matches(#"\b(percent|percentage|accuracy)\b"#) {
-            tags.append("PERCENTAGE")
-        }
-        if matches(#"\b(frequency|count|occurrences?|instances?|events?)\b"#) {
-            tags.append("FREQUENCY/COUNT")
-        }
-        if matches(#"\bduration\b"#) || (
-            tags.contains("LATENCY") == false &&
-            tags.contains("RATE") == false &&
-            matches(#"\b\d+(\.\d+)?\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?)\b"#)
-        ) {
-            tags.append("DURATION")
-        }
-        if matches(#"\b(independent|independently|prompted|prompting|verbal prompt|gestural prompt|visual prompt|model prompt|partial physical|full physical)\b"#) {
-            tags.append("INDEPENDENT/PROMPTED")
-        }
-        return tags.isEmpty ? ["AMBIGUOUS OCR"] : tags
-    }
-
     static func generateABASessionNote(
         narrative: String,
         screenshotDataItems: [Data],
@@ -175,14 +111,18 @@ enum LifeRouteIntelligenceCore {
     ) async throws -> String {
         let cleanNarrative = narrative.trimmingCharacters(in: .whitespacesAndNewlines)
         let recognizedScreenshots = await recognizeSessionNoteScreenshots(screenshotDataItems)
+        let structuredMeasurements = SessionNoteOCRMeasurementExtractor.extract(
+            from: recognizedScreenshots
+        )
 
-        guard !cleanNarrative.isEmpty || recognizedScreenshots.contains(where: { !$0.isEmpty }) else {
+        guard !cleanNarrative.isEmpty || !structuredMeasurements.isEmpty else {
             throw LifeRouteIntelligenceError.emptyInput
         }
 
         let packet = SessionNoteEvidencePacket.make(
             typedFacts: cleanNarrative,
-            ocrEvidence: formattedSessionNoteScreenshotEvidence(recognizedScreenshots),
+            ocrEvidence: "",
+            structuredMeasurements: structuredMeasurements,
             savedTerminologyContext: compactSessionNoteClientContext(client),
             profileCode: client?.code
         )
@@ -253,15 +193,15 @@ enum LifeRouteIntelligenceCore {
     }
 
     private static let sessionNoteDraftInstructions = """
-    Draft one editable ABA session note from the supplied evidence only. Write objective, person-first, third-person, chronological natural prose in generally 2–4 cohesive paragraphs without padding sparse facts. Use role identifiers only: the client, RBT, LBS, BCBA, BHT, and caregiver relationship roles. Preserve every supplied measurement type, unit, numeric value, prompt level, attribution, intervention, reinforcement, and observable response exactly. Include a behavior of concern only when evidence says it occurred; never infer function, intent, emotion, cause, progress, training, supervision, or treatment changes. Say “behaviors of concern.” End with a factual participation/response summary and that the RBT will continue implementing the established treatment plan during future sessions. Return narrative paragraphs only—no title, headings, lists, markdown, data section, template language, disclaimer, or commentary.
+    Reconstruct one editable professional ABA session note from the supplied evidence only. Treat SESSION FACTS as rough factual source material, not prose to preserve: substantially rewrite fragments, dictated wording, and shorthand into objective, person-first, third-person, chronological clinical prose with clear sentence structure and generally 2–4 cohesive paragraphs. Integrate every CLEAR CURRENT-SESSION MEASUREMENT exactly once in natural context, preserving its target association, measurement type, unit, numeric value, prompt level, and attribution. Never use or mention administrative screenshot content. Use role identifiers only: the client, RBT, LBS, BCBA, BHT, and caregiver relationship roles. Preserve every supplied intervention, reinforcement, and observable response without adding events. Include a behavior of concern only when evidence says it occurred; never infer function, intent, emotion, cause, progress, training, supervision, treatment changes, or causal relationships. Say “behaviors of concern.” End with a factual participation/response summary and that the RBT will continue implementing the established treatment plan during future sessions. Return narrative paragraphs only—no title, headings, lists, markdown, data section, template language, disclaimer, or commentary.
     """
 
     private static let sessionNoteCompactDraftInstructions = """
-    Write an objective third-person ABA session note from evidence only, in 2–4 natural chronological paragraphs. Use roles only, preserve exact data and prompting, retain caregiver attribution, never infer or add clinical facts, say “behaviors of concern,” and close with supplied participation plus continued implementation of the established treatment plan. Return plain narrative only.
+    Reconstruct an objective third-person professional ABA session note from evidence only in 2–4 natural chronological paragraphs. Substantially rewrite rough source fragments instead of copying their wording. Integrate every clear structured measurement with its exact target, type, value, unit, and prompting. Exclude administrative screenshot content, use roles only, retain caregiver attribution, never infer or add clinical facts, say “behaviors of concern,” and close with supplied participation plus continued implementation of the established treatment plan. Return plain narrative only.
     """
 
     private static let sessionNoteRepairInstructions = """
-    Re-create the ABA session note from the original evidence and correct only the listed validation issues. Use role-only identity, objective third-person chronological prose, exact supplied measurement types and prompt levels, attributed caregiver reports, and “behaviors of concern.” Do not add, infer, or reinterpret facts. Return only 2–4 cohesive plain-text narrative paragraphs with the required factual participation summary and established-treatment-plan continuation.
+    Re-create the professional ABA session note from the original evidence and correct only the listed validation issues. Substantially reconstruct rough source wording, integrate every clear structured measurement with its exact supplied target, type, value, unit, and prompt level, and exclude administrative screenshot content. Use role-only identity, objective third-person chronological prose, attributed caregiver reports, and “behaviors of concern.” Do not add, infer, or reinterpret facts. Return only 2–4 cohesive plain-text narrative paragraphs with the required factual participation summary and established-treatment-plan continuation.
     """
 
     private static func requestSessionNoteDraft(

@@ -1,6 +1,39 @@
 # LifeRoute current engineering handoff
 
-## Active workstream — v0.8.2 physical-QA corrections
+## Active workstream — v0.8.2 Session Note validation severity
+
+- Branch: `fix/v0.8.2-session-note-validator-severity`
+- PR: #112, `Fix Session Note validation severity architecture`
+- Exact base: `f02a144134c696a1364049b7e57e9dde91c15322`
+- Validated code head: `25d1e6ae4840c191573d40789fd00ec0d6141b9b`
+- Do not merge or dispatch TestFlight without product-owner authorization.
+
+The former flat Session Note issue list is now a typed deterministic contract
+with hard blockers, deterministic repairs, and nonfatal quality warnings.
+Identity leakage, unsupported numeric/measurement/prompt data, context-only
+events, inferred clinical claims, treatment changes, and invented supervisor
+involvement remain hard blockers. Markdown, headings, lists, punctuation,
+paragraph layout, unambiguous role terminology, and the approved continuation
+close are normalized without an AI retry. Repetition and other benign prose
+quality differences cannot cause terminal rejection.
+
+The pipeline still permits at most one bounded Foundation Models repair. If a
+hard blocker survives, a conservative fallback may return scrubbed typed facts
+with the standard close when sufficient current-session evidence exists; saved
+client context and OCR alone cannot manufacture fallback events. DEBUG logging
+contains issue/repair codes and outcomes only. Terminal errors expose a safe
+Identity, Evidence, or Clinical claim verification category without clinical
+content.
+
+PR-head CI run `33286466908` passed semantic validation (104 executable Session
+Note assertions), Debug and Release app/extension builds, Simulator smoke, and
+the compiler-warning budget (0 unexpected warnings). Policy run `33286466975`
+also passed. Physical iPhone Foundation Models/OCR validation remains required;
+recommended cases are safe paraphrases, mixed screenshot measurements,
+supervisor guidance, formatting-heavy output, one-repair fallback, and a true
+unsupported-data rejection with privacy-safe diagnostics.
+
+## Previous workstream — v0.8.2 physical-QA corrections
 
 - Branch: `fix/v0.8.2-physical-qa-corrections`
 - Exact canonical base: `ab99e3eb421875e1a1d8b2a8d9191a8c5ab977a5`

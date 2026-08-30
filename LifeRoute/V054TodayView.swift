@@ -168,6 +168,25 @@ struct V054TodayView: View {
         calendarState.events(on: selectedDay).sorted { $0.start < $1.start }
     }
 
+    private var selectedDayStops: [LifeRouteDayStop] {
+        routingState.dayStops(on: selectedDay)
+    }
+
+    private var selectedDayPlanWaypoints: [LifeRouteDayWaypoint] {
+        LifeRouteDaySequenceBuilder.waypoints(
+            appointments: selectedDayEvents.map {
+                LifeRouteRouteAppointment(
+                    id: $0.id,
+                    title: $0.title,
+                    address: $0.location,
+                    start: $0.start
+                )
+            },
+            beforeStops: selectedDayStops.filter { $0.position == .before },
+            afterStops: selectedDayStops.filter { $0.position == .after }
+        )
+    }
+
     private var nextEvent: LifeRouteCalendarEvent? {
         Calendar.current.isDateInToday(selectedDay)
             ? selectedDayEvents.first { $0.end > Date() }
@@ -893,12 +912,15 @@ struct V054TodayView: View {
                     liveSummary(now: context.date)
                 }
 
+                liveDaySequence
+
                 HStack(spacing: 9) {
                     Button {
                         LifeRouteHaptics.primaryAction()
                         Task {
                             await liveActivity.update(
                                 events: selectedDayEvents,
+                                dayStops: selectedDayStops,
                                 savedPlaces: routingState.savedPlaces,
                                 routeEstimates: routingState.routeEstimates,
                                 returnHomePlanned: returnHomeOnLiveDay
@@ -925,6 +947,7 @@ struct V054TodayView: View {
                     Task {
                         await liveActivity.start(
                             events: selectedDayEvents,
+                            dayStops: selectedDayStops,
                             savedPlaces: routingState.savedPlaces,
                             routeEstimates: routingState.routeEstimates,
                             returnHomePlanned: returnHomeOnLiveDay,
@@ -944,6 +967,48 @@ struct V054TodayView: View {
             }
         }
         .modifier(LifeRouteTodayGlassCardModifier())
+    }
+
+    private var liveDaySequence: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text("GENERATED DAY")
+                    .font(.caption2.weight(.black))
+                    .tracking(0.8)
+                    .foregroundStyle(palette.accent)
+                Spacer()
+                if !selectedDayStops.isEmpty {
+                    Text("\(selectedDayStops.count) SAVED STOP\(selectedDayStops.count == 1 ? "" : "S")")
+                        .font(.caption2.weight(.black))
+                        .foregroundStyle(palette.accentSecondary)
+                }
+            }
+
+            ForEach(selectedDayPlanWaypoints) { waypoint in
+                HStack(spacing: 9) {
+                    Image(systemName: waypoint.kind == .stop ? "mappin.and.ellipse" : "calendar")
+                        .foregroundStyle(waypoint.kind == .stop ? palette.accentSecondary : palette.accent)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(waypoint.title)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(palette.textPrimary)
+                        Text(waypoint.address.isEmpty ? "No location" : waypoint.address)
+                            .font(.caption2)
+                            .foregroundStyle(palette.textSecondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                    Text(waypoint.kind == .stop ? "STOP" : "EVENT")
+                        .font(.caption2.weight(.black))
+                        .foregroundStyle(palette.textSecondary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(palette.panelElevated.opacity(0.28), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .accessibilityElement(children: .combine)
+            }
+        }
     }
 
     @ViewBuilder

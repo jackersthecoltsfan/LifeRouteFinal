@@ -2,12 +2,12 @@
 
 ## Authority
 
-LifeRoute v0.8.2 shipping source is checked in directly under `LifeRoute/`,
+LifeRoute v0.8.3 shipping source is checked in directly under `LifeRoute/`,
 `LifeRouteLiveActivityWidget/`, and `LifeRoute.xcodeproj/`. A normal checkout is
 the product tree; no release replay or source mutation is required.
 
 `MARKETING_VERSION` is owned by the app and extension build configurations in
-the Xcode project and is synchronized at `0.8.1`. `CURRENT_PROJECT_VERSION` is
+the Xcode project and is synchronized at `0.8.3`. `CURRENT_PROJECT_VERSION` is
 the synchronized source development build. The separately authorized
 TestFlight workflow overrides the build number with its run number for both
 targets.

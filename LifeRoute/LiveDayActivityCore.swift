@@ -18,6 +18,7 @@ final class LiveDayActivityCore: ObservableObject {
 
     func start(
         events: [LifeRouteCalendarEvent],
+        dayStops: [LifeRouteDayStop],
         savedPlaces: [LifeRouteSavedPlace],
         routeEstimates: [UUID: LifeRouteRouteEstimate],
         returnHomePlanned: Bool,
@@ -33,6 +34,7 @@ final class LiveDayActivityCore: ObservableObject {
         }
         guard let state = Self.contentState(
             events: events,
+            dayStops: dayStops,
             savedPlaces: savedPlaces,
             routeEstimates: routeEstimates,
             returnHomePlanned: returnHomePlanned,
@@ -74,6 +76,7 @@ final class LiveDayActivityCore: ObservableObject {
 
     func update(
         events: [LifeRouteCalendarEvent],
+        dayStops: [LifeRouteDayStop],
         savedPlaces: [LifeRouteSavedPlace],
         routeEstimates: [UUID: LifeRouteRouteEstimate],
         returnHomePlanned: Bool
@@ -82,6 +85,7 @@ final class LiveDayActivityCore: ObservableObject {
         guard let activity = matchingActivity(),
               let state = Self.contentState(
                 events: events,
+                dayStops: dayStops,
                 savedPlaces: savedPlaces,
                 routeEstimates: routeEstimates,
                 returnHomePlanned: returnHomePlanned,
@@ -122,6 +126,7 @@ final class LiveDayActivityCore: ObservableObject {
 
     private static func contentState(
         events: [LifeRouteCalendarEvent],
+        dayStops: [LifeRouteDayStop],
         savedPlaces: [LifeRouteSavedPlace],
         routeEstimates: [UUID: LifeRouteRouteEstimate],
         returnHomePlanned: Bool,
@@ -171,8 +176,17 @@ final class LiveDayActivityCore: ObservableObject {
             eventStart: event.start,
             eventEnd: event.end,
             routeSummary: routeSummary,
+            plannedStopSummary: plannedStopSummary(for: dayStops),
             returnHomePlanned: returnHomePlanned
         )
+    }
+
+    private static func plannedStopSummary(for dayStops: [LifeRouteDayStop]) -> String? {
+        let stops = LifeRouteDayStopCollection.sanitized(dayStops)
+        guard !stops.isEmpty else { return nil }
+        let names = stops.prefix(2).map(\.title).joined(separator: " · ")
+        let remaining = stops.count - min(stops.count, 2)
+        return remaining > 0 ? "Stops: \(names) +\(remaining)" : "Stops: \(names)"
     }
 
     private static func matchingEstimate(

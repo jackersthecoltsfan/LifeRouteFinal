@@ -65,11 +65,17 @@ struct LifeRouteLiveDayWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack(spacing: 10) {
-                        Label(context.state.routeSummary, systemImage: "car.fill")
-                        Spacer()
-                        if context.state.returnHomePlanned {
-                            Label("Home after", systemImage: "house.fill")
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 10) {
+                            Label(context.state.routeSummary, systemImage: "car.fill")
+                            Spacer()
+                            if context.state.returnHomePlanned {
+                                Label("Home after", systemImage: "house.fill")
+                            }
+                        }
+                        if let stops = context.state.plannedStopSummary {
+                            Label(stops, systemImage: "mappin.and.ellipse")
+                                .lineLimit(1)
                         }
                     }
                     .font(.caption)
@@ -142,6 +148,13 @@ private struct LockScreenLiveDayView: View {
             }
             .font(.caption2)
             .foregroundStyle(.secondary)
+
+            if let stops = context.state.plannedStopSummary {
+                Label(stops, systemImage: "mappin.and.ellipse")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 13)

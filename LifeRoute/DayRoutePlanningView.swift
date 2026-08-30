@@ -9,10 +9,8 @@ struct DayRoutePlanningView: View {
     @StateObject private var planState = DayRoutePlanningCore()
     @StateObject private var stopAutocomplete = LifeRouteAddressAutocomplete()
 
-    @State private var selectedEventID = ""
     @State private var routeMode: LifeRouteTransportMode = .driving
     @State private var returnHome = true
-    @State private var stops: [LifeRouteDayStop] = []
     @State private var stopTitle = ""
     @State private var stopAddress = ""
     @State private var stopPosition: LifeRouteDayStop.Position = .before
@@ -35,11 +33,6 @@ struct DayRoutePlanningView: View {
         }
         .navigationTitle("Day Route")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            if selectedEventID.isEmpty {
-                selectedEventID = dayEvents.first?.id ?? ""
-            }
-        }
     }
 
     private var dayEvents: [LifeRouteCalendarEvent] {
@@ -48,8 +41,8 @@ struct DayRoutePlanningView: View {
             .sorted { $0.start < $1.start }
     }
 
-    private var selectedEvent: LifeRouteCalendarEvent? {
-        dayEvents.first { $0.id == selectedEventID }
+    private var stops: [LifeRouteDayStop] {
+        routingState.dayStops(on: day)
     }
 
     private var beforeStops: [LifeRouteDayStop] {
@@ -78,7 +71,7 @@ struct DayRoutePlanningView: View {
 
     private var destinationCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Primary appointment", systemImage: "calendar.badge.clock")
+            Label("Day appointments", systemImage: "calendar.badge.clock")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(palette.textPrimary)
 
@@ -87,15 +80,7 @@ struct DayRoutePlanningView: View {
                     .font(.subheadline)
                     .foregroundStyle(palette.textSecondary)
             } else {
-                Picker("Appointment", selection: $selectedEventID) {
-                    ForEach(dayEvents) { event in
-                        Text("\(event.start.formatted(date: .omitted, time: .shortened)) · \(event.title)")
-                            .tag(event.id)
-                    }
-                }
-                .pickerStyle(.menu)
-
-                if let event = selectedEvent {
+                ForEach(dayEvents) { event in
                     HStack(alignment: .top, spacing: 11) {
                         Image(systemName: "mappin.circle.fill")
                             .foregroundStyle(palette.accent)
@@ -111,6 +96,7 @@ struct DayRoutePlanningView: View {
                                 .foregroundStyle(palette.accentSecondary)
                         }
                     }
+                    .padding(.vertical, 2)
                 }
             }
         }
@@ -274,10 +260,10 @@ struct DayRoutePlanningView: View {
             Button {
                 buildRoute()
             } label: {
-                Label(planState.isCalculating ? "Building route…" : "Build full day route", systemImage: "map.fill")
+                Label(planState.isCalculating ? "Generating route…" : "Generate full day route", systemImage: "map.fill")
             }
             .buttonStyle(LifeRoutePrimaryButtonStyle())
-            .disabled(planState.isCalculating || selectedEvent == nil)
+            .disabled(planState.isCalculating || (dayEvents.isEmpty && stops.isEmpty))
 
             if let routeMessage = planState.message {
                 Text(routeMessage)
@@ -349,7 +335,8 @@ struct DayRoutePlanningView: View {
             }
             Spacer()
             Button(role: .destructive) {
-                stops.removeAll { $0.id == stop.id }
+                routingState.removeDayStop(id: stop.id)
+                message = "Stop removed."
             } label: {
                 Image(systemName: "trash")
             }
@@ -361,14 +348,13 @@ struct DayRoutePlanningView: View {
     }
 
     private func addSavedPlace(_ place: LifeRouteSavedPlace, position: LifeRouteDayStop.Position) {
-        stops.append(
-            LifeRouteDayStop(
-                title: place.name,
-                address: place.address,
-                position: position
-            )
+        let inserted = routingState.addDayStop(
+            title: place.name,
+            address: place.address,
+            position: position,
+            day: day
         )
-        message = "Added \(place.name)."
+        message = inserted ? "Added \(place.name)." : "That stop is already in this day."
     }
 
     private func addCustomStop() {
@@ -378,26 +364,30 @@ struct DayRoutePlanningView: View {
             return
         }
         let cleanTitle = stopTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        stops.append(
-            LifeRouteDayStop(
-                title: cleanTitle.isEmpty ? "Stop" : cleanTitle,
-                address: cleanAddress,
-                position: stopPosition
-            )
+        let inserted = routingState.addDayStop(
+            title: cleanTitle.isEmpty ? "Stop" : cleanTitle,
+            address: cleanAddress,
+            position: stopPosition,
+            day: day
         )
         stopTitle = ""
         suppressStopAutocompleteQuery = true
         stopAddress = ""
         stopAutocomplete.clear()
         stopAddressFocused = false
-        message = "Stop added."
+        message = inserted ? "Stop saved for this day." : "That stop is already in this day."
     }
 
     private func buildRoute() {
-        guard let event = selectedEvent else { return }
         planState.calculate(
-            eventTitle: event.title,
-            eventAddress: event.location,
+            appointments: dayEvents.map {
+                LifeRouteRouteAppointment(
+                    id: $0.id,
+                    title: $0.title,
+                    address: $0.location,
+                    start: $0.start
+                )
+            },
             beforeStops: beforeStops,
             afterStops: afterStops,
             returnHome: returnHome,

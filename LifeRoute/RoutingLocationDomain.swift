@@ -329,6 +329,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
     @Published private(set) var locationMessage = "Location not requested"
     @Published private(set) var savedPlaces: [LifeRouteSavedPlace] = []
     @Published private(set) var todos: [LifeRouteTodo] = []
+    @Published private(set) var dayStops: [LifeRouteDayStop] = []
     @Published private(set) var routeEstimates: [UUID: LifeRouteRouteEstimate] = [:]
     @Published private(set) var routeMessage: String?
     @Published private(set) var homeAddress = ""
@@ -350,6 +351,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
         let restored = LifeRoutePersistenceStore.shared.loadRoutingState()
         self.savedPlaces = restored.savedPlaces
         self.todos = restored.todos
+        self.dayStops = restored.dayStops
         self.homeAddress = restored.homeAddress
         super.init()
         locationManager.delegate = self
@@ -492,6 +494,37 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
     func removeTodo(id: UUID) {
         todos.removeAll { $0.id == id }
         persistTodoInputs()
+    }
+
+    func dayStops(on day: Date) -> [LifeRouteDayStop] {
+        LifeRouteDayStopCollection.stops(on: day, in: dayStops)
+    }
+
+    @discardableResult
+    func addDayStop(
+        title: String,
+        address: String,
+        position: LifeRouteDayStop.Position,
+        day: Date
+    ) -> Bool {
+        let candidate = LifeRouteDayStop(
+            title: title.isEmpty ? "Stop" : title,
+            address: address,
+            position: position,
+            day: day
+        )
+        let result = LifeRouteDayStopCollection.adding(candidate, to: dayStops)
+        guard result.inserted else { return false }
+        dayStops = result.stops
+        persistDayStopInputs()
+        return true
+    }
+
+    func removeDayStop(id: UUID) {
+        let updated = LifeRouteDayStopCollection.removing(id: id, from: dayStops)
+        guard updated.count != dayStops.count else { return }
+        dayStops = updated
+        persistDayStopInputs()
     }
 
     private func sortTodos() {
@@ -717,7 +750,8 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
         LifeRoutePersistenceStore.shared.saveRoutingState(
             homeAddress: homeAddress,
             savedPlaces: savedPlaces,
-            todos: todos
+            todos: todos,
+            dayStops: dayStops
         )
     }
 
@@ -725,7 +759,17 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
         LifeRoutePersistenceStore.shared.saveRoutingState(
             homeAddress: homeAddress,
             savedPlaces: savedPlaces,
-            todos: todos
+            todos: todos,
+            dayStops: dayStops
+        )
+    }
+
+    private func persistDayStopInputs() {
+        LifeRoutePersistenceStore.shared.saveRoutingState(
+            homeAddress: homeAddress,
+            savedPlaces: savedPlaces,
+            todos: todos,
+            dayStops: dayStops
         )
     }
 

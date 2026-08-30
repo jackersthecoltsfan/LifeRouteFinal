@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Semantic validation for the canonical LifeRoute v0.8.2 source tree."""
+"""Semantic validation for the canonical LifeRoute v0.8.3 source tree."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ APP = ROOT / "LifeRoute"
 PROJECT = ROOT / "LifeRoute.xcodeproj" / "project.pbxproj"
 EXTENSION = ROOT / "LifeRouteLiveActivityWidget"
 WORKFLOWS = ROOT / ".github" / "workflows"
-EXPECTED_MARKETING_VERSION = "0.8.2"
-EXPECTED_RELEASE_MARKETING_VERSION = "0.8.2"
+EXPECTED_MARKETING_VERSION = "0.8.3"
+EXPECTED_RELEASE_MARKETING_VERSION = "0.8.3"
 EXPECTED_APP_BUNDLE_ID = "Com.Brandongood.LifeRoute"
 EXPECTED_EXTENSION_BUNDLE_ID = "Com.Brandongood.LifeRoute.LiveDay"
 
@@ -91,6 +91,7 @@ def validate_project_and_version() -> None:
             "LiveDayActivityAttributes.swift in Sources",
             "Assets.xcassets in Resources",
             "SessionNoteContracts.swift in Sources",
+            "DayRouteContracts.swift in Sources",
         ],
         "Xcode app/extension structure",
     )
@@ -103,16 +104,19 @@ def validate_active_build_path() -> None:
     fast = read(ROOT / "scripts" / "validate_fast.sh")
     full = read(ROOT / "scripts" / "validate_full.sh")
     warning_assessor = read(ROOT / "scripts" / "assess_xcode_warnings.py")
-    require_all(prepare, ["validate_fast.sh", "canonical LifeRoute v0.8.2"], "current prepare_build")
+    require_all(prepare, ["validate_fast.sh", "canonical LifeRoute v0.8.3"], "current prepare_build")
     forbidden = ["patch_v0_", "audit_v0_", "scripts/archive/", "generate_v0_", "materialize"]
     present = [token for token in forbidden if token in prepare]
     require(not present, f"prepare_build must not reconstruct historical releases: {present}")
     require("validate_current.py fast" in fast, "validate_fast must invoke the current semantic validator")
     require("validate_current.py full" in full, "validate_full must invoke the current full semantic validator")
     require("run_session_note_contract_tests.sh" in full, "validate_full must run executable Session Note contracts")
+    require("run_day_route_contract_tests.sh" in full, "validate_full must run executable Day Route contracts")
     fixture_runner = read(ROOT / "scripts" / "run_session_note_contract_tests.sh")
     fixture_source = read(ROOT / "scripts" / "session_note_contract_tests.swift")
     simulator_smoke = read(ROOT / "scripts" / "run_simulator_smoke.sh")
+    day_route_fixture_runner = read(ROOT / "scripts" / "run_day_route_contract_tests.sh")
+    day_route_fixture_source = read(ROOT / "scripts" / "day_route_contract_tests.swift")
     require_all(fixture_runner, ["swiftc", "SessionNoteContracts.swift", "session_note_contract_tests.swift"], "Session Note fixture runner")
     require_all(
         fixture_source,
@@ -134,6 +138,24 @@ def validate_active_build_path() -> None:
         "Session Note executable fixtures",
     )
     require("run_session_note_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Session Note contracts")
+    require("run_day_route_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Day Route contracts")
+    require_all(day_route_fixture_runner, ["swiftc", "DayRouteContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
+    require_all(
+        day_route_fixture_source,
+        [
+            "semantic duplicate is rejected",
+            "same-day stops restore",
+            "stops remain scoped to their day",
+            "full-day sequence preserves boundary-stop and appointment order",
+            "each intended stop appears once",
+            "all appointments remain in the generated day",
+            "events without a route address are not silently removed",
+            "a saved stop can generate a stop-only day",
+            "persisted stops round-trip with stable identity",
+            "removal prevents a deleted stop from returning",
+        ],
+        "Day Route executable fixtures",
+    )
     require_all(
         warning_assessor,
         [
@@ -260,6 +282,8 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
             'case contextRetrySuccess = "context-retry-success"',
             'case contextRetryFailure = "context-retry-failure"',
             ".toolbar(.hidden, for: .tabBar)",
+            'Text("Experimental AI Tool")',
+            "Do not rely on this tool as final clinical documentation.",
         ],
         "reviewable on-device Session Note flow",
     )
@@ -407,16 +431,21 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
     providers = sources["CalendarProviderCore.swift"]
     routing = sources["RoutingLocationDomain.swift"]
     day_route = sources["DayRoutePlanningCore.swift"]
+    day_route_contracts = sources["DayRouteContracts.swift"]
+    day_route_view = sources["DayRoutePlanningView.swift"]
     setup = sources["V054SetupView.swift"]
     today = sources["V054TodayView.swift"]
     persistence = sources["PersistenceCore.swift"]
     migration = sources["LegacyMigrationCore.swift"]
     require_all(calendar, ["case day", "case week", "case month", "loadManualCalendarEvents", "addManualEvent", "removeEvent", "persistManualEvents"], "calendar range/manual appointment behavior")
     require_all(providers, ["EKEventStore", "https://www.googleapis.com/auth/calendar.readonly", "ASWebAuthenticationSession", "kSecClassGenericPassword"], "Apple/Google read-only calendar providers")
-    require_all(routing, ["CLLocationManager", "requestWhenInUseAuthorization", "allowsBackgroundLocationUpdates = false", "savedPlaces", "todos", "MKDirections", "openInMaps"], "foreground routing and saved-place ownership")
-    require_all(day_route, ["case appleMaps", "case googleMaps", "case waze", "returnHome", "MKMapItem.openMaps"], "day-route handoff behavior")
+    require_all(routing, ["CLLocationManager", "requestWhenInUseAuthorization", "allowsBackgroundLocationUpdates = false", "savedPlaces", "todos", "dayStops", "addDayStop", "removeDayStop", "MKDirections", "openInMaps"], "foreground routing and saved-place ownership")
+    require_all(day_route, ["case appleMaps", "case googleMaps", "case waze", "returnHome", "LifeRouteDaySequenceBuilder.waypoints", "MKMapItem.openMaps"], "day-route handoff behavior")
+    require_all(day_route_contracts, ["LifeRouteDayStop: Identifiable, Codable", "LifeRouteDayStopCollection", "LifeRouteDaySequenceBuilder", "before + events + after"], "persistent per-day stop and full-day sequence contract")
+    require_all(day_route_view, ["routingState.dayStops(on: day)", "routingState.addDayStop", "routingState.removeDayStop", '"Generate full day route"'], "Day Route persisted-stop presentation")
     require_all(setup + today, ["Weekly To-Dos", "gap suggestions"], "weekly To-Dos and gap suggestions")
-    require_all(persistence, ["schemaVersion", "PersistedVisualIcon", "PersistedChoiceBoard", "PersistedVisualSchedule", "manualCalendarEvents", "providerCalendarEvents", "FileProtectionType.completeUntilFirstUserAuthentication", "options: [.atomic]", "private actor SnapshotWriter"], "native persistence and protected visual storage")
+    require_all(persistence, ["schemaVersion", "PersistedVisualIcon", "PersistedChoiceBoard", "PersistedVisualSchedule", "dayStops", "manualCalendarEvents", "providerCalendarEvents", "FileProtectionType.completeUntilFirstUserAuthentication", "options: [.atomic]", "private actor SnapshotWriter"], "native persistence and protected visual storage")
+    require_all(today, ["selectedDayStops", "selectedDayPlanWaypoints", "liveDaySequence", "dayStops: selectedDayStops"], "generated Live Day includes persisted stops")
     require_all(migration, ["LegacyMigrationPayload", "clients", "manualCalendarEvents", "places", "homeAddress"], "installed-version migration boundary")
 
 
@@ -428,7 +457,7 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
     widget = sources["LiveDayLiveActivityWidget.swift"]
     require_all(timer, ["private static let startFrequency = 432.0", "private static let endFrequency = 864.0", "func start(minutes:", "func pause(", "func resume(", "func addMinute(", "func reset()"], "Visual Timer domain")
     require_all(timer_view, ["TimelineView(.periodic(from: .now, by: 0.10))", "timer.start", "timer.pause", "timer.resume", "timer.addMinute", "timer.reset"], "Visual Timer presentation")
-    require_all(live + attributes + widget, ["ActivityKit", "LifeRouteLiveDayAttributes", "returnHomePlanned", "Activity.request", "DynamicIsland", "ActivityConfiguration"], "Live Day app/extension contract")
+    require_all(live + attributes + widget, ["ActivityKit", "LifeRouteLiveDayAttributes", "plannedStopSummary", "returnHomePlanned", "Activity.request", "DynamicIsland", "ActivityConfiguration"], "Live Day app/extension contract")
 
 
 def validate_release_and_web_policy() -> None:
@@ -455,8 +484,8 @@ def validate_release_and_web_policy() -> None:
     require_all(pages, ["build_web_preview.py", "validate_fast.sh"], "decoupled web preview")
     require("scripts/**" not in pages, "Pages must not trigger for arbitrary scripts changes")
     require_all(bridge, ["AUTHORIZED_TESTFLIGHT_RELEASE=YES", "Require completed release-equivalent iOS validation", "Reconfirm main before TestFlight", "authorized_sha"], "exact-SHA assistant release bridge")
-    require_all(testflight, ["workflow_dispatch", "authorized_sha", "Verify authorized release source", EXPECTED_APP_BUNDLE_ID, EXPECTED_EXTENSION_BUNDLE_ID, "validate_full.sh", "archive", "Verify archived LifeRoute v0.8.2 identity", "Upload to TestFlight", "Clean temporary Apple signing assets", "AppIcon"], "current v0.8.2 TestFlight contract")
-    require(testflight.count(f"RELEASE_MARKETING_VERSION: {EXPECTED_RELEASE_MARKETING_VERSION}") == 1, "release workflow must match current v0.8.2 product")
+    require_all(testflight, ["workflow_dispatch", "authorized_sha", "Verify authorized release source", EXPECTED_APP_BUNDLE_ID, EXPECTED_EXTENSION_BUNDLE_ID, "validate_full.sh", "archive", "Verify archived LifeRoute v0.8.3 identity", "Upload to TestFlight", "Clean temporary Apple signing assets", "AppIcon"], "current v0.8.3 TestFlight contract")
+    require(testflight.count(f"RELEASE_MARKETING_VERSION: {EXPECTED_RELEASE_MARKETING_VERSION}") == 1, "release workflow must match current v0.8.3 product")
     for name, text in workflows.items():
         if name == "testflight.yml":
             continue
@@ -493,7 +522,7 @@ def main() -> int:
     except (OSError, plistlib.InvalidFileException, ValidationFailure) as error:
         print(f"LifeRoute {args.level} validation failed: {error}", file=sys.stderr)
         return 1
-    print(f"LifeRoute canonical v0.8.2 {args.level} validation passed.")
+    print(f"LifeRoute canonical v0.8.3 {args.level} validation passed.")
     return 0
 
 

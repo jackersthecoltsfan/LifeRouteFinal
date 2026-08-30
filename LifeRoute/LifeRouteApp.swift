@@ -3274,8 +3274,6 @@ private struct LifeRouteVisualFixtureView: View {
 #endif
 
 private struct LifeRouteChromeModifier: ViewModifier {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.lifeRoutePalette) private var palette
     @Environment(\.lifeRouteTheme) private var theme
 
@@ -3285,37 +3283,13 @@ private struct LifeRouteChromeModifier: ViewModifier {
 #else
         let fixtureReduceMotion = false
 #endif
-        // v0.7.0 Theme Phase 3 persistent environment host: one mount above the five-tab shell.
-        ZStack {
-            if theme.isPhaseOneCoreGlass {
-                LifeRouteCoreGlassEnvironment(theme: theme, palette: palette)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-            } else if theme.isPhaseTwoDynamic || theme.isPhaseThreeScenery {
-                LifeRouteLiveThemeEnvironment(
-                    theme: theme,
-                    palette: palette,
-                    reduceMotion: reduceMotion || fixtureReduceMotion,
-                    isActive: scenePhase == .active
-                )
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-            } else {
-                // Non-user-facing retired themes retain a deterministic fallback while stored
-                // Dynamic/Scenery selections are migrated into the approved catalogs.
-                LifeRouteCinematicBackdrop(theme: theme, palette: palette)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-            }
-
+        ScenicRoyalEnvironmentHost(
+            theme: theme,
+            palette: palette,
+            reduceMotionOverride: fixtureReduceMotion
+        ) {
             content
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
         }
-        .animation((reduceMotion || fixtureReduceMotion) ? nil : .easeInOut(duration: 0.24), value: theme)
-        .environment(\.defaultMinListRowHeight, 52)
-        .tint(palette.accent)
-        .preferredColorScheme(theme == .light ? .light : .dark)
     }
 }
 

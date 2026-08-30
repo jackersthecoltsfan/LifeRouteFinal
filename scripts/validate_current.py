@@ -92,11 +92,18 @@ def validate_project_and_version() -> None:
             "Assets.xcassets in Resources",
             "SessionNoteContracts.swift in Sources",
             "DayRouteContracts.swift in Sources",
+            "ScenicRoyalDesignSystem.swift in Sources",
+            "ScenicRoyalMaterials.swift in Sources",
+            "ScenicRoyalEnvironment.swift in Sources",
+            "ScenicRoyalThemeBridge.swift in Sources",
+            "ScenicRoyalComponents.swift in Sources",
+            "ScenicRoyalToolbar.swift in Sources",
         ],
         "Xcode app/extension structure",
     )
     require("LifeRouteWebView.swift in Sources" not in project, "legacy LifeRouteWebView must remain outside shipping Sources")
     require("Web in Resources" not in project, "legacy Web runtime must remain outside shipping Resources")
+    require_count(project, 'SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";', 1, "app-target Debug fixture configuration")
 
 
 def validate_active_build_path() -> None:
@@ -203,11 +210,13 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
     require_count(root, "@StateObject private var router = AppRouter()", 1, "root router ownership")
     require_count(root, "NavigationStack(path: $router.", 5, "five independent navigation stacks")
     require_count(root, ".tag(AppSection.", 5, "five section tags")
-    require_count(root, "private struct LifeRouteBottomToolbar: View", 1, "custom toolbar ownership")
+    toolbar = sources["ScenicRoyalToolbar.swift"]
+    require_count(toolbar, "struct ScenicRoyalToolbar: View", 1, "Scenic Royal toolbar ownership")
     require_all(
         root,
         [
             "selection: $router.selectedSection",
+            "ScenicRoyalToolbar(selection: $router.selectedSection)",
             ".tabViewStyle(.page(indexDisplayMode: .never))",
             "if router.shouldShowBottomToolbar",
             ".environmentObject(router)",
@@ -231,11 +240,13 @@ def extract_catalog(text: str, declaration: str) -> list[str]:
 
 def validate_theme_architecture(sources: dict[str, str]) -> None:
     app = sources["LifeRouteApp.swift"]
+    environment = sources["ScenicRoyalEnvironment.swift"]
     center = sources["V054ThemeCenterView.swift"]
     corpus = "\n".join(sources.values())
     require_count(corpus, "struct LifeRouteLiveThemeEnvironment: View", 1, "live theme environment ownership")
     require_count(app, "TimelineView(\n            .animation(", 1, "authoritative root animation clock")
-    require_all(app, ["minimumInterval: 1.0 / 20.0", "paused: reduceMotion || !isActive", "isActive: scenePhase == .active"], "lifecycle and Reduce Motion clock pausing")
+    require_all(app, ["minimumInterval: 1.0 / 20.0", "paused: reduceMotion || !isActive"], "lifecycle and Reduce Motion clock pausing")
+    require_all(environment, ["struct ScenicRoyalEnvironmentHost", "isActive: scenePhase == .active", "reduceMotion || reduceMotionOverride"], "persistent Scenic Royal environment host")
     require("Timer.scheduledTimer" not in app, "theme architecture must not introduce a competing Timer owner")
     core = extract_catalog(app, "static let phaseOneCoreGlassCatalog")
     dynamic = extract_catalog(app, "static let v071RetainedDynamicCatalog")
@@ -244,6 +255,33 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
     require(len(set(core + dynamic + scenery)) == 32, "current user-facing theme catalogs must not overlap")
     require_all(center, ["return LifeRouteTheme.phaseOneCoreGlassCatalog", "return LifeRouteTheme.v071RetainedDynamicCatalog", "return LifeRouteTheme.v071RetainedSceneryCatalog"], "Theme Center current catalogs")
     require("TimelineView" not in center, "Theme Center previews must remain static")
+
+
+def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
+    design = sources["ScenicRoyalDesignSystem.swift"]
+    materials = sources["ScenicRoyalMaterials.swift"]
+    environment = sources["ScenicRoyalEnvironment.swift"]
+    bridge = sources["ScenicRoyalThemeBridge.swift"]
+    components = sources["ScenicRoyalComponents.swift"]
+    toolbar = sources["ScenicRoyalToolbar.swift"]
+    require_all(design, ["enum ScenicRoyalDesignSystem", "minimumTouchTarget", "standardToolbarHeight", "accessibilityToolbarHeight"], "Scenic Royal design tokens")
+    require_all(
+        materials,
+        [
+            "if #available(iOS 26.0, *)",
+            "GlassEffectContainer",
+            ".glassEffect(",
+            ".ultraThinMaterial",
+            "accessibilityReduceTransparency",
+            "colorSchemeContrast",
+        ],
+        "native Liquid Glass and fallback material boundary",
+    )
+    require_all(environment, ["ScenicRoyalEnvironmentHost", "accessibilityReduceMotion", "accessibilityReduceTransparency", "scenePhase == .active"], "persistent environment accessibility boundary")
+    require_all(bridge, ["sceneryCanyonDay", "sceneryArcticDay", "sceneryRainforestDay", "royalCurrent", "scenicRoyalThemeStyle"], "theme-to-material bridge")
+    require_all(components, ["ScenicRoyalCard", "ScenicRoyalSectionHeader", "ScenicRoyalIconBadge"], "shared Scenic Royal components")
+    require_count(toolbar, "ForEach(AppSection.allCases)", 1, "five-root Scenic Royal toolbar")
+    require_all(toolbar, ["accessibilityReduceMotion", "dynamicTypeSize", 'accessibilityLabel("Main navigation")', 'accessibilityValue(isSelected ? "Selected" : "")'], "toolbar accessibility contract")
 
 
 def validate_clinical_and_aba(sources: dict[str, str]) -> None:
@@ -502,6 +540,7 @@ def run_fast() -> None:
     validate_active_build_path()
     validate_navigation_and_ownership(sources)
     validate_theme_architecture(sources)
+    validate_scenic_royal_foundation(sources)
     validate_clinical_and_aba(sources)
 
 

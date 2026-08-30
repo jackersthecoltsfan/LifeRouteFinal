@@ -1,13 +1,7 @@
 import SwiftUI
 import Foundation
-import UIKit
-
-#if canImport(ImagePlayground)
-import ImagePlayground
-#endif
 
 struct V054ToolsDashboard: View {
-    // v0.7.0 Build D Tools/ABA: clinical-first hierarchy with all existing tools preserved.
     @Environment(\.lifeRoutePalette) private var palette
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject var router: AppRouter

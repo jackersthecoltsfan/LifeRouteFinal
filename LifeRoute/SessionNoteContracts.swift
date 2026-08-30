@@ -20,6 +20,49 @@ struct SessionNoteNumericClaim: Equatable {
     let kind: SessionNoteMeasurementKind
 }
 
+enum SessionNoteValidationSeverity: String, Equatable {
+    case hardBlocker
+    case repairable
+    case warning
+}
+
+enum SessionNoteValidationRepairability: String, Equatable {
+    case deterministic
+    case boundedModel
+    case userEditable
+    case none
+}
+
+enum SessionNoteValidationCategory: String, Equatable {
+    case identityVerification
+    case evidenceVerification
+    case clinicalClaimVerification
+    case formatNormalization
+    case terminologyNormalization
+    case quality
+}
+
+struct SessionNoteValidationIssue: Equatable {
+    let code: String
+    let severity: SessionNoteValidationSeverity
+    let userSafeCategory: SessionNoteValidationCategory
+    let repairability: SessionNoteValidationRepairability
+    let repairInstruction: String
+}
+
+enum SessionNoteSupervisorAction: String, Hashable {
+    case guidance
+    case observation
+    case modeling
+    case feedback
+    case treatmentModification
+}
+
+struct SessionNoteSupervisorClaim: Hashable {
+    let role: String
+    let action: SessionNoteSupervisorAction
+}
+
 struct SessionNoteEvidencePacket {
     let typedFacts: String
     let quantitativeOCR: String
@@ -28,6 +71,8 @@ struct SessionNoteEvidencePacket {
     let numericClaims: [SessionNoteNumericClaim]
     let promptLevels: Set<String>
     let contextOnlyClinicalTerms: [String]
+    let clinicalRoles: Set<String>
+    let supervisorClaims: Set<SessionNoteSupervisorClaim>
 
     static func make(
         typedFacts: String,
@@ -62,7 +107,9 @@ struct SessionNoteEvidencePacket {
             contextOnlyClinicalTerms: SessionNoteEvidenceNormalizer.contextOnlyClinicalTerms(
                 in: normalizedContext,
                 excluding: factualEvidence
-            )
+            ),
+            clinicalRoles: SessionNoteEvidenceNormalizer.clinicalRoles(in: factualEvidence),
+            supervisorClaims: SessionNoteEvidenceNormalizer.supervisorClaims(in: factualEvidence)
         )
     }
 
@@ -88,6 +135,59 @@ enum SessionNotePipelineStage: Equatable {
     case repair([String])
 }
 
+enum SessionNoteFailureCategory: String, Equatable {
+    case identityVerification
+    case evidenceVerification
+    case clinicalClaimVerification
+
+    var userSafeLabel: String {
+        switch self {
+        case .identityVerification: return "Identity verification"
+        case .evidenceVerification: return "Evidence verification"
+        case .clinicalClaimVerification: return "Clinical claim verification"
+        }
+    }
+}
+
+enum SessionNoteFallbackOutcome: String, Equatable {
+    case succeeded
+    case insufficientEvidence
+    case unsafe
+}
+
+enum SessionNoteFinalOutcome: String, Equatable {
+    case generated
+    case repaired
+    case fallback
+    case rejected
+}
+
+enum SessionNotePipelineDiagnosticEvent: Equatable {
+    case initialIssueCodes([String])
+    case deterministicRepairCodes([String])
+    case remainingHardBlockerCodes([String])
+    case repairPassIssueCodes([String])
+    case fallback(SessionNoteFallbackOutcome)
+    case finalOutcome(SessionNoteFinalOutcome)
+
+    var privacySafeDescription: String {
+        switch self {
+        case .initialIssueCodes(let codes):
+            return "initial issue codes: \(codes.joined(separator: ","))"
+        case .deterministicRepairCodes(let codes):
+            return "deterministic repair codes: \(codes.joined(separator: ","))"
+        case .remainingHardBlockerCodes(let codes):
+            return "remaining hard-blocker codes: \(codes.joined(separator: ","))"
+        case .repairPassIssueCodes(let codes):
+            return "repair-pass issue codes: \(codes.joined(separator: ","))"
+        case .fallback(let outcome):
+            return "fallback outcome: \(outcome.rawValue)"
+        case .finalOutcome(let outcome):
+            return "final outcome: \(outcome.rawValue)"
+        }
+    }
+}
+
 enum SessionNotePipelineEvent: Equatable {
     case compacting
     case repairing
@@ -95,7 +195,7 @@ enum SessionNotePipelineEvent: Equatable {
 
 enum SessionNotePipelineError: LocalizedError, Equatable {
     case contextTooLarge
-    case rejected
+    case rejected(SessionNoteFailureCategory)
 
     var errorDescription: String? {
         switch self {
@@ -111,7 +211,8 @@ enum SessionNoteGenerationPipeline {
     static func run(
         packet: SessionNoteEvidencePacket,
         request: @escaping (SessionNotePipelineStage) async throws -> String,
-        progress: @escaping (SessionNotePipelineEvent) async -> Void = { _ in }
+        progress: @escaping (SessionNotePipelineEvent) async -> Void = { _ in },
+        diagnostic: @escaping (SessionNotePipelineDiagnosticEvent) -> Void = { _ in }
     ) async throws -> String {
         let firstRawDraft: String
         do {
@@ -121,26 +222,59 @@ enum SessionNoteGenerationPipeline {
             firstRawDraft = try await request(.compactDraft)
         }
 
-        let firstDraft = SessionNoteOutputSanitizer.sanitize(
+        let firstSanitization = SessionNoteOutputSanitizer.sanitizeWithReport(
             firstRawDraft,
             scrubber: packet.scrubber
         )
-        let firstValidation = SessionNoteOutputValidator.validate(firstDraft, evidence: packet)
-        if firstValidation.isAcceptable {
-            return firstValidation.draft
+        let firstValidation = SessionNoteOutputValidator.validate(firstSanitization.draft, evidence: packet)
+        diagnostic(.initialIssueCodes(firstValidation.issueCodes))
+        let firstRepair = SessionNoteDeterministicRepairer.repair(
+            firstValidation.draft,
+            validation: firstValidation,
+            evidence: packet
+        )
+        diagnostic(.deterministicRepairCodes(
+            Array(Set(firstSanitization.appliedIssueCodes + firstRepair.appliedIssueCodes)).sorted()
+        ))
+        let normalizedValidation = SessionNoteOutputValidator.validate(firstRepair.draft, evidence: packet)
+        diagnostic(.remainingHardBlockerCodes(normalizedValidation.hardBlockerCodes))
+        if normalizedValidation.isSafe {
+            diagnostic(.finalOutcome(.generated))
+            return normalizedValidation.draft
         }
 
         await progress(.repairing)
-        let repairedRawDraft = try await request(.repair(firstValidation.issues))
-        let repairedDraft = SessionNoteOutputSanitizer.sanitize(
+        let repairedRawDraft = try await request(.repair(normalizedValidation.hardBlockerRepairInstructions))
+        let repairedSanitization = SessionNoteOutputSanitizer.sanitizeWithReport(
             repairedRawDraft,
             scrubber: packet.scrubber
         )
-        let repairedValidation = SessionNoteOutputValidator.validate(repairedDraft, evidence: packet)
-        guard repairedValidation.isAcceptable else {
-            throw SessionNotePipelineError.rejected
+        let repairedInitialValidation = SessionNoteOutputValidator.validate(repairedSanitization.draft, evidence: packet)
+        let repairedDeterministic = SessionNoteDeterministicRepairer.repair(
+            repairedInitialValidation.draft,
+            validation: repairedInitialValidation,
+            evidence: packet
+        )
+        diagnostic(.deterministicRepairCodes(
+            Array(Set(repairedSanitization.appliedIssueCodes + repairedDeterministic.appliedIssueCodes)).sorted()
+        ))
+        let repairedValidation = SessionNoteOutputValidator.validate(repairedDeterministic.draft, evidence: packet)
+        diagnostic(.repairPassIssueCodes(repairedValidation.issueCodes))
+        if repairedValidation.isSafe {
+            diagnostic(.finalOutcome(.repaired))
+            return repairedValidation.draft
         }
-        return repairedValidation.draft
+
+        if let fallback = SessionNoteConservativeFallback.make(from: packet) {
+            diagnostic(.fallback(.succeeded))
+            diagnostic(.finalOutcome(.fallback))
+            return fallback
+        }
+
+        let fallbackOutcome: SessionNoteFallbackOutcome = packet.typedFacts.isEmpty ? .insufficientEvidence : .unsafe
+        diagnostic(.fallback(fallbackOutcome))
+        diagnostic(.finalOutcome(.rejected))
+        throw SessionNotePipelineError.rejected(repairedValidation.primaryFailureCategory)
     }
 }
 
@@ -621,6 +755,35 @@ enum SessionNoteEvidenceNormalizer {
         ) != nil
     }
 
+    static func clinicalRoles(in value: String) -> Set<String> {
+        let roles = ["RBT", "LBS", "BCBA", "BHT"]
+        return Set(roles.filter { containsClinicalTerm($0, in: value) })
+    }
+
+    static func supervisorClaims(in value: String) -> Set<SessionNoteSupervisorClaim> {
+        let patterns: [(SessionNoteSupervisorAction, String)] = [
+            (.guidance, #"(?:instructed|provided guidance|guided|directed)"#),
+            (.observation, #"(?:observed|supervised|was present)"#),
+            (.modeling, #"(?:modeled|modelled|demonstrated)"#),
+            (.feedback, #"(?:provided|gave)\s+feedback"#),
+            (.treatmentModification, #"(?:modified|changed|updated)\s+(?:the\s+)?(?:treatment plan|protocol|program|prompting)"#),
+        ]
+        let source = value as NSString
+        var claims = Set<SessionNoteSupervisorClaim>()
+        for (action, verbPattern) in patterns {
+            let pattern = #"(?i)\b(BCBA|LBS)\b[^.!?]{0,100}\b"# + verbPattern + #"\b"#
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            for match in regex.matches(in: value, range: NSRange(location: 0, length: source.length)) {
+                guard match.numberOfRanges > 1 else { continue }
+                claims.insert(SessionNoteSupervisorClaim(
+                    role: source.substring(with: match.range(at: 1)).uppercased(),
+                    action: action
+                ))
+            }
+        }
+        return claims
+    }
+
     private static func normalizeLines(_ value: String, removeAmbiguousOCR: Bool) -> String {
         let canonicalNewlines = value
             .replacingOccurrences(of: "\r\n", with: "\n")
@@ -680,22 +843,70 @@ enum SessionNoteEvidenceNormalizer {
 
 struct SessionNoteOutputValidation {
     let draft: String
-    let issues: [String]
+    let issues: [SessionNoteValidationIssue]
 
-    var isAcceptable: Bool { issues.isEmpty }
+    var hardBlockers: [SessionNoteValidationIssue] {
+        issues.filter { $0.severity == .hardBlocker }
+    }
+
+    var repairableIssues: [SessionNoteValidationIssue] {
+        issues.filter { $0.severity == .repairable }
+    }
+
+    var warnings: [SessionNoteValidationIssue] {
+        issues.filter { $0.severity == .warning }
+    }
+
+    var issueCodes: [String] { issues.map(\.code).sorted() }
+    var hardBlockerCodes: [String] { hardBlockers.map(\.code).sorted() }
+    var hardBlockerRepairInstructions: [String] {
+        hardBlockers.map(\.repairInstruction)
+    }
+    var isSafe: Bool { hardBlockers.isEmpty }
+    var isAcceptable: Bool { isSafe }
+
+    var primaryFailureCategory: SessionNoteFailureCategory {
+        if hardBlockers.contains(where: { $0.userSafeCategory == .identityVerification }) {
+            return .identityVerification
+        }
+        if hardBlockers.contains(where: { $0.userSafeCategory == .evidenceVerification }) {
+            return .evidenceVerification
+        }
+        return .clinicalClaimVerification
+    }
+}
+
+struct SessionNoteDeterministicRepairResult {
+    let draft: String
+    let appliedIssueCodes: [String]
 }
 
 enum SessionNoteOutputSanitizer {
-    private static let continuationSentence = "The RBT will continue implementing the established treatment plan during future sessions."
+    static let continuationSentence = "The RBT will continue implementing the established treatment plan during future sessions."
 
     static func sanitize(_ value: String, scrubber: SessionNoteIdentifierScrubber) -> String {
+        sanitizeWithReport(value, scrubber: scrubber).draft
+    }
+
+    static func sanitizeWithReport(
+        _ value: String,
+        scrubber: SessionNoteIdentifierScrubber
+    ) -> SessionNoteDeterministicRepairResult {
+        var repairs: [String] = []
         var cleaned = scrubber.scrub(value)
+        if cleaned != value { repairs.append("SN-IDENTITY-REDACTED") }
+
+        let beforeMarkdown = cleaned
+        cleaned = cleaned
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
             .replacingOccurrences(of: "```", with: "")
             .replacingOccurrences(of: "**", with: "")
             .replacingOccurrences(of: "__", with: "")
             .replacingOccurrences(of: "`", with: "")
+        if cleaned != beforeMarkdown { repairs.append("SN-FORMAT-001") }
+
+        let beforeTerminology = cleaned
         cleaned = cleaned.replacingOccurrences(
             of: #"(?i)\bmaladaptive\s+behaviou?rs?\b"#,
             with: "behaviors of concern",
@@ -706,11 +917,14 @@ enum SessionNoteOutputSanitizer {
             with: "client's mother",
             options: .regularExpression
         )
+        if cleaned != beforeTerminology { repairs.append("SN-TERMINOLOGY-001") }
+
         let roleNormalizations: [(String, String)] = [
             (#"(?i)\bthe\s+registered behavior technician\b|\bregistered behavior technician\b"#, "the RBT"),
             (#"(?i)\bthe\s+board certified behavior analyst\b|\bboard certified behavior analyst\b"#, "the BCBA"),
             (#"(?i)\bthe\s+licensed behavior specialist\b|\blicensed behavior specialist\b"#, "the LBS"),
         ]
+        let beforeRoleNormalization = cleaned
         for (pattern, replacement) in roleNormalizations {
             cleaned = cleaned.replacingOccurrences(
                 of: pattern,
@@ -718,6 +932,7 @@ enum SessionNoteOutputSanitizer {
                 options: .regularExpression
             )
         }
+        if cleaned != beforeRoleNormalization { repairs.append("SN-TERMINOLOGY-002") }
 
         var paragraphs: [String] = []
         var current: [String] = []
@@ -727,32 +942,46 @@ enum SessionNoteOutputSanitizer {
                 flush(&current, into: &paragraphs)
                 continue
             }
+            let beforeHeadingMarkdown = line
+            line = line.replacingOccurrences(
+                of: #"^\s*#{1,6}\s*"#,
+                with: "",
+                options: .regularExpression
+            )
+            if line != beforeHeadingMarkdown { repairs.append("SN-FORMAT-001") }
+            let beforeList = line
             line = line.replacingOccurrences(
                 of: #"^\s*(?:#{1,6}\s*)?(?:[-*•–—]\s+|\d+[.)]\s+)"#,
                 with: "",
                 options: .regularExpression
             )
-            guard let content = contentRemovingHeading(from: line), !content.isEmpty else { continue }
-            current.append(content)
+            if line != beforeList { repairs.append("SN-FORMAT-004") }
+            guard let content = contentRemovingHeading(from: line) else {
+                repairs.append("SN-FORMAT-002")
+                continue
+            }
+            if content != line { repairs.append("SN-FORMAT-003") }
+            var narrativeContent = content.replacingOccurrences(
+                of: #"^[A-Z][A-Za-z /&-]{2,40}:\s*"#,
+                with: "",
+                options: .regularExpression
+            )
+            if narrativeContent != content { repairs.append("SN-FORMAT-003") }
+            narrativeContent = narrativeContent.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !narrativeContent.isEmpty else { continue }
+            current.append(narrativeContent)
         }
         flush(&current, into: &paragraphs)
 
         paragraphs = paragraphs
             .map { ABATerminologyNormalizer.normalize(normalizeSentenceSpacing($0)) }
             .filter { !$0.isEmpty }
-        paragraphs = reflow(paragraphs)
 
-        if !paragraphs.isEmpty,
-           !paragraphs.joined(separator: " ").localizedCaseInsensitiveContains(
-                "continue implementing the established treatment plan during future sessions"
-           ) {
-            paragraphs[paragraphs.count - 1] = ensureTerminalPunctuation(paragraphs.last ?? "")
-                + " " + continuationSentence
-        }
-        return paragraphs
-            .map(ensureTerminalPunctuation)
-            .joined(separator: "\n\n")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return SessionNoteDeterministicRepairResult(
+            draft: paragraphs.joined(separator: "\n\n")
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+            appliedIssueCodes: Array(Set(repairs)).sorted()
+        )
     }
 
     private static func contentRemovingHeading(from value: String) -> String? {
@@ -778,13 +1007,13 @@ enum SessionNoteOutputSanitizer {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func ensureTerminalPunctuation(_ value: String) -> String {
+    static func ensureTerminalPunctuation(_ value: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let last = trimmed.last, !".!?".contains(last) else { return trimmed }
         return trimmed + "."
     }
 
-    private static func reflow(_ paragraphs: [String]) -> [String] {
+    static func reflow(_ paragraphs: [String]) -> [String] {
         var result = paragraphs.flatMap { paragraph -> [String] in
             let sentences = splitSentences(paragraph)
             guard sentences.count >= 4, paragraph.count > 520 else { return [paragraph] }
@@ -810,6 +1039,131 @@ enum SessionNoteOutputSanitizer {
     }
 }
 
+enum SessionNoteDeterministicRepairer {
+    static func repair(
+        _ value: String,
+        validation: SessionNoteOutputValidation,
+        evidence: SessionNoteEvidencePacket
+    ) -> SessionNoteDeterministicRepairResult {
+        guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return SessionNoteDeterministicRepairResult(draft: "", appliedIssueCodes: [])
+        }
+
+        var repaired = value
+        var repairs: [String] = []
+
+        if validation.issueCodes.contains("SN-FORMAT-009") {
+            let filtered = SessionNoteOutputSanitizer.splitSentences(repaired)
+                .filter { sentence in
+                    let lower = sentence.lowercased()
+                    return ![
+                        "this note was generated", "as an ai", "insert client",
+                        "session narrative note", "data section:",
+                    ].contains(where: lower.contains)
+                }
+                .joined(separator: " ")
+            if filtered != repaired { repairs.append("SN-FORMAT-009") }
+            repaired = filtered
+        }
+
+        if validation.issueCodes.contains("SN-TERMINOLOGY-001") {
+            let normalized = repaired.replacingOccurrences(
+                of: #"(?i)\bmaladaptive\s+behaviou?rs?\b"#,
+                with: "behaviors of concern",
+                options: .regularExpression
+            )
+            if normalized != repaired { repairs.append("SN-TERMINOLOGY-001") }
+            repaired = normalized
+        }
+
+        if validation.issueCodes.contains("SN-TERMINOLOGY-002"), evidence.clinicalRoles.count == 1,
+           let role = evidence.clinicalRoles.first {
+            let normalized = repaired.replacingOccurrences(
+                of: #"(?i)\b(?:the\s+)?(?:clinician|therapist|provider)\b"#,
+                with: "the \(role)",
+                options: .regularExpression
+            )
+            if normalized != repaired { repairs.append("SN-TERMINOLOGY-002") }
+            repaired = normalized
+        }
+
+        let beforeParagraphs = repaired
+        var paragraphs = repaired
+            .components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        paragraphs = SessionNoteOutputSanitizer.reflow(paragraphs)
+        repaired = paragraphs.joined(separator: "\n\n")
+        if repaired != beforeParagraphs {
+            if validation.issueCodes.contains("SN-FORMAT-006") { repairs.append("SN-FORMAT-006") }
+            if validation.issueCodes.contains("SN-FORMAT-007") { repairs.append("SN-FORMAT-007") }
+        }
+
+        let beforeClose = repaired
+        repaired = normalizeContinuationClose(in: repaired)
+        if repaired != beforeClose { repairs.append("SN-FORMAT-005") }
+
+        let beforePunctuation = repaired
+        repaired = repaired
+            .components(separatedBy: "\n\n")
+            .map(SessionNoteOutputSanitizer.ensureTerminalPunctuation)
+            .joined(separator: "\n\n")
+        if repaired != beforePunctuation { repairs.append("SN-FORMAT-008") }
+
+        return SessionNoteDeterministicRepairResult(
+            draft: repaired.trimmingCharacters(in: .whitespacesAndNewlines),
+            appliedIssueCodes: Array(Set(repairs)).sorted()
+        )
+    }
+
+    private static func normalizeContinuationClose(in value: String) -> String {
+        var paragraphs = value
+            .components(separatedBy: "\n\n")
+            .map { paragraph in
+                SessionNoteOutputSanitizer.splitSentences(paragraph)
+                    .filter { !isContinuationClose($0) }
+                    .joined(separator: " ")
+            }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard !paragraphs.isEmpty else { return "" }
+        paragraphs[paragraphs.count - 1] = SessionNoteOutputSanitizer.ensureTerminalPunctuation(
+            paragraphs.last ?? ""
+        ) + " " + SessionNoteOutputSanitizer.continuationSentence
+        return paragraphs.joined(separator: "\n\n")
+    }
+
+    private static func isContinuationClose(_ sentence: String) -> Bool {
+        let lower = sentence.lowercased()
+        return lower.contains("continu") && (
+            lower.contains("treatment plan") || lower.contains("future session")
+        )
+    }
+}
+
+enum SessionNoteConservativeFallback {
+    static func make(from evidence: SessionNoteEvidencePacket) -> String? {
+        let facts = evidence.typedFacts.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard facts.count >= 20,
+              facts.split(whereSeparator: \.isWhitespace).count >= 4,
+              facts.range(
+                of: #"(?i)\b(client|RBT|LBS|BCBA|BHT|caregiver|mother|father|grandmother|brother)\b"#,
+                options: .regularExpression
+              ) != nil else { return nil }
+
+        let sanitized = SessionNoteOutputSanitizer.sanitize(facts, scrubber: evidence.scrubber)
+        let initial = SessionNoteOutputValidator.validate(sanitized, evidence: evidence)
+        let repaired = SessionNoteDeterministicRepairer.repair(
+            initial.draft,
+            validation: initial,
+            evidence: evidence
+        )
+        let final = SessionNoteOutputValidator.validate(repaired.draft, evidence: evidence)
+        return final.isSafe ? final.draft : nil
+    }
+}
+
 private extension String {
     func components(separatedBy regex: NSRegularExpression) -> [String] {
         let range = NSRange(location: 0, length: (self as NSString).length)
@@ -830,82 +1184,145 @@ enum SessionNoteOutputValidator {
         _ draft: String,
         evidence: SessionNoteEvidencePacket
     ) -> SessionNoteOutputValidation {
-        var issues: [String] = []
+        var issues: [SessionNoteValidationIssue] = []
         let cleaned = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         let lower = cleaned.lowercased()
 
-        if cleaned.isEmpty { issues.append("The response was empty.") }
-        if let identifier = evidence.scrubber.survivingIdentifier(in: cleaned) {
-            issues.append("A forbidden personal or profile identifier remained: \(identifier).")
+        if cleaned.isEmpty {
+            issues.append(issue(
+                "SN-EVIDENCE-000", .hardBlocker, .evidenceVerification, .boundedModel,
+                "Return a nonempty note grounded only in the supplied session evidence."
+            ))
+        }
+        if evidence.scrubber.survivingIdentifier(in: cleaned) != nil {
+            issues.append(issue(
+                "SN-IDENTITY-001", .hardBlocker, .identityVerification, .boundedModel,
+                "Remove every personal or profile identifier and use role identifiers only."
+            ))
         }
         if containsLikelyPersonalName(in: cleaned, evidence: evidence) {
-            issues.append("A likely personal name remained instead of a role identifier.")
+            issues.append(issue(
+                "SN-IDENTITY-002", .hardBlocker, .identityVerification, .boundedModel,
+                "Remove the likely personal name and use a supported role identifier."
+            ))
         }
         if containsIdentifierShape(in: cleaned) {
-            issues.append("A client-code or identifiable-initials pattern remained in the narrative.")
+            issues.append(issue(
+                "SN-IDENTITY-003", .hardBlocker, .identityVerification, .boundedModel,
+                "Remove client-code and identifiable-initial patterns."
+            ))
         }
         if lower.contains("**") || lower.contains("```") || lower.range(of: #"(?m)^\s*#{1,6}\s+"#, options: .regularExpression) != nil {
-            issues.append("Markdown remained in the narrative.")
+            issues.append(issue(
+                "SN-FORMAT-001", .repairable, .formatNormalization, .deterministic,
+                "Remove Markdown markers."
+            ))
         }
         if lower.range(
             of: #"(?im)^\s*(session\s*\d+|session note|treatment plan continuation|assessment|plan|conclusion)\s*:"#,
             options: .regularExpression
         ) != nil {
-            issues.append("A heading remained in the narrative.")
+            issues.append(issue(
+                "SN-FORMAT-002", .repairable, .formatNormalization, .deterministic,
+                "Remove headings while retaining their supported narrative content."
+            ))
         }
         if cleaned.range(
             of: #"(?m)^\s*[A-Z][A-Za-z /&-]{2,40}:\s*"#,
             options: .regularExpression
         ) != nil {
-            issues.append("Heading-like scaffolding remained in the narrative.")
+            issues.append(issue(
+                "SN-FORMAT-003", .repairable, .formatNormalization, .deterministic,
+                "Remove heading-like scaffolding."
+            ))
         }
         if lower.range(of: #"(?m)^\s*(?:[-*•–—]\s+|\d+[.)]\s+)"#, options: .regularExpression) != nil {
-            issues.append("List or numbered scaffolding remained.")
+            issues.append(issue(
+                "SN-FORMAT-004", .repairable, .formatNormalization, .deterministic,
+                "Convert list scaffolding to narrative prose."
+            ))
         }
         if lower.contains("maladaptive behavior") || lower.contains("maladaptive behaviour") {
-            issues.append("Use behaviors of concern terminology.")
+            issues.append(issue(
+                "SN-TERMINOLOGY-001", .repairable, .terminologyNormalization, .deterministic,
+                "Use behaviors of concern terminology."
+            ))
         }
         if lower.range(of: #"(?<![A-Za-z])(i|we|my|our)(?![A-Za-z])"#, options: .regularExpression) != nil {
-            issues.append("The note was not consistently third person.")
+            issues.append(issue(
+                "SN-QUALITY-001", .warning, .quality, .userEditable,
+                "Prefer consistently third-person wording."
+            ))
         }
         if lower.range(of: #"\b(clinician|therapist|provider)\b"#, options: .regularExpression) != nil {
-            issues.append("Use the supplied ABA role rather than a generic or personal clinician label.")
+            let isUnambiguous = evidence.clinicalRoles.count == 1
+            issues.append(issue(
+                "SN-TERMINOLOGY-002",
+                isUnambiguous ? .repairable : .warning,
+                .terminologyNormalization,
+                isUnambiguous ? .deterministic : .userEditable,
+                "Use a supplied ABA role instead of a generic clinician label when the role is established."
+            ))
         }
         if !lower.contains("continue implementing the established treatment plan during future sessions") {
-            issues.append("The required treatment-plan continuation close was missing.")
+            issues.append(issue(
+                "SN-FORMAT-005", .repairable, .formatNormalization, .deterministic,
+                "Append the approved treatment-plan continuation sentence."
+            ))
         }
 
         let paragraphs = cleaned.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         if paragraphs.count > 4 {
-            issues.append("The response used more than four narrative paragraphs.")
+            issues.append(issue(
+                "SN-FORMAT-006", .repairable, .formatNormalization, .deterministic,
+                "Reflow the narrative to no more than four readable paragraphs."
+            ))
         }
         if paragraphs.count == 1,
            SessionNoteOutputSanitizer.splitSentences(cleaned).count >= 4,
            cleaned.count > 520 {
-            issues.append("A long single paragraph needs readable narrative grouping.")
+            issues.append(issue(
+                "SN-FORMAT-007", .repairable, .formatNormalization, .deterministic,
+                "Reflow the oversized paragraph into readable narrative groups."
+            ))
         }
         if let last = cleaned.last, !".!?".contains(last) {
-            issues.append("The final sentence was incomplete.")
+            issues.append(issue(
+                "SN-FORMAT-008", .repairable, .formatNormalization, .deterministic,
+                "Add final punctuation."
+            ))
         }
         let sentences = SessionNoteOutputSanitizer.splitSentences(cleaned)
         if sentences.count < 2 || !lower.contains("client") {
-            issues.append("The narrative needs supplied client participation or response before the continuation close.")
+            issues.append(issue(
+                "SN-QUALITY-002", .warning, .quality, .userEditable,
+                "Prefer a supplied client participation or observable-response summary."
+            ))
         }
 
         let outputClaims = SessionNoteEvidenceNormalizer.numericClaims(in: cleaned)
         for claim in outputClaims {
             let candidates = evidence.numericClaims.filter { $0.value == claim.value }
             if candidates.isEmpty {
-                issues.append("Numeric value \(claim.value) was not present in supplied facts or clear OCR.")
+                issues.append(issue(
+                    "SN-EVIDENCE-001", .hardBlocker, .evidenceVerification, .boundedModel,
+                    "Remove every numeric value not present in the supplied facts or clear OCR."
+                ))
             } else if claim.kind != .unknown,
                       !candidates.contains(where: { $0.kind == claim.kind || $0.kind == .unknown }) {
-                issues.append("Numeric value \(claim.value) changed measurement type to \(claim.kind.rawValue).")
+                issues.append(issue(
+                    "SN-EVIDENCE-002", .hardBlocker, .evidenceVerification, .boundedModel,
+                    "Restore each supplied numeric value to its original measurement type."
+                ))
             }
         }
 
         let outputPromptLevels = SessionNoteEvidenceNormalizer.promptLevels(in: cleaned)
-        for level in outputPromptLevels.subtracting(evidence.promptLevels) {
-            issues.append("Prompt level \(level) was not supplied in the evidence.")
+        if !outputPromptLevels.subtracting(evidence.promptLevels).isEmpty {
+            issues.append(issue(
+                "SN-EVIDENCE-003", .hardBlocker, .evidenceVerification, .boundedModel,
+                "Remove prompt levels that were not supplied in the evidence."
+            ))
         }
 
         let unsupportedAbsence = lower.range(
@@ -917,25 +1334,67 @@ enum SessionNoteOutputValidator {
             options: .regularExpression
         ) != nil
         if unsupportedAbsence && !factsSupportAbsence {
-            issues.append("The response asserted a behavior was absent without typed support.")
+            issues.append(issue(
+                "SN-EVIDENCE-004", .hardBlocker, .evidenceVerification, .boundedModel,
+                "Remove unsupported claims that a behavior did not occur."
+            ))
         }
 
         if evidence.contextOnlyClinicalTerms.contains(where: {
             SessionNoteEvidenceNormalizer.containsClinicalTerm($0, in: cleaned)
         }) {
-            issues.append("The draft used a saved target or behavior as a session event without factual evidence.")
+            issues.append(issue(
+                "SN-EVIDENCE-005", .hardBlocker, .evidenceVerification, .boundedModel,
+                "Remove saved-context-only targets or behaviors that lack current-session evidence."
+            ))
         }
 
         issues.append(contentsOf: unsupportedClinicalClaims(in: cleaned, evidence: evidence))
 
-        if hasObviousTemplateLanguage(lower) {
-            issues.append("Obvious template or model scaffolding remained.")
-        }
-        if hasRepetitiveOpenings(cleaned) {
-            issues.append("The response used overly repetitive sentence openings.")
+        let unsupportedSupervisorClaims = SessionNoteEvidenceNormalizer.supervisorClaims(in: cleaned)
+            .subtracting(evidence.supervisorClaims)
+        if !unsupportedSupervisorClaims.isEmpty {
+            issues.append(issue(
+                "SN-CLINICAL-008", .hardBlocker, .clinicalClaimVerification, .boundedModel,
+                "Remove supervisor involvement not supported by the current-session evidence."
+            ))
         }
 
-        return SessionNoteOutputValidation(draft: cleaned, issues: Array(Set(issues)).sorted())
+        if hasObviousTemplateLanguage(lower) {
+            issues.append(issue(
+                "SN-FORMAT-009", .repairable, .formatNormalization, .deterministic,
+                "Remove obvious template or model scaffolding."
+            ))
+        }
+        if hasRepetitiveOpenings(cleaned) {
+            issues.append(issue(
+                "SN-QUALITY-003", .warning, .quality, .userEditable,
+                "Vary repetitive sentence openings when editing the draft."
+            ))
+        }
+
+        var issuesByCode: [String: SessionNoteValidationIssue] = [:]
+        for item in issues { issuesByCode[item.code] = item }
+        return SessionNoteOutputValidation(
+            draft: cleaned,
+            issues: issuesByCode.values.sorted { $0.code < $1.code }
+        )
+    }
+
+    private static func issue(
+        _ code: String,
+        _ severity: SessionNoteValidationSeverity,
+        _ category: SessionNoteValidationCategory,
+        _ repairability: SessionNoteValidationRepairability,
+        _ repairInstruction: String
+    ) -> SessionNoteValidationIssue {
+        SessionNoteValidationIssue(
+            code: code,
+            severity: severity,
+            userSafeCategory: category,
+            repairability: repairability,
+            repairInstruction: repairInstruction
+        )
     }
 
     private static func containsLikelyPersonalName(
@@ -990,23 +1449,24 @@ enum SessionNoteOutputValidator {
     private static func unsupportedClinicalClaims(
         in value: String,
         evidence: SessionNoteEvidencePacket
-    ) -> [String] {
+    ) -> [SessionNoteValidationIssue] {
         let supplied = [evidence.typedFacts, evidence.quantitativeOCR]
             .joined(separator: "\n")
-        let patterns: [(String, String)] = [
-            (#"(?i)\b(function (?:was|is)|maintained by|attention[- ]seeking|escape[- ]maintained)\b"#, "An inferred behavioral function was not supplied."),
-            (#"(?i)\b(wanted|felt|was upset|was happy|was frustrated|was unmotivated)\b"#, "An inferred internal state was not supplied."),
-            (#"(?i)\b(made progress|demonstrated progress|improved|demonstrated improvement|regressed)\b"#, "A progress conclusion was not supplied."),
-            (#"(?i)\b(caregiver training|trained the caregiver|educated the caregiver)\b"#, "Caregiver training was not supplied."),
-            (#"(?i)\b(?:modified|changed|updated)\s+(?:the\s+)?(?:treatment plan|protocol|program|prompting)|\bnew\s+(?:targets?|programs?)\b"#, "A treatment or programming change was not supplied."),
-            (#"(?i)\brecommend(?:ed|ation|ations)?\b"#, "A recommendation was not supplied."),
-            (#"(?i)\b(reinforcement was effective|responded well to (?:the )?reinforcement)\b"#, "Reinforcement effectiveness was not supplied."),
-            (#"(?i)\b(?:the\s+)?(?:BCBA|LBS)\s+(?:observed|modeled|provided feedback|modified|updated)\b"#, "Supervisor involvement was not supplied."),
+        let patterns: [(String, String, String)] = [
+            ("SN-CLINICAL-001", #"(?i)\b(function (?:was|is)|maintained by|attention[- ]seeking|escape[- ]maintained)\b"#, "Remove the unsupported behavioral-function conclusion."),
+            ("SN-CLINICAL-002", #"(?i)\b(wanted|felt|was upset|was happy|was frustrated|was unmotivated)\b"#, "Remove the unsupported internal-state inference."),
+            ("SN-CLINICAL-003", #"(?i)\b(made progress|demonstrated progress|improved|demonstrated improvement|regressed)\b"#, "Remove the unsupported progress conclusion."),
+            ("SN-CLINICAL-004", #"(?i)\b(caregiver training|trained the caregiver|educated the caregiver)\b"#, "Remove unsupported caregiver-training claims."),
+            ("SN-CLINICAL-005", #"(?i)\b(?:modified|changed|updated)\s+(?:the\s+)?(?:treatment plan|protocol|program|prompting)|\bnew\s+(?:targets?|programs?)\b"#, "Remove unsupported treatment or programming changes."),
+            ("SN-CLINICAL-006", #"(?i)\brecommend(?:ed|ation|ations)?\b"#, "Remove recommendations that were not supplied."),
+            ("SN-CLINICAL-007", #"(?i)\b(reinforcement (?:was|proved) effective|responded (?:well|positively) to (?:the )?reinforcement)\b"#, "Remove unsupported conclusions about reinforcement effectiveness."),
         ]
-        return patterns.compactMap { pattern, issue in
+        return patterns.compactMap { code, pattern, instruction in
             let outputContains = value.range(of: pattern, options: .regularExpression) != nil
             let evidenceContains = supplied.range(of: pattern, options: .regularExpression) != nil
-            return outputContains && !evidenceContains ? issue : nil
+            return outputContains && !evidenceContains
+                ? issue(code, .hardBlocker, .clinicalClaimVerification, .boundedModel, instruction)
+                : nil
         }
     }
 

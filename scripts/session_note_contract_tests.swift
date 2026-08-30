@@ -98,8 +98,14 @@ private struct SessionNoteContractFixtureRunner {
             "a newly invented numeric value is rejected"
         )
 
-        let changedMeasurement = valid.replacingOccurrences(of: "3/5 trials", with: "3% accuracy")
-        let changedValidation = SessionNoteOutputValidator.validate(changedMeasurement, evidence: packet)
+        let countPacket = SessionNoteEvidencePacket.make(
+            typedFacts: "The RBT recorded 3 occurrences of the supplied behavior of concern.",
+            ocrEvidence: "[FREQUENCY/COUNT] supplied behavior of concern 3 occurrences",
+            savedTerminologyContext: "targets: none | behaviors: none",
+            profileCode: "SyCl"
+        )
+        let changedMeasurement = "The RBT recorded 3% accuracy for the supplied behavior of concern. The client participated in the session. The RBT will continue implementing the established treatment plan during future sessions."
+        let changedValidation = SessionNoteOutputValidator.validate(changedMeasurement, evidence: countPacket)
         try expect(
             changedValidation.issueCodes.contains("SN-EVIDENCE-002"),
             "trial data cannot silently become percentage data"

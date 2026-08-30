@@ -1,12 +1,14 @@
 # LifeRoute current engineering handoff
 
-## Active workstream — v0.8.3 maintenance and routing stabilization
+## Current maintenance baseline — v0.8.3 physical QA
 
-- Exact base: `81ebc834b2f7609a44d066239a1ee4970aa4d9db` (`origin/main` after PR #120)
-- Branch: `fix/v0.8.3-experimental-session-note-and-routing`
-- Current physical diagnostic release: LifeRoute v0.8.2 Build 115
-- Next candidate build is expected to be 116 if no intervening workflow run occurs; the repository does not hardcode it.
-- Do not merge, dispatch TestFlight, or submit to the App Store without product-owner authorization.
+- Authoritative merged `main`: `07bcd4b93b389b2b7fab85364cb0d35f84736d5a`
+  (PR #122)
+- Runway branch: `chore/pre-v0.9-runway`, created from that exact SHA
+- This branch is pre-v0.9 hygiene and documentation only; it must remain
+  isolated until v0.8.3 physical-device QA passes.
+- Do not merge this branch, dispatch TestFlight, change versions/build numbers,
+  or begin the v0.9.0 redesign during this workstream.
 
 The Session Note generator now presents a stable inline “Experimental AI Tool”
 warning before normal use. It tells users that generated notes may be incomplete
@@ -54,10 +56,50 @@ necessary for Foundation Models behavior, real-device location timing, external
 navigation handoff, and Live Activity presentation.
 
 PR #119 (`chore/v0.8.2-light-hygiene`) remains separate and must not be merged
-into this branch. Review it only for superseded harmless cleanup after v0.8.3.
+into this branch. Its release/handoff documentation is superseded by v0.8.3.
+The only still-useful unique change is removal of two unused imports and one
+obsolete comment from `V054ToolsDashboard.swift`; that narrow cleanup is
+reproduced on the runway branch. PR #119 should be closed as superseded after
+the runway branch is reviewed.
+
+## Pre-v0.9 UI migration boundaries
+
+- App entry: `LifeRouteApp.swift` owns `LifeRouteApp`, root theme injection,
+  shared chrome, and debug fixtures. Its `ContentView()` resolves through the
+  `ContentView = V054ContentView` typealias in `V054ContentView.swift`.
+- Navigation shell: `V054ContentView.swift` owns the five paged root
+  `NavigationStack`s and custom bottom toolbar. `AppNavigation.swift` owns
+  `AppSection`, `AppRouter`, per-section paths, and deep-destination toolbar
+  suppression.
+- Major root screens: `V054TodayView.swift`, `V054ScheduleView.swift`,
+  `V054ToolsDashboard.swift`, `ResourcePortalViews.swift`, and
+  `V054SetupView.swift`.
+- Major supporting screens: `DayRoutePlanningView.swift`,
+  `AIClinicalToolsViews.swift`, `SessionToolsViews.swift`, `ClientViews.swift`,
+  `V054ClientViews.swift`, `V054ThemeCenterView.swift`, and
+  `V054AddressField.swift`.
+- Shared visual infrastructure currently lives primarily in
+  `LifeRouteApp.swift`: theme palettes/store, design tokens, root chrome,
+  `LifeRouteScreenHeader`, `LifeRouteSectionLabel`, `LifeRouteIconBadge`, card
+  treatment, and primary/secondary button styles. Preserve these reusable seams
+  unless the v0.9 design intentionally replaces them.
+- Preserve the existing domain owners and inject them into replacement screens:
+  calendar/provider, routing/location, persistence, client profiles, session
+  tools, Live Activity, and `AppRouter`. A visual migration must not silently
+  create competing state ownership.
+- `LifeRoute/ContentView.swift` is a legacy native shell outside the shipping
+  Sources phase. `LifeRoute/LifeRouteWebView.swift` is a quarantined legacy
+  bridge outside Sources and is explicitly checked by current validation.
+  Consider removal only after v0.9 replacements and any historical-reference
+  need are resolved.
+- `LifeRoute_GitHub_Upload_Fresh/` is an unreferenced tracked historical source
+  snapshot, not an active build input. Its retention value is ambiguous, so
+  defer removal until the v0.9 migration or a separate archival decision.
 
 ## Next milestone — v0.9.0
 
-After v0.8.3 is merged and physically validated, begin the dedicated new native
-SwiftUI UI implementation based on the LifeRoute Design thread. Figma and broader
-visual redesign work belong to v0.9.0, not this maintenance branch.
+After v0.8.3 passes physical QA and this runway cleanup is reviewed/merged if
+appropriate, begin the dedicated new native SwiftUI UI implementation based on
+the LifeRoute Master and Design threads. Replace old UI incrementally and remove
+it only after each replacement exists and preserves its domain contracts. Figma
+and broader visual redesign work belong to v0.9.0, not this maintenance branch.

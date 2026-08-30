@@ -16,9 +16,11 @@
 - Phase 3 Schedule/travel-presentation implementation is accepted at
   `92e1a5f25791393c95137d6e15162c95ce11b1a9`. The remote feature branch was
   verified at that exact Phase 3 commit before Phase 4 began.
-- Phase 4 Tools/Visual Timer implementation is complete locally for checkpoint
-  review. Do not begin Resources, Setup, clients, Themes, or legacy retirement
-  until this checkpoint is accepted.
+- Phase 4 Tools/Visual Timer implementation is accepted and finalized remotely at
+  `09f8c1831db83b90dbd9019d34475069682a6360`.
+- Phase 5 Resources implementation is complete locally for checkpoint review. Do
+  not begin Setup, clients, saved places, Themes, or legacy retirement until this
+  checkpoint is accepted.
 - Do not dispatch TestFlight or merge the v0.9.0 branch without the owner's
   candidate-specific authorization.
 
@@ -174,7 +176,7 @@ navigation handoff, and Live Activity presentation.
 - Reduce Motion lowers the visual update cadence and removes pulse animation.
   VoiceOver receives only bounded minute/30-second/10-second/5-second/completion
   milestones; the continuously changing timer display is not a live region.
-- Visual Timer feedback executable contracts: 41 assertions. Day Route: 30;
+- Visual Timer feedback executable contracts: 42 assertions. Day Route: 30;
   Session Note: 162. Preparation, fast/full validation, fresh Debug and Release
   Simulator builds, app and Live Activity extension compilation, canonical
   seven-capture Simulator smoke, and `git diff --check` pass.
@@ -233,9 +235,38 @@ pre-v0.9 runway instead.
   snapshot, not an active build input. Its retention value is ambiguous, so
   defer removal until the v0.9 migration or a separate archival decision.
 
-## Next milestone — v0.9.0 Phase 5
+## v0.9.0 Phase 5 validation checkpoint
 
-After the owner accepts the Phase 4 checkpoint, migrate Resources and its portal
-presentation using the accepted Phase 5 pre-implementation map. Do not begin
-Setup, clients, saved places, Themes, legacy retirement, or release work as part
-of the Resources phase.
+- The active Resources root now uses Scenic Royal readability cards, adaptive
+  inventory metadata, four lazy category groups, accessible portal rows, and a
+  Scenic Royal local add-portal form. Bright scenery remains visible without
+  becoming the text contrast surface.
+- `ResourcePortalCore` remains the sole state owner. Its 27 built-in portals,
+  four category identities and ordering, custom create/delete persistence, URL
+  normalization, direct external-link behavior, and local-first boundary are
+  unchanged.
+- Built-in and custom rows retain stable portal IDs. Custom portals are identified
+  with both an icon and the explicit text `Custom portal`; VoiceOver receives
+  explicit built-in/custom values, external-browser hints, and delete hints.
+- Accessibility text sizes move custom-row deletion below the launch action and
+  stack header metadata without shrinking text. Shared Scenic Royal materials
+  continue to provide Increased Contrast and Reduce Transparency behavior; this
+  phase adds no animation or timer work.
+- Preparation, fast/full validation, 30 Day Route assertions, 162 Session Note
+  assertions, 42 Visual Timer feedback assertions, Debug and Release Simulator
+  builds, app and Live Activity extension compilation, and `git diff --check`
+  pass. `ResourcePortalDomain.swift` and every other protected domain have no
+  Phase 5 diff.
+- iPhone 17 Pro / iOS 26.5 evidence covers Canyon, bright Arctic, Rainforest,
+  Royal Current, and a seeded persisted custom portal. A combined Accessibility
+  Extra Large, Increased Contrast, Reduce Transparency, and Reduce Motion bright-
+  Arctic pass remains legible and reflows metadata and rows without shrinking
+  text. The warning budget remains the known no-AppIntents notice only.
+
+## Next milestone — v0.9.0 Phase 6
+
+After the owner accepts the Phase 5 checkpoint, migrate Setup, clients, saved
+places, and Themes using the accepted Phase 6 pre-implementation map. Themes
+remain inside Setup and the five-root architecture remains unchanged. Do not
+begin Phase 7 integration, legacy retirement, merge, or release work as part of
+the Phase 6 migration.

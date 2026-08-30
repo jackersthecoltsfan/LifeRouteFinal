@@ -103,6 +103,7 @@ def validate_project_and_version() -> None:
             "VisualTimerFeedbackContracts.swift in Sources",
             "ScenicRoyalToolsComponents.swift in Sources",
             "ScenicRoyalVisualTimerView.swift in Sources",
+            "ScenicRoyalResourceComponents.swift in Sources",
         ],
         "Xcode app/extension structure",
     )
@@ -321,6 +322,68 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     require_all(toolbar, ["accessibilityReduceMotion", "dynamicTypeSize", 'accessibilityLabel("Main navigation")', 'accessibilityValue(isSelected ? "Selected" : "")'], "toolbar accessibility contract")
     require_all(today, ["ScenicRoyalSectionHeader", "ScenicRoyalGlassEffectContainer", ".scenicRoyalCard(", ".scenicRoyalInteractiveSurface("], "Today Scenic Royal migration")
     require("LifeRouteTodaySelectedExemplarArtwork" not in today, "Today must use the persistent root scenery instead of a screen-local exemplar background")
+
+
+def validate_resources(sources: dict[str, str]) -> None:
+    domain = sources["ResourcePortalDomain.swift"]
+    views = sources["ResourcePortalViews.swift"]
+    components = sources["ScenicRoyalResourceComponents.swift"]
+
+    built_in_start = domain.find("let builtInPortals: [LifeRoutePortalLink] = [")
+    built_in_end = domain.find("\n    init()", built_in_start)
+    require(built_in_start >= 0 and built_in_end > built_in_start, "Resource Portal built-in catalog must remain inspectable")
+    require_count(domain[built_in_start:built_in_end], "LifeRoutePortalLink(", 27, "Resource Portal built-in inventory")
+    require_all(
+        domain,
+        [
+            'case clinical = "ABA Data & Clinical"',
+            'case hr = "Finance & HR"',
+            'case training = "Training & Credentials"',
+            'case other = "Other Work Portals"',
+            "normalizedURLString",
+            'private static let storageKey = "liferoute.resourcePortals.v1"',
+            "customPortals.sort",
+            "func addCustomPortal",
+            "func removeCustomPortal",
+        ],
+        "Resource Portal domain and persistence",
+    )
+    require_all(
+        views,
+        [
+            "@StateObject private var portalState = ResourcePortalCore()",
+            "ScenicRoyalResourceHeader",
+            "ScenicRoyalResourceCategorySection",
+            "ScenicRoyalCustomPortalForm",
+            "ScenicRoyalResourcePrivacyNote",
+            "portalState.portals(in: category)",
+            "portalState.addCustomPortal",
+            "portalState.removeCustomPortal",
+            "openURL(url)",
+        ],
+        "Scenic Royal Resources presentation and existing state ownership",
+    )
+    require_all(
+        components,
+        [
+            "struct ScenicRoyalResourceHeader",
+            "struct ScenicRoyalResourceCategorySection",
+            "struct ScenicRoyalResourceRow",
+            "struct ScenicRoyalCustomPortalForm",
+            "LazyVStack",
+            "dynamicTypeSize.isAccessibilitySize",
+            'Label("Custom portal"',
+            '.accessibilityHint("Opens external website in your browser")',
+            '.accessibilityHint("Deletes this custom portal from LifeRoute")',
+            "ScenicRoyalInsetRow(role: .readability)",
+            "ScenicRoyalCard(role: .readability)",
+        ],
+        "Resources readability, Dynamic Type, and accessibility components",
+    )
+    require("lifeRoutePalette" not in views + components, "Resources must not restore duplicated legacy palette styling")
+    forbidden_additions = [".searchable(", "ProgressView(", "URLSession", "async throws"]
+    present = [token for token in forbidden_additions if token in views + components]
+    require(not present, f"Resources presentation added out-of-scope search/loading/network behavior: {present}")
 
 
 def validate_clinical_and_aba(sources: dict[str, str]) -> None:
@@ -684,6 +747,7 @@ def run_fast() -> None:
     validate_navigation_and_ownership(sources)
     validate_theme_architecture(sources)
     validate_scenic_royal_foundation(sources)
+    validate_resources(sources)
     validate_clinical_and_aba(sources)
 
 

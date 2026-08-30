@@ -60,8 +60,7 @@ private final class VisualTimerToneEngine {
     private var completionStopTask: Task<Void, Never>?
 
     func playPulse(frequency: Double, profile: VisualTimerToneProfile, gain: Float) {
-        guard !profile.isSilent,
-              prepareIfNeeded(),
+        guard prepareIfNeeded(),
               let buffer = pulseBuffer(frequency: frequency, profile: profile) else { return }
         player.volume = max(0, min(1, gain))
         player.scheduleBuffer(buffer, at: nil, options: [])
@@ -69,8 +68,7 @@ private final class VisualTimerToneEngine {
     }
 
     func playCompletion(profile: VisualTimerToneProfile, gain: Float) {
-        guard !profile.isSilent,
-              prepareIfNeeded(),
+        guard prepareIfNeeded(),
               let buffer = completionBuffer(profile: profile) else { return }
         player.volume = max(0, min(1, gain))
         player.scheduleBuffer(buffer, at: nil, options: [])
@@ -180,6 +178,7 @@ private final class VisualTimerToneEngine {
 final class VisualTimerCore: ObservableObject {
     private enum PreferenceKey {
         static let toneProfile = "liferoute.visualTimer.toneProfile.v1"
+        static let soundEnabled = "liferoute.visualTimer.soundEnabled.v1"
         static let volume = "liferoute.visualTimer.volume.v1"
         static let completionHaptics = "liferoute.visualTimer.completionHaptics.v1"
     }
@@ -188,6 +187,7 @@ final class VisualTimerCore: ObservableObject {
     @Published private(set) var deadline: Date?
     @Published private(set) var pausedRemainingSeconds: TimeInterval = 5 * 60
     @Published private(set) var toneProfile: VisualTimerToneProfile
+    @Published private(set) var soundEnabled: Bool
     @Published private(set) var volume: Double
     @Published private(set) var completionHapticsEnabled: Bool
 
@@ -199,9 +199,24 @@ final class VisualTimerCore: ObservableObject {
         self.preferenceStore = preferenceStore
 
         let defaults = VisualTimerFeedbackPreferences.default
-        toneProfile = preferenceStore.string(forKey: PreferenceKey.toneProfile)
-            .flatMap(VisualTimerToneProfile.init(rawValue:))
-            ?? defaults.toneProfile
+        let storedTone = preferenceStore.string(forKey: PreferenceKey.toneProfile)
+        switch storedTone {
+        case "gentle":
+            toneProfile = .soft
+        case "silent":
+            toneProfile = defaults.toneProfile
+        default:
+            toneProfile = storedTone.flatMap(VisualTimerToneProfile.init(rawValue:))
+                ?? defaults.toneProfile
+        }
+
+        if preferenceStore.object(forKey: PreferenceKey.soundEnabled) == nil {
+            // Preserve the local Phase 4 preview's explicit Silent choice while
+            // migrating it to an independent sound control.
+            soundEnabled = storedTone == "silent" ? false : defaults.soundEnabled
+        } else {
+            soundEnabled = preferenceStore.bool(forKey: PreferenceKey.soundEnabled)
+        }
 
         if preferenceStore.object(forKey: PreferenceKey.volume) == nil {
             volume = defaults.volume
@@ -272,7 +287,12 @@ final class VisualTimerCore: ObservableObject {
     func setToneProfile(_ profile: VisualTimerToneProfile) {
         toneProfile = profile
         preferenceStore.set(profile.rawValue, forKey: PreferenceKey.toneProfile)
-        if profile.isSilent { toneEngine.stop() }
+    }
+
+    func setSoundEnabled(_ enabled: Bool) {
+        soundEnabled = enabled
+        preferenceStore.set(enabled, forKey: PreferenceKey.soundEnabled)
+        if !enabled { toneEngine.stop() }
     }
 
     func setCompletionHapticsEnabled(_ enabled: Bool) {
@@ -324,7 +344,7 @@ final class VisualTimerCore: ObservableObject {
                     self.pausedRemainingSeconds = 0
                     self.deadline = nil
                     self.feedbackTask = nil
-                    if !self.toneProfile.isSilent, self.volume > 0 {
+                    if self.soundEnabled, self.volume > 0 {
                         self.toneEngine.playCompletion(
                             profile: self.toneProfile,
                             gain: Float(self.volume)
@@ -333,7 +353,7 @@ final class VisualTimerCore: ObservableObject {
                     return
                 }
 
-                if !self.toneProfile.isSilent, self.volume > 0 {
+                if self.soundEnabled, self.volume > 0 {
                     self.toneEngine.playPulse(
                         frequency: self.toneFrequency(forRemaining: remaining),
                         profile: self.toneProfile,

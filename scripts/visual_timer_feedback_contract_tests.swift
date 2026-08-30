@@ -15,11 +15,10 @@ struct VisualTimerFeedbackContractTests {
     }
 
     private static func testToneProfiles() {
-        expect(VisualTimerToneProfile.allCases == [.gentle, .warm, .clear, .silent], "tone choices remain ordered and bounded")
-        expect(VisualTimerToneProfile.defaultProfile == .gentle, "Gentle is the sensible default tone")
-        expect(VisualTimerToneProfile.silent.isSilent, "Silent mode is explicit")
+        expect(VisualTimerToneProfile.allCases == [.warm, .soft, .clear], "audible tone choices remain ordered and bounded")
+        expect(VisualTimerToneProfile.defaultProfile == .soft, "Soft is the sensible default audible tone")
 
-        for profile in VisualTimerToneProfile.allCases where !profile.isSilent {
+        for profile in VisualTimerToneProfile.allCases {
             expect(profile.startFrequency > 0, "\(profile.title) starts above zero Hz")
             expect(profile.endFrequency > profile.startFrequency, "\(profile.title) rises gradually")
             expect(profile.endFrequency <= 523.25, "\(profile.title) avoids the previous harsh high-frequency range")
@@ -41,7 +40,7 @@ struct VisualTimerFeedbackContractTests {
     }
 
     private static func testFeedbackBounds() {
-        let profile = VisualTimerToneProfile.gentle
+        let profile = VisualTimerToneProfile.soft
         let startRate = VisualTimerFeedbackCurve.pulsesPerSecond(elapsedProgress: 0)
         let middleRate = VisualTimerFeedbackCurve.pulsesPerSecond(elapsedProgress: 0.5)
         let endRate = VisualTimerFeedbackCurve.pulsesPerSecond(elapsedProgress: 1)
@@ -72,9 +71,18 @@ struct VisualTimerFeedbackContractTests {
 
     private static func testPreferenceDefaults() {
         let defaults = VisualTimerFeedbackPreferences.default
-        expect(defaults.toneProfile == .gentle, "preferences default to Gentle")
+        expect(defaults.toneProfile == .soft, "preferences default to Soft")
+        expect(defaults.soundEnabled, "sound is enabled independently by default")
         expect(defaults.volume == 0.42, "default volume remains restrained")
         expect(defaults.completionHapticsEnabled, "completion haptics remain available by default")
+
+        let mutedWarm = VisualTimerFeedbackPreferences(
+            toneProfile: .warm,
+            soundEnabled: false,
+            volume: defaults.volume,
+            completionHapticsEnabled: defaults.completionHapticsEnabled
+        )
+        expect(mutedWarm.toneProfile == .warm && !mutedWarm.soundEnabled, "disabling sound preserves the selected audible tone")
     }
 
     private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {

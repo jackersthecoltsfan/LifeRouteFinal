@@ -147,7 +147,7 @@ struct VisualTimerView: View {
         VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
             ScenicRoyalSectionHeader(
                 "Feedback",
-                subtitle: "Choose a softer tone or keep the timer completely silent.",
+                subtitle: "Choose an audible tone, then control sound independently.",
                 systemImage: "waveform.path"
             )
 
@@ -171,13 +171,23 @@ struct VisualTimerView: View {
                 }
             }
 
+            Toggle(
+                "Sound",
+                isOn: Binding(
+                    get: { timer.soundEnabled },
+                    set: { timer.setSoundEnabled($0) }
+                )
+            )
+            .tint(style.accent)
+            .accessibilityHint("Turns timer tones on or off without changing the selected tone")
+
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
                 HStack {
-                    Label("Volume", systemImage: timer.toneProfile.isSilent ? "speaker.slash" : "speaker.wave.2")
+                    Label("Volume", systemImage: timer.soundEnabled ? "speaker.wave.2" : "speaker.slash")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(style.primaryText)
                     Spacer()
-                    Text(timer.toneProfile.isSilent ? "Silent" : "\(Int((timer.volume * 100).rounded()))%")
+                    Text(timer.soundEnabled ? "\(Int((timer.volume * 100).rounded()))%" : "Silent")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(style.accent)
                 }
@@ -190,9 +200,9 @@ struct VisualTimerView: View {
                     in: 0...1
                 )
                 .tint(style.accent)
-                .disabled(timer.toneProfile.isSilent)
+                .disabled(!timer.soundEnabled)
                 .accessibilityLabel("Timer tone volume")
-                .accessibilityValue(timer.toneProfile.isSilent ? "Silent" : "\(Int((timer.volume * 100).rounded())) percent")
+                .accessibilityValue(timer.soundEnabled ? "\(Int((timer.volume * 100).rounded())) percent" : "Silent")
             }
             .padding(.top, ScenicRoyalDesignSystem.Spacing.hairline)
 

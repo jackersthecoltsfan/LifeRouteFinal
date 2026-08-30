@@ -165,10 +165,12 @@ navigation handoff, and Live Activity presentation.
   start, pause, resume, add-minute, completion, and reset semantics. A pure
   `VisualTimerFeedbackCurve` adds exponential late-stage visual urgency and a
   slower, lower pitch curve without becoming a second timer engine.
-- Gentle, Warm, Clear, and Silent profiles, bounded volume, and optional
-  completion haptics persist through three narrow `UserDefaults` keys. Audio
-  uses the ambient session category so it mixes with other audio and respects
-  the physical Ring/Silent setting. Silent mode does not start the tone engine.
+- Warm, Soft, and Clear audible profiles plus an independent Sound toggle,
+  bounded volume, and optional completion haptics persist through four narrow
+  `UserDefaults` keys. Turning Sound off preserves the selected audible tone.
+  Audio uses the ambient session category so it mixes with other audio and
+  respects the physical Ring/Silent setting. Silent mode does not start the
+  tone engine.
 - Reduce Motion lowers the visual update cadence and removes pulse animation.
   VoiceOver receives only bounded minute/30-second/10-second/5-second/completion
   milestones; the continuously changing timer display is not a live region.

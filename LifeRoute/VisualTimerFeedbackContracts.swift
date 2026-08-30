@@ -1,97 +1,88 @@
 import Foundation
 
 enum VisualTimerToneProfile: String, CaseIterable, Codable, Identifiable {
-    case gentle
     case warm
+    case soft
     case clear
-    case silent
 
-    static let defaultProfile: VisualTimerToneProfile = .gentle
+    static let defaultProfile: VisualTimerToneProfile = .soft
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .gentle: return "Gentle"
         case .warm: return "Warm"
+        case .soft: return "Soft"
         case .clear: return "Clear"
-        case .silent: return "Silent"
         }
     }
 
     var detail: String {
         switch self {
-        case .gentle: return "Soft, rounded pulse"
         case .warm: return "Lower, mellow pulse"
+        case .soft: return "Soft, rounded pulse"
         case .clear: return "Light, focused pulse"
-        case .silent: return "Visual feedback only"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .gentle: return "waveform.path"
         case .warm: return "speaker.wave.1.fill"
+        case .soft: return "waveform.path"
         case .clear: return "bell.and.waves.left.and.right.fill"
-        case .silent: return "speaker.slash.fill"
         }
     }
 
-    var isSilent: Bool { self == .silent }
-
     var startFrequency: Double {
         switch self {
-        case .gentle: return 220.00
         case .warm: return 196.00
+        case .soft: return 220.00
         case .clear: return 261.63
-        case .silent: return 0
         }
     }
 
     var endFrequency: Double {
         switch self {
-        case .gentle: return 440.00
         case .warm: return 392.00
+        case .soft: return 440.00
         case .clear: return 523.25
-        case .silent: return 0
         }
     }
 
     var completionFrequencies: [Double] {
         switch self {
-        case .gentle: return [329.63, 392.00, 440.00]
         case .warm: return [293.66, 349.23, 392.00]
+        case .soft: return [329.63, 392.00, 440.00]
         case .clear: return [349.23, 440.00, 523.25]
-        case .silent: return []
         }
     }
 
     var secondHarmonicMix: Double {
         switch self {
-        case .gentle: return 0.05
         case .warm: return 0.09
+        case .soft: return 0.05
         case .clear: return 0.025
-        case .silent: return 0
         }
     }
 
     var detuneMix: Double {
         switch self {
-        case .gentle: return 0.012
         case .warm: return 0.018
+        case .soft: return 0.012
         case .clear: return 0.008
-        case .silent: return 0
         }
     }
 }
 
 struct VisualTimerFeedbackPreferences: Equatable {
     let toneProfile: VisualTimerToneProfile
+    let soundEnabled: Bool
     let volume: Double
     let completionHapticsEnabled: Bool
 
     static let `default` = VisualTimerFeedbackPreferences(
         toneProfile: .defaultProfile,
+        soundEnabled: true,
         volume: 0.42,
         completionHapticsEnabled: true
     )
@@ -116,7 +107,6 @@ enum VisualTimerFeedbackCurve {
         for profile: VisualTimerToneProfile,
         elapsedProgress: Double
     ) -> Double {
-        guard !profile.isSilent else { return 0 }
         let gradualPitchProgress = pow(clamped(elapsedProgress), 1.65)
         return profile.startFrequency
             * pow(profile.endFrequency / profile.startFrequency, gradualPitchProgress)

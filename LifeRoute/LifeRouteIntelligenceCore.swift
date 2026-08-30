@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import Vision
 
 #if canImport(FoundationModels)
@@ -38,6 +39,11 @@ enum SessionNoteGenerationProgress: Equatable {
 
 // v0.8.0 session-note runtime availability
 enum LifeRouteIntelligenceCore {
+    private static let sessionNoteLogger = Logger(
+        subsystem: "Com.Brandongood.LifeRoute",
+        category: "SessionNotePipeline"
+    )
+
     static func sessionNoteModelAvailability() -> SessionNoteModelAvailability {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
@@ -167,9 +173,9 @@ enum LifeRouteIntelligenceCore {
                     }
                 },
                 diagnostic: { event in
-                    #if DEBUG
-                    print("[SessionNoteValidation] \(event.privacySafeDescription)")
-                    #endif
+                    sessionNoteLogger.notice(
+                        "Session-note diagnostic: \(event.privacySafeDescription, privacy: .public)"
+                    )
                 }
             )
         } catch SessionNotePipelineError.contextTooLarge {

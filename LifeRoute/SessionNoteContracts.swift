@@ -386,16 +386,66 @@ enum SessionNoteFinalOutcome: String, Equatable {
     }
 }
 
-struct SessionNoteGenerationResult: Equatable {
-    let draft: String
-    let outcome: SessionNoteFinalOutcome
+enum SessionNoteCandidatePass: String, Equatable {
+    case initial
+    case repair
+}
+
+struct SessionNoteCandidateDiagnostics: Equatable {
+    let pass: SessionNoteCandidatePass
+    let rawCharacterCount: Int
+    let normalizedCharacterCount: Int
+    let wordCount: Int
+    let sentenceCount: Int
+    let paragraphCount: Int
+    let sourceOverlapBasisPoints: Int
+    let roughFragmentMatchCount: Int
+    let structuredMeasurementCount: Int
+    let missingStructuredMeasurementCount: Int
     let issueCodes: [String]
+    let hardBlockerCodes: [String]
+    let isProfessionallyReady: Bool
+
+    static func make(
+        pass: SessionNoteCandidatePass,
+        rawDraft: String,
+        normalizedDraft: String,
+        validation: SessionNoteOutputValidation,
+        evidence: SessionNoteEvidencePacket
+    ) -> SessionNoteCandidateDiagnostics {
+        let paragraphs = normalizedDraft
+            .components(separatedBy: "\n\n")
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        return SessionNoteCandidateDiagnostics(
+            pass: pass,
+            rawCharacterCount: rawDraft.count,
+            normalizedCharacterCount: normalizedDraft.count,
+            wordCount: normalizedDraft.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).count,
+            sentenceCount: SessionNoteOutputSanitizer.splitSentences(normalizedDraft).count,
+            paragraphCount: paragraphs.count,
+            sourceOverlapBasisPoints: SessionNoteOutputValidator.sourceOverlapBasisPoints(
+                normalizedDraft,
+                evidence: evidence
+            ),
+            roughFragmentMatchCount: SessionNoteOutputValidator.roughFragmentMatchCount(in: normalizedDraft),
+            structuredMeasurementCount: evidence.structuredMeasurements.count,
+            missingStructuredMeasurementCount: SessionNoteOutputValidator.missingStructuredMeasurementCount(
+                in: normalizedDraft,
+                evidence: evidence
+            ),
+            issueCodes: validation.issueCodes,
+            hardBlockerCodes: validation.hardBlockerCodes,
+            isProfessionallyReady: validation.isProfessionallyReady
+        )
+    }
 }
 
 enum SessionNotePipelineDiagnosticEvent: Equatable {
     case initialIssueCodes([String])
     case deterministicRepairCodes([String])
     case remainingHardBlockerCodes([String])
+    case candidateAssessment(SessionNoteCandidateDiagnostics)
+    case repairAttempted([String])
     case repairPassIssueCodes([String])
     case fallback(SessionNoteFallbackOutcome)
     case finalOutcome(SessionNoteFinalOutcome)
@@ -408,13 +458,60 @@ enum SessionNotePipelineDiagnosticEvent: Equatable {
             return "deterministic repair codes: \(codes.joined(separator: ","))"
         case .remainingHardBlockerCodes(let codes):
             return "remaining hard-blocker codes: \(codes.joined(separator: ","))"
+        case .candidateAssessment(let diagnostics):
+            return [
+                "candidate",
+                "pass=\(diagnostics.pass.rawValue)",
+                "rawChars=\(diagnostics.rawCharacterCount)",
+                "normalizedChars=\(diagnostics.normalizedCharacterCount)",
+                "words=\(diagnostics.wordCount)",
+                "sentences=\(diagnostics.sentenceCount)",
+                "paragraphs=\(diagnostics.paragraphCount)",
+                "sourceOverlapBP=\(diagnostics.sourceOverlapBasisPoints)",
+                "roughFragments=\(diagnostics.roughFragmentMatchCount)",
+                "measurements=\(diagnostics.structuredMeasurementCount)",
+                "missingMeasurements=\(diagnostics.missingStructuredMeasurementCount)",
+                "issues=\(diagnostics.issueCodes.joined(separator: ","))",
+                "hardBlockers=\(diagnostics.hardBlockerCodes.joined(separator: ","))",
+                "ready=\(diagnostics.isProfessionallyReady ? 1 : 0)",
+            ].joined(separator: ";")
+        case .repairAttempted(let codes):
+            return "repairAttempted=\(codes.joined(separator: ","))"
         case .repairPassIssueCodes(let codes):
             return "repair-pass issue codes: \(codes.joined(separator: ","))"
         case .fallback(let outcome):
-            return "fallback outcome: \(outcome.rawValue)"
+            return "fallback=\(outcome.rawValue)"
         case .finalOutcome(let outcome):
-            return "final outcome: \(outcome.rawValue)"
+            return "final=\(outcome.rawValue)"
         }
+    }
+}
+
+struct SessionNoteDiagnosticReceipt: Equatable {
+    let events: [SessionNotePipelineDiagnosticEvent]
+
+    var shareableText: String {
+        let details = events.map(\.privacySafeDescription).joined(separator: " | ")
+        return details.isEmpty ? "SN-DIAG-1 | no-events" : "SN-DIAG-1 | \(details)"
+    }
+}
+
+struct SessionNoteGenerationResult: Equatable {
+    let draft: String
+    let outcome: SessionNoteFinalOutcome
+    let issueCodes: [String]
+    let diagnostics: SessionNoteDiagnosticReceipt
+
+    init(
+        draft: String,
+        outcome: SessionNoteFinalOutcome,
+        issueCodes: [String],
+        diagnostics: SessionNoteDiagnosticReceipt = SessionNoteDiagnosticReceipt(events: [])
+    ) {
+        self.draft = draft
+        self.outcome = outcome
+        self.issueCodes = issueCodes
+        self.diagnostics = diagnostics
     }
 }
 
@@ -458,6 +555,12 @@ enum SessionNoteGenerationPipeline {
         progress: @escaping (SessionNotePipelineEvent) async -> Void = { _ in },
         diagnostic: @escaping (SessionNotePipelineDiagnosticEvent) -> Void = { _ in }
     ) async throws -> SessionNoteGenerationResult {
+        var diagnosticEvents: [SessionNotePipelineDiagnosticEvent] = []
+        func record(_ event: SessionNotePipelineDiagnosticEvent) {
+            diagnosticEvents.append(event)
+            diagnostic(event)
+        }
+
         let firstRawDraft: String
         do {
             firstRawDraft = try await request(.standardDraft)
@@ -471,26 +574,35 @@ enum SessionNoteGenerationPipeline {
             scrubber: packet.scrubber
         )
         let firstValidation = SessionNoteOutputValidator.validate(firstSanitization.draft, evidence: packet)
-        diagnostic(.initialIssueCodes(firstValidation.issueCodes))
+        record(.initialIssueCodes(firstValidation.issueCodes))
         let firstRepair = SessionNoteDeterministicRepairer.repair(
             firstValidation.draft,
             validation: firstValidation,
             evidence: packet
         )
-        diagnostic(.deterministicRepairCodes(
+        record(.deterministicRepairCodes(
             Array(Set(firstSanitization.appliedIssueCodes + firstRepair.appliedIssueCodes)).sorted()
         ))
         let normalizedValidation = SessionNoteOutputValidator.validate(firstRepair.draft, evidence: packet)
-        diagnostic(.remainingHardBlockerCodes(normalizedValidation.hardBlockerCodes))
+        record(.remainingHardBlockerCodes(normalizedValidation.hardBlockerCodes))
+        record(.candidateAssessment(SessionNoteCandidateDiagnostics.make(
+            pass: .initial,
+            rawDraft: firstRawDraft,
+            normalizedDraft: firstRepair.draft,
+            validation: normalizedValidation,
+            evidence: packet
+        )))
         if normalizedValidation.isProfessionallyReady {
-            diagnostic(.finalOutcome(.generated))
+            record(.finalOutcome(.generated))
             return SessionNoteGenerationResult(
                 draft: normalizedValidation.draft,
                 outcome: .generated,
-                issueCodes: normalizedValidation.issueCodes
+                issueCodes: normalizedValidation.issueCodes,
+                diagnostics: SessionNoteDiagnosticReceipt(events: diagnosticEvents)
             )
         }
 
+        record(.repairAttempted(normalizedValidation.boundedModelRepairIssues.map(\.code).sorted()))
         await progress(.repairing)
         let repairedRawDraft = try await request(.repair(normalizedValidation.boundedModelRepairInstructions))
         let repairedSanitization = SessionNoteOutputSanitizer.sanitizeWithReport(
@@ -503,33 +615,42 @@ enum SessionNoteGenerationPipeline {
             validation: repairedInitialValidation,
             evidence: packet
         )
-        diagnostic(.deterministicRepairCodes(
+        record(.deterministicRepairCodes(
             Array(Set(repairedSanitization.appliedIssueCodes + repairedDeterministic.appliedIssueCodes)).sorted()
         ))
         let repairedValidation = SessionNoteOutputValidator.validate(repairedDeterministic.draft, evidence: packet)
-        diagnostic(.repairPassIssueCodes(repairedValidation.issueCodes))
+        record(.repairPassIssueCodes(repairedValidation.issueCodes))
+        record(.candidateAssessment(SessionNoteCandidateDiagnostics.make(
+            pass: .repair,
+            rawDraft: repairedRawDraft,
+            normalizedDraft: repairedDeterministic.draft,
+            validation: repairedValidation,
+            evidence: packet
+        )))
         if repairedValidation.isProfessionallyReady {
-            diagnostic(.finalOutcome(.repaired))
+            record(.finalOutcome(.repaired))
             return SessionNoteGenerationResult(
                 draft: repairedValidation.draft,
                 outcome: .repaired,
-                issueCodes: repairedValidation.issueCodes
+                issueCodes: repairedValidation.issueCodes,
+                diagnostics: SessionNoteDiagnosticReceipt(events: diagnosticEvents)
             )
         }
 
         if let fallback = SessionNoteConservativeFallback.make(from: packet) {
-            diagnostic(.fallback(.succeeded))
-            diagnostic(.finalOutcome(.fallback))
+            record(.fallback(.succeeded))
+            record(.finalOutcome(.fallback))
             return SessionNoteGenerationResult(
                 draft: fallback,
                 outcome: .fallback,
-                issueCodes: repairedValidation.issueCodes
+                issueCodes: repairedValidation.issueCodes,
+                diagnostics: SessionNoteDiagnosticReceipt(events: diagnosticEvents)
             )
         }
 
         let fallbackOutcome: SessionNoteFallbackOutcome = packet.typedFacts.isEmpty ? .insufficientEvidence : .unsafe
-        diagnostic(.fallback(fallbackOutcome))
-        diagnostic(.finalOutcome(.rejected))
+        record(.fallback(fallbackOutcome))
+        record(.finalOutcome(.rejected))
         throw SessionNotePipelineError.rejected(repairedValidation.primaryFailureCategory)
     }
 }
@@ -1642,9 +1763,7 @@ enum SessionNoteOutputValidator {
         }
 
         if requireStructuredMeasurementCoverage,
-           evidence.structuredMeasurements.contains(where: {
-               !containsStructuredMeasurement($0, in: cleaned)
-           }) {
+           missingStructuredMeasurementCount(in: cleaned, evidence: evidence) > 0 {
             issues.append(issue(
                 "SN-EVIDENCE-006", .hardBlocker, .evidenceVerification, .boundedModel,
                 "Include every clear current-session screenshot measurement with its supplied target, measurement type, value, unit, and prompt level."
@@ -1768,6 +1887,15 @@ enum SessionNoteOutputValidator {
         }
     }
 
+    static func missingStructuredMeasurementCount(
+        in value: String,
+        evidence: SessionNoteEvidencePacket
+    ) -> Int {
+        evidence.structuredMeasurements.filter {
+            !containsStructuredMeasurement($0, in: value)
+        }.count
+    }
+
     private static func containsLikelyPersonalName(
         in value: String,
         evidence: SessionNoteEvidencePacket
@@ -1863,6 +1991,21 @@ enum SessionNoteOutputValidator {
         let sourceTokens = comparisonTokens(in: evidence.typedFacts)
         guard sourceTokens.count >= 40,
               hasRoughSourceStructure(evidence.typedFacts) else { return false }
+        let candidateWithoutClose = value.replacingOccurrences(
+            of: SessionNoteOutputSanitizer.continuationSentence,
+            with: "",
+            options: [.caseInsensitive]
+        )
+        guard comparisonTokens(in: candidateWithoutClose).count >= 30 else { return false }
+
+        return sourceOverlapBasisPoints(value, evidence: evidence) >= 4_500
+    }
+
+    static func sourceOverlapBasisPoints(
+        _ value: String,
+        evidence: SessionNoteEvidencePacket
+    ) -> Int {
+        let sourceTokens = comparisonTokens(in: evidence.typedFacts)
 
         let candidateWithoutClose = value.replacingOccurrences(
             of: SessionNoteOutputSanitizer.continuationSentence,
@@ -1870,10 +2013,9 @@ enum SessionNoteOutputValidator {
             options: [.caseInsensitive]
         )
         let candidateTokens = comparisonTokens(in: candidateWithoutClose)
-        guard candidateTokens.count >= 30 else { return false }
 
         let windowSize = 5
-        guard sourceTokens.count >= windowSize, candidateTokens.count >= windowSize else { return false }
+        guard sourceTokens.count >= windowSize, candidateTokens.count >= windowSize else { return 0 }
         let sourceWindows = Set((0...(sourceTokens.count - windowSize)).map {
             sourceTokens[$0..<($0 + windowSize)].joined(separator: " ")
         })
@@ -1883,7 +2025,7 @@ enum SessionNoteOutputValidator {
         let copiedWindowCount = candidateWindows.reduce(into: 0) { count, window in
             if sourceWindows.contains(window) { count += 1 }
         }
-        return Double(copiedWindowCount) / Double(candidateWindows.count) >= 0.45
+        return Int((Double(copiedWindowCount) / Double(candidateWindows.count) * 10_000).rounded())
     }
 
     private static func hasRoughSourceStructure(_ value: String) -> Bool {
@@ -1904,13 +2046,21 @@ enum SessionNoteOutputValidator {
     }
 
     private static func hasRoughDictationFragments(_ value: String) -> Bool {
+        roughFragmentMatchCount(in: value) > 0
+    }
+
+    static func roughFragmentMatchCount(in value: String) -> Int {
         [
             #"(?i)\b(?:did|doing)\s+(?:more\s+)?work\b"#,
             #"(?i)\bhad\s+(?:him|her|them|the\s+client)\s+(?:wait|work)\b"#,
             #"(?i)\b(?:took|needed)\s+(?:many|multiple|several)\s+redirections\b"#,
             #"(?i)\bworking\s+on\b"#,
             #"(?i)\bmore\s+time\s+manding\b"#,
-        ].contains(where: { value.range(of: $0, options: .regularExpression) != nil })
+        ].reduce(into: 0) { count, pattern in
+            if value.range(of: pattern, options: .regularExpression) != nil {
+                count += 1
+            }
+        }
     }
 
     private static func comparisonTokens(in value: String) -> [String] {

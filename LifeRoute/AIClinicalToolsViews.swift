@@ -86,6 +86,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
 
     @Published private(set) var state: SessionNoteGenerationState = .idle
     @Published var generatedNote = ""
+    @Published private(set) var diagnosticReceipt = ""
 
     private let generator: SessionNoteGenerating
     private let timeoutSeconds: UInt64
@@ -105,6 +106,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
 
         let currentRequestID = UUID()
         draftLedger.begin(requestID: currentRequestID, preserving: generatedNote)
+        diagnosticReceipt = ""
         state = .checkingAvailability
         Self.logger.notice("Session-note generation started; checking model availability")
 
@@ -119,6 +121,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
                 if case .unavailable(let explanation) = availability {
                     state = .unavailable(explanation)
                 }
+                recordRuntimeDiagnostic("modelUnavailable")
                 Self.logger.notice("Session-note generation stopped because the model is unavailable")
                 finish(requestID: currentRequestID)
                 return
@@ -136,9 +139,11 @@ final class AISessionNoteRuntimeModel: ObservableObject {
                     }
                 }
                 guard draftLedger.isCurrent(currentRequestID) else { return }
+                diagnosticReceipt = result.diagnostics.shareableText
                 let cleaned = result.draft.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !cleaned.isEmpty else {
                     state = .failed("Apple Intelligence returned an empty draft. Your session facts and any previous draft were preserved.")
+                    recordRuntimeDiagnostic("emptyResult")
                     finish(requestID: currentRequestID)
                     return
                 }
@@ -152,22 +157,33 @@ final class AISessionNoteRuntimeModel: ObservableObject {
             } catch is CancellationError {
                 guard draftLedger.isCurrent(currentRequestID) else { return }
                 state = .cancelled
+                recordRuntimeDiagnostic("cancelled")
                 Self.logger.notice("Session-note generation cancelled")
             } catch is SessionNoteRequestRaceError {
                 guard draftLedger.isCurrent(currentRequestID) else { return }
                 state = .timedOut
+                recordRuntimeDiagnostic("timedOut")
                 Self.logger.error("Session-note generation timed out")
             } catch let error as LifeRouteIntelligenceError {
                 guard draftLedger.isCurrent(currentRequestID) else { return }
                 switch error {
                 case .unavailable:
                     state = .unavailable(error.localizedDescription)
-                default:
+                    recordRuntimeDiagnostic("modelUnavailable")
+                case .emptyInput:
                     state = .failed(error.localizedDescription)
+                    recordRuntimeDiagnostic("emptyInput")
+                case .contextWindowExceeded:
+                    state = .failed(error.localizedDescription)
+                    recordRuntimeDiagnostic("contextWindowExceeded")
+                case .generationFailed:
+                    state = .failed(error.localizedDescription)
+                    recordRuntimeDiagnostic("generationFailed")
                 }
             } catch {
                 guard draftLedger.isCurrent(currentRequestID) else { return }
                 state = .failed(error.localizedDescription)
+                recordRuntimeDiagnostic("unexpectedFailure")
             }
             finish(requestID: currentRequestID)
         }
@@ -202,6 +218,17 @@ final class AISessionNoteRuntimeModel: ObservableObject {
         activeTask = nil
         activeRace = nil
         draftLedger.finish(requestID: requestID)
+    }
+
+    private func recordRuntimeDiagnostic(_ code: String) {
+        if diagnosticReceipt.isEmpty {
+            diagnosticReceipt = "SN-DIAG-1 | runtime=\(code)"
+        } else if !diagnosticReceipt.contains("runtime=\(code)") {
+            diagnosticReceipt += " | runtime=\(code)"
+        }
+        Self.logger.notice(
+            "Session-note receipt: \(self.diagnosticReceipt, privacy: .public)"
+        )
     }
 
 }
@@ -635,6 +662,17 @@ struct AISessionNoteGeneratorView: View {
                     .buttonStyle(LifeRouteSecondaryButtonStyle())
                     .disabled(!hasEvidence)
             }
+
+            if shouldOfferDiagnostics {
+                Button {
+                    UIPasteboard.general.string = runtime.diagnosticReceipt
+                    localNotice = "Privacy-safe troubleshooting details copied."
+                } label: {
+                    Label("Copy troubleshooting details", systemImage: "doc.on.doc")
+                }
+                .buttonStyle(LifeRouteSecondaryButtonStyle())
+                .accessibilityHint("Copies reason codes and structural counts without session facts or generated note text.")
+            }
         }
         .padding(12)
         .background(statusTint.opacity(0.10), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -773,6 +811,16 @@ struct AISessionNoteGeneratorView: View {
     private var shouldOfferRetry: Bool {
         switch runtime.state {
         case .unavailable, .failed, .timedOut, .cancelled:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var shouldOfferDiagnostics: Bool {
+        guard !runtime.diagnosticReceipt.isEmpty else { return false }
+        switch runtime.state {
+        case .completed(.fallback), .completed(.rejected), .unavailable, .failed, .timedOut, .cancelled:
             return true
         default:
             return false

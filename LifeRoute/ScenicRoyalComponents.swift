@@ -79,3 +79,67 @@ struct ScenicRoyalIconBadge: View {
             .accessibilityHidden(true)
     }
 }
+
+struct ScenicRoyalPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.scenicRoyalThemeStyle) private var style
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.bold))
+            .foregroundStyle(ScenicRoyalDesignSystem.ColorToken.brandNavyDeep)
+            .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
+            .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
+            .background(
+                LinearGradient(
+                    colors: [style.accent, ScenicRoyalDesignSystem.ColorToken.brandGoldBright],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                in: RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
+                    .stroke(Color.white.opacity(0.24), lineWidth: ScenicRoyalDesignSystem.Stroke.subtle)
+            }
+            .opacity(configuration.isPressed ? 0.84 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+            .animation(
+                reduceMotion ? nil : ScenicRoyalDesignSystem.Motion.selection,
+                value: configuration.isPressed
+            )
+    }
+}
+
+struct ScenicRoyalSecondaryButtonStyle: ButtonStyle {
+    @Environment(\.scenicRoyalThemeStyle) private var style
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(style.primaryText)
+            .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
+            .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
+            .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous))
+            .scenicRoyalInteractiveSurface(role: .selectedControl)
+            .opacity(configuration.isPressed ? 0.78 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+            .animation(
+                reduceMotion ? nil : ScenicRoyalDesignSystem.Motion.selection,
+                value: configuration.isPressed
+            )
+    }
+}
+
+extension View {
+    func scenicRoyalCard(
+        role: ScenicRoyalSurfaceRole = .card,
+        cornerRadius: CGFloat = ScenicRoyalDesignSystem.Radius.card,
+        padding: CGFloat = ScenicRoyalDesignSystem.Spacing.comfortable
+    ) -> some View {
+        self
+            .padding(padding)
+            .scenicRoyalSurface(role: role, cornerRadius: cornerRadius)
+    }
+}

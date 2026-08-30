@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DayRoutePlanningView: View {
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.scenicRoyalThemeStyle) private var scenicStyle
     @ObservedObject var calendarState: CalendarCoreState
     @ObservedObject var routingState: RoutingLocationCore
     var day: Date = Date()
@@ -66,7 +67,7 @@ struct DayRoutePlanningView: View {
                 .font(.subheadline)
                 .foregroundStyle(palette.textSecondary)
         }
-        .lifeRouteCard()
+        .scenicRoyalCard(role: .readability)
     }
 
     private var destinationCard: some View {
@@ -100,7 +101,7 @@ struct DayRoutePlanningView: View {
                 }
             }
         }
-        .lifeRouteCard()
+        .scenicRoyalCard(role: .readability)
     }
 
     private var stopsCard: some View {
@@ -128,7 +129,7 @@ struct DayRoutePlanningView: View {
                 } label: {
                     Label("Add from saved places", systemImage: "bookmark.fill")
                 }
-                .buttonStyle(LifeRouteSecondaryButtonStyle())
+                .buttonStyle(ScenicRoyalSecondaryButtonStyle())
             }
 
             Picker("Position", selection: $stopPosition) {
@@ -189,7 +190,7 @@ struct DayRoutePlanningView: View {
             Button("Add stop") {
                 addCustomStop()
             }
-            .buttonStyle(LifeRoutePrimaryButtonStyle())
+            .buttonStyle(ScenicRoyalPrimaryButtonStyle())
 
             if !stops.isEmpty {
                 Divider().overlay(Color.white.opacity(0.08))
@@ -217,7 +218,7 @@ struct DayRoutePlanningView: View {
                     .foregroundStyle(palette.textSecondary)
             }
         }
-        .lifeRouteCard()
+        .scenicRoyalCard(role: .readability)
     }
 
     private var routeOptionsCard: some View {
@@ -252,7 +253,7 @@ struct DayRoutePlanningView: View {
                     .foregroundStyle(palette.textSecondary)
             }
         }
-        .lifeRouteCard()
+        .scenicRoyalCard(role: .readability)
     }
 
     private var buildCard: some View {
@@ -262,7 +263,7 @@ struct DayRoutePlanningView: View {
             } label: {
                 Label(planState.isCalculating ? "Generating route…" : "Generate full day route", systemImage: "map.fill")
             }
-            .buttonStyle(LifeRoutePrimaryButtonStyle())
+            .buttonStyle(ScenicRoyalPrimaryButtonStyle())
             .disabled(planState.isCalculating || (dayEvents.isEmpty && stops.isEmpty))
 
             if let routeMessage = planState.message {
@@ -271,7 +272,7 @@ struct DayRoutePlanningView: View {
                     .foregroundStyle(palette.textSecondary)
             }
         }
-        .lifeRouteCard()
+        .scenicRoyalCard(role: .readability)
     }
 
     private var routeResultsCard: some View {
@@ -284,6 +285,32 @@ struct DayRoutePlanningView: View {
                 Text("\(planState.legs.count) legs")
                     .font(.caption.weight(.black))
                     .foregroundStyle(palette.accent)
+            }
+
+            if let plan = planState.fullRoutePlan {
+                Button {
+                    if planState.hasStartedSequentialHandoff,
+                       planState.nextSequentialLegIndex != nil {
+                        planState.continueFullRoute(mode: routeMode)
+                    } else {
+                        planState.startFullRoute(mode: routeMode)
+                    }
+                } label: {
+                    Label(fullRouteActionTitle(plan), systemImage: fullRouteActionIcon(plan))
+                }
+                .buttonStyle(ScenicRoyalPrimaryButtonStyle())
+                .accessibilityHint(fullRouteAccessibilityHint(plan))
+
+                if let fallbackReason = plan.fallbackReason {
+                    Label(fallbackReason, systemImage: "arrow.triangle.2.circlepath")
+                        .font(.caption)
+                        .foregroundStyle(scenicStyle.secondaryText)
+                        .accessibilityElement(children: .combine)
+                } else {
+                    Text("All \(plan.orderedLegs.count) route legs will be handed off together without changing their order.")
+                        .font(.caption)
+                        .foregroundStyle(scenicStyle.secondaryText)
+                }
             }
 
             ForEach(planState.legs) { leg in
@@ -306,18 +333,12 @@ struct DayRoutePlanningView: View {
                         Spacer()
                     }
 
-                    Button {
-                        planState.openLegInAppleMaps(leg, mode: routeMode)
-                    } label: {
-                        Label("Open this leg in Apple Maps", systemImage: "arrow.up.right.square")
-                    }
-                    .buttonStyle(LifeRouteSecondaryButtonStyle())
                 }
                 .padding(12)
                 .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
         }
-        .lifeRouteCard()
+        .scenicRoyalCard(role: .readability)
     }
 
     private func stopRow(_ stop: LifeRouteDayStop) -> some View {
@@ -395,5 +416,31 @@ struct DayRoutePlanningView: View {
             currentLocation: routingState.currentLocation,
             mode: routeMode
         )
+    }
+
+    private func fullRouteActionTitle(_ plan: LifeRouteFullRouteHandoffPlan) -> String {
+        if plan.requiresSequentialContinuation,
+           planState.hasStartedSequentialHandoff,
+           let nextIndex = planState.nextSequentialLegIndex {
+            return "Continue with leg \(nextIndex + 1) of \(plan.orderedLegs.count) in \(plan.provider.title)"
+        }
+        if plan.requiresSequentialContinuation, planState.hasStartedSequentialHandoff {
+            return "Start full route again in \(plan.provider.title)"
+        }
+        return "Start full route in \(plan.provider.title)"
+    }
+
+    private func fullRouteActionIcon(_ plan: LifeRouteFullRouteHandoffPlan) -> String {
+        if plan.requiresSequentialContinuation, planState.hasStartedSequentialHandoff {
+            return "arrow.forward.circle.fill"
+        }
+        return "location.north.line.fill"
+    }
+
+    private func fullRouteAccessibilityHint(_ plan: LifeRouteFullRouteHandoffPlan) -> String {
+        if plan.requiresSequentialContinuation {
+            return "Opens each computed leg in order. Return to LifeRoute after each leg to continue."
+        }
+        return "Sends the complete ordered route to \(plan.provider.title)."
     }
 }

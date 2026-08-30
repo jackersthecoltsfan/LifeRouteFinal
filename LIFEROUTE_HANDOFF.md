@@ -8,9 +8,11 @@
 - Authoritative post-runway `main` and v0.9.0 branch point:
   `f35b59b5b337ba27a6196bb8d1687f4fe23f8dfc`.
 - Active branch: `feature/v0.9.0-scenic-royal-ui`.
-- Phase 0 architecture is accepted. Phase 1 is the active implementation
-  boundary; do not begin the Today/route migration until its checkpoint is
-  reviewed.
+- Phase 0 architecture and Phase 1 foundation checkpoints are accepted. The
+  Phase 1 remote checkpoint is `fe46286f916c095d61e5ebc5ef163b3d2d9b21ed`.
+- Phase 2 Today/route implementation is complete locally for checkpoint review.
+  Do not begin Schedule or later migration phases until this checkpoint is
+  accepted.
 - Do not dispatch TestFlight or merge the v0.9.0 branch without the owner's
   candidate-specific authorization.
 
@@ -80,6 +82,40 @@ and exposed as one combined VoiceOver description. Physical-device QA remains
 necessary for Foundation Models behavior, real-device location timing, external
 navigation handoff, and Live Activity presentation.
 
+## v0.9.0 Phase 2 validation checkpoint
+
+- Today now uses the shared Scenic Royal material/component layer and the
+  persistent root scenery; the old Today-only exemplar background and duplicate
+  glass modifiers are retired.
+- Quick Actions, Today/Day Overview, gap suggestions, and Live Day retain their
+  existing state owners and behavior while using shared Scenic Royal cards,
+  headers, interactive surfaces, and buttons.
+- `FullRouteHandoffContracts.swift` adds a pure, executable provider policy. The
+  normal route-results flow exposes one `Start full route in <provider>` action;
+  individual MapKit legs remain the timing/distance and fallback source of truth.
+- Google Maps receives one ordered directions URL only when every stop fits the
+  conservative three-mobile-waypoint and 2,048-character limits. Apple Maps
+  receives a complete single leg and LifeRoute-managed sequential continuation
+  for multi-leg routes. Waze and every unverified/over-limit sequence receive an
+  explicit sequential continuation. No fallback truncates, sorts, or rewrites
+  route legs.
+- Day Route executable contracts: 30 assertions; Session Note executable
+  contracts: 162 assertions.
+- Preparation, fast/full validation, Debug and Release Simulator builds, app and
+  Live Activity extension compilation, canonical seven-capture Simulator smoke,
+  and `git diff --check`: pass.
+- Warning budget remains the known no-AppIntents toolchain notice only, with zero
+  unexpected compiler warnings. Runtime log review found no Phase 2 crash, fault,
+  or hang.
+- Today visual evidence covers Canyon, bright Arctic, Rainforest, and Royal
+  Current. A combined Accessibility Extra Large, Increased Contrast, Reduce
+  Transparency, and Reduce Motion bright-Arctic pass remained legible and
+  reflowed Quick Actions to two columns.
+- Direct pointer-driven root swiping could not be repeated because the Mac
+  interactive desktop was locked. The unchanged paged five-stack navigation was
+  re-smoked through all five root launches and remains protected by semantic
+  validation; repeat one physical swipe when the desktop is available.
+
 PR #119 (`chore/v0.8.2-light-hygiene`) was closed as superseded and was not
 merged. Its still-useful tiny cleanup was reproduced through the approved
 pre-v0.9 runway instead.
@@ -120,12 +156,11 @@ pre-v0.9 runway instead.
   snapshot, not an active build input. Its retention value is ambiguous, so
   defer removal until the v0.9 migration or a separate archival decision.
 
-## Next milestone — v0.9.0 Phase 2
+## Next milestone — v0.9.0 Phase 3
 
-After the owner accepts the Phase 1 checkpoint, migrate Today and the route
-experience onto the shared foundation while preserving Generate Full Day,
-saved-stop persistence, route ordering, Live Day, gaps, and all existing domain
-contracts. The approved one-tap provider-specific full-route handoff belongs to
-that phase. The Visual Timer's bounded urgency/audio refinement remains deferred
-to the Tools migration phase. Continue replacing old UI incrementally and remove
-it only after each replacement is proven behaviorally equivalent.
+After the owner accepts the Phase 2 checkpoint, migrate Schedule/Calendar only,
+preserving Agenda/Day/Week/Month behavior, connected calendars, manual events,
+travel planning, saved stops, MapKit routing, and external-navigation handoff.
+The Visual Timer's bounded urgency/audio refinement remains deferred to the Tools
+migration phase. Continue replacing old UI incrementally and remove it only after
+each replacement is proven behaviorally equivalent.

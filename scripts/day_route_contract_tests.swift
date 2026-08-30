@@ -71,7 +71,91 @@ struct DayRouteContractTests {
         let removed = LifeRouteDayStopCollection.removing(id: before.id, from: decoded)
         expect(removed.count == 1 && removed.first?.id == after.id, "removal prevents a deleted stop from returning")
 
+        testFullRouteHandoffs()
+
         print("Day route executable contract fixtures passed (\(assertionCount) assertions).")
+    }
+
+    private static func testFullRouteHandoffs() {
+        let fourLegs = routeLegs(count: 4)
+        let googlePlan = LifeRouteFullRouteHandoffPlanner.plan(
+            provider: .googleMaps,
+            legs: fourLegs,
+            travelMode: "driving"
+        )!
+        expect(googlePlan.orderedLegs == fourLegs, "Google full-route planning preserves the exact leg order")
+        expect(!googlePlan.requiresSequentialContinuation, "Google uses one complete handoff within the mobile waypoint limit")
+        if case .completeGoogleMaps(let url) = googlePlan.strategy {
+            let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            expect(query.first(where: { $0.name == "origin" }) == nil, "Google omits origin for current-location routes")
+            expect(query.first(where: { $0.name == "destination" })?.value == "4 Main Street", "Google keeps the final ordered destination")
+            expect(query.first(where: { $0.name == "waypoints" })?.value == "1 Main Street|2 Main Street|3 Main Street", "Google preserves every intermediate waypoint in order")
+            expect(url.absoluteString.count <= LifeRouteFullRouteHandoffPlanner.maximumURLLength, "Google complete handoff stays within the documented URL limit")
+        } else {
+            expect(false, "Google within-limit route produces a complete URL")
+        }
+
+        let overLimitGoogle = LifeRouteFullRouteHandoffPlanner.plan(
+            provider: .googleMaps,
+            legs: routeLegs(count: 5),
+            travelMode: "driving"
+        )!
+        expect(overLimitGoogle.requiresSequentialContinuation, "Google never truncates a route beyond three mobile waypoints")
+        expect(overLimitGoogle.orderedLegs.count == 5, "Google fallback retains every ordered leg")
+
+        let longAddress = String(repeating: "Long Address Segment ", count: 150)
+        let oversizedURLPlan = LifeRouteFullRouteHandoffPlanner.plan(
+            provider: .googleMaps,
+            legs: [
+                LifeRouteFullRouteLegDescriptor(sequence: 1, fromTitle: "Home", fromAddress: longAddress, toTitle: "Stop", toAddress: longAddress)
+            ],
+            travelMode: "driving"
+        )!
+        expect(oversizedURLPlan.requiresSequentialContinuation, "Google falls back rather than emitting an oversized URL")
+
+        let appleSingle = LifeRouteFullRouteHandoffPlanner.plan(
+            provider: .appleMaps,
+            legs: routeLegs(count: 1),
+            travelMode: "driving"
+        )!
+        expect(appleSingle.strategy == .completeAppleMaps, "Apple hands off a complete single-leg route")
+
+        let appleMulti = LifeRouteFullRouteHandoffPlanner.plan(
+            provider: .appleMaps,
+            legs: fourLegs,
+            travelMode: "driving"
+        )!
+        expect(appleMulti.requiresSequentialContinuation, "Apple multi-leg routes use LifeRoute sequential continuation")
+        expect(appleMulti.orderedLegs == fourLegs, "Apple continuation retains the exact ordered legs")
+
+        let wazePlan = LifeRouteFullRouteHandoffPlanner.plan(
+            provider: .waze,
+            legs: fourLegs,
+            travelMode: "driving"
+        )!
+        expect(wazePlan.requiresSequentialContinuation, "Waze uses explicit sequential fallback")
+        expect(wazePlan.orderedLegs == fourLegs, "Waze fallback retains every ordered leg")
+
+        let malformed = [fourLegs[1], fourLegs[0]]
+        let malformedPlan = LifeRouteFullRouteHandoffPlanner.plan(
+            provider: .googleMaps,
+            legs: malformed,
+            travelMode: "driving"
+        )!
+        expect(malformedPlan.requiresSequentialContinuation, "an unverified sequence never receives a complete provider handoff")
+        expect(malformedPlan.orderedLegs == malformed, "fallback never silently sorts or rewrites malformed input")
+    }
+
+    private static func routeLegs(count: Int) -> [LifeRouteFullRouteLegDescriptor] {
+        (1...count).map { sequence in
+            LifeRouteFullRouteLegDescriptor(
+                sequence: sequence,
+                fromTitle: sequence == 1 ? "Current Location" : "Stop \(sequence - 1)",
+                fromAddress: sequence == 1 ? "Current Location" : "\(sequence - 1) Main Street",
+                toTitle: "Stop \(sequence)",
+                toAddress: "\(sequence) Main Street"
+            )
+        }
     }
 
     private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {

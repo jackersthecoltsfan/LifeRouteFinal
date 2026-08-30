@@ -92,6 +92,7 @@ def validate_project_and_version() -> None:
             "Assets.xcassets in Resources",
             "SessionNoteContracts.swift in Sources",
             "DayRouteContracts.swift in Sources",
+            "FullRouteHandoffContracts.swift in Sources",
             "ScenicRoyalDesignSystem.swift in Sources",
             "ScenicRoyalMaterials.swift in Sources",
             "ScenicRoyalEnvironment.swift in Sources",
@@ -146,7 +147,7 @@ def validate_active_build_path() -> None:
     )
     require("run_session_note_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Session Note contracts")
     require("run_day_route_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Day Route contracts")
-    require_all(day_route_fixture_runner, ["swiftc", "DayRouteContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
+    require_all(day_route_fixture_runner, ["swiftc", "DayRouteContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
     require_all(
         day_route_fixture_source,
         [
@@ -158,6 +159,11 @@ def validate_active_build_path() -> None:
             "all appointments remain in the generated day",
             "events without a route address are not silently removed",
             "a saved stop can generate a stop-only day",
+            "Google full-route planning preserves the exact leg order",
+            "Google never truncates a route beyond three mobile waypoints",
+            "Apple multi-leg routes use LifeRoute sequential continuation",
+            "Waze fallback retains every ordered leg",
+            "fallback never silently sorts or rewrites malformed input",
             "persisted stops round-trip with stable identity",
             "removal prevents a deleted stop from returning",
         ],
@@ -264,6 +270,7 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     bridge = sources["ScenicRoyalThemeBridge.swift"]
     components = sources["ScenicRoyalComponents.swift"]
     toolbar = sources["ScenicRoyalToolbar.swift"]
+    today = sources["V054TodayView.swift"]
     require_all(design, ["enum ScenicRoyalDesignSystem", "minimumTouchTarget", "standardToolbarHeight", "accessibilityToolbarHeight"], "Scenic Royal design tokens")
     require_all(
         materials,
@@ -279,9 +286,11 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     )
     require_all(environment, ["ScenicRoyalEnvironmentHost", "accessibilityReduceMotion", "accessibilityReduceTransparency", "scenePhase == .active"], "persistent environment accessibility boundary")
     require_all(bridge, ["sceneryCanyonDay", "sceneryArcticDay", "sceneryRainforestDay", "royalCurrent", "scenicRoyalThemeStyle"], "theme-to-material bridge")
-    require_all(components, ["ScenicRoyalCard", "ScenicRoyalSectionHeader", "ScenicRoyalIconBadge"], "shared Scenic Royal components")
+    require_all(components, ["ScenicRoyalCard", "ScenicRoyalSectionHeader", "ScenicRoyalIconBadge", "ScenicRoyalPrimaryButtonStyle", "ScenicRoyalSecondaryButtonStyle"], "shared Scenic Royal components")
     require_count(toolbar, "ForEach(AppSection.allCases)", 1, "five-root Scenic Royal toolbar")
     require_all(toolbar, ["accessibilityReduceMotion", "dynamicTypeSize", 'accessibilityLabel("Main navigation")', 'accessibilityValue(isSelected ? "Selected" : "")'], "toolbar accessibility contract")
+    require_all(today, ["ScenicRoyalSectionHeader", "ScenicRoyalGlassEffectContainer", ".scenicRoyalCard(", ".scenicRoyalInteractiveSurface("], "Today Scenic Royal migration")
+    require("LifeRouteTodaySelectedExemplarArtwork" not in today, "Today must use the persistent root scenery instead of a screen-local exemplar background")
 
 
 def validate_clinical_and_aba(sources: dict[str, str]) -> None:
@@ -470,6 +479,7 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
     routing = sources["RoutingLocationDomain.swift"]
     day_route = sources["DayRoutePlanningCore.swift"]
     day_route_contracts = sources["DayRouteContracts.swift"]
+    full_route_contracts = sources["FullRouteHandoffContracts.swift"]
     day_route_view = sources["DayRoutePlanningView.swift"]
     setup = sources["V054SetupView.swift"]
     today = sources["V054TodayView.swift"]
@@ -478,9 +488,11 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
     require_all(calendar, ["case day", "case week", "case month", "loadManualCalendarEvents", "addManualEvent", "removeEvent", "persistManualEvents"], "calendar range/manual appointment behavior")
     require_all(providers, ["EKEventStore", "https://www.googleapis.com/auth/calendar.readonly", "ASWebAuthenticationSession", "kSecClassGenericPassword"], "Apple/Google read-only calendar providers")
     require_all(routing, ["CLLocationManager", "requestWhenInUseAuthorization", "allowsBackgroundLocationUpdates = false", "savedPlaces", "todos", "dayStops", "addDayStop", "removeDayStop", "MKDirections", "openInMaps"], "foreground routing and saved-place ownership")
-    require_all(day_route, ["case appleMaps", "case googleMaps", "case waze", "returnHome", "LifeRouteDaySequenceBuilder.waypoints", "MKMapItem.openMaps"], "day-route handoff behavior")
+    require_all(day_route, ["startFullRoute", "continueFullRoute", "nextSequentialLegIndex", "returnHome", "LifeRouteDaySequenceBuilder.waypoints", "MKMapItem.openMaps"], "day-route handoff behavior")
     require_all(day_route_contracts, ["LifeRouteDayStop: Identifiable, Codable", "LifeRouteDayStopCollection", "LifeRouteDaySequenceBuilder", "before + events + after"], "persistent per-day stop and full-day sequence contract")
-    require_all(day_route_view, ["routingState.dayStops(on: day)", "routingState.addDayStop", "routingState.removeDayStop", '"Generate full day route"'], "Day Route persisted-stop presentation")
+    require_all(full_route_contracts, ["completeGoogleMaps", "completeAppleMaps", "maximumGoogleMobileWaypoints = 3", "maximumURLLength = 2_048", "hasVerifiedSequence", "sequentialPlan"], "bounded provider full-route contract")
+    require_all(day_route_view, ["routingState.dayStops(on: day)", "routingState.addDayStop", "routingState.removeDayStop", '"Generate full day route"', '"Start full route in \\(plan.provider.title)"'], "Day Route persisted-stop and one-action presentation")
+    require("Open this leg" not in day_route_view, "Day Route must not expose separate normal-flow launch actions for each leg")
     require_all(setup + today, ["Weekly To-Dos", "gap suggestions"], "weekly To-Dos and gap suggestions")
     require_all(persistence, ["schemaVersion", "PersistedVisualIcon", "PersistedChoiceBoard", "PersistedVisualSchedule", "dayStops", "manualCalendarEvents", "providerCalendarEvents", "FileProtectionType.completeUntilFirstUserAuthentication", "options: [.atomic]", "private actor SnapshotWriter"], "native persistence and protected visual storage")
     require_all(today, ["selectedDayStops", "selectedDayPlanWaypoints", "liveDaySequence", "dayStops: selectedDayStops"], "generated Live Day includes persisted stops")

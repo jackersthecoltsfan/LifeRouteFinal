@@ -4,43 +4,6 @@ import MapKit
 import CoreLocation
 import UIKit
 
-enum LifeRouteNavigationApp: String, CaseIterable, Identifiable {
-    case appleMaps = "appleMaps"
-    case googleMaps = "googleMaps"
-    case waze = "waze"
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .appleMaps: return "Apple Maps"
-        case .googleMaps: return "Google Maps"
-        case .waze: return "Waze"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .appleMaps: return "map.fill"
-        case .googleMaps: return "location.fill"
-        case .waze: return "car.fill"
-        }
-    }
-
-    var detail: String {
-        switch self {
-        case .appleMaps: return "Native turn-by-turn directions on iPhone."
-        case .googleMaps: return "Open LifeRoute destinations in Google Maps."
-        case .waze: return "Open destinations in Waze for driving navigation."
-        }
-    }
-
-    static var preferred: LifeRouteNavigationApp {
-        let raw = UserDefaults.standard.string(forKey: "liferoute.preferredNavigationApp")
-        return LifeRouteNavigationApp(rawValue: raw ?? "") ?? .appleMaps
-    }
-}
-
 struct LifeRouteDayRouteLeg: Identifiable, Hashable {
     let id: UUID
     let sequence: Int
@@ -93,6 +56,9 @@ final class DayRoutePlanningCore: ObservableObject {
     @Published private(set) var legs: [LifeRouteDayRouteLeg] = []
     @Published private(set) var isCalculating = false
     @Published private(set) var message: String?
+    @Published private(set) var fullRoutePlan: LifeRouteFullRouteHandoffPlan?
+    @Published private(set) var nextSequentialLegIndex: Int?
+    @Published private(set) var hasStartedSequentialHandoff = false
 
     private var calculationTask: Task<Void, Never>?
 
@@ -107,6 +73,9 @@ final class DayRoutePlanningCore: ObservableObject {
     ) {
         calculationTask?.cancel()
         legs = []
+        fullRoutePlan = nil
+        nextSequentialLegIndex = nil
+        hasStartedSequentialHandoff = false
         isCalculating = true
         message = "Building day route…"
 
@@ -124,6 +93,7 @@ final class DayRoutePlanningCore: ObservableObject {
                 )
                 try Task.checkCancellation()
                 self.legs = built
+                self.fullRoutePlan = self.makeFullRoutePlan(mode: mode)
                 self.message = built.isEmpty ? "No route legs were created." : "Day route ready."
             } catch is CancellationError {
                 self.message = nil
@@ -141,19 +111,66 @@ final class DayRoutePlanningCore: ObservableObject {
         isCalculating = false
     }
 
-    func openLegInAppleMaps(_ leg: LifeRouteDayRouteLeg, mode: LifeRouteTransportMode) {
-        let navigationApp = LifeRouteNavigationApp.preferred
-        switch navigationApp {
-        case .appleMaps:
-            openLegInAppleMapsNative(leg, mode: mode)
-        case .googleMaps:
-            openLegURL(googleMapsURL(for: leg, mode: mode), app: navigationApp)
-        case .waze:
-            openLegURL(wazeURL(for: leg), app: navigationApp)
+    func startFullRoute(mode: LifeRouteTransportMode) {
+        guard let plan = makeFullRoutePlan(mode: mode) else { return }
+        fullRoutePlan = plan
+        nextSequentialLegIndex = nil
+        hasStartedSequentialHandoff = false
+
+        switch plan.strategy {
+        case .completeGoogleMaps(let url):
+            openURL(url, app: plan.provider) { [weak self] opened in
+                if opened { self?.message = "Complete route sent to Google Maps." }
+            }
+        case .completeAppleMaps:
+            guard let leg = plan.orderedLegs.first else { return }
+            openAppleMaps(leg, mode: mode) { [weak self] opened in
+                if opened { self?.message = "Route sent to Apple Maps." }
+            }
+        case .sequential:
+            launchSequentialLeg(at: 0, plan: plan, mode: mode)
         }
     }
 
-    private func openLegInAppleMapsNative(_ leg: LifeRouteDayRouteLeg, mode: LifeRouteTransportMode) {
+    func continueFullRoute(mode: LifeRouteTransportMode) {
+        guard let plan = fullRoutePlan,
+              plan.requiresSequentialContinuation,
+              let nextSequentialLegIndex else { return }
+        launchSequentialLeg(at: nextSequentialLegIndex, plan: plan, mode: mode)
+    }
+
+    private func launchSequentialLeg(
+        at index: Int,
+        plan: LifeRouteFullRouteHandoffPlan,
+        mode: LifeRouteTransportMode
+    ) {
+        guard plan.orderedLegs.indices.contains(index) else { return }
+        let leg = plan.orderedLegs[index]
+        let completion: (Bool) -> Void = { [weak self] opened in
+            guard opened, let self else { return }
+            self.hasStartedSequentialHandoff = true
+            let next = index + 1
+            self.nextSequentialLegIndex = plan.orderedLegs.indices.contains(next) ? next : nil
+            self.message = next < plan.orderedLegs.count
+                ? "Leg \(index + 1) sent. Return to LifeRoute to continue the full route."
+                : "Final route leg sent to \(plan.provider.title)."
+        }
+
+        switch plan.provider {
+        case .appleMaps:
+            openAppleMaps(leg, mode: mode, completion: completion)
+        case .googleMaps:
+            openURL(googleMapsURL(for: leg, mode: mode), app: plan.provider, completion: completion)
+        case .waze:
+            openURL(wazeURL(for: leg), app: plan.provider, completion: completion)
+        }
+    }
+
+    private func openAppleMaps(
+        _ leg: LifeRouteFullRouteLegDescriptor,
+        mode: LifeRouteTransportMode,
+        completion: @escaping (Bool) -> Void
+    ) {
         Task {
             do {
                 let source: MKMapItem
@@ -169,26 +186,38 @@ final class DayRoutePlanningCore: ObservableObject {
                     with: [source, destination],
                     launchOptions: [MKLaunchOptionsDirectionsModeKey: mode.mapsLaunchMode]
                 )
+                completion(true)
             } catch {
                 message = error.localizedDescription
+                completion(false)
             }
         }
     }
 
-    private func openLegURL(_ url: URL?, app: LifeRouteNavigationApp) {
+    private func openURL(
+        _ url: URL?,
+        app: LifeRouteNavigationApp,
+        completion: @escaping (Bool) -> Void
+    ) {
         guard let url else {
             message = DayRoutePlanningError.navigationUnavailable(app.title).localizedDescription
+            completion(false)
             return
         }
         UIApplication.shared.open(url, options: [:]) { [weak self] opened in
-            guard !opened else { return }
             Task { @MainActor in
-                self?.message = DayRoutePlanningError.navigationUnavailable(app.title).localizedDescription
+                if !opened {
+                    self?.message = DayRoutePlanningError.navigationUnavailable(app.title).localizedDescription
+                }
+                completion(opened)
             }
         }
     }
 
-    private func googleMapsURL(for leg: LifeRouteDayRouteLeg, mode: LifeRouteTransportMode) -> URL? {
+    private func googleMapsURL(
+        for leg: LifeRouteFullRouteLegDescriptor,
+        mode: LifeRouteTransportMode
+    ) -> URL? {
         var components = URLComponents(string: "https://www.google.com/maps/dir/")
         var items = [
             URLQueryItem(name: "api", value: "1"),
@@ -202,7 +231,7 @@ final class DayRoutePlanningCore: ObservableObject {
         return components?.url
     }
 
-    private func wazeURL(for leg: LifeRouteDayRouteLeg) -> URL? {
+    private func wazeURL(for leg: LifeRouteFullRouteLegDescriptor) -> URL? {
         var components = URLComponents(string: "https://www.waze.com/ul")
         components?.queryItems = [
             URLQueryItem(name: "q", value: LifeRouteDestinationIntent.naturalLanguageQuery(forStoredValue: leg.toAddress)),
@@ -217,6 +246,29 @@ final class DayRoutePlanningCore: ObservableObject {
         case .walking: return "walking"
         case .transit: return "transit"
         }
+    }
+
+    private func makeFullRoutePlan(mode: LifeRouteTransportMode) -> LifeRouteFullRouteHandoffPlan? {
+        let descriptors = legs.map {
+            LifeRouteFullRouteLegDescriptor(
+                sequence: $0.sequence,
+                fromTitle: $0.fromTitle,
+                fromAddress: providerAddress($0.fromAddress),
+                toTitle: $0.toTitle,
+                toAddress: providerAddress($0.toAddress)
+            )
+        }
+        return LifeRouteFullRouteHandoffPlanner.plan(
+            provider: LifeRouteNavigationApp.preferred,
+            legs: descriptors,
+            travelMode: googleTravelMode(mode)
+        )
+    }
+
+    private func providerAddress(_ address: String) -> String {
+        address == "Current Location"
+            ? address
+            : LifeRouteDestinationIntent.naturalLanguageQuery(forStoredValue: address)
     }
 
     private static func buildLegs(

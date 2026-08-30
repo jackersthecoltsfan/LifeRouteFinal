@@ -43,6 +43,7 @@
 		A10000000000000000000040 /* ScenicRoyalThemeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000040 /* ScenicRoyalThemeBridge.swift */; };
 		A10000000000000000000041 /* ScenicRoyalComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000041 /* ScenicRoyalComponents.swift */; };
 		A10000000000000000000042 /* ScenicRoyalToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000042 /* ScenicRoyalToolbar.swift */; };
+		A10000000000000000000043 /* FullRouteHandoffContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000043 /* FullRouteHandoffContracts.swift */; };
 		W10000000000000000000001 /* LiveDayLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */; };
 		W10000000000000000000002 /* LiveDayActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* LiveDayActivityAttributes.swift */; };
 		W10000000000000000000003 /* LifeRouteLiveActivityWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -96,6 +97,7 @@
 		A20000000000000000000040 /* ScenicRoyalThemeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalThemeBridge.swift; sourceTree = "<group>"; };
 		A20000000000000000000041 /* ScenicRoyalComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalComponents.swift; sourceTree = "<group>"; };
 		A20000000000000000000042 /* ScenicRoyalToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalToolbar.swift; sourceTree = "<group>"; };
+		A20000000000000000000043 /* FullRouteHandoffContracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullRouteHandoffContracts.swift; sourceTree = "<group>"; };
 		W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDayLiveActivityWidget.swift; sourceTree = "<group>"; };
 		W20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LifeRouteLiveActivityWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -126,6 +128,7 @@
 			A20000000000000000000015 /* CalendarProviderCore.swift */,
 			A20000000000000000000010 /* RoutingLocationDomain.swift */,
 			A20000000000000000000036 /* DayRouteContracts.swift */,
+			A20000000000000000000043 /* FullRouteHandoffContracts.swift */,
 			A20000000000000000000022 /* DayRoutePlanningCore.swift */,
 			A20000000000000000000023 /* DayRoutePlanningView.swift */,
 			A20000000000000000000011 /* ClientProfileDomain.swift */,
@@ -184,6 +187,7 @@
 			A10000000000000000000015 /* CalendarProviderCore.swift in Sources */,
 			A10000000000000000000010 /* RoutingLocationDomain.swift in Sources */,
 			A10000000000000000000036 /* DayRouteContracts.swift in Sources */,
+			A10000000000000000000043 /* FullRouteHandoffContracts.swift in Sources */,
 			A10000000000000000000022 /* DayRoutePlanningCore.swift in Sources */,
 			A10000000000000000000023 /* DayRoutePlanningView.swift in Sources */,
 			A10000000000000000000011 /* ClientProfileDomain.swift in Sources */,

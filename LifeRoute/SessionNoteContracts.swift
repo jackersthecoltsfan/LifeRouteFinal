@@ -27,6 +27,7 @@ struct SessionNoteEvidencePacket {
     let scrubber: SessionNoteIdentifierScrubber
     let numericClaims: [SessionNoteNumericClaim]
     let promptLevels: Set<String>
+    let contextOnlyClinicalTerms: [String]
 
     static func make(
         typedFacts: String,
@@ -57,7 +58,11 @@ struct SessionNoteEvidencePacket {
             savedTerminologyContext: normalizedContext,
             scrubber: scrubber,
             numericClaims: SessionNoteEvidenceNormalizer.numericClaims(in: factualEvidence),
-            promptLevels: SessionNoteEvidenceNormalizer.promptLevels(in: factualEvidence)
+            promptLevels: SessionNoteEvidenceNormalizer.promptLevels(in: factualEvidence),
+            contextOnlyClinicalTerms: SessionNoteEvidenceNormalizer.contextOnlyClinicalTerms(
+                in: normalizedContext,
+                excluding: factualEvidence
+            )
         )
     }
 
@@ -532,7 +537,9 @@ enum SessionNoteEvidenceNormalizer {
         let lines = normalizeLines(value, removeAmbiguousOCR: true)
             .split(whereSeparator: \.isNewline)
             .map(String.init)
-            .filter { $0.contains(where: \.isNumber) }
+            .filter { line in
+                line.contains(where: \.isNumber) && !isStructuralOCRHeading(line)
+            }
         return String(lines.joined(separator: "\n").prefix(1_600))
     }
 
@@ -544,10 +551,28 @@ enum SessionNoteEvidenceNormalizer {
         let pattern = #"(?<![A-Za-z0-9])\d+(?:\.\d+)?(?:\s*/\s*\d+(?:\.\d+)?)?(?![A-Za-z0-9])"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
         let source = value as NSString
-        return regex.matches(in: value, range: NSRange(location: 0, length: source.length)).map { match in
+        let matches = regex.matches(in: value, range: NSRange(location: 0, length: source.length))
+        return matches.enumerated().map { index, match in
             let raw = source.substring(with: match.range)
-            let contextStart = max(0, match.range.location - 48)
-            let contextEnd = min(source.length, NSMaxRange(match.range) + 48)
+            var contextStart = max(0, match.range.location - 48)
+            var contextEnd = min(source.length, NSMaxRange(match.range) + 48)
+
+            if index > 0 {
+                let previousEnd = NSMaxRange(matches[index - 1].range)
+                if previousEnd < match.range.location {
+                    let midpoint = previousEnd + ((match.range.location - previousEnd) / 2)
+                    contextStart = max(contextStart, midpoint)
+                }
+            }
+            if matches.indices.contains(index + 1) {
+                let currentEnd = NSMaxRange(match.range)
+                let nextStart = matches[index + 1].range.location
+                if currentEnd < nextStart {
+                    let midpoint = currentEnd + ((nextStart - currentEnd) / 2)
+                    contextEnd = min(contextEnd, midpoint)
+                }
+            }
+
             let context = source.substring(with: NSRange(location: contextStart, length: contextEnd - contextStart))
             return SessionNoteNumericClaim(
                 value: raw.replacingOccurrences(of: " ", with: ""),
@@ -565,6 +590,35 @@ enum SessionNoteEvidenceNormalizer {
                 options: .regularExpression
             ) != nil
         })
+    }
+
+    static func contextOnlyClinicalTerms(in savedContext: String, excluding factualEvidence: String) -> [String] {
+        var seen = Set<String>()
+        var terms: [String] = []
+        for section in savedContext.components(separatedBy: "|") {
+            let parts = section.split(separator: ":", maxSplits: 1).map(String.init)
+            guard parts.count == 2 else { continue }
+            let label = parts[0].trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard label == "targets" || label == "behaviors" else { continue }
+            for rawTerm in parts[1].components(separatedBy: ";") {
+                let term = rawTerm.trimmingCharacters(in: .whitespacesAndNewlines)
+                let key = term.lowercased()
+                guard term.count >= 3,
+                      key != "none",
+                      seen.insert(key).inserted,
+                      !containsClinicalTerm(term, in: factualEvidence) else { continue }
+                terms.append(term)
+            }
+        }
+        return terms
+    }
+
+    static func containsClinicalTerm(_ term: String, in value: String) -> Bool {
+        let escaped = NSRegularExpression.escapedPattern(for: term)
+        return value.range(
+            of: "(?i)(?<![A-Za-z0-9])\(escaped)(?![A-Za-z0-9])",
+            options: .regularExpression
+        ) != nil
     }
 
     private static func normalizeLines(_ value: String, removeAmbiguousOCR: Bool) -> String {
@@ -591,6 +645,13 @@ enum SessionNoteEvidenceNormalizer {
         return output.joined(separator: "\n")
             .replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func isStructuralOCRHeading(_ line: String) -> Bool {
+        line.range(
+            of: #"(?i)^(?:screenshot|image|source)\s+\d+\s*:$"#,
+            options: .regularExpression
+        ) != nil
     }
 
     private static func measurementKind(for rawValue: String, context: String) -> SessionNoteMeasurementKind {
@@ -777,7 +838,7 @@ enum SessionNoteOutputValidator {
         if let identifier = evidence.scrubber.survivingIdentifier(in: cleaned) {
             issues.append("A forbidden personal or profile identifier remained: \(identifier).")
         }
-        if containsLikelyPersonalName(in: cleaned) {
+        if containsLikelyPersonalName(in: cleaned, evidence: evidence) {
             issues.append("A likely personal name remained instead of a role identifier.")
         }
         if containsIdentifierShape(in: cleaned) {
@@ -859,6 +920,12 @@ enum SessionNoteOutputValidator {
             issues.append("The response asserted a behavior was absent without typed support.")
         }
 
+        if evidence.contextOnlyClinicalTerms.contains(where: {
+            SessionNoteEvidenceNormalizer.containsClinicalTerm($0, in: cleaned)
+        }) {
+            issues.append("The draft used a saved target or behavior as a session event without factual evidence.")
+        }
+
         issues.append(contentsOf: unsupportedClinicalClaims(in: cleaned, evidence: evidence))
 
         if hasObviousTemplateLanguage(lower) {
@@ -871,17 +938,38 @@ enum SessionNoteOutputValidator {
         return SessionNoteOutputValidation(draft: cleaned, issues: Array(Set(issues)).sorted())
     }
 
-    private static func containsLikelyPersonalName(in value: String) -> Bool {
+    private static func containsLikelyPersonalName(
+        in value: String,
+        evidence: SessionNoteEvidencePacket
+    ) -> Bool {
         let pattern = #"\b[A-Z][a-z]{1,}\s+[A-Z][a-z]{1,}\b"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
         let nsValue = value as NSString
+        let factualEvidence = [evidence.typedFacts, evidence.quantitativeOCR].joined(separator: "\n")
         let allowed: Set<String> = [
             "The RBT", "The LBS", "The BCBA", "The BHT", "The Client",
             "Visual Schedule", "Choice Board", "First Then", "Apple Intelligence",
             "Treatment Plan",
         ]
         return regex.matches(in: value, range: NSRange(location: 0, length: nsValue.length)).contains { match in
-            !allowed.contains(nsValue.substring(with: match.range))
+            let candidate = nsValue.substring(with: match.range)
+            guard !allowed.contains(candidate) else { return false }
+
+            let escaped = NSRegularExpression.escapedPattern(for: candidate)
+            let personPatterns = [
+                #"(?i)\b(?:client|caregiver|mother|father|grandmother|brother|RBT|LBS|BCBA|BHT|clinician)\s+(?:named\s+)?"#
+                    + escaped + #"\b"#,
+                #"(?i)\b"# + escaped
+                    + #"(?:'s)?\s+(?:observed|reported|stated|said|worked|met|arrived|provided|instructed|implemented|modeled|modelled|prompted|redirected|reinforced|assisted|supported|joined|participated|responded|presented)\b"#,
+                #"(?i)\b"# + escaped + #"\s+was\s+present\b"#,
+                #"(?i)\b"# + escaped + #"'s\b"#,
+            ]
+            if personPatterns.contains(where: { candidatePattern in
+                value.range(of: candidatePattern, options: .regularExpression) != nil
+            }) {
+                return true
+            }
+            return !SessionNoteEvidenceNormalizer.containsClinicalTerm(candidate, in: factualEvidence)
         }
     }
 

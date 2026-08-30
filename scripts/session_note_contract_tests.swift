@@ -13,6 +13,9 @@ private struct SessionNoteContractFixtureRunner {
         try terminologyFixtures()
         try identityAndSanitizerFixtures()
         try dataFidelityFixtures()
+        try multiScreenshotEvidenceFixtures()
+        try savedContextIsNotEvidenceFixtures()
+        try emptyEvidenceFixtures()
         try await pipelineFixtures()
         try await runtimeProtectionFixtures()
         print("Session Note executable contract fixtures passed (\(assertionCount) assertions).")
@@ -65,6 +68,11 @@ private struct SessionNoteContractFixtureRunner {
         let unknownName = "Jane Smith observed the client during play. The client participated in play. The RBT will continue implementing the established treatment plan during future sessions."
         let unknownValidation = SessionNoteOutputValidator.validate(unknownName, evidence: packet)
         try expect(!unknownValidation.isAcceptable, "unknown likely personal names are rejected after sanitization")
+        let novelTitleCase = "Novel Person was referenced during play. The client participated in play. The RBT will continue implementing the established treatment plan during future sessions."
+        try expect(
+            !SessionNoteOutputValidator.validate(novelTitleCase, evidence: packet).isAcceptable,
+            "a novel title-cased phrase cannot use the supplied-clinical-label exemption"
+        )
     }
 
     private static func dataFidelityFixtures() throws {
@@ -101,6 +109,69 @@ private struct SessionNoteContractFixtureRunner {
             SessionNoteOutputValidator.validate(inferredFunction, evidence: packet).issues.contains(where: { $0.contains("behavioral function") }),
             "an unsupplied behavioral function is rejected"
         )
+    }
+
+    private static func multiScreenshotEvidenceFixtures() throws {
+        let packet = multiScreenshotEvidencePacket()
+        let valid = validMultiScreenshotDraft()
+        let validation = SessionNoteOutputValidator.validate(valid, evidence: packet)
+        try expect(
+            validation.isAcceptable,
+            "a selected synthetic client with two OCR sources and supported ABA data validates: \(validation.issues)"
+        )
+        try expect(
+            !packet.numericClaims.contains(where: { $0.value == "1" || $0.value == "2" }),
+            "screenshot source ordinals never become clinical numeric evidence"
+        )
+        try expect(
+            packet.numericClaims.contains(SessionNoteNumericClaim(value: "3", kind: .count)),
+            "the supplied count keeps its measurement kind across screenshot boundaries"
+        )
+        try expect(
+            packet.numericClaims.contains(SessionNoteNumericClaim(value: "80", kind: .percentage)),
+            "the supplied percentage keeps its measurement kind across screenshot boundaries"
+        )
+
+        let inventedNumber = valid.replacingOccurrences(of: "3 occurrences", with: "2 occurrences")
+        try expect(
+            SessionNoteOutputValidator.validate(inventedNumber, evidence: packet).issues.contains(where: { $0.contains("2") }),
+            "an attachment ordinal cannot authorize an unsupported numeric clinical claim"
+        )
+
+        let suppliedPrompt = SessionNoteOutputValidator.validate(valid, evidence: packet)
+        try expect(suppliedPrompt.isAcceptable, "a supplied verbal prompt level remains allowed")
+        let fabricatedPrompt = valid.replacingOccurrences(of: "a verbal prompt", with: "a full physical prompt")
+        try expect(
+            SessionNoteOutputValidator.validate(fabricatedPrompt, evidence: packet).issues.contains(where: { $0.contains("full physical") }),
+            "a fabricated prompt level remains rejected in the multi-screenshot path"
+        )
+    }
+
+    private static func savedContextIsNotEvidenceFixtures() throws {
+        let packet = SessionNoteEvidencePacket.make(
+            typedFacts: "At home, SyCl practiced requesting a break with the RBT.",
+            ocrEvidence: "SCREENSHOT 1:\n[TRIAL-BASED] Requesting a break 4/5 trials",
+            savedTerminologyContext: "targets: Greeting Routine | behaviors: Property Destruction | communication: none | prompting/reinforcement: none",
+            profileCode: "SyCl"
+        )
+        let unsupportedContextClaim = "At home, the client practiced requesting a break with the RBT in 4/5 trials. Property Destruction occurred during the activity.\n\nThe client participated in the supplied activity. The RBT will continue implementing the established treatment plan during future sessions."
+        let validation = SessionNoteOutputValidator.validate(unsupportedContextClaim, evidence: packet)
+        try expect(
+            validation.issues.contains(where: { $0.contains("saved target or behavior") }),
+            "a saved target or behavior remains terminology context and cannot prove session occurrence"
+        )
+    }
+
+    private static func emptyEvidenceFixtures() throws {
+        let packet = SessionNoteEvidencePacket.make(
+            typedFacts: "",
+            ocrEvidence: "SCREENSHOT 1:\n[AMBIGUOUS OCR] No clear OCR text.\nSCREENSHOT 2:\n[AMBIGUOUS OCR] unreadable",
+            savedTerminologyContext: "targets: Greeting Routine | behaviors: none",
+            profileCode: "SyCl"
+        )
+        try expect(packet.typedFacts.isEmpty, "empty typed facts stay empty")
+        try expect(packet.quantitativeOCR.isEmpty, "unreadable OCR and source ordinals do not become factual evidence")
+        try expect(packet.numericClaims.isEmpty, "empty or unreadable evidence has no supported numeric claims")
     }
 
     private static func pipelineFixtures() async throws {
@@ -168,6 +239,20 @@ private struct SessionNoteContractFixtureRunner {
             repairFailurePropagated = true
         }
         try expect(repairFailurePropagated, "bounded repair failure propagates without another loop")
+
+        var persistentUnsupportedRejected = false
+        var persistentUnsupportedRequests = 0
+        do {
+            _ = try await SessionNoteGenerationPipeline.run(packet: packet) { _ in
+                persistentUnsupportedRequests += 1
+                return "The client completed 999 trials. The client participated in the supplied activities. The RBT will continue implementing the established treatment plan during future sessions."
+            }
+            throw FixtureError.repairFailed
+        } catch SessionNotePipelineError.rejected {
+            persistentUnsupportedRejected = true
+        }
+        try expect(persistentUnsupportedRejected, "a genuinely unsupported claim remaining after repair reaches terminal rejection")
+        try expect(persistentUnsupportedRequests == 2, "persistent unsupported content still receives only one bounded repair pass")
 
         var compactStages: [SessionNotePipelineStage] = []
         var compactEvents: [SessionNotePipelineEvent] = []
@@ -246,8 +331,21 @@ private struct SessionNoteContractFixtureRunner {
         )
     }
 
+    private static func multiScreenshotEvidencePacket() -> SessionNoteEvidencePacket {
+        SessionNoteEvidencePacket.make(
+            typedFacts: "At home, SyCl worked with the RBT on Following Directions. The RBT recorded 3 occurrences of the supplied behavior of concern. The client completed Following Directions with 80% accuracy using a verbal prompt.",
+            ocrEvidence: "SCREENSHOT 1:\n[FREQUENCY/COUNT] supplied behavior of concern 3 occurrences\n\nSCREENSHOT 2:\n[PERCENTAGE, INDEPENDENT/PROMPTED] Following Directions 80% accuracy; verbal prompt",
+            savedTerminologyContext: "targets: Greeting Routine | behaviors: Waiting Behavior | communication: request a break | prompting/reinforcement: praise",
+            profileCode: "SyCl"
+        )
+    }
+
     private static func validDraft() -> String {
         "At home, the client worked with the RBT and LBS on FCT. The client responded independently in 3/5 trials, and the client's mother reported that the transition occurred.\n\nThe client participated in the supplied activities. The RBT will continue implementing the established treatment plan during future sessions."
+    }
+
+    private static func validMultiScreenshotDraft() -> String {
+        "At home, the client worked with the RBT on Following Directions. The RBT recorded 3 occurrences of the supplied behavior of concern during the opening activity. Following the transition to table work, the client completed Following Directions with 80% accuracy using a verbal prompt.\n\nThe client participated in the supplied activities. The RBT will continue implementing the established treatment plan during future sessions."
     }
 
     private static func expect(

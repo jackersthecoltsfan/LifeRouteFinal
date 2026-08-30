@@ -620,9 +620,29 @@ private struct SessionNoteContractFixtureRunner {
             of: " and Requesting Break in 4/5 trials with a verbal prompt",
             with: ""
         )
+        let omittedValidation = SessionNoteOutputValidator.validate(omittedMeasurement, evidence: packet)
         try expect(
-            SessionNoteOutputValidator.validate(omittedMeasurement, evidence: packet).hardBlockerCodes.contains("SN-EVIDENCE-006"),
+            omittedValidation.hardBlockerCodes.contains("SN-EVIDENCE-006"),
             "omitting a clear structured screenshot measurement triggers the existing bounded repair path"
+        )
+        let omittedDiagnostics = SessionNoteCandidateDiagnostics.make(
+            pass: .initial,
+            rawDraft: omittedMeasurement,
+            normalizedDraft: omittedMeasurement,
+            validation: omittedValidation,
+            evidence: packet
+        )
+        try expect(
+            omittedDiagnostics.structuredMeasurementCount == 3 &&
+            omittedDiagnostics.missingStructuredMeasurementCount == 1,
+            "candidate diagnostics distinguish supplied and missing structured measurements"
+        )
+        try expect(
+            SessionNoteDiagnosticReceipt(events: [.candidateAssessment(omittedDiagnostics)])
+                .shareableText.contains("missingMeasurements=1") &&
+            !SessionNoteDiagnosticReceipt(events: [.candidateAssessment(omittedDiagnostics)])
+                .shareableText.contains("Requesting Break"),
+            "structured-measurement rejection diagnostics expose counts and codes without target text"
         )
 
         var stages: [SessionNotePipelineStage] = []
@@ -633,6 +653,20 @@ private struct SessionNoteContractFixtureRunner {
         try expect(generated.draft == professionalDraft, "the physical before/after quality case returns professional reconstructed prose")
         try expect(generated.outcome == .generated, "a professional first-pass rewrite retains generated provenance")
         try expect(stages == [.standardDraft], "a complete professional draft uses no additional AI retry")
+        try expect(
+            generated.diagnostics.events.contains(where: {
+                guard case .candidateAssessment(let details) = $0 else { return false }
+                return details.pass == .initial && details.isProfessionallyReady
+            }),
+            "professional first-pass success records a ready initial candidate assessment"
+        )
+        try expect(
+            !generated.diagnostics.events.contains(where: {
+                if case .repairAttempted = $0 { return true }
+                return false
+            }) && generated.diagnostics.shareableText.contains("final=generated"),
+            "professional first-pass success records final provenance without a repair attempt"
+        )
 
         var fallbackRequests = 0
         var fallbackCategory: SessionNoteFailureCategory?
@@ -881,13 +915,61 @@ private struct SessionNoteContractFixtureRunner {
         try expect(result.outcome == .repaired, "the successful bounded reconstruction retains repaired provenance")
 
         var degradedStages: [SessionNotePipelineStage] = []
-        let degraded = try await SessionNoteGenerationPipeline.generate(packet: packet) { stage in
-            degradedStages.append(stage)
-            return nearCopy
-        }
+        var degradedDiagnostics: [SessionNotePipelineDiagnosticEvent] = []
+        let degraded = try await SessionNoteGenerationPipeline.generate(
+            packet: packet,
+            request: { stage in
+                degradedStages.append(stage)
+                return nearCopy
+            },
+            diagnostic: { degradedDiagnostics.append($0) }
+        )
         try expect(degradedStages.count == 2, "a still-poor repair stops after the single bounded reconstruction pass")
         try expect(degraded.outcome == .fallback, "a still-poor safe repair becomes explicit degraded fallback provenance")
         try expect(!degraded.outcome.isProfessionallyReady, "a still-poor repair cannot become ordinary Draft ready")
+        let candidateDiagnostics = degradedDiagnostics.compactMap { event -> SessionNoteCandidateDiagnostics? in
+            guard case .candidateAssessment(let diagnostics) = event else { return nil }
+            return diagnostics
+        }
+        try expect(
+            candidateDiagnostics.map(\.pass) == [.initial, .repair],
+            "diagnostics distinguish the initial and bounded-repair model candidates"
+        )
+        try expect(
+            candidateDiagnostics.allSatisfy {
+                $0.rawCharacterCount > 0 && $0.normalizedCharacterCount > 0 &&
+                $0.wordCount > 0 && $0.sentenceCount > 0 && $0.paragraphCount > 0
+            },
+            "candidate diagnostics record structural metrics without retaining prose"
+        )
+        try expect(
+            candidateDiagnostics.allSatisfy {
+                $0.sourceOverlapBasisPoints >= 4_500 &&
+                $0.roughFragmentMatchCount > 0 &&
+                $0.issueCodes.contains("SN-QUALITY-004") &&
+                $0.issueCodes.contains("SN-QUALITY-005") &&
+                !$0.isProfessionallyReady
+            },
+            "near-copy diagnostics preserve the exact professional-quality reasons for both passes"
+        )
+        try expect(
+            degradedDiagnostics.contains(.repairAttempted(["SN-QUALITY-004", "SN-QUALITY-005"])),
+            "diagnostics explicitly record the single bounded repair attempt and its reason codes"
+        )
+        try expect(
+            degraded.diagnostics.events == degradedDiagnostics,
+            "the returned result preserves the complete diagnostic provenance that produced the visible fallback"
+        )
+        try expect(
+            degraded.diagnostics.shareableText.contains("SN-DIAG-1") &&
+            degraded.diagnostics.shareableText.contains("pass=initial") &&
+            degraded.diagnostics.shareableText.contains("pass=repair") &&
+            degraded.diagnostics.shareableText.contains("final=fallback") &&
+            !degraded.diagnostics.shareableText.contains("grandma") &&
+            !degraded.diagnostics.shareableText.contains("elopement") &&
+            !degraded.diagnostics.shareableText.contains("SyCl"),
+            "the shareable diagnostic receipt contains metrics, reason codes, and final provenance but no narrative or identifiers"
+        )
 
         let shortPacket = SessionNoteEvidencePacket.make(
             typedFacts: "The RBT paired with the client outdoors.",

@@ -1,44 +1,48 @@
 # LifeRoute current engineering handoff
 
-## Active workstream — v0.8.2 Session Note runtime quality and glass readability
+## Active workstream — v0.8.2 Build 114 physical-model root cause
 
-- Branch: `fix/v0.8.2-session-note-runtime-quality-and-glass`
-- Exact base: `d0f16d7e14b3b57e617a4ecb9b3e3e5d08afd2d7` (`origin/main`, PR #115 / Build 113 source)
-- Rescue evidence branch: `rescue/session-note-uncommitted-2026-08-30`
-- Rescue commit: `9d405d1d3211d4fb81f8eb0688f13ff454e94801`, local-only and not pushed
+- Current TestFlight candidate: LifeRoute v0.8.2 Build 114
+- Exact Build 114 and branch base: `f2be4b10cbd9725a679e6a73db7cf94899ce7284`
+- Branch: `fix/v0.8.2-session-note-physical-model-root-cause`
+- Separate light-hygiene PR #119 remains an unmerged draft and is not this branch's base.
 - Do not merge or dispatch TestFlight without product-owner authorization.
 
-Build 113 could accept a safe near-copy because professional presentation was
-not a readiness requirement, and both pipeline and runtime discarded whether a
-nonempty draft was generated, repaired, or conservatively preserved. The
-preserved rescue work added useful professional-reconstruction prompting and
-synthetic coverage but did not add provenance, near-copy detection, fallback UI
-handling, or the runtime-quality gate; those valid prompt/test portions were
-selectively reproduced rather than blindly cherry-picked.
+Physical QA showed the Build 114 state path `generating` → `repairing` →
+explicit degraded fallback. Code tracing rules out a runtime exception or final
+result substitution for that path: both model requests returned text, the
+pipeline validated each candidate, and the UI displayed the pipeline's fallback
+result and provenance. A successful fallback also means no structured screenshot
+measurement was present, because measurement-bearing evidence fails closed
+instead of constructing a source-only fallback.
 
-The current branch adds typed `generated`, `repaired`, `fallback`, and
-`rejected` outcomes; a separate professional-readiness contract; conservative
-near-copy and rough-dictation detection; one bounded reconstruction pass using
-the original evidence; and explicit degraded fallback UI. Structured screenshot
-measurements fail closed when conservative fallback would lose target/value/type
-or prompt association. Logs remain content-free and privacy-safe.
+The Mac's available Foundation Models runtime reproduced the same failure class
+with the exact synthetic physical facts and Build 114 contract. Three unchanged
+pipeline trials ended in fallback three out of three times. Initial candidates
+retained rough dictation or changed attribution; repairs copied prompt/template
+scaffolding or added unsupported clinical conclusions. Guided output, a minimal
+delimiter-based repair prompt, and greedy sampling each failed to recover. A
+professional target draft passes the same validator. The supported classification
+is therefore model-quality failure with bounded-repair nonrecovery, not a proven
+validator, OCR, runtime, provenance, or fallback defect. Mac behavior is strong
+comparative evidence, not a substitute for exact physical-iPhone candidate codes.
 
-Text-heavy Session Note and Session Plan editors now share an
-accessibility-aware readability surface inside the existing glass card. Outer
-glass and scenery remain visible, while the editor backing responds to increased
-contrast and Reduce Transparency. A DEBUG-only dense-text fixture was reviewed
-on Mountains Day/Night, Core Ocean, Dynamic Royal Current, extra-extra-large
-Dynamic Type, increased contrast, and Reduce Transparency.
+This branch adds a privacy-safe `SN-DIAG-1` receipt. It records initial and repair
+candidate presence/size, sentence and paragraph counts, source-overlap metrics,
+rough-fragment counts, issue and hard-blocker codes, structured measurement
+coverage counts, repair-attempt reasons, fallback reason, and final provenance.
+It carries the receipt into degraded runtime state, logs the same bounded data
+through OSLog in release builds, and offers Copy troubleshooting details without
+including facts, OCR, target names, identifiers, or generated narrative.
 
-Current local evidence: 152 executable Session Note assertions; preparation,
-fast/full validation, Debug and Release Simulator app/extension builds, native
-Simulator smoke, and compiler warning budget all pass. The warning audit found
-zero unexpected warnings. Simulator evidence does not validate real Foundation
-Models prose; physical iPhone QA remains final authority for initial generation,
-bounded repair, degraded fallback, OCR associations, and the visual result.
-
-Branch publication and PR review are permitted for this workstream. Do not merge
-or dispatch TestFlight without explicit product-owner authorization.
+Current local evidence: 162 executable Session Note assertions; preparation,
+fast/full validation, Debug and Release Simulator app builds, standalone and
+embedded Live Activity extension builds, native Simulator smoke, the diff
+whitespace check, and zero unexpected compiler warnings pass. No prompt, retry, validator,
+fallback, OCR, glass/readability, routing, or full-day behavior changed. Another
+authorized physical build is required to capture exact iPhone pass diagnostics
+and decide whether Apple Foundation Models remains the architectural ceiling or
+a candidate-specific validator defect is exposed.
 
 ## Historical workstream — v0.8.2 Session Note validation severity
 

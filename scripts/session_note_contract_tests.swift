@@ -22,6 +22,7 @@ private struct SessionNoteContractFixtureRunner {
         try emptyEvidenceFixtures()
         try realisticSyntheticSessionFixtures()
         try await professionalReconstructionFixtures()
+        try await professionalPresentationRegressionFixtures()
         try await pipelineFixtures()
         try await fallbackAndDiagnosticFixtures()
         try await runtimeProtectionFixtures()
@@ -583,6 +584,12 @@ private struct SessionNoteContractFixtureRunner {
             "the normal prompt treats rough typed facts as facts to reconstruct rather than prose to preserve"
         )
         try expect(
+            standardPrompt.contains("PROFESSIONAL RECONSTRUCTION REQUIREMENTS") &&
+            standardPrompt.contains("Do not copy conversational transitions or preserve the source clause structure") &&
+            standardPrompt.contains("generic work only as instructional activities or a work period"),
+            "the evidence prompt gives the on-device model concrete anti-copy reconstruction rules"
+        )
+        try expect(
             standardPrompt.contains("Target: Following Directions | Type: percentage | Value: 80%") &&
             standardPrompt.contains("Target: Requesting Break | Type: trials | Value: 4/5 trials | Prompting: verbal") &&
             standardPrompt.contains("Target: Aggression | Type: count | Value: 3 occurrences"),
@@ -619,30 +626,34 @@ private struct SessionNoteContractFixtureRunner {
         )
 
         var stages: [SessionNotePipelineStage] = []
-        let generated = try await SessionNoteGenerationPipeline.run(packet: packet) { stage in
+        let generated = try await SessionNoteGenerationPipeline.generate(packet: packet) { stage in
             stages.append(stage)
             return professionalDraft
         }
-        try expect(generated == professionalDraft, "the physical before/after quality case returns professional reconstructed prose")
+        try expect(generated.draft == professionalDraft, "the physical before/after quality case returns professional reconstructed prose")
+        try expect(generated.outcome == .generated, "a professional first-pass rewrite retains generated provenance")
         try expect(stages == [.standardDraft], "a complete professional draft uses no additional AI retry")
 
         var fallbackRequests = 0
-        let fallback = try await SessionNoteGenerationPipeline.run(packet: packet) { _ in
-            fallbackRequests += 1
-            return "The client completed 999 trials and was frustrated."
+        var fallbackCategory: SessionNoteFailureCategory?
+        do {
+            _ = try await SessionNoteGenerationPipeline.generate(packet: packet) { _ in
+                fallbackRequests += 1
+                return "The client completed 999 trials and was frustrated."
+            }
+            throw FixtureError.repairFailed
+        } catch SessionNotePipelineError.rejected(let category) {
+            fallbackCategory = category
         }
         try expect(fallbackRequests == 2, "structured-measurement failures remain bounded to one model repair")
-        try expect(
-            !fallback.contains("999") && !fallback.contains("80%") && !fallback.contains("4/5"),
-            "the conservative fallback remains grounded in typed facts and does not promote screenshot-only data"
-        )
+        try expect(fallbackCategory == .evidenceVerification, "structured measurements fail closed rather than being silently dropped from fallback")
     }
 
     private static func fallbackAndDiagnosticFixtures() async throws {
         let packet = evidencePacket()
         var stages: [SessionNotePipelineStage] = []
         var diagnostics: [SessionNotePipelineDiagnosticEvent] = []
-        let fallback = try await SessionNoteGenerationPipeline.run(
+        let fallback = try await SessionNoteGenerationPipeline.generate(
             packet: packet,
             request: { stage in
                 stages.append(stage)
@@ -651,9 +662,16 @@ private struct SessionNoteContractFixtureRunner {
             diagnostic: { diagnostics.append($0) }
         )
         try expect(stages.count == 2, "an unsafe repaired draft receives no second model repair")
-        try expect(!fallback.contains("999") && !fallback.lowercased().contains("frustrated"), "fallback excludes unsupported model claims")
-        try expect(fallback.contains("3/5 trials"), "fallback preserves supported typed quantitative evidence")
-        try expect(fallback.hasSuffix(SessionNoteOutputSanitizer.continuationSentence), "fallback appends the approved close")
+        try expect(fallback.outcome == .fallback, "conservative source preservation returns explicit fallback provenance")
+        try expect(!fallback.outcome.isProfessionallyReady, "fallback provenance never qualifies as a professionally ready draft")
+        try expect(
+            fallback.outcome.userFacingStatusTitle == "Professional rewrite could not be completed" &&
+            fallback.outcome.userFacingStatusTitle != "Draft ready",
+            "fallback UI status cannot report ordinary success"
+        )
+        try expect(!fallback.draft.contains("999") && !fallback.draft.lowercased().contains("frustrated"), "fallback excludes unsupported model claims")
+        try expect(fallback.draft.contains("3/5 trials"), "fallback preserves supported typed quantitative evidence")
+        try expect(fallback.draft.hasSuffix(SessionNoteOutputSanitizer.continuationSentence), "fallback appends the approved close")
         try expect(diagnostics.contains(.fallback(.succeeded)), "fallback success is recorded with a privacy-safe diagnostic")
         try expect(diagnostics.contains(.finalOutcome(.fallback)), "fallback is recorded as the final outcome")
         try expect(
@@ -801,8 +819,165 @@ private struct SessionNoteContractFixtureRunner {
         }
     }
 
+    private static func professionalPresentationRegressionFixtures() async throws {
+        let physicalFacts = """
+        RBT met at clients home. Present: RBT, LBS, grandma, mom, dad, brother, brother BHT. RBT began with pairing outside and working on FCT and full sentence manding and more time manding. Then transitioned client inside for work, had him wait, then back outside for more play. LBS and RBT then transitioned client inside and did work, then indoor cooperative play, then more work at which point client engaged in elopement and took many redirections to attend to the work. After this client earned his preferred outside time. LBS also instructed RBT on skill acquisition targets including new programs implemented.
+        """
+        let packet = SessionNoteEvidencePacket.make(
+            typedFacts: physicalFacts,
+            ocrEvidence: "",
+            savedTerminologyContext: "targets: none | behaviors: none",
+            profileCode: "SyCl"
+        )
+        let nearCopy = """
+        RBT met at client's home. Present were RBT, LBS, grandma, mom, dad, brother, and brother BHT. RBT began with pairing outside and working on FCT and full sentence manding and more time manding. Then transitioned client inside for work, had him wait, then back outside for more play.
+
+        LBS and RBT then transitioned client inside and did work, then indoor cooperative play, then more work at which point client engaged in elopement and took many redirections to attend to the work. After this client earned his preferred outside time. LBS also instructed RBT on skill acquisition targets, including new programs implemented. The RBT will continue implementing the established treatment plan during future sessions.
+        """
+
+        let validation = SessionNoteOutputValidator.validate(nearCopy, evidence: packet)
+        try expect(validation.isSafe, "the physical near-copy remains evidence-safe rather than becoming a fabrication blocker")
+        try expect(
+            validation.repairableIssues.contains(where: { $0.code == "SN-QUALITY-004" }),
+            "the physical near-copy is presentation-repairable and cannot qualify as professionally ready"
+        )
+
+        let fragmentDraft = """
+        The RBT met with the client in the client's home while family members and the LBS were present. The session began with outdoor pairing and FCT targets. The RBT then did work with the client, had him wait, and returned outdoors for play.
+
+        During a later instructional period, the client engaged in elopement and took many redirections to attend to the work before earning preferred outdoor time. The LBS instructed the RBT regarding skill-acquisition targets and newly implemented programs. The RBT will continue implementing the established treatment plan during future sessions.
+        """
+        let fragmentValidation = SessionNoteOutputValidator.validate(fragmentDraft, evidence: packet)
+        try expect(fragmentValidation.isSafe, "rough dictation fragments remain presentation defects rather than clinical blockers")
+        try expect(
+            fragmentValidation.repairableIssues.contains(where: { $0.code == "SN-QUALITY-005" }),
+            "obvious rough dictation fragments require the bounded professional reconstruction pass"
+        )
+
+        var stages: [SessionNotePipelineStage] = []
+        let result = try await SessionNoteGenerationPipeline.generate(packet: packet) { stage in
+            stages.append(stage)
+            switch stage {
+            case .standardDraft:
+                return nearCopy
+            case .repair:
+                return "The RBT met with the client in the client's home. The RBT began with pairing outdoors and targeted FCT through full-sentence manding and requests for additional time. The RBT then transitioned the client indoors for instructional activities and targeted waiting before returning outdoors for additional play.\n\nDuring a later instructional period, the client engaged in elopement and required multiple redirections to return to the task before earning preferred outdoor time. The LBS also instructed the RBT regarding skill-acquisition targets, including newly implemented programs. The client participated in the supplied session activities. The RBT will continue implementing the established treatment plan during future sessions."
+            case .compactDraft:
+                throw FixtureError.repairFailed
+            }
+        }
+        let repairInstructions: [String]
+        if stages.count == 2, stages.first == .standardDraft,
+           case .repair(let instructions) = stages.last {
+            repairInstructions = instructions
+        } else {
+            repairInstructions = []
+        }
+        try expect(stages.count == 2, "the physical near-copy receives exactly one bounded professional reconstruction pass")
+        try expect(
+            repairInstructions.contains(where: { $0.contains("Reconstruct the note from the original evidence") }),
+            "the bounded pass receives the professional reconstruction issue rather than only safety blockers"
+        )
+        try expect(result.outcome == .repaired, "the successful bounded reconstruction retains repaired provenance")
+
+        var degradedStages: [SessionNotePipelineStage] = []
+        let degraded = try await SessionNoteGenerationPipeline.generate(packet: packet) { stage in
+            degradedStages.append(stage)
+            return nearCopy
+        }
+        try expect(degradedStages.count == 2, "a still-poor repair stops after the single bounded reconstruction pass")
+        try expect(degraded.outcome == .fallback, "a still-poor safe repair becomes explicit degraded fallback provenance")
+        try expect(!degraded.outcome.isProfessionallyReady, "a still-poor repair cannot become ordinary Draft ready")
+
+        let shortPacket = SessionNoteEvidencePacket.make(
+            typedFacts: "The RBT paired with the client outdoors.",
+            ocrEvidence: "",
+            savedTerminologyContext: "targets: none | behaviors: none",
+            profileCode: nil
+        )
+        let shortDraft = "The RBT paired with the client outdoors. The RBT will continue implementing the established treatment plan during future sessions."
+        try expect(
+            SessionNoteOutputValidator.validate(shortDraft, evidence: shortPacket).isProfessionallyReady,
+            "short factual input is not penalized when there is little legitimate paraphrasing opportunity"
+        )
+
+        let physicalMeasurements = SessionNoteOCRMeasurementExtractor.extract(from: [
+            """
+            Full-Sentence Manding
+            80%
+            Waiting
+            4/5 trials with a verbal prompt
+            Session Date
+            08/29/2026
+            Provider ID
+            12345
+            """
+        ])
+        let measuredPacket = SessionNoteEvidencePacket.make(
+            typedFacts: physicalFacts,
+            ocrEvidence: "",
+            structuredMeasurements: physicalMeasurements,
+            savedTerminologyContext: "targets: none | behaviors: none",
+            profileCode: "SyCl"
+        )
+        let physicalDraft = """
+        The RBT met with the client in the client's home. Present during the session were the RBT, LBS, grandmother, mother, father, brother, and the brother's BHT. The session began with pairing outdoors while the RBT targeted FCT through Full Sentence Manding at 80% accuracy and requests for additional time. The RBT then transitioned the client indoors for instructional activities, targeted Waiting in 4/5 trials with a verbal prompt, and transitioned the client back outdoors for additional play and reinforcement.
+
+        The LBS and RBT later transitioned the client indoors for additional instructional activities, followed by cooperative play and another instructional period. During the later work period, the client engaged in elopement and required multiple redirections to return to and attend to the task. Following re-engagement, the client earned preferred outdoor time. The LBS also provided instruction to the RBT regarding skill-acquisition targets, including newly implemented programs.
+
+        The client participated in session activities, and the RBT will continue implementing the established treatment plan during future sessions.
+        """
+        let physicalValidation = SessionNoteOutputValidator.validate(physicalDraft, evidence: measuredPacket)
+        try expect(physicalValidation.isProfessionallyReady, "the complete physical-input synthetic professional rewrite passes safety and presentation gates: \(physicalValidation.issueCodes)")
+        let physicalLower = physicalDraft.lowercased()
+        try expect(
+            physicalLower.contains("client's home") && physicalLower.contains("grandmother") && physicalLower.contains("brother's bht"),
+            "the professional rewrite retains the supplied location and people present"
+        )
+        try expect(
+            physicalLower.contains("pairing outdoors") && physicalLower.contains("fct") &&
+            physicalLower.contains("full sentence manding") && physicalLower.contains("requests for additional time"),
+            "pairing, FCT, full-sentence manding, and more-time manding remain represented"
+        )
+        try expect(physicalLower.contains("waiting in 4/5 trials with a verbal prompt"), "waiting keeps its exact screenshot prompt association")
+        try expect(physicalLower.contains("cooperative play"), "indoor cooperative play remains represented")
+        try expect(
+            physicalLower.contains("elopement") && physicalLower.contains("multiple redirections") &&
+            physicalLower.contains("return to and attend to the task"),
+            "elopement, intervention, and observable re-engagement remain objective and complete"
+        )
+        try expect(physicalLower.contains("earned preferred outdoor time"), "earned preferred outside time remains represented as reinforcement")
+        try expect(
+            physicalLower.contains("lbs also provided instruction") && physicalLower.contains("newly implemented programs"),
+            "supplied LBS instruction and newly implemented programs remain represented"
+        )
+        try expect(
+            physicalLower.contains("full sentence manding at 80% accuracy") &&
+            physicalLower.contains("waiting in 4/5 trials with a verbal prompt"),
+            "clear screenshot measurements remain beside their matching targets"
+        )
+        try expect(!physicalDraft.contains("08/29/2026") && !physicalDraft.contains("12345"), "administrative screenshot data remains excluded")
+        try expect(
+            !physicalLower.contains("full physical prompt") && !physicalLower.contains("escape-maintained") &&
+            !physicalLower.contains("recommend") && !physicalLower.contains("effective"),
+            "the rewrite adds no prompt level, function, recommendation, or effectiveness conclusion"
+        )
+        try expect(
+            physicalDraft.range(of: "pairing outdoors")!.lowerBound < physicalDraft.range(of: "transitioned the client indoors")!.lowerBound &&
+            physicalDraft.range(of: "cooperative play")!.lowerBound < physicalDraft.range(of: "engaged in elopement")!.lowerBound &&
+            physicalDraft.range(of: "engaged in elopement")!.lowerBound < physicalDraft.range(of: "earned preferred outdoor time")!.lowerBound,
+            "the professional narrative preserves the supplied event chronology"
+        )
+        try expect(
+            !physicalDraft.contains("Then transitioned client") && !physicalDraft.contains("After this client") &&
+            !physicalDraft.contains("working on FCT and full sentence manding"),
+            "the professional rewrite does not lightly copy the demonstrated raw conversational structures"
+        )
+        try expect(physicalDraft.components(separatedBy: "\n\n").count == 3, "the professional rewrite uses coherent clinical paragraphs")
+    }
+
     private static func runtimeProtectionFixtures() async throws {
-        let race = SessionNoteRequestRace(timeoutNanoseconds: 5_000_000)
+        let race = SessionNoteRequestRace<String>(timeoutNanoseconds: 5_000_000)
         var timedOut = false
         do {
             _ = try await race.run {

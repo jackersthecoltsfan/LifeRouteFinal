@@ -231,6 +231,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
     clinical = sources["AIClinicalToolsViews.swift"]
     intelligence = sources["LifeRouteIntelligenceCore.swift"]
     contracts = sources["SessionNoteContracts.swift"]
+    app = sources["LifeRouteApp.swift"]
     require_all(tools_domain, ["struct ClientChoiceBoard", "struct ClientVisualSchedule", "final class ClientVisualSupportCore", "General visual library"], "ABA visual domain")
     require_all(sources["PersistenceCore.swift"], ["generalVisualLibraryID", "generalVisualLibraryCode", "codeByClientID[Self.generalVisualLibraryID]"], "protected General visual library persistence")
     require_all(tools_views, ["ClientVisualSupportCenter", "ClientVisualIconLibraryView", "ClientChoiceBoardBuilderView", "ClientFirstThenVisualView", "ClientVisualScheduleBuilderView", "VisualTimerView", "QuickSessionNotesView", "SessionPlanOrganizerView"], "Build 106 ABA/session surfaces")
@@ -239,10 +240,15 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         clinical,
         [
             "SessionNoteGenerationState",
+            "case completed(SessionNoteFinalOutcome)",
             "SessionNoteGenerating",
             "AISessionNoteRuntimeModel",
+            "SessionNoteGenerationResult",
             "generatedNote",
             "TextEditor(text: $runtime.generatedNote)",
+            "outcome.userFacingStatusTitle",
+            ".lifeRouteReadableTextSurface()",
+            "SessionNoteReadabilityFixtureView",
             "maxSelectionCount: 6",
             "@FocusState private var focusedField",
             ".scrollDismissesKeyboard(.interactively)",
@@ -258,7 +264,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         intelligence,
         [
             "SessionNoteEvidencePacket",
-            "SessionNoteGenerationPipeline.run",
+            "SessionNoteGenerationPipeline.generate",
             "maximumResponseTokens: 900",
             "LanguageModelSession.GenerationError.exceededContextWindowSize",
             "case contextWindowExceeded",
@@ -266,6 +272,9 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
             "FoundationModels",
             "SessionNoteOCRMeasurementExtractor.extract",
             "Reconstruct one editable professional ABA session note",
+            "Do not copy the source clause structure",
+            "Preserve the original chronology instead of regrouping events by target",
+            "never append a detached data section",
         ],
         "compact on-device clinical generation and bounded context recovery",
     )
@@ -282,11 +291,22 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
             "SessionNoteValidationIssue",
             "SessionNoteDeterministicRepairer",
             "SessionNoteConservativeFallback",
+            "SessionNoteGenerationResult",
+            "SessionNoteFinalOutcome",
             "SessionNotePipelineDiagnosticEvent",
             "SessionNoteNumericClaim",
             "SessionNoteMeasurementEvidence",
             "SessionNoteOCRMeasurementExtractor",
             "structuredMeasurements",
+            "PROFESSIONAL RECONSTRUCTION REQUIREMENTS",
+            "Do not copy conversational transitions or preserve the source clause structure",
+            "generic work only as instructional activities or a work period",
+            "isProfessionallyReady",
+            "boundedModelRepairIssues",
+            '"SN-QUALITY-004"',
+            '"SN-QUALITY-005"',
+            'case professionalPresentation',
+            '"Professional rewrite could not be completed"',
             '"SN-EVIDENCE-006"',
             "SessionNoteRequestRace",
             "SessionNoteDraftLedger",
@@ -301,6 +321,17 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
             '"ABLLS-R"',
         ],
         "deterministic Session Note evidence, identity, terminology, data, and output contracts",
+    )
+    require_all(
+        app,
+        [
+            "LifeRouteReadableTextSurfaceModifier",
+            "accessibilityReduceTransparency",
+            "colorSchemeContrast",
+            "AnyShapeStyle(.regularMaterial)",
+            "lifeRouteReadableTextSurface",
+        ],
+        "accessible dense-text readability floor inside retained glass cards",
     )
     require_all(
         tools_domain,

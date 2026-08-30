@@ -314,6 +314,13 @@ struct SessionNoteEvidencePacket {
 
         NEUTRAL TERMINOLOGY CONTEXT — never evidence that an event occurred:
         \(context.isEmpty ? "none" : String(context.prefix(280)))
+
+        PROFESSIONAL RECONSTRUCTION REQUIREMENTS:
+        - Do not copy conversational transitions or preserve the source clause structure.
+        - Rebuild each event with its supplied actor in objective ABA documentation language. Express generic work only as instructional activities or a work period; do not invent its content.
+        - Preserve the supplied event order instead of regrouping events by target. Connect the opening, transitions, later activities, behavior/intervention/outcome sequence, reinforcement, and collaboration chronologically when supplied.
+        - Produce 2–4 cohesive narrative paragraphs. Integrate each measurement in the sentence about its matching target or behavior; never append a detached data list.
+        - Close once with supported client participation and continued implementation of the established treatment plan.
         """
     }
 }
@@ -328,12 +335,14 @@ enum SessionNoteFailureCategory: String, Equatable {
     case identityVerification
     case evidenceVerification
     case clinicalClaimVerification
+    case professionalPresentation
 
     var userSafeLabel: String {
         switch self {
         case .identityVerification: return "Identity verification"
         case .evidenceVerification: return "Evidence verification"
         case .clinicalClaimVerification: return "Clinical claim verification"
+        case .professionalPresentation: return "Professional presentation"
         }
     }
 }
@@ -349,6 +358,38 @@ enum SessionNoteFinalOutcome: String, Equatable {
     case repaired
     case fallback
     case rejected
+
+    var isProfessionallyReady: Bool {
+        self == .generated || self == .repaired
+    }
+
+    var userFacingStatusTitle: String {
+        switch self {
+        case .generated: return "Draft ready"
+        case .repaired: return "Draft ready after review"
+        case .fallback: return "Professional rewrite could not be completed"
+        case .rejected: return "Generation failed"
+        }
+    }
+
+    var userFacingStatusMessage: String {
+        switch self {
+        case .generated:
+            return "The editable draft is visible below. Review every sentence before use."
+        case .repaired:
+            return "The editable draft passed one bounded professional reconstruction pass. Review every sentence before use."
+        case .fallback:
+            return "LifeRoute preserved an evidence-safe source draft, but it still requires professional editing before use."
+        case .rejected:
+            return "LifeRoute could not safely present a completed draft. Your facts, screenshots, and previous draft were preserved."
+        }
+    }
+}
+
+struct SessionNoteGenerationResult: Equatable {
+    let draft: String
+    let outcome: SessionNoteFinalOutcome
+    let issueCodes: [String]
 }
 
 enum SessionNotePipelineDiagnosticEvent: Equatable {
@@ -403,6 +444,20 @@ enum SessionNoteGenerationPipeline {
         progress: @escaping (SessionNotePipelineEvent) async -> Void = { _ in },
         diagnostic: @escaping (SessionNotePipelineDiagnosticEvent) -> Void = { _ in }
     ) async throws -> String {
+        try await generate(
+            packet: packet,
+            request: request,
+            progress: progress,
+            diagnostic: diagnostic
+        ).draft
+    }
+
+    static func generate(
+        packet: SessionNoteEvidencePacket,
+        request: @escaping (SessionNotePipelineStage) async throws -> String,
+        progress: @escaping (SessionNotePipelineEvent) async -> Void = { _ in },
+        diagnostic: @escaping (SessionNotePipelineDiagnosticEvent) -> Void = { _ in }
+    ) async throws -> SessionNoteGenerationResult {
         let firstRawDraft: String
         do {
             firstRawDraft = try await request(.standardDraft)
@@ -427,13 +482,17 @@ enum SessionNoteGenerationPipeline {
         ))
         let normalizedValidation = SessionNoteOutputValidator.validate(firstRepair.draft, evidence: packet)
         diagnostic(.remainingHardBlockerCodes(normalizedValidation.hardBlockerCodes))
-        if normalizedValidation.isSafe {
+        if normalizedValidation.isProfessionallyReady {
             diagnostic(.finalOutcome(.generated))
-            return normalizedValidation.draft
+            return SessionNoteGenerationResult(
+                draft: normalizedValidation.draft,
+                outcome: .generated,
+                issueCodes: normalizedValidation.issueCodes
+            )
         }
 
         await progress(.repairing)
-        let repairedRawDraft = try await request(.repair(normalizedValidation.hardBlockerRepairInstructions))
+        let repairedRawDraft = try await request(.repair(normalizedValidation.boundedModelRepairInstructions))
         let repairedSanitization = SessionNoteOutputSanitizer.sanitizeWithReport(
             repairedRawDraft,
             scrubber: packet.scrubber
@@ -449,15 +508,23 @@ enum SessionNoteGenerationPipeline {
         ))
         let repairedValidation = SessionNoteOutputValidator.validate(repairedDeterministic.draft, evidence: packet)
         diagnostic(.repairPassIssueCodes(repairedValidation.issueCodes))
-        if repairedValidation.isSafe {
+        if repairedValidation.isProfessionallyReady {
             diagnostic(.finalOutcome(.repaired))
-            return repairedValidation.draft
+            return SessionNoteGenerationResult(
+                draft: repairedValidation.draft,
+                outcome: .repaired,
+                issueCodes: repairedValidation.issueCodes
+            )
         }
 
         if let fallback = SessionNoteConservativeFallback.make(from: packet) {
             diagnostic(.fallback(.succeeded))
             diagnostic(.finalOutcome(.fallback))
-            return fallback
+            return SessionNoteGenerationResult(
+                draft: fallback,
+                outcome: .fallback,
+                issueCodes: repairedValidation.issueCodes
+            )
         }
 
         let fallbackOutcome: SessionNoteFallbackOutcome = packet.typedFacts.isEmpty ? .insufficientEvidence : .unsafe
@@ -475,10 +542,10 @@ enum SessionNoteRequestRaceError: LocalizedError {
     }
 }
 
-final class SessionNoteRequestRace: @unchecked Sendable {
+final class SessionNoteRequestRace<Value>: @unchecked Sendable {
     private let lock = NSLock()
     private let timeoutNanoseconds: UInt64
-    private var continuation: CheckedContinuation<String, Error>?
+    private var continuation: CheckedContinuation<Value, Error>?
     private var generationTask: Task<Void, Never>?
     private var timeoutTask: Task<Void, Never>?
     private var timeoutGeneration = 0
@@ -492,7 +559,7 @@ final class SessionNoteRequestRace: @unchecked Sendable {
         self.timeoutNanoseconds = timeoutNanoseconds
     }
 
-    func run(operation: @escaping () async throws -> String) async throws -> String {
+    func run(operation: @escaping () async throws -> Value) async throws -> Value {
         try await withTaskCancellationHandler(operation: {
             try await withCheckedThrowingContinuation { continuation in
                 lock.lock()
@@ -565,7 +632,7 @@ final class SessionNoteRequestRace: @unchecked Sendable {
         }
     }
 
-    private func resolve(_ result: Result<String, Error>) {
+    private func resolve(_ result: Result<Value, Error>) {
         lock.lock()
         guard !isFinished else {
             lock.unlock()
@@ -1097,8 +1164,17 @@ struct SessionNoteOutputValidation {
     var hardBlockerRepairInstructions: [String] {
         hardBlockers.map(\.repairInstruction)
     }
+    var boundedModelRepairIssues: [SessionNoteValidationIssue] {
+        issues.filter { $0.repairability == .boundedModel }
+    }
+    var boundedModelRepairInstructions: [String] {
+        boundedModelRepairIssues.map(\.repairInstruction)
+    }
     var isSafe: Bool { hardBlockers.isEmpty }
-    var isAcceptable: Bool { isSafe }
+    var isProfessionallyReady: Bool {
+        isSafe && !boundedModelRepairIssues.contains(where: { $0.userSafeCategory == .quality })
+    }
+    var isAcceptable: Bool { isProfessionallyReady }
 
     var primaryFailureCategory: SessionNoteFailureCategory {
         if hardBlockers.contains(where: { $0.userSafeCategory == .identityVerification }) {
@@ -1106,6 +1182,9 @@ struct SessionNoteOutputValidation {
         }
         if hardBlockers.contains(where: { $0.userSafeCategory == .evidenceVerification }) {
             return .evidenceVerification
+        }
+        if boundedModelRepairIssues.contains(where: { $0.userSafeCategory == .quality }) {
+            return .professionalPresentation
         }
         return .clinicalClaimVerification
     }
@@ -1379,6 +1458,7 @@ enum SessionNoteDeterministicRepairer {
 
 enum SessionNoteConservativeFallback {
     static func make(from evidence: SessionNoteEvidencePacket) -> String? {
+        guard evidence.structuredMeasurements.isEmpty else { return nil }
         let facts = evidence.typedFacts.trimmingCharacters(in: .whitespacesAndNewlines)
         guard facts.count >= 20,
               facts.split(whereSeparator: \.isWhitespace).count >= 4,
@@ -1626,6 +1706,18 @@ enum SessionNoteOutputValidator {
                 "Vary repetitive sentence openings when editing the draft."
             ))
         }
+        if hasSubstantialSourceCopying(cleaned, evidence: evidence) {
+            issues.append(issue(
+                "SN-QUALITY-004", .repairable, .quality, .boundedModel,
+                "Reconstruct the note from the original evidence using professional, objective, chronological ABA prose rather than preserving rough source wording or clause structure."
+            ))
+        }
+        if hasRoughDictationFragments(cleaned) {
+            issues.append(issue(
+                "SN-QUALITY-005", .repairable, .quality, .boundedModel,
+                "Replace rough dictation fragments, vague conversational work wording, and pronoun-first phrasing with objective person-first ABA documentation without adding facts."
+            ))
+        }
 
         var issuesByCode: [String: SessionNoteValidationIssue] = [:]
         for item in issues { issuesByCode[item.code] = item }
@@ -1762,5 +1854,69 @@ enum SessionNoteOutputValidator {
             counts[words.joined(separator: " "), default: 0] += 1
         }
         return counts.values.max().map { $0 >= 4 } ?? false
+    }
+
+    private static func hasSubstantialSourceCopying(
+        _ value: String,
+        evidence: SessionNoteEvidencePacket
+    ) -> Bool {
+        let sourceTokens = comparisonTokens(in: evidence.typedFacts)
+        guard sourceTokens.count >= 40,
+              hasRoughSourceStructure(evidence.typedFacts) else { return false }
+
+        let candidateWithoutClose = value.replacingOccurrences(
+            of: SessionNoteOutputSanitizer.continuationSentence,
+            with: "",
+            options: [.caseInsensitive]
+        )
+        let candidateTokens = comparisonTokens(in: candidateWithoutClose)
+        guard candidateTokens.count >= 30 else { return false }
+
+        let windowSize = 5
+        guard sourceTokens.count >= windowSize, candidateTokens.count >= windowSize else { return false }
+        let sourceWindows = Set((0...(sourceTokens.count - windowSize)).map {
+            sourceTokens[$0..<($0 + windowSize)].joined(separator: " ")
+        })
+        let candidateWindows = (0...(candidateTokens.count - windowSize)).map {
+            candidateTokens[$0..<($0 + windowSize)].joined(separator: " ")
+        }
+        let copiedWindowCount = candidateWindows.reduce(into: 0) { count, window in
+            if sourceWindows.contains(window) { count += 1 }
+        }
+        return Double(copiedWindowCount) / Double(candidateWindows.count) >= 0.45
+    }
+
+    private static func hasRoughSourceStructure(_ value: String) -> Bool {
+        let patterns = [
+            #"(?i)\bpresent\s*:"#,
+            #"(?i)\bhad\s+(?:him|her|them|the\s+client)\b"#,
+            #"(?i)\b(?:did|doing)\s+(?:more\s+)?work\b"#,
+            #"(?i)\bafter\s+this\b"#,
+            #"(?i)\b(?:took|needed)\s+(?:many|multiple|several)\s+redirections\b"#,
+        ]
+        if patterns.contains(where: { value.range(of: $0, options: .regularExpression) != nil }) {
+            return true
+        }
+        let transitionRegex = try? NSRegularExpression(pattern: #"(?i)\bthen\b"#)
+        let range = NSRange(location: 0, length: (value as NSString).length)
+        let transitionCount = transitionRegex?.numberOfMatches(in: value, range: range) ?? 0
+        return transitionCount >= 3
+    }
+
+    private static func hasRoughDictationFragments(_ value: String) -> Bool {
+        [
+            #"(?i)\b(?:did|doing)\s+(?:more\s+)?work\b"#,
+            #"(?i)\bhad\s+(?:him|her|them|the\s+client)\s+(?:wait|work)\b"#,
+            #"(?i)\b(?:took|needed)\s+(?:many|multiple|several)\s+redirections\b"#,
+            #"(?i)\bworking\s+on\b"#,
+            #"(?i)\bmore\s+time\s+manding\b"#,
+        ].contains(where: { value.range(of: $0, options: .regularExpression) != nil })
+    }
+
+    private static func comparisonTokens(in value: String) -> [String] {
+        value
+            .lowercased()
+            .split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+            .map(String.init)
     }
 }

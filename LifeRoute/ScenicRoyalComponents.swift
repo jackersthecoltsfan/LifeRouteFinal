@@ -80,6 +80,96 @@ struct ScenicRoyalIconBadge: View {
     }
 }
 
+struct ScenicRoyalScreenHeader<Actions: View>: View {
+    @Environment(\.scenicRoyalThemeStyle) private var style
+
+    let title: String
+    let subtitle: String
+    private let actions: Actions
+
+    init(
+        title: String,
+        subtitle: String,
+        @ViewBuilder actions: () -> Actions
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.actions = actions()
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+            VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
+                Text(title)
+                    .font(.largeTitle.weight(.bold))
+                    .foregroundStyle(style.primaryText)
+
+                Text(subtitle)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(style.secondaryText)
+            }
+            .accessibilityElement(children: .combine)
+
+            Spacer(minLength: ScenicRoyalDesignSystem.Spacing.compact)
+
+            ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                    actions
+                }
+            }
+        }
+    }
+}
+
+struct ScenicRoyalCompactIconButton: View {
+    @Environment(\.scenicRoyalThemeStyle) private var style
+
+    let systemImage: String
+    let accessibilityLabel: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(style.accent)
+                .frame(
+                    width: ScenicRoyalDesignSystem.Layout.minimumTouchTarget,
+                    height: ScenicRoyalDesignSystem.Layout.minimumTouchTarget
+                )
+                .contentShape(Circle())
+                .scenicRoyalInteractiveSurface(
+                    role: .selectedControl,
+                    cornerRadius: ScenicRoyalDesignSystem.Layout.minimumTouchTarget / 2
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+struct ScenicRoyalInsetRow<Content: View>: View {
+    let role: ScenicRoyalSurfaceRole
+    private let content: Content
+
+    init(
+        role: ScenicRoyalSurfaceRole = .ambient,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.role = role
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .padding(ScenicRoyalDesignSystem.Spacing.standard)
+            .scenicRoyalSurface(
+                role: role,
+                cornerRadius: ScenicRoyalDesignSystem.Radius.control
+            )
+    }
+}
+
 struct ScenicRoyalPrimaryButtonStyle: ButtonStyle {
     @Environment(\.scenicRoyalThemeStyle) private var style
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -141,5 +231,14 @@ extension View {
         self
             .padding(padding)
             .scenicRoyalSurface(role: role, cornerRadius: cornerRadius)
+    }
+
+    func scenicRoyalField() -> some View {
+        self
+            .padding(ScenicRoyalDesignSystem.Spacing.standard)
+            .scenicRoyalInteractiveSurface(
+                role: .ambient,
+                cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
+            )
     }
 }

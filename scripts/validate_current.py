@@ -99,6 +99,7 @@ def validate_project_and_version() -> None:
             "ScenicRoyalThemeBridge.swift in Sources",
             "ScenicRoyalComponents.swift in Sources",
             "ScenicRoyalToolbar.swift in Sources",
+            "ScenicRoyalScheduleComponents.swift in Sources",
         ],
         "Xcode app/extension structure",
     )
@@ -476,6 +477,8 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
 def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
     calendar = sources["CalendarDomain.swift"]
     providers = sources["CalendarProviderCore.swift"]
+    schedule = sources["V054ScheduleView.swift"]
+    schedule_components = sources["ScenicRoyalScheduleComponents.swift"]
     routing = sources["RoutingLocationDomain.swift"]
     day_route = sources["DayRoutePlanningCore.swift"]
     day_route_contracts = sources["DayRouteContracts.swift"]
@@ -487,11 +490,39 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
     migration = sources["LegacyMigrationCore.swift"]
     require_all(calendar, ["case day", "case week", "case month", "loadManualCalendarEvents", "addManualEvent", "removeEvent", "persistManualEvents"], "calendar range/manual appointment behavior")
     require_all(providers, ["EKEventStore", "https://www.googleapis.com/auth/calendar.readonly", "ASWebAuthenticationSession", "kSecClassGenericPassword"], "Apple/Google read-only calendar providers")
+    require_all(
+        schedule,
+        [
+            "ScenicRoyalScreenHeader",
+            "ScenicRoyalCalendarDateChip",
+            "ScenicRoyalCalendarMonthDay",
+            "ScenicRoyalScheduleEventRow",
+            "ScenicRoyalTravelPlanLabel",
+            "ScenicRoyalCalendarConnectionLabel",
+            "ScenicRoyalGlassEffectContainer",
+            "calendarState.presentation(for: selectedRange)",
+            "calendarState.addManualEvent",
+            "calendarState.replaceProviderEvents",
+        ],
+        "Scenic Royal Schedule presentation and existing state ownership",
+    )
+    require_all(
+        schedule_components,
+        [
+            "dynamicTypeSize.isAccessibilitySize",
+            "ScenicRoyalInsetRow",
+            "ScenicRoyalRouteLegRow",
+            'accessibilityHint("Opens full-day route planning")',
+            'accessibilityHint("Opens calendar connection settings")',
+        ],
+        "Schedule readability, Dynamic Type, and accessibility components",
+    )
+    require("palette.panel" not in schedule, "Schedule must not restore duplicated legacy panel styling")
     require_all(routing, ["CLLocationManager", "requestWhenInUseAuthorization", "allowsBackgroundLocationUpdates = false", "savedPlaces", "todos", "dayStops", "addDayStop", "removeDayStop", "MKDirections", "openInMaps"], "foreground routing and saved-place ownership")
     require_all(day_route, ["startFullRoute", "continueFullRoute", "nextSequentialLegIndex", "returnHome", "LifeRouteDaySequenceBuilder.waypoints", "MKMapItem.openMaps"], "day-route handoff behavior")
     require_all(day_route_contracts, ["LifeRouteDayStop: Identifiable, Codable", "LifeRouteDayStopCollection", "LifeRouteDaySequenceBuilder", "before + events + after"], "persistent per-day stop and full-day sequence contract")
     require_all(full_route_contracts, ["completeGoogleMaps", "completeAppleMaps", "maximumGoogleMobileWaypoints = 3", "maximumURLLength = 2_048", "hasVerifiedSequence", "sequentialPlan"], "bounded provider full-route contract")
-    require_all(day_route_view, ["routingState.dayStops(on: day)", "routingState.addDayStop", "routingState.removeDayStop", '"Generate full day route"', '"Start full route in \\(plan.provider.title)"'], "Day Route persisted-stop and one-action presentation")
+    require_all(day_route_view, ["routingState.dayStops(on: day)", "routingState.addDayStop", "routingState.removeDayStop", '"Generate full day route"', '"Start full route in \\(plan.provider.title)"', "ScenicRoyalRouteLegRow", "scenicRoyalField()"], "Day Route persisted-stop, Scenic Royal presentation, and one-action handoff")
     require("Open this leg" not in day_route_view, "Day Route must not expose separate normal-flow launch actions for each leg")
     require_all(setup + today, ["Weekly To-Dos", "gap suggestions"], "weekly To-Dos and gap suggestions")
     require_all(persistence, ["schemaVersion", "PersistedVisualIcon", "PersistedChoiceBoard", "PersistedVisualSchedule", "dayStops", "manualCalendarEvents", "providerCalendarEvents", "FileProtectionType.completeUntilFirstUserAuthentication", "options: [.atomic]", "private actor SnapshotWriter"], "native persistence and protected visual storage")

@@ -10,9 +10,13 @@
 - Active branch: `feature/v0.9.0-scenic-royal-ui`.
 - Phase 0 architecture and Phase 1 foundation checkpoints are accepted. The
   Phase 1 remote checkpoint is `fe46286f916c095d61e5ebc5ef163b3d2d9b21ed`.
-- Phase 2 Today/route implementation is complete locally for checkpoint review.
-  Do not begin Schedule or later migration phases until this checkpoint is
-  accepted.
+- Phase 2 Today/route implementation is accepted at
+  `9e56b733ae7b1a4250d188eeea089a796aa0a0df`. The local safety branch
+  `checkpoint/v0.9.0-phase2-local` resolves to that exact commit. Its remote push
+  remains deferred until authenticated GitHub access is available.
+- Phase 3 Schedule/travel-presentation implementation is complete locally for
+  checkpoint review. Do not begin Tools or later migration phases until this
+  checkpoint is accepted.
 - Do not dispatch TestFlight or merge the v0.9.0 branch without the owner's
   candidate-specific authorization.
 
@@ -116,6 +120,40 @@ navigation handoff, and Live Activity presentation.
   re-smoked through all five root launches and remains protected by semantic
   validation; repeat one physical swipe when the desktop is available.
 
+## v0.9.0 Phase 3 validation checkpoint
+
+- Schedule now uses the shared Scenic Royal heading, compact controls, grouped
+  glass, readability cards, date controls, chronological event rows, travel-plan
+  link, and connected-calendar status treatment. Day/Agenda, Week, Month,
+  manual appointments, and read-only provider actions retain their existing
+  `CalendarCoreState` and `CalendarProviderCore` owners.
+- `ScenicRoyalScheduleComponents.swift` contains stateless date, event, travel,
+  connection, and route-leg presentation components. Accessibility text sizes
+  switch event rows to a vertical hierarchy, expand and center the selected
+  week date, and replace the space-constrained segmented range control with a
+  labeled menu. Month-grid numerals remain spatially bounded while retaining
+  complete VoiceOver labels and event counts.
+- Day Route presentation now uses the same Scenic Royal fields, inset rows,
+  readability surfaces, and ordered route-leg rows. Saved-stop persistence,
+  MapKit leg calculation, route ordering, full-route provider policy, sequential
+  fallback, and single primary handoff action are unchanged.
+- Representative iPhone 17 Pro / iOS 26.5 evidence covers Canyon, bright Arctic,
+  Rainforest, Royal Current, populated chronological event rows, and a combined
+  Accessibility Extra Large, Increased Contrast, Reduce Transparency, and
+  Reduce Motion pass. The accessibility pass initially exposed fixed calendar
+  control clipping; the final pass confirms readable range/date controls and
+  vertically reflowed events.
+- Preparation, fast/full semantic validation, 30 Day Route assertions, 162
+  Session Note assertions, fresh Debug and Release Simulator builds, app and
+  Live Activity extension compilation, `git diff --check`, and protected-domain
+  diff audit pass. The warning budget remains the known no-AppIntents notice
+  only, with zero unexpected warnings; runtime log review found no app errors or
+  faults.
+- Direct pointer-driven root swiping and direct Day Route tapping remain
+  unavailable while the Mac desktop is locked. The five-stack root/navigation
+  sources are unchanged and their semantic regression checks pass; repeat the
+  physical interaction smoke when the desktop is available.
+
 PR #119 (`chore/v0.8.2-light-hygiene`) was closed as superseded and was not
 merged. Its still-useful tiny cleanup was reproduced through the approved
 pre-v0.9 runway instead.
@@ -156,11 +194,9 @@ pre-v0.9 runway instead.
   snapshot, not an active build input. Its retention value is ambiguous, so
   defer removal until the v0.9 migration or a separate archival decision.
 
-## Next milestone — v0.9.0 Phase 3
+## Next milestone — v0.9.0 Phase 4
 
-After the owner accepts the Phase 2 checkpoint, migrate Schedule/Calendar only,
-preserving Agenda/Day/Week/Month behavior, connected calendars, manual events,
-travel planning, saved stops, MapKit routing, and external-navigation handoff.
-The Visual Timer's bounded urgency/audio refinement remains deferred to the Tools
-migration phase. Continue replacing old UI incrementally and remove it only after
-each replacement is proven behaviorally equivalent.
+After the owner accepts the Phase 3 checkpoint, migrate the Tools root and then
+its approved subpages in bounded units. The Visual Timer's bounded urgency/audio
+refinement belongs in that phase. Do not begin Resources, Setup, clients, Themes,
+or legacy retirement as part of the Tools work.

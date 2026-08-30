@@ -68,6 +68,11 @@ private struct SessionNoteContractFixtureRunner {
         let unknownName = "Jane Smith observed the client during play. The client participated in play. The RBT will continue implementing the established treatment plan during future sessions."
         let unknownValidation = SessionNoteOutputValidator.validate(unknownName, evidence: packet)
         try expect(!unknownValidation.isAcceptable, "unknown likely personal names are rejected after sanitization")
+        let novelTitleCase = "Novel Person was referenced during play. The client participated in play. The RBT will continue implementing the established treatment plan during future sessions."
+        try expect(
+            !SessionNoteOutputValidator.validate(novelTitleCase, evidence: packet).isAcceptable,
+            "a novel title-cased phrase cannot use the supplied-clinical-label exemption"
+        )
     }
 
     private static func dataFidelityFixtures() throws {

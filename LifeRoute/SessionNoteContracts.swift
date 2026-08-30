@@ -838,7 +838,7 @@ enum SessionNoteOutputValidator {
         if let identifier = evidence.scrubber.survivingIdentifier(in: cleaned) {
             issues.append("A forbidden personal or profile identifier remained: \(identifier).")
         }
-        if containsLikelyPersonalName(in: cleaned) {
+        if containsLikelyPersonalName(in: cleaned, evidence: evidence) {
             issues.append("A likely personal name remained instead of a role identifier.")
         }
         if containsIdentifierShape(in: cleaned) {
@@ -938,10 +938,14 @@ enum SessionNoteOutputValidator {
         return SessionNoteOutputValidation(draft: cleaned, issues: Array(Set(issues)).sorted())
     }
 
-    private static func containsLikelyPersonalName(in value: String) -> Bool {
+    private static func containsLikelyPersonalName(
+        in value: String,
+        evidence: SessionNoteEvidencePacket
+    ) -> Bool {
         let pattern = #"\b[A-Z][a-z]{1,}\s+[A-Z][a-z]{1,}\b"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
         let nsValue = value as NSString
+        let factualEvidence = [evidence.typedFacts, evidence.quantitativeOCR].joined(separator: "\n")
         let allowed: Set<String> = [
             "The RBT", "The LBS", "The BCBA", "The BHT", "The Client",
             "Visual Schedule", "Choice Board", "First Then", "Apple Intelligence",
@@ -960,9 +964,12 @@ enum SessionNoteOutputValidator {
                 #"(?i)\b"# + escaped + #"\s+was\s+present\b"#,
                 #"(?i)\b"# + escaped + #"'s\b"#,
             ]
-            return personPatterns.contains { candidatePattern in
+            if personPatterns.contains(where: { candidatePattern in
                 value.range(of: candidatePattern, options: .regularExpression) != nil
+            }) {
+                return true
             }
+            return !SessionNoteEvidenceNormalizer.containsClinicalTerm(candidate, in: factualEvidence)
         }
     }
 

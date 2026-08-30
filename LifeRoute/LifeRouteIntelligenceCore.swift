@@ -225,13 +225,27 @@ enum LifeRouteIntelligenceCore {
                     case .repairing:
                         await progress(.repairing)
                     }
+                },
+                diagnostic: { event in
+                    #if DEBUG
+                    print("[SessionNoteValidation] \(event.privacySafeDescription)")
+                    #endif
                 }
             )
         } catch SessionNotePipelineError.contextTooLarge {
             throw LifeRouteIntelligenceError.contextWindowExceeded
-        } catch SessionNotePipelineError.rejected {
+        } catch SessionNotePipelineError.rejected(let category) {
+            let message: String
+            switch category {
+            case .identityVerification:
+                message = "LifeRoute could not safely verify that the generated draft used role-based identifiers only. Your facts, screenshots, and previous draft were preserved. Category: \(category.userSafeLabel)."
+            case .evidenceVerification:
+                message = "LifeRoute could not safely verify one or more session-data claims in the generated draft. Your facts, screenshots, and previous draft were preserved. Category: \(category.userSafeLabel)."
+            case .clinicalClaimVerification:
+                message = "LifeRoute could not safely verify one or more clinical claims in the generated draft. Your facts, screenshots, and previous draft were preserved. Category: \(category.userSafeLabel)."
+            }
             throw LifeRouteIntelligenceError.generationFailed(
-                "LifeRoute rejected the generated draft because it could not verify identity, evidence, and clinical-format safeguards. Your facts, screenshots, and previous draft were preserved."
+                message
             )
         } catch LifeRouteIntelligenceError.contextWindowExceeded {
             throw LifeRouteIntelligenceError.contextWindowExceeded

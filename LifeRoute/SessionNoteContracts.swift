@@ -20,6 +20,170 @@ struct SessionNoteNumericClaim: Equatable {
     let kind: SessionNoteMeasurementKind
 }
 
+struct SessionNoteMeasurementEvidence: Equatable {
+    let target: String
+    let value: String
+    let kind: SessionNoteMeasurementKind
+    let promptLevels: Set<String>
+    let sourceOrdinal: Int
+
+    var promptLine: String {
+        var components = [
+            "Target: \(target)",
+            "Type: \(kind.rawValue)",
+            "Value: \(value)",
+        ]
+        if !promptLevels.isEmpty {
+            components.append("Prompting: \(promptLevels.sorted().joined(separator: ", "))")
+        }
+        return components.joined(separator: " | ")
+    }
+
+    var numericClaim: SessionNoteNumericClaim? {
+        SessionNoteEvidenceNormalizer.numericClaims(in: value).first
+    }
+}
+
+enum SessionNoteOCRMeasurementExtractor {
+    static func extract(from recognizedScreenshots: [String]) -> [SessionNoteMeasurementEvidence] {
+        var measurements: [SessionNoteMeasurementEvidence] = []
+        var seen = Set<String>()
+
+        for (screenshotIndex, recognized) in recognizedScreenshots.prefix(6).enumerated() {
+            let lines = recognized
+                .replacingOccurrences(of: "\r\n", with: "\n")
+                .replacingOccurrences(of: "\r", with: "\n")
+                .split(whereSeparator: \.isNewline)
+                .map {
+                    String($0)
+                        .replacingOccurrences(of: #"[\t ]+"#, with: " ", options: .regularExpression)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                .filter { !$0.isEmpty }
+
+            for (lineIndex, line) in lines.enumerated() {
+                guard !isAdministrative(line),
+                      let measurement = measurement(in: line) else { continue }
+
+                let inlineTarget = targetCandidate(
+                    from: line.replacingOccurrences(of: measurement.value, with: "")
+                )
+                let target = inlineTarget ?? precedingTarget(
+                    before: lineIndex,
+                    in: lines
+                )
+                guard let target else { continue }
+
+                let promptLevels = SessionNoteEvidenceNormalizer.promptLevels(
+                    in: [target, line].joined(separator: " ")
+                )
+                let evidence = SessionNoteMeasurementEvidence(
+                    target: target,
+                    value: measurement.value,
+                    kind: measurement.kind,
+                    promptLevels: promptLevels,
+                    sourceOrdinal: screenshotIndex + 1
+                )
+                let key = [
+                    target.lowercased(), measurement.kind.rawValue,
+                    measurement.value.lowercased(), promptLevels.sorted().joined(separator: ","),
+                ].joined(separator: "|")
+                if seen.insert(key).inserted {
+                    measurements.append(evidence)
+                }
+            }
+        }
+
+        return measurements
+    }
+
+    private static func measurement(in line: String) -> (value: String, kind: SessionNoteMeasurementKind)? {
+        if line.range(of: #"(?i)\b(?:service|session)\s+duration\b"#, options: .regularExpression) != nil {
+            return nil
+        }
+
+        let patterns: [(SessionNoteMeasurementKind, String)] = [
+            (.percentage, #"(?i)(?<![A-Za-z0-9])\d+(?:\.\d+)?\s*%"#),
+            (.trials, #"(?i)(?<![A-Za-z0-9])\d+\s*/\s*\d+(?:\s*(?:trials?|opportunities))?"#),
+            (.rate, #"(?i)(?<![A-Za-z0-9])\d+(?:\.\d+)?\s*(?:per\s+(?:minute|hour|session)|/(?:min|hr))\b"#),
+            (.latency, #"(?i)(?<![A-Za-z0-9])\d+(?:\.\d+)?\s*(?:seconds?|secs?|minutes?|mins?)\b(?=[^\n]*(?:latency|response time|time to respond|time to begin|initiation delay))"#),
+            (.duration, #"(?i)(?<![A-Za-z0-9])\d+(?:\.\d+)?\s*(?:seconds?|secs?|minutes?|mins?|hours?|hrs?)\b"#),
+            (.count, #"(?i)(?<![A-Za-z0-9])\d+(?:\.\d+)?\s*(?:occurrences?|instances?|events?|times?)\b"#),
+        ]
+
+        for (kind, pattern) in patterns {
+            guard let range = line.range(of: pattern, options: .regularExpression) else { continue }
+            let value = String(line[range])
+                .replacingOccurrences(of: #"\s*/\s*"#, with: "/", options: .regularExpression)
+                .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return (value, kind)
+        }
+        return nil
+    }
+
+    private static func precedingTarget(before lineIndex: Int, in lines: [String]) -> String? {
+        guard lineIndex > 0 else { return nil }
+        for candidateIndex in stride(from: lineIndex - 1, through: max(0, lineIndex - 3), by: -1) {
+            let candidate = lines[candidateIndex]
+            if isAdministrative(candidate) { continue }
+            if measurement(in: candidate) != nil { continue }
+            if let target = targetCandidate(from: candidate) { return target }
+        }
+        return nil
+    }
+
+    private static func targetCandidate(from raw: String) -> String? {
+        var candidate = raw
+            .replacingOccurrences(of: #"^\s*\[[^\]]+\]\s*"#, with: "", options: .regularExpression)
+            .replacingOccurrences(
+                of: #"(?i)\b(?:accuracy|percentage|percent|frequency|count|duration|latency|rate|trials?|opportunities|independent|independently|with\s+(?:an?\s+)?(?:verbal|gestural|visual|model|partial physical|full physical)\s+prompt)\b"#,
+                with: "",
+                options: .regularExpression
+            )
+            .replacingOccurrences(of: #"[|:;=\-–—]+"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        candidate = candidate.replacingOccurrences(
+            of: #"(?i)^(?:target|program|goal|behavior|behaviour|skill)\s+"#,
+            with: "",
+            options: .regularExpression
+        )
+        let lower = candidate.lowercased()
+        let genericHeadings: Set<String> = [
+            "data", "data collection", "skill acquisition data", "behavior data", "behaviour data",
+            "targets", "programs", "goals", "behaviors", "behaviours", "results", "measurement",
+        ]
+        guard candidate.count >= 3,
+              candidate.count <= 100,
+              candidate.contains(where: \.isLetter),
+              !candidate.contains(where: \.isNumber),
+              !genericHeadings.contains(lower),
+              !isAdministrative(candidate) else { return nil }
+        return candidate
+    }
+
+    private static func isAdministrative(_ line: String) -> Bool {
+        let lower = line.lowercased()
+        let administrativeLabels = [
+            "session date", "date of service", "service date", "start time", "end time",
+            "clock in", "clock out", "provider id", "provider name", "therapist", "staff id",
+            "client name", "member id", "authorization", "billing", "claim", "cpt",
+            "appointment", "signature", "note status", "created at", "modified at",
+            "session id", "service duration", "session duration",
+        ]
+        if administrativeLabels.contains(where: lower.contains) { return true }
+        if line.range(of: #"(?<!\d)\d{1,2}[/-]\d{1,2}[/-]\d{2,4}(?!\d)"#, options: .regularExpression) != nil {
+            return true
+        }
+        return line.range(
+            of: #"(?i)(?<!\d)\d{1,2}:\d{2}\s*(?:am|pm)?(?!\d)"#,
+            options: .regularExpression
+        ) != nil
+    }
+}
+
 enum SessionNoteValidationSeverity: String, Equatable {
     case hardBlocker
     case repairable
@@ -66,6 +230,7 @@ struct SessionNoteSupervisorClaim: Hashable {
 struct SessionNoteEvidencePacket {
     let typedFacts: String
     let quantitativeOCR: String
+    let structuredMeasurements: [SessionNoteMeasurementEvidence]
     let savedTerminologyContext: String
     let scrubber: SessionNoteIdentifierScrubber
     let numericClaims: [SessionNoteNumericClaim]
@@ -77,6 +242,7 @@ struct SessionNoteEvidencePacket {
     static func make(
         typedFacts: String,
         ocrEvidence: String,
+        structuredMeasurements: [SessionNoteMeasurementEvidence] = [],
         savedTerminologyContext: String,
         profileCode: String?
     ) -> SessionNoteEvidencePacket {
@@ -89,17 +255,34 @@ struct SessionNoteEvidencePacket {
         let normalizedFacts = SessionNoteEvidenceNormalizer.typedFacts(
             scrubber.scrub(typedFacts)
         )
+        let normalizedMeasurements = structuredMeasurements.compactMap { measurement -> SessionNoteMeasurementEvidence? in
+            let target = scrubber.scrub(measurement.target)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !target.isEmpty else { return nil }
+            return SessionNoteMeasurementEvidence(
+                target: target,
+                value: measurement.value,
+                kind: measurement.kind,
+                promptLevels: measurement.promptLevels,
+                sourceOrdinal: measurement.sourceOrdinal
+            )
+        }
         let normalizedOCR = SessionNoteEvidenceNormalizer.quantitativeOCR(
             scrubber.scrub(ocrEvidence)
         )
         let normalizedContext = SessionNoteEvidenceNormalizer.savedContext(
             scrubber.scrub(savedTerminologyContext)
         )
-        let factualEvidence = [normalizedFacts, normalizedOCR].joined(separator: "\n")
+        let factualEvidence = [
+            normalizedFacts,
+            normalizedOCR,
+            normalizedMeasurements.map(\.promptLine).joined(separator: "\n"),
+        ].joined(separator: "\n")
 
         return SessionNoteEvidencePacket(
             typedFacts: normalizedFacts,
             quantitativeOCR: normalizedOCR,
+            structuredMeasurements: normalizedMeasurements,
             savedTerminologyContext: normalizedContext,
             scrubber: scrubber,
             numericClaims: SessionNoteEvidenceNormalizer.numericClaims(in: factualEvidence),
@@ -114,13 +297,19 @@ struct SessionNoteEvidencePacket {
     }
 
     func modelPrompt(compaction: SessionNoteRequestCompaction) -> String {
-        let ocrLimit = compaction == .standard ? 1_600 : 650
+        let ocrLimit = compaction == .standard ? 1_600 : 900
         let context = compaction == .standard ? savedTerminologyContext : ""
+        let measurementLines = structuredMeasurements
+            .map(\.promptLine)
+            .joined(separator: "\n")
         return """
-        SESSION FACTS — primary evidence:
+        RAW FACTUAL SOURCE MATERIAL — reconstruct into professional ABA prose; do not preserve its wording or sentence structure:
         \(typedFacts.isEmpty ? "none" : String(typedFacts.prefix(5_200)))
 
-        CLEAR QUANTITATIVE OCR — supporting evidence only:
+        CLEAR CURRENT-SESSION MEASUREMENTS — integrate every entry and keep each target, type, value, unit, and prompt level associated exactly:
+        \(measurementLines.isEmpty ? "none" : String(measurementLines.prefix(ocrLimit)))
+
+        OTHER CLEAR QUANTITATIVE OCR — supporting evidence only; never use administrative screenshot content:
         \(quantitativeOCR.isEmpty ? "none" : String(quantitativeOCR.prefix(ocrLimit)))
 
         NEUTRAL TERMINOLOGY CONTEXT — never evidence that an event occurred:
@@ -668,13 +857,59 @@ enum SessionNoteEvidenceNormalizer {
     }
 
     static func quantitativeOCR(_ value: String) -> String {
-        let lines = normalizeLines(value, removeAmbiguousOCR: true)
+        let lines = normalizeLines(
+            retainingLegacySplitLineAssociations(in: value),
+            removeAmbiguousOCR: true
+        )
             .split(whereSeparator: \.isNewline)
             .map(String.init)
             .filter { line in
                 line.contains(where: \.isNumber) && !isStructuralOCRHeading(line)
             }
         return String(lines.joined(separator: "\n").prefix(1_600))
+    }
+
+    private static func retainingLegacySplitLineAssociations(in value: String) -> String {
+        let lines = value
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+            .map(String.init)
+        var output: [String] = []
+        var index = 0
+
+        while index < lines.count {
+            let line = lines[index].trimmingCharacters(in: .whitespacesAndNewlines)
+            let target = line.replacingOccurrences(
+                of: #"(?i)^\s*\[AMBIGUOUS OCR\]\s*"#,
+                with: "",
+                options: .regularExpression
+            )
+            let isAmbiguousTargetLine = target != line &&
+                target.contains(where: \.isLetter) &&
+                !target.contains(where: \.isNumber) &&
+                target.range(
+                    of: #"(?i)\b(?:session date|date of service|service date|start time|end time|provider|therapist|client name|member id|authorization|billing|claim|appointment|signature)\b"#,
+                    options: .regularExpression
+                ) == nil
+
+            if isAmbiguousTargetLine, lines.indices.contains(index + 1) {
+                let next = lines[index + 1].trimmingCharacters(in: .whitespacesAndNewlines)
+                let isTaggedMeasurement = next.contains(where: \.isNumber) && next.range(
+                    of: #"(?i)^\s*\[(?:[^\]]*(?:PERCENTAGE|TRIAL-BASED|FREQUENCY/COUNT|DURATION|LATENCY|RATE)[^\]]*)\]"#,
+                    options: .regularExpression
+                ) != nil
+                if isTaggedMeasurement {
+                    output.append("Target: \(target) | \(next)")
+                    index += 2
+                    continue
+                }
+            }
+
+            output.append(line)
+            index += 1
+        }
+        return output.joined(separator: "\n")
     }
 
     static func savedContext(_ value: String) -> String {
@@ -1153,13 +1388,21 @@ enum SessionNoteConservativeFallback {
               ) != nil else { return nil }
 
         let sanitized = SessionNoteOutputSanitizer.sanitize(facts, scrubber: evidence.scrubber)
-        let initial = SessionNoteOutputValidator.validate(sanitized, evidence: evidence)
+        let initial = SessionNoteOutputValidator.validate(
+            sanitized,
+            evidence: evidence,
+            requireStructuredMeasurementCoverage: false
+        )
         let repaired = SessionNoteDeterministicRepairer.repair(
             initial.draft,
             validation: initial,
             evidence: evidence
         )
-        let final = SessionNoteOutputValidator.validate(repaired.draft, evidence: evidence)
+        let final = SessionNoteOutputValidator.validate(
+            repaired.draft,
+            evidence: evidence,
+            requireStructuredMeasurementCoverage: false
+        )
         return final.isSafe ? final.draft : nil
     }
 }
@@ -1182,7 +1425,8 @@ private extension String {
 enum SessionNoteOutputValidator {
     static func validate(
         _ draft: String,
-        evidence: SessionNoteEvidencePacket
+        evidence: SessionNoteEvidencePacket,
+        requireStructuredMeasurementCoverage: Bool = true
     ) -> SessionNoteOutputValidation {
         var issues: [SessionNoteValidationIssue] = []
         let cleaned = draft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1317,6 +1561,16 @@ enum SessionNoteOutputValidator {
             }
         }
 
+        if requireStructuredMeasurementCoverage,
+           evidence.structuredMeasurements.contains(where: {
+               !containsStructuredMeasurement($0, in: cleaned)
+           }) {
+            issues.append(issue(
+                "SN-EVIDENCE-006", .hardBlocker, .evidenceVerification, .boundedModel,
+                "Include every clear current-session screenshot measurement with its supplied target, measurement type, value, unit, and prompt level."
+            ))
+        }
+
         let outputPromptLevels = SessionNoteEvidenceNormalizer.promptLevels(in: cleaned)
         if !outputPromptLevels.subtracting(evidence.promptLevels).isEmpty {
             issues.append(issue(
@@ -1395,6 +1649,31 @@ enum SessionNoteOutputValidator {
             repairability: repairability,
             repairInstruction: repairInstruction
         )
+    }
+
+    private static func containsStructuredMeasurement(
+        _ measurement: SessionNoteMeasurementEvidence,
+        in value: String
+    ) -> Bool {
+        guard let requiredClaim = measurement.numericClaim else { return false }
+        let targetPattern = "(?i)(?<![A-Za-z0-9])" +
+            NSRegularExpression.escapedPattern(for: measurement.target) +
+            "(?![A-Za-z0-9])"
+
+        return SessionNoteOutputSanitizer.splitSentences(value).contains { sentence in
+            guard sentence.range(of: targetPattern, options: .regularExpression) != nil else {
+                return false
+            }
+            let claims = SessionNoteEvidenceNormalizer.numericClaims(in: sentence)
+            let hasClaim = claims.contains {
+                $0.value == requiredClaim.value &&
+                ($0.kind == requiredClaim.kind || $0.kind == .unknown)
+            }
+            guard hasClaim else { return false }
+            let suppliedPrompts = measurement.promptLevels
+            let outputPrompts = SessionNoteEvidenceNormalizer.promptLevels(in: sentence)
+            return suppliedPrompts.isSubset(of: outputPrompts)
+        }
     }
 
     private static func containsLikelyPersonalName(

@@ -16,10 +16,12 @@ private struct SessionNoteContractFixtureRunner {
         try severityClassificationFixtures()
         try semanticParaphraseFixtures()
         try await deterministicFormattingFixtures()
+        try structuredOCRMeasurementFixtures()
         try multiScreenshotEvidenceFixtures()
         try savedContextIsNotEvidenceFixtures()
         try emptyEvidenceFixtures()
         try realisticSyntheticSessionFixtures()
+        try await professionalReconstructionFixtures()
         try await pipelineFixtures()
         try await fallbackAndDiagnosticFixtures()
         try await runtimeProtectionFixtures()
@@ -334,6 +336,117 @@ private struct SessionNoteContractFixtureRunner {
         try expect(mixedPacket.promptLevels.contains("verbal") && mixedPacket.promptLevels.contains("gestural"), "mixed OCR retains supplied prompting")
     }
 
+    private static func structuredOCRMeasurementFixtures() throws {
+        let legacyPhysicalPacket = SessionNoteEvidencePacket.make(
+            typedFacts: "The client practiced Following Directions with the RBT.",
+            ocrEvidence: "[AMBIGUOUS OCR] Following Directions\n[PERCENTAGE] 80%",
+            savedTerminologyContext: "targets: none | behaviors: none",
+            profileCode: "SyCl"
+        )
+        try expect(
+            legacyPhysicalPacket.quantitativeOCR.contains("Following Directions") &&
+            legacyPhysicalPacket.quantitativeOCR.contains("80%"),
+            "the legacy split-line physical OCR shape retains its target/value association"
+        )
+
+        let measurements = SessionNoteOCRMeasurementExtractor.extract(from: [
+            """
+            Skill Acquisition Data
+            Following Directions
+            80%
+            Requesting Break
+            4/5 trials with a verbal prompt
+            Waiting
+            6 minutes
+            Behavior Data
+            Aggression
+            3 occurrences
+            Greeting Response
+            5 seconds latency
+            Mand Requests
+            2 per minute
+            Session Date
+            08/29/2026
+            Start Time
+            9:00 AM
+            Provider ID
+            12345
+            """
+        ])
+
+        try expect(
+            measurements.contains(SessionNoteMeasurementEvidence(
+                target: "Following Directions",
+                value: "80%",
+                kind: .percentage,
+                promptLevels: [],
+                sourceOrdinal: 1
+            )),
+            "a target label on the line before a percentage remains associated with that percentage"
+        )
+        try expect(
+            measurements.contains(SessionNoteMeasurementEvidence(
+                target: "Requesting Break",
+                value: "4/5 trials",
+                kind: .trials,
+                promptLevels: ["verbal"],
+                sourceOrdinal: 1
+            )),
+            "trial data and its prompt level remain associated with the preceding target label"
+        )
+        try expect(
+            measurements.contains(SessionNoteMeasurementEvidence(
+                target: "Waiting",
+                value: "6 minutes",
+                kind: .duration,
+                promptLevels: [],
+                sourceOrdinal: 1
+            )),
+            "duration data remains associated with the preceding target label"
+        )
+        try expect(
+            measurements.contains(SessionNoteMeasurementEvidence(
+                target: "Aggression",
+                value: "3 occurrences",
+                kind: .count,
+                promptLevels: [],
+                sourceOrdinal: 1
+            )),
+            "frequency data remains associated with the preceding behavior label"
+        )
+        try expect(
+            measurements.contains(SessionNoteMeasurementEvidence(
+                target: "Greeting Response",
+                value: "5 seconds",
+                kind: .latency,
+                promptLevels: [],
+                sourceOrdinal: 1
+            )),
+            "latency data remains associated with the preceding target label"
+        )
+        try expect(
+            measurements.contains(SessionNoteMeasurementEvidence(
+                target: "Mand Requests",
+                value: "2 per minute",
+                kind: .rate,
+                promptLevels: [],
+                sourceOrdinal: 1
+            )),
+            "rate data remains associated with the preceding target label"
+        )
+        try expect(
+            measurements.allSatisfy {
+                !$0.target.localizedCaseInsensitiveContains("session date") &&
+                !$0.target.localizedCaseInsensitiveContains("start time") &&
+                !$0.target.localizedCaseInsensitiveContains("provider") &&
+                !$0.value.contains("08/29/2026") &&
+                !$0.value.contains("9:00") &&
+                !$0.value.contains("12345")
+            },
+            "administrative dates, times, and provider identifiers never become clinical measurements"
+        )
+    }
+
     private static func savedContextIsNotEvidenceFixtures() throws {
         let packet = SessionNoteEvidencePacket.make(
             typedFacts: "At home, SyCl practiced requesting a break with the RBT.",
@@ -440,6 +553,89 @@ private struct SessionNoteContractFixtureRunner {
             let validation = SessionNoteOutputValidator.validate(draft, evidence: packet)
             try expect(validation.isSafe, "realistic synthetic \(description) remains safe: \(validation.issueCodes)")
         }
+    }
+
+    private static func professionalReconstructionFixtures() async throws {
+        let roughFacts = "home session client's mother there. started with play. rbt ran following directions then requesting break after transition. aggression happened and rbt redirected client back to work. client finished work and got outside time."
+        let measurements = SessionNoteOCRMeasurementExtractor.extract(from: [
+            """
+            Following Directions
+            80%
+            Requesting Break
+            4/5 trials with a verbal prompt
+            Aggression
+            3 occurrences
+            Session Date
+            08/29/2026
+            """
+        ])
+        let packet = SessionNoteEvidencePacket.make(
+            typedFacts: roughFacts,
+            ocrEvidence: "",
+            structuredMeasurements: measurements,
+            savedTerminologyContext: "targets: none | behaviors: none",
+            profileCode: "SyCl"
+        )
+        let standardPrompt = packet.modelPrompt(compaction: .standard)
+        let compactPrompt = packet.modelPrompt(compaction: .compactRetry)
+        try expect(
+            standardPrompt.contains("RAW FACTUAL SOURCE MATERIAL") && standardPrompt.contains("reconstruct"),
+            "the normal prompt treats rough typed facts as facts to reconstruct rather than prose to preserve"
+        )
+        try expect(
+            standardPrompt.contains("Target: Following Directions | Type: percentage | Value: 80%") &&
+            standardPrompt.contains("Target: Requesting Break | Type: trials | Value: 4/5 trials | Prompting: verbal") &&
+            standardPrompt.contains("Target: Aggression | Type: count | Value: 3 occurrences"),
+            "the prompt presents clear measurements as explicit target/type/value associations"
+        )
+        try expect(
+            standardPrompt.components(separatedBy: "Target: Following Directions | Type: percentage | Value: 80%").count == 2,
+            "each structured measurement appears once in the model prompt"
+        )
+        try expect(
+            compactPrompt.contains("Target: Following Directions | Type: percentage | Value: 80%") &&
+            !compactPrompt.contains("08/29/2026"),
+            "the bounded compact retry preserves structured clinical measurements and excludes administrative OCR"
+        )
+
+        let professionalDraft = """
+        During the home session, the client's mother was present while the RBT began with play-based activities. The client then transitioned to skill-acquisition work, completing Following Directions with 80% accuracy and Requesting Break in 4/5 trials with a verbal prompt.
+
+        The client engaged in Aggression 3 times during work. Following redirection from the RBT, the client returned to the activity, completed the supplied work, and accessed outside time. The RBT will continue implementing the established treatment plan during future sessions.
+        """
+        let validation = SessionNoteOutputValidator.validate(professionalDraft, evidence: packet)
+        try expect(
+            validation.isSafe,
+            "a substantially reconstructed professional note with exact target/value/type associations remains safe: \(validation.issueCodes)"
+        )
+
+        let omittedMeasurement = professionalDraft.replacingOccurrences(
+            of: " and Requesting Break in 4/5 trials with a verbal prompt",
+            with: ""
+        )
+        try expect(
+            SessionNoteOutputValidator.validate(omittedMeasurement, evidence: packet).hardBlockerCodes.contains("SN-EVIDENCE-006"),
+            "omitting a clear structured screenshot measurement triggers the existing bounded repair path"
+        )
+
+        var stages: [SessionNotePipelineStage] = []
+        let generated = try await SessionNoteGenerationPipeline.run(packet: packet) { stage in
+            stages.append(stage)
+            return professionalDraft
+        }
+        try expect(generated == professionalDraft, "the physical before/after quality case returns professional reconstructed prose")
+        try expect(stages == [.standardDraft], "a complete professional draft uses no additional AI retry")
+
+        var fallbackRequests = 0
+        let fallback = try await SessionNoteGenerationPipeline.run(packet: packet) { _ in
+            fallbackRequests += 1
+            return "The client completed 999 trials and was frustrated."
+        }
+        try expect(fallbackRequests == 2, "structured-measurement failures remain bounded to one model repair")
+        try expect(
+            !fallback.contains("999") && !fallback.contains("80%") && !fallback.contains("4/5"),
+            "the conservative fallback remains grounded in typed facts and does not promote screenshot-only data"
+        )
     }
 
     private static func fallbackAndDiagnosticFixtures() async throws {

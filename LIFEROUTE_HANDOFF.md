@@ -12,11 +12,13 @@
   Phase 1 remote checkpoint is `fe46286f916c095d61e5ebc5ef163b3d2d9b21ed`.
 - Phase 2 Today/route implementation is accepted at
   `9e56b733ae7b1a4250d188eeea089a796aa0a0df`. The local safety branch
-  `checkpoint/v0.9.0-phase2-local` resolves to that exact commit. Its remote push
-  remains deferred until authenticated GitHub access is available.
-- Phase 3 Schedule/travel-presentation implementation is complete locally for
-  checkpoint review. Do not begin Tools or later migration phases until this
-  checkpoint is accepted.
+  `checkpoint/v0.9.0-phase2-local` resolves to that exact commit.
+- Phase 3 Schedule/travel-presentation implementation is accepted at
+  `92e1a5f25791393c95137d6e15162c95ce11b1a9`. The remote feature branch was
+  verified at that exact Phase 3 commit before Phase 4 began.
+- Phase 4 Tools/Visual Timer implementation is complete locally for checkpoint
+  review. Do not begin Resources, Setup, clients, Themes, or legacy retirement
+  until this checkpoint is accepted.
 - Do not dispatch TestFlight or merge the v0.9.0 branch without the owner's
   candidate-specific authorization.
 
@@ -154,6 +156,41 @@ navigation handoff, and Live Activity presentation.
   sources are unchanged and their semantic regression checks pass; repeat the
   physical interaction smoke when the desktop is available.
 
+## v0.9.0 Phase 4 validation checkpoint
+
+- The active Tools dashboard now uses Scenic Royal headings, readability
+  surfaces, and a reusable adaptive tool tile while preserving the six approved
+  destinations. Visual Schedule remains hidden.
+- Visual Timer retains the existing absolute-deadline countdown owner and
+  start, pause, resume, add-minute, completion, and reset semantics. A pure
+  `VisualTimerFeedbackCurve` adds exponential late-stage visual urgency and a
+  slower, lower pitch curve without becoming a second timer engine.
+- Gentle, Warm, Clear, and Silent profiles, bounded volume, and optional
+  completion haptics persist through three narrow `UserDefaults` keys. Audio
+  uses the ambient session category so it mixes with other audio and respects
+  the physical Ring/Silent setting. Silent mode does not start the tone engine.
+- Reduce Motion lowers the visual update cadence and removes pulse animation.
+  VoiceOver receives only bounded minute/30-second/10-second/5-second/completion
+  milestones; the continuously changing timer display is not a live region.
+- Visual Timer feedback executable contracts: 41 assertions. Day Route: 30;
+  Session Note: 162. Preparation, fast/full validation, fresh Debug and Release
+  Simulator builds, app and Live Activity extension compilation, canonical
+  seven-capture Simulator smoke, and `git diff --check` pass.
+- Representative iPhone 17 Pro / iOS 26.5 evidence covers Canyon, bright
+  Arctic, Rainforest, and Royal Current plus Accessibility Extra Extra Large,
+  Increased Contrast, and Reduce Motion. Runtime review found no app crash,
+  fault, or hang; one Simulator CoreAudio factory-registration diagnostic did
+  not prevent the engine from starting, accelerating, completing, and pausing.
+- The warning budget remains the known no-AppIntents toolchain notice only,
+  with zero unexpected compiler warnings. Physical-device QA remains required
+  for the Ring/Silent switch, audible tone character, system-volume interaction,
+  completion haptics, and VoiceOver spoken cadence.
+- Direct pointer-driven root swiping could not be repeated because Computer Use
+  again reported the interactive Mac desktop locked. All five root launches,
+  toolbar selection fixtures, the unchanged five-stack source architecture,
+  and semantic navigation checks pass; repeat a real swipe at the next physical
+  interaction opportunity.
+
 PR #119 (`chore/v0.8.2-light-hygiene`) was closed as superseded and was not
 merged. Its still-useful tiny cleanup was reproduced through the approved
 pre-v0.9 runway instead.
@@ -194,9 +231,9 @@ pre-v0.9 runway instead.
   snapshot, not an active build input. Its retention value is ambiguous, so
   defer removal until the v0.9 migration or a separate archival decision.
 
-## Next milestone — v0.9.0 Phase 4
+## Next milestone — v0.9.0 Phase 5
 
-After the owner accepts the Phase 3 checkpoint, migrate the Tools root and then
-its approved subpages in bounded units. The Visual Timer's bounded urgency/audio
-refinement belongs in that phase. Do not begin Resources, Setup, clients, Themes,
-or legacy retirement as part of the Tools work.
+After the owner accepts the Phase 4 checkpoint, migrate Resources and its portal
+presentation using the accepted Phase 5 pre-implementation map. Do not begin
+Setup, clients, saved places, Themes, legacy retirement, or release work as part
+of the Resources phase.

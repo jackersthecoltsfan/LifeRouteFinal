@@ -100,6 +100,9 @@ def validate_project_and_version() -> None:
             "ScenicRoyalComponents.swift in Sources",
             "ScenicRoyalToolbar.swift in Sources",
             "ScenicRoyalScheduleComponents.swift in Sources",
+            "VisualTimerFeedbackContracts.swift in Sources",
+            "ScenicRoyalToolsComponents.swift in Sources",
+            "ScenicRoyalVisualTimerView.swift in Sources",
         ],
         "Xcode app/extension structure",
     )
@@ -121,11 +124,14 @@ def validate_active_build_path() -> None:
     require("validate_current.py full" in full, "validate_full must invoke the current full semantic validator")
     require("run_session_note_contract_tests.sh" in full, "validate_full must run executable Session Note contracts")
     require("run_day_route_contract_tests.sh" in full, "validate_full must run executable Day Route contracts")
+    require("run_visual_timer_feedback_contract_tests.sh" in full, "validate_full must run executable Visual Timer feedback contracts")
     fixture_runner = read(ROOT / "scripts" / "run_session_note_contract_tests.sh")
     fixture_source = read(ROOT / "scripts" / "session_note_contract_tests.swift")
     simulator_smoke = read(ROOT / "scripts" / "run_simulator_smoke.sh")
     day_route_fixture_runner = read(ROOT / "scripts" / "run_day_route_contract_tests.sh")
     day_route_fixture_source = read(ROOT / "scripts" / "day_route_contract_tests.swift")
+    timer_fixture_runner = read(ROOT / "scripts" / "run_visual_timer_feedback_contract_tests.sh")
+    timer_fixture_source = read(ROOT / "scripts" / "visual_timer_feedback_contract_tests.swift")
     require_all(fixture_runner, ["swiftc", "SessionNoteContracts.swift", "session_note_contract_tests.swift"], "Session Note fixture runner")
     require_all(
         fixture_source,
@@ -148,6 +154,7 @@ def validate_active_build_path() -> None:
     )
     require("run_session_note_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Session Note contracts")
     require("run_day_route_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Day Route contracts")
+    require("run_visual_timer_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Visual Timer feedback contracts")
     require_all(day_route_fixture_runner, ["swiftc", "DayRouteContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
     require_all(
         day_route_fixture_source,
@@ -169,6 +176,24 @@ def validate_active_build_path() -> None:
             "removal prevents a deleted stop from returning",
         ],
         "Day Route executable fixtures",
+    )
+    require_all(
+        timer_fixture_runner,
+        ["swiftc", "VisualTimerFeedbackContracts.swift", "visual_timer_feedback_contract_tests.swift"],
+        "Visual Timer feedback fixture runner",
+    )
+    require_all(
+        timer_fixture_source,
+        [
+            "tone choices remain ordered and bounded",
+            "Gentle is the sensible default tone",
+            "late-stage urgency accelerates exponentially",
+            "pitch rises more gradually than the old full-octave sweep",
+            "VoiceOver stays quiet above one minute",
+            "completion announcement is concise",
+            "completion haptics remain available by default",
+        ],
+        "Visual Timer feedback executable fixtures",
     )
     require_all(
         warning_assessor,
@@ -229,8 +254,10 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
             ".environmentObject(router)",
             ".toolbar(.hidden, for: .tabBar)",
             "bar.isHidden = true",
+            "-LifeRouteToolsDestinationOverride",
+            "toolsDestinationOverride == .visualTimer",
         ],
-        "paged toolbar/router synchronization and UIKit suppression",
+        "paged toolbar/router synchronization, UIKit suppression, and Debug deep-screen fixture",
     )
     require("LifeRouteWebView(" not in root, "shipping root must not activate the quarantined WebView")
 
@@ -304,8 +331,28 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
     app = sources["LifeRouteApp.swift"]
     require_all(tools_domain, ["struct ClientChoiceBoard", "struct ClientVisualSchedule", "final class ClientVisualSupportCore", "General visual library"], "ABA visual domain")
     require_all(sources["PersistenceCore.swift"], ["generalVisualLibraryID", "generalVisualLibraryCode", "codeByClientID[Self.generalVisualLibraryID]"], "protected General visual library persistence")
-    require_all(tools_views, ["ClientVisualSupportCenter", "ClientVisualIconLibraryView", "ClientChoiceBoardBuilderView", "ClientFirstThenVisualView", "ClientVisualScheduleBuilderView", "VisualTimerView", "QuickSessionNotesView", "SessionPlanOrganizerView"], "Build 106 ABA/session surfaces")
-    require_all(dashboard, ["AISessionNoteGeneratorView", "AISessionPlanBuilderView", 'title: "Session Note"', 'title: "Session Plan"'], "Tools clinical entry points")
+    require_all(tools_views, ["ClientVisualSupportCenter", "ClientVisualIconLibraryView", "ClientChoiceBoardBuilderView", "ClientFirstThenVisualView", "ClientVisualScheduleBuilderView", "QuickSessionNotesView", "SessionPlanOrganizerView"], "Build 106 ABA/session surfaces")
+    require_all(
+        dashboard,
+        [
+            "ScenicRoyalToolTile",
+            "ScenicRoyalGlassEffectContainer",
+            "VisualTimerView(timer: toolsState.timer)",
+            "ClientFirstThenVisualView",
+            "VisualAIAssistedStudioView",
+            "QuickSessionNotesView",
+            "AISessionPlanBuilderView",
+            "AISessionNoteGeneratorView",
+            'title: "Visual Timer"',
+            'title: "First / Then"',
+            'title: "Visual Supports"',
+            'title: "Quick Notes"',
+            'title: "AI Session Plan"',
+            'title: "AI Session Note"',
+        ],
+        "Scenic Royal Tools dashboard and six approved entry points",
+    )
+    require("ClientVisualScheduleBuilderView(" not in dashboard, "Visual Schedule must remain hidden from the active Tools dashboard")
     require_all(
         clinical,
         [
@@ -532,12 +579,61 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
 
 def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
     timer = sources["SessionToolsDomain.swift"]
-    timer_view = sources["SessionToolsViews.swift"]
+    timer_contracts = sources["VisualTimerFeedbackContracts.swift"]
+    timer_view = sources["ScenicRoyalVisualTimerView.swift"]
     live = sources["LiveDayActivityCore.swift"]
     attributes = sources["LiveDayActivityAttributes.swift"]
     widget = sources["LiveDayLiveActivityWidget.swift"]
-    require_all(timer, ["private static let startFrequency = 432.0", "private static let endFrequency = 864.0", "func start(minutes:", "func pause(", "func resume(", "func addMinute(", "func reset()"], "Visual Timer domain")
-    require_all(timer_view, ["TimelineView(.periodic(from: .now, by: 0.10))", "timer.start", "timer.pause", "timer.resume", "timer.addMinute", "timer.reset"], "Visual Timer presentation")
+    require_all(
+        timer,
+        [
+            "func start(minutes:",
+            "func pause(",
+            "func resume(",
+            "func addMinute(",
+            "func reset()",
+            "VisualTimerFeedbackCurve.pulsesPerSecond",
+            "VisualTimerFeedbackCurve.frequency",
+            "VisualTimerFeedbackCurve.signalGain",
+            "session.setCategory(.ambient",
+            "liferoute.visualTimer.toneProfile.v1",
+            "liferoute.visualTimer.volume.v1",
+            "liferoute.visualTimer.completionHaptics.v1",
+        ],
+        "Visual Timer countdown ownership and feedback integration",
+    )
+    require_all(
+        timer_contracts,
+        [
+            "enum VisualTimerToneProfile",
+            "case gentle",
+            "case warm",
+            "case clear",
+            "case silent",
+            "let exponent = 4.0",
+            "pow(clamped(elapsedProgress), 1.65)",
+            "enum VisualTimerAccessibilityMilestone",
+        ],
+        "Visual Timer pure feedback contract",
+    )
+    require_all(
+        timer_view,
+        [
+            "TimelineView(.periodic",
+            "reduceMotion ? 1.0 : 0.10",
+            "timer.start",
+            "timer.pause",
+            "timer.resume",
+            "timer.addMinute",
+            "timer.reset",
+            "VisualTimerToneProfile.allCases",
+            "UIAccessibility.post(notification: .announcement",
+            "completionHapticsEnabled",
+            "ScenicRoyalTimerDial",
+            "-LifeRouteVisualTimerAutoStart",
+        ],
+        "Scenic Royal Visual Timer presentation and accessibility",
+    )
     require_all(live + attributes + widget, ["ActivityKit", "LifeRouteLiveDayAttributes", "plannedStopSummary", "returnHomePlanned", "Activity.request", "DynamicIsland", "ActivityConfiguration"], "Live Day app/extension contract")
 
 

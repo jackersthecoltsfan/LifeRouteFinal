@@ -13,6 +13,17 @@ private enum LifeRouteDebugLaunch {
         section(for: "-LifeRouteSectionOverride")
     }
 
+    static var toolsDestinationOverride: SessionToolRoute? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let keyIndex = arguments.firstIndex(of: "-LifeRouteToolsDestinationOverride") else { return nil }
+        let valueIndex = arguments.index(after: keyIndex)
+        guard arguments.indices.contains(valueIndex) else { return nil }
+        switch arguments[valueIndex] {
+        case "visualTimer": return .visualTimer
+        default: return nil
+        }
+    }
+
     private static func section(for argument: String) -> AppSection? {
         let arguments = ProcessInfo.processInfo.arguments
         guard let keyIndex = arguments.firstIndex(of: argument) else { return nil }
@@ -78,11 +89,16 @@ struct V054ContentView: View {
                 .tag(AppSection.schedule)
 
                 NavigationStack(path: $router.toolsPath) {
-                    V054ToolsDashboard(
-                        router: router,
-                        toolsState: toolsState,
-                        clientState: clientState
-                    )
+#if DEBUG
+                    if LifeRouteDebugLaunch.toolsDestinationOverride == .visualTimer {
+                        VisualTimerView(timer: toolsState.timer)
+                            .lifeRouteDeepDestination()
+                    } else {
+                        toolsDashboard
+                    }
+#else
+                    toolsDashboard
+#endif
                 }
                 .background(Color.clear)
                 .tabItem { Label(AppSection.tools.title, systemImage: AppSection.tools.systemImage) }
@@ -166,6 +182,14 @@ struct V054ContentView: View {
                 routingState.cancelPendingOperations()
             }
         }
+    }
+
+    private var toolsDashboard: some View {
+                    V054ToolsDashboard(
+                        router: router,
+                        toolsState: toolsState,
+                        clientState: clientState
+                    )
     }
 }
 

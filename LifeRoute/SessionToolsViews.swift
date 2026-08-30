@@ -248,7 +248,9 @@ private struct SessionToolCard: View {
     }
 }
 
-struct VisualTimerView: View {
+// Superseded by the Scenic Royal implementation in ScenicRoyalVisualTimerView.swift.
+// Retained temporarily under the v0.9 legacy-retirement proof policy.
+private struct LegacyVisualTimerView: View {
     // v0.8.0 follow-up visual timer audio sweep: gentle 432–864 Hz and 1–6 pulse/sec mapping.
     // v0.7.0 Build D timer presentation: compact visual hierarchy; timer/audio engine remains untouched.
     // v0.7.0 Build D timer cadence restored: keep the validated 0.10-second visual pulse updates.

@@ -59,15 +59,19 @@ private final class VisualTimerToneEngine {
     private var isPrepared = false
     private var completionStopTask: Task<Void, Never>?
 
-    func playPulse(frequency: Double, gain: Float) {
-        guard prepareIfNeeded(), let buffer = pulseBuffer(frequency: frequency) else { return }
+    func playPulse(frequency: Double, profile: VisualTimerToneProfile, gain: Float) {
+        guard !profile.isSilent,
+              prepareIfNeeded(),
+              let buffer = pulseBuffer(frequency: frequency, profile: profile) else { return }
         player.volume = max(0, min(1, gain))
         player.scheduleBuffer(buffer, at: nil, options: [])
         if !player.isPlaying { player.play() }
     }
 
-    func playCompletion(gain: Float) {
-        guard prepareIfNeeded(), let buffer = completionBuffer() else { return }
+    func playCompletion(profile: VisualTimerToneProfile, gain: Float) {
+        guard !profile.isSilent,
+              prepareIfNeeded(),
+              let buffer = completionBuffer(profile: profile) else { return }
         player.volume = max(0, min(1, gain))
         player.scheduleBuffer(buffer, at: nil, options: [])
         if !player.isPlaying { player.play() }
@@ -95,7 +99,9 @@ private final class VisualTimerToneEngine {
     private func prepareIfNeeded() -> Bool {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            // Timer audio is supportive rather than essential. Ambient audio mixes with
+            // other apps and respects the iPhone Ring/Silent switch and screen locking.
+            try session.setCategory(.ambient, mode: .default)
             try session.setActive(true)
 
             if !isPrepared {
@@ -111,7 +117,10 @@ private final class VisualTimerToneEngine {
         }
     }
 
-    private func pulseBuffer(frequency: Double) -> AVAudioPCMBuffer? {
+    private func pulseBuffer(
+        frequency: Double,
+        profile: VisualTimerToneProfile
+    ) -> AVAudioPCMBuffer? {
         let frameCount = AVAudioFrameCount(Self.sampleRate * Self.pulseDuration)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
               let samples = buffer.floatChannelData?[0] else { return nil }
@@ -126,25 +135,23 @@ private final class VisualTimerToneEngine {
             // v0.6.3 cosine release reaches silence smoothly so the buffer cannot end on a click.
             let release = releaseProgress <= 0 ? 1 : 0.5 * (1 + cos(Double.pi * min(1, releaseProgress)))
             let fundamental = sin(2 * Double.pi * frequency * t)
-            let softSecond = 0.12 * sin(2 * Double.pi * frequency * 2.0 * t)
-            let softDetune = 0.025 * sin(2 * Double.pi * frequency * 1.004 * t)
-            samples[frame] = Float((fundamental + softSecond + softDetune) * attack * decay * release * 0.30)
+            let softSecond = profile.secondHarmonicMix * sin(2 * Double.pi * frequency * 2.0 * t)
+            let softDetune = profile.detuneMix * sin(2 * Double.pi * frequency * 1.004 * t)
+            samples[frame] = Float((fundamental + softSecond + softDetune) * attack * decay * release * 0.26)
         }
         return buffer
     }
 
-    private func completionBuffer() -> AVAudioPCMBuffer? {
+    private func completionBuffer(profile: VisualTimerToneProfile) -> AVAudioPCMBuffer? {
         let totalDuration = 0.52
         let frameCount = AVAudioFrameCount(Self.sampleRate * totalDuration)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
               let samples = buffer.floatChannelData?[0] else { return nil }
         buffer.frameLength = frameCount
 
-        let notes: [(start: Double, frequency: Double)] = [
-            (0.00, 864),
-            (0.14, 1_296),
-            (0.29, 1_728),
-        ]
+        let notes = zip([0.00, 0.15, 0.30], profile.completionFrequencies).map {
+            (start: $0.0, frequency: $0.1)
+        }
 
         for frame in 0..<Int(frameCount) {
             let t = Double(frame) / Self.sampleRate
@@ -158,8 +165,8 @@ private final class VisualTimerToneEngine {
                 let releaseProgress = max(0, (localTime - releaseStart) / (0.19 - releaseStart))
                 let release = releaseProgress <= 0 ? 1 : 0.5 * (1 + cos(Double.pi * min(1, releaseProgress)))
                 let fundamental = sin(2 * Double.pi * note.frequency * localTime)
-                let softSecond = 0.10 * sin(2 * Double.pi * note.frequency * 2.0 * localTime)
-                value += (fundamental + softSecond) * attack * decay * release * 0.68
+                let softSecond = profile.secondHarmonicMix * sin(2 * Double.pi * note.frequency * 2.0 * localTime)
+                value += (fundamental + softSecond) * attack * decay * release * 0.54
             }
             samples[frame] = Float(max(-0.92, min(0.92, value)))
         }
@@ -167,23 +174,47 @@ private final class VisualTimerToneEngine {
     }
 }
 
-// v0.8.0 follow-up visual timer audio sweep:
-// Normalized elapsed progress owns both the perceptual octave sweep and linear rate ramp.
+// Countdown ownership remains absolute-deadline based. Scenic Royal feedback consumes
+// the pure feedback contract without changing start, pause, resume, add-minute, or reset semantics.
 @MainActor
 final class VisualTimerCore: ObservableObject {
-    private static let startFrequency = 432.0
-    private static let endFrequency = 864.0
-    private static let startPulsesPerSecond = 1.0
-    private static let endPulsesPerSecond = 6.0
-    private static let startGainForFiveDecibelCrescendo = pow(10.0, -5.0 / 20.0)
+    private enum PreferenceKey {
+        static let toneProfile = "liferoute.visualTimer.toneProfile.v1"
+        static let volume = "liferoute.visualTimer.volume.v1"
+        static let completionHaptics = "liferoute.visualTimer.completionHaptics.v1"
+    }
 
     @Published private(set) var durationSeconds: TimeInterval = 5 * 60
     @Published private(set) var deadline: Date?
     @Published private(set) var pausedRemainingSeconds: TimeInterval = 5 * 60
-    @Published private(set) var volume: Double = 0.48
+    @Published private(set) var toneProfile: VisualTimerToneProfile
+    @Published private(set) var volume: Double
+    @Published private(set) var completionHapticsEnabled: Bool
 
     private let toneEngine = VisualTimerToneEngine()
-    private var audioTask: Task<Void, Never>?
+    private let preferenceStore: UserDefaults
+    private var feedbackTask: Task<Void, Never>?
+
+    init(preferenceStore: UserDefaults = .standard) {
+        self.preferenceStore = preferenceStore
+
+        let defaults = VisualTimerFeedbackPreferences.default
+        toneProfile = preferenceStore.string(forKey: PreferenceKey.toneProfile)
+            .flatMap(VisualTimerToneProfile.init(rawValue:))
+            ?? defaults.toneProfile
+
+        if preferenceStore.object(forKey: PreferenceKey.volume) == nil {
+            volume = defaults.volume
+        } else {
+            volume = min(1, max(0, preferenceStore.double(forKey: PreferenceKey.volume)))
+        }
+
+        if preferenceStore.object(forKey: PreferenceKey.completionHaptics) == nil {
+            completionHapticsEnabled = defaults.completionHapticsEnabled
+        } else {
+            completionHapticsEnabled = preferenceStore.bool(forKey: PreferenceKey.completionHaptics)
+        }
+    }
 
     var isRunning: Bool { deadline != nil }
 
@@ -192,7 +223,7 @@ final class VisualTimerCore: ObservableObject {
         durationSeconds = seconds
         pausedRemainingSeconds = seconds
         deadline = now.addingTimeInterval(seconds)
-        startAudioLoop()
+        startFeedbackLoop()
     }
 
     func remainingSeconds(at now: Date = Date()) -> TimeInterval {
@@ -214,13 +245,13 @@ final class VisualTimerCore: ObservableObject {
     func pause(now: Date = Date()) {
         pausedRemainingSeconds = remainingSeconds(at: now)
         deadline = nil
-        stopAudioLoop()
+        stopFeedbackLoop()
     }
 
     func resume(now: Date = Date()) {
         guard pausedRemainingSeconds > 0 else { return }
         deadline = now.addingTimeInterval(pausedRemainingSeconds)
-        startAudioLoop()
+        startFeedbackLoop()
     }
 
     func addMinute(now: Date = Date()) {
@@ -234,6 +265,19 @@ final class VisualTimerCore: ObservableObject {
 
     func setVolume(_ value: Double) {
         volume = min(1, max(0, value))
+        preferenceStore.set(volume, forKey: PreferenceKey.volume)
+        if volume == 0 { toneEngine.stop() }
+    }
+
+    func setToneProfile(_ profile: VisualTimerToneProfile) {
+        toneProfile = profile
+        preferenceStore.set(profile.rawValue, forKey: PreferenceKey.toneProfile)
+        if profile.isSilent { toneEngine.stop() }
+    }
+
+    func setCompletionHapticsEnabled(_ enabled: Bool) {
+        completionHapticsEnabled = enabled
+        preferenceStore.set(enabled, forKey: PreferenceKey.completionHaptics)
     }
 
     func normalizedElapsedProgress(forRemaining remaining: TimeInterval) -> Double {
@@ -242,26 +286,34 @@ final class VisualTimerCore: ObservableObject {
     }
 
     func pulsesPerSecond(forRemaining remaining: TimeInterval) -> Double {
-        let progress = normalizedElapsedProgress(forRemaining: remaining)
-        return Self.startPulsesPerSecond
-            + (Self.endPulsesPerSecond - Self.startPulsesPerSecond) * progress
+        VisualTimerFeedbackCurve.pulsesPerSecond(
+            elapsedProgress: normalizedElapsedProgress(forRemaining: remaining)
+        )
     }
 
     func toneFrequency(forRemaining remaining: TimeInterval) -> Double {
-        let progress = normalizedElapsedProgress(forRemaining: remaining)
-        return Self.startFrequency * pow(Self.endFrequency / Self.startFrequency, progress)
+        VisualTimerFeedbackCurve.frequency(
+            for: toneProfile,
+            elapsedProgress: normalizedElapsedProgress(forRemaining: remaining)
+        )
+    }
+
+    func urgency(forRemaining remaining: TimeInterval) -> Double {
+        VisualTimerFeedbackCurve.urgency(
+            normalizedElapsedProgress(forRemaining: remaining)
+        )
     }
 
     func reset() {
         deadline = nil
         pausedRemainingSeconds = durationSeconds
-        stopAudioLoop()
+        stopFeedbackLoop()
     }
 
-    private func startAudioLoop() {
-        audioTask?.cancel()
+    private func startFeedbackLoop() {
+        feedbackTask?.cancel()
         toneEngine.stop()
-        audioTask = Task { [weak self] in
+        feedbackTask = Task { [weak self] in
             guard let self else { return }
 
             while !Task.isCancelled {
@@ -271,15 +323,23 @@ final class VisualTimerCore: ObservableObject {
                 if remaining <= 0 {
                     self.pausedRemainingSeconds = 0
                     self.deadline = nil
-                    self.audioTask = nil
-                    self.toneEngine.playCompletion(gain: Float(self.volume))
+                    self.feedbackTask = nil
+                    if !self.toneProfile.isSilent, self.volume > 0 {
+                        self.toneEngine.playCompletion(
+                            profile: self.toneProfile,
+                            gain: Float(self.volume)
+                        )
+                    }
                     return
                 }
 
-                self.toneEngine.playPulse(
-                    frequency: self.toneFrequency(forRemaining: remaining),
-                    gain: Float(self.signalGain(forRemaining: remaining))
-                )
+                if !self.toneProfile.isSilent, self.volume > 0 {
+                    self.toneEngine.playPulse(
+                        frequency: self.toneFrequency(forRemaining: remaining),
+                        profile: self.toneProfile,
+                        gain: Float(self.signalGain(forRemaining: remaining))
+                    )
+                }
                 let interval = 1.0 / self.pulsesPerSecond(forRemaining: remaining)
                 do {
                     try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
@@ -290,16 +350,17 @@ final class VisualTimerCore: ObservableObject {
         }
     }
 
-    private func stopAudioLoop() {
-        audioTask?.cancel()
-        audioTask = nil
+    private func stopFeedbackLoop() {
+        feedbackTask?.cancel()
+        feedbackTask = nil
         toneEngine.stop()
     }
 
     private func signalGain(forRemaining remaining: TimeInterval) -> Double {
-        let elapsed = normalizedElapsedProgress(forRemaining: remaining)
-        let crescendo = Self.startGainForFiveDecibelCrescendo + (1 - Self.startGainForFiveDecibelCrescendo) * elapsed
-        return min(1, max(0, volume * crescendo))
+        VisualTimerFeedbackCurve.signalGain(
+            volume: volume,
+            elapsedProgress: normalizedElapsedProgress(forRemaining: remaining)
+        )
     }
 }
 

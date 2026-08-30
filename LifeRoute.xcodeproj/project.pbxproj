@@ -45,6 +45,9 @@
 		A10000000000000000000042 /* ScenicRoyalToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000042 /* ScenicRoyalToolbar.swift */; };
 		A10000000000000000000043 /* FullRouteHandoffContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000043 /* FullRouteHandoffContracts.swift */; };
 		A10000000000000000000044 /* ScenicRoyalScheduleComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000044 /* ScenicRoyalScheduleComponents.swift */; };
+		A10000000000000000000045 /* VisualTimerFeedbackContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000045 /* VisualTimerFeedbackContracts.swift */; };
+		A10000000000000000000046 /* ScenicRoyalToolsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000046 /* ScenicRoyalToolsComponents.swift */; };
+		A10000000000000000000047 /* ScenicRoyalVisualTimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000047 /* ScenicRoyalVisualTimerView.swift */; };
 		W10000000000000000000001 /* LiveDayLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */; };
 		W10000000000000000000002 /* LiveDayActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* LiveDayActivityAttributes.swift */; };
 		W10000000000000000000003 /* LifeRouteLiveActivityWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -100,6 +103,9 @@
 		A20000000000000000000042 /* ScenicRoyalToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalToolbar.swift; sourceTree = "<group>"; };
 		A20000000000000000000043 /* FullRouteHandoffContracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullRouteHandoffContracts.swift; sourceTree = "<group>"; };
 		A20000000000000000000044 /* ScenicRoyalScheduleComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalScheduleComponents.swift; sourceTree = "<group>"; };
+		A20000000000000000000045 /* VisualTimerFeedbackContracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualTimerFeedbackContracts.swift; sourceTree = "<group>"; };
+		A20000000000000000000046 /* ScenicRoyalToolsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalToolsComponents.swift; sourceTree = "<group>"; };
+		A20000000000000000000047 /* ScenicRoyalVisualTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalVisualTimerView.swift; sourceTree = "<group>"; };
 		W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDayLiveActivityWidget.swift; sourceTree = "<group>"; };
 		W20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LifeRouteLiveActivityWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -120,6 +126,9 @@
 			A20000000000000000000041 /* ScenicRoyalComponents.swift */,
 			A20000000000000000000042 /* ScenicRoyalToolbar.swift */,
 			A20000000000000000000044 /* ScenicRoyalScheduleComponents.swift */,
+			A20000000000000000000046 /* ScenicRoyalToolsComponents.swift */,
+			A20000000000000000000045 /* VisualTimerFeedbackContracts.swift */,
+			A20000000000000000000047 /* ScenicRoyalVisualTimerView.swift */,
 			A20000000000000000000028 /* V054ContentView.swift */,
 			A20000000000000000000029 /* V054TodayView.swift */,
 			A20000000000000000000031 /* V054ScheduleView.swift */,
@@ -180,6 +189,9 @@
 			A10000000000000000000041 /* ScenicRoyalComponents.swift in Sources */,
 			A10000000000000000000042 /* ScenicRoyalToolbar.swift in Sources */,
 			A10000000000000000000044 /* ScenicRoyalScheduleComponents.swift in Sources */,
+			A10000000000000000000046 /* ScenicRoyalToolsComponents.swift in Sources */,
+			A10000000000000000000045 /* VisualTimerFeedbackContracts.swift in Sources */,
+			A10000000000000000000047 /* ScenicRoyalVisualTimerView.swift in Sources */,
 			A10000000000000000000028 /* V054ContentView.swift in Sources */,
 			A10000000000000000000029 /* V054TodayView.swift in Sources */,
 			A10000000000000000000031 /* V054ScheduleView.swift in Sources */,

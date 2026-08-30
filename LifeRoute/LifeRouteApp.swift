@@ -651,6 +651,44 @@ struct LifeRouteCardModifier: ViewModifier {
     }
 }
 
+struct LifeRouteReadableTextSurfaceModifier: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.lifeRoutePalette) private var palette
+
+    let cornerRadius: CGFloat
+
+    func body(content: Content) -> some View {
+        let elevatedOpacity: Double = reduceTransparency ? 0.98 : (colorSchemeContrast == .increased ? 0.92 : 0.82)
+        let panelOpacity: Double = reduceTransparency ? 0.96 : (colorSchemeContrast == .increased ? 0.84 : 0.70)
+
+        content
+            .scrollContentBackground(.hidden)
+            .padding(8)
+            .background {
+                ZStack {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(reduceTransparency ? AnyShapeStyle(palette.panelElevated) : AnyShapeStyle(.regularMaterial))
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    palette.panelElevated.opacity(elevatedOpacity),
+                                    palette.panel.opacity(panelOpacity),
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.white.opacity(colorSchemeContrast == .increased ? 0.24 : 0.14), lineWidth: 0.8)
+            }
+    }
+}
+
 struct LifeRoutePrimaryButtonStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var isEnabled
@@ -3184,7 +3222,7 @@ private enum LifeRouteVisualFixture: String {
         let rawValue = arguments[valueIndex]
         let aliasedTheme = LifeRouteVisualFixture(rawValue: rawValue)?.theme
         guard let theme = aliasedTheme ?? LifeRouteTheme(rawValue: rawValue),
-              theme.isV071RetainedDynamic || theme.isV071RetainedScenery else {
+              theme.isPhaseOneCoreGlass || theme.isV071RetainedDynamic || theme.isV071RetainedScenery else {
             return nil
         }
 
@@ -3200,7 +3238,7 @@ private enum LifeRouteVisualFixture: String {
         let valueIndex = arguments.index(after: keyIndex)
         guard arguments.indices.contains(valueIndex),
               let theme = LifeRouteTheme(rawValue: arguments[valueIndex]),
-              theme.isV071RetainedDynamic || theme.isV071RetainedScenery else {
+              theme.isPhaseOneCoreGlass || theme.isV071RetainedDynamic || theme.isV071RetainedScenery else {
             return nil
         }
         return theme
@@ -3400,6 +3438,9 @@ private struct LifeRouteThemeBackdrop: View {
 
 extension View {
     func lifeRouteCard() -> some View { modifier(LifeRouteCardModifier()) }
+    func lifeRouteReadableTextSurface(cornerRadius: CGFloat = 14) -> some View {
+        modifier(LifeRouteReadableTextSurfaceModifier(cornerRadius: cornerRadius))
+    }
     func lifeRouteChrome() -> some View { modifier(LifeRouteChromeModifier()) }
 }
 
@@ -3538,6 +3579,12 @@ struct LifeRouteApp: App {
 #if DEBUG
             if let fixture = LifeRouteVisualFixture.current {
                 LifeRouteVisualFixtureView(fixture: fixture)
+            } else if ProcessInfo.processInfo.arguments.contains("-LifeRouteSessionNoteReadabilityFixture") {
+                SessionNoteReadabilityFixtureView()
+                    .lifeRouteChrome()
+                    .environmentObject(themeStore)
+                    .environment(\.lifeRoutePalette, themeStore.palette)
+                    .environment(\.lifeRouteTheme, themeStore.selectedTheme)
             } else {
                 appContent
             }

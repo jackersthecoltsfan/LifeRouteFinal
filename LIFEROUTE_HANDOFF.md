@@ -1,6 +1,46 @@
 # LifeRoute current engineering handoff
 
-## Active workstream — v0.8.2 Session Note validation severity
+## Active workstream — v0.8.2 Session Note runtime quality and glass readability
+
+- Branch: `fix/v0.8.2-session-note-runtime-quality-and-glass`
+- Exact base: `d0f16d7e14b3b57e617a4ecb9b3e3e5d08afd2d7` (`origin/main`, PR #115 / Build 113 source)
+- Rescue evidence branch: `rescue/session-note-uncommitted-2026-08-30`
+- Rescue commit: `9d405d1d3211d4fb81f8eb0688f13ff454e94801`, local-only and not pushed
+- Do not merge or dispatch TestFlight without product-owner authorization.
+
+Build 113 could accept a safe near-copy because professional presentation was
+not a readiness requirement, and both pipeline and runtime discarded whether a
+nonempty draft was generated, repaired, or conservatively preserved. The
+preserved rescue work added useful professional-reconstruction prompting and
+synthetic coverage but did not add provenance, near-copy detection, fallback UI
+handling, or the runtime-quality gate; those valid prompt/test portions were
+selectively reproduced rather than blindly cherry-picked.
+
+The current branch adds typed `generated`, `repaired`, `fallback`, and
+`rejected` outcomes; a separate professional-readiness contract; conservative
+near-copy and rough-dictation detection; one bounded reconstruction pass using
+the original evidence; and explicit degraded fallback UI. Structured screenshot
+measurements fail closed when conservative fallback would lose target/value/type
+or prompt association. Logs remain content-free and privacy-safe.
+
+Text-heavy Session Note and Session Plan editors now share an
+accessibility-aware readability surface inside the existing glass card. Outer
+glass and scenery remain visible, while the editor backing responds to increased
+contrast and Reduce Transparency. A DEBUG-only dense-text fixture was reviewed
+on Mountains Day/Night, Core Ocean, Dynamic Royal Current, extra-extra-large
+Dynamic Type, increased contrast, and Reduce Transparency.
+
+Current local evidence: 152 executable Session Note assertions; preparation,
+fast/full validation, Debug and Release Simulator app/extension builds, native
+Simulator smoke, and compiler warning budget all pass. The warning audit found
+zero unexpected warnings. Simulator evidence does not validate real Foundation
+Models prose; physical iPhone QA remains final authority for initial generation,
+bounded repair, degraded fallback, OCR associations, and the visual result.
+
+Branch publication and PR review are permitted for this workstream. Do not merge
+or dispatch TestFlight without explicit product-owner authorization.
+
+## Historical workstream — v0.8.2 Session Note validation severity
 
 - Branch: `fix/v0.8.2-session-note-validator-severity`
 - PR: #112, `Fix Session Note validation severity architecture`

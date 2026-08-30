@@ -12,7 +12,7 @@ enum SessionNoteGenerationState: Equatable {
     case generating
     case compacting
     case repairing
-    case success
+    case completed(SessionNoteFinalOutcome)
     case unavailable(String)
     case failed(String)
     case timedOut
@@ -44,7 +44,7 @@ protocol SessionNoteGenerating: AnyObject {
         screenshotDataItems: [Data],
         client: LifeRouteClientProfile?,
         progress: @escaping (SessionNoteGenerationProgress) async -> Void
-    ) async throws -> String
+    ) async throws -> SessionNoteGenerationResult
 }
 
 @MainActor
@@ -60,7 +60,7 @@ final class FoundationModelSessionNoteGenerator: SessionNoteGenerating {
         screenshotDataItems: [Data],
         client: LifeRouteClientProfile?,
         progress: @escaping (SessionNoteGenerationProgress) async -> Void
-    ) async throws -> String {
+    ) async throws -> SessionNoteGenerationResult {
         guard !isBusy else {
             throw LifeRouteIntelligenceError.generationFailed(
                 "The previous on-device model request is still cancelling. Wait a moment, then try again."
@@ -90,7 +90,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
     private let generator: SessionNoteGenerating
     private let timeoutSeconds: UInt64
     private var activeTask: Task<Void, Never>?
-    private var activeRace: SessionNoteRequestRace?
+    private var activeRace: SessionNoteRequestRace<SessionNoteGenerationResult>?
     private var draftLedger = SessionNoteDraftLedger()
 
     init(generator: SessionNoteGenerating, timeoutSeconds: UInt64 = 75) {
@@ -108,7 +108,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
         state = .checkingAvailability
         Self.logger.notice("Session-note generation started; checking model availability")
 
-        let race = SessionNoteRequestRace(timeoutSeconds: timeoutSeconds)
+        let race = SessionNoteRequestRace<SessionNoteGenerationResult>(timeoutSeconds: timeoutSeconds)
         activeRace = race
         activeTask = Task { [weak self] in
             guard let self else { return }
@@ -126,7 +126,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
 
             state = .generating
             do {
-                let note = try await race.run {
+                let result = try await race.run {
                     try await self.generator.generateNote(
                         narrative: narrative,
                         screenshotDataItems: screenshotDataItems,
@@ -136,7 +136,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
                     }
                 }
                 guard draftLedger.isCurrent(currentRequestID) else { return }
-                let cleaned = note.trimmingCharacters(in: .whitespacesAndNewlines)
+                let cleaned = result.draft.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !cleaned.isEmpty else {
                     state = .failed("Apple Intelligence returned an empty draft. Your session facts and any previous draft were preserved.")
                     finish(requestID: currentRequestID)
@@ -144,9 +144,11 @@ final class AISessionNoteRuntimeModel: ObservableObject {
                 }
                 guard draftLedger.accept(cleaned, for: currentRequestID) else { return }
                 generatedNote = draftLedger.draft
-                state = .success
-                Self.logger.notice("Session-note generation completed successfully")
-                LifeRouteHaptics.success()
+                state = .completed(result.outcome)
+                Self.logger.notice("Session-note generation completed with outcome: \(result.outcome.rawValue, privacy: .public)")
+                if result.outcome != .fallback {
+                    LifeRouteHaptics.success()
+                }
             } catch is CancellationError {
                 guard draftLedger.isCurrent(currentRequestID) else { return }
                 state = .cancelled
@@ -241,42 +243,46 @@ private final class SessionNoteFixtureGenerator: SessionNoteGenerating {
         screenshotDataItems: [Data],
         client: LifeRouteClientProfile?,
         progress: @escaping (SessionNoteGenerationProgress) async -> Void
-    ) async throws -> String {
+    ) async throws -> SessionNoteGenerationResult {
         requestCount += 1
         await progress(.generating)
         switch mode {
         case .success:
-            return Self.sampleDraft
+            return Self.result(.generated)
         case .delayedSuccess:
             try await Task.sleep(nanoseconds: 1_200_000_000)
-            return Self.sampleDraft
+            return Self.result(.generated)
         case .unavailable:
             throw LifeRouteIntelligenceError.unavailable
         case .error:
             throw LifeRouteIntelligenceError.generationFailed("Injected generation failure.")
         case .empty:
-            return ""
+            return SessionNoteGenerationResult(draft: "", outcome: .rejected, issueCodes: [])
         case .timeout, .cancellation:
             try await Task.sleep(nanoseconds: 600_000_000_000)
-            return Self.sampleDraft
+            return Self.result(.generated)
         case .repair:
             await progress(.repairing)
             try await Task.sleep(nanoseconds: 400_000_000)
-            return Self.sampleDraft
+            return Self.result(.repaired)
         case .repairFailure:
             await progress(.repairing)
             throw LifeRouteIntelligenceError.generationFailed("Injected bounded repair failure.")
         case .contextRetrySuccess:
             await progress(.compacting)
             try await Task.sleep(nanoseconds: 300_000_000)
-            return Self.sampleDraft
+            return Self.result(.generated)
         case .contextRetryFailure:
             await progress(.compacting)
             throw LifeRouteIntelligenceError.contextWindowExceeded
         case .regenerationFailure:
-            if requestCount == 1 { return Self.sampleDraft }
+            if requestCount == 1 { return Self.result(.generated) }
             throw LifeRouteIntelligenceError.generationFailed("Injected regeneration failure.")
         }
+    }
+
+    private static func result(_ outcome: SessionNoteFinalOutcome) -> SessionNoteGenerationResult {
+        SessionNoteGenerationResult(draft: sampleDraft, outcome: outcome, issueCodes: [])
     }
 
     private static let sampleDraft = "The RBT met with the client at home with the caregiver present. The RBT began with pairing and FCT during play, and the client used a full verbal prompt to mand for more time. The client then transitioned to table work and required two redirections to attend.\n\nFollowing completion, the client earned outside play and responded well to the supplied reinforcement. The RBT will continue implementing the established treatment plan during future sessions."
@@ -479,9 +485,7 @@ struct AISessionNoteGeneratorView: View {
                     .textInputAutocapitalization(.sentences)
                     .autocorrectionDisabled(false)
                     .frame(minHeight: 160)
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
-                    .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .lifeRouteReadableTextSurface()
 
                 if narrative.isEmpty {
                     Text("Type or paste what happened during the session…")
@@ -664,9 +668,7 @@ struct AISessionNoteGeneratorView: View {
                 .textInputAutocapitalization(.sentences)
                 .autocorrectionDisabled(false)
                 .frame(minHeight: 230)
-                .scrollContentBackground(.hidden)
-                .padding(8)
-                .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .lifeRouteReadableTextSurface()
 
             Button {
                 startGeneration()
@@ -716,7 +718,7 @@ struct AISessionNoteGeneratorView: View {
         case .generating: return "Drafting on device"
         case .compacting: return "Fitting evidence on device"
         case .repairing: return "Checking clinical format"
-        case .success: return "Draft ready"
+        case .completed(let outcome): return outcome.userFacingStatusTitle
         case .unavailable: return "Apple Intelligence unavailable"
         case .failed: return "Generation failed"
         case .timedOut: return "Generation timed out"
@@ -736,8 +738,8 @@ struct AISessionNoteGeneratorView: View {
             return "Apple Intelligence requested a smaller context. LifeRoute is retrying once with typed facts first and reduced supporting context."
         case .repairing:
             return "The first draft needs a bounded second pass to meet the Master ABA format."
-        case .success:
-            return "The editable draft is visible below. Review every sentence before use."
+        case .completed(let outcome):
+            return outcome.userFacingStatusMessage
         case .unavailable(let explanation), .failed(let explanation):
             return explanation
         case .timedOut:
@@ -749,7 +751,8 @@ struct AISessionNoteGeneratorView: View {
 
     private var statusIcon: String {
         switch runtime.state {
-        case .success: return "checkmark.circle.fill"
+        case .completed(.generated), .completed(.repaired): return "checkmark.circle.fill"
+        case .completed(.fallback), .completed(.rejected): return "exclamationmark.triangle.fill"
         case .unavailable: return "apple.intelligence"
         case .failed, .timedOut: return "exclamationmark.triangle.fill"
         case .cancelled: return "xmark.circle.fill"
@@ -759,7 +762,8 @@ struct AISessionNoteGeneratorView: View {
 
     private var statusTint: Color {
         switch runtime.state {
-        case .success: return .green
+        case .completed(.generated), .completed(.repaired): return .green
+        case .completed(.fallback), .completed(.rejected): return .orange
         case .unavailable, .failed, .timedOut: return .orange
         case .cancelled: return palette.textSecondary
         default: return palette.accent
@@ -841,6 +845,58 @@ struct AISessionNoteGeneratorView: View {
         focusedField = nil
     }
 }
+
+#if DEBUG
+struct SessionNoteReadabilityFixtureView: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
+    @State private var sessionFacts = """
+    The RBT met with the client in the client's home while the LBS and family members were present. The session began with outdoor pairing and functional communication targets before the client transitioned indoors for instructional activities and waiting practice. The client later returned outdoors for play, transitioned inside for cooperative play and another instructional period, and engaged in elopement during the later work period.
+    """
+    @State private var generatedDraft = """
+    The RBT met with the client in the client's home. Present during the session were the RBT, LBS, grandmother, mother, father, brother, and the brother's BHT. The session began with pairing outdoors while the RBT targeted FCT through full-sentence manding and requests for additional time. The RBT then transitioned the client indoors for instructional activities, targeted waiting, and transitioned the client back outdoors for additional play.
+
+    The LBS and RBT later transitioned the client indoors for additional instructional activities, followed by cooperative play and another instructional period. During the later work period, the client engaged in elopement and required multiple redirections to return to and attend to the task. Following re-engagement, the client earned preferred outdoor time. The LBS also instructed the RBT regarding skill-acquisition targets, including newly implemented programs.
+
+    The client participated in the supplied session activities. The RBT will continue implementing the established treatment plan during future sessions.
+    """
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                LifeRouteScreenHeader(
+                    title: "Session Note",
+                    subtitle: "Readability fixture for dense clinical text surfaces.",
+                    systemImage: "doc.text.magnifyingglass"
+                )
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Session facts")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    TextEditor(text: $sessionFacts)
+                        .frame(minHeight: 160)
+                        .lifeRouteReadableTextSurface()
+                }
+                .lifeRouteCard()
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Editable draft")
+                        .font(.headline)
+                        .foregroundStyle(palette.textPrimary)
+                    TextEditor(text: $generatedDraft)
+                        .frame(minHeight: 420)
+                        .lifeRouteReadableTextSurface()
+                }
+                .lifeRouteCard()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 24)
+        }
+    }
+}
+#endif
 
 struct AISessionPlanBuilderView: View {
     @Environment(\.lifeRoutePalette) private var palette
@@ -975,9 +1031,7 @@ struct AISessionPlanBuilderView: View {
 
             TextEditor(text: $generatedPlan)
                 .frame(minHeight: 250)
-                .scrollContentBackground(.hidden)
-                .padding(8)
-                .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .lifeRouteReadableTextSurface()
         }
         .lifeRouteCard()
     }
@@ -989,9 +1043,7 @@ struct AISessionPlanBuilderView: View {
                 .foregroundStyle(palette.accentSecondary)
             TextEditor(text: text)
                 .frame(minHeight: minHeight)
-                .scrollContentBackground(.hidden)
-                .padding(8)
-                .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .lifeRouteReadableTextSurface()
         }
     }
 

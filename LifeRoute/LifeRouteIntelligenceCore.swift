@@ -108,7 +108,7 @@ enum LifeRouteIntelligenceCore {
         screenshotDataItems: [Data],
         client: LifeRouteClientProfile?,
         progress: @escaping (SessionNoteGenerationProgress) async -> Void = { _ in }
-    ) async throws -> String {
+    ) async throws -> SessionNoteGenerationResult {
         let cleanNarrative = narrative.trimmingCharacters(in: .whitespacesAndNewlines)
         let recognizedScreenshots = await recognizeSessionNoteScreenshots(screenshotDataItems)
         let structuredMeasurements = SessionNoteOCRMeasurementExtractor.extract(
@@ -129,7 +129,7 @@ enum LifeRouteIntelligenceCore {
 
         await progress(.generating)
         do {
-            return try await SessionNoteGenerationPipeline.run(
+            return try await SessionNoteGenerationPipeline.generate(
                 packet: packet,
                 request: { stage in
                     switch stage {
@@ -183,6 +183,8 @@ enum LifeRouteIntelligenceCore {
                 message = "LifeRoute could not safely verify one or more session-data claims in the generated draft. Your facts, screenshots, and previous draft were preserved. Category: \(category.userSafeLabel)."
             case .clinicalClaimVerification:
                 message = "LifeRoute could not safely verify one or more clinical claims in the generated draft. Your facts, screenshots, and previous draft were preserved. Category: \(category.userSafeLabel)."
+            case .professionalPresentation:
+                message = "LifeRoute could not complete a professional rewrite from the supplied evidence. Your facts, screenshots, and previous draft were preserved."
             }
             throw LifeRouteIntelligenceError.generationFailed(
                 message
@@ -193,15 +195,17 @@ enum LifeRouteIntelligenceCore {
     }
 
     private static let sessionNoteDraftInstructions = """
-    Reconstruct one editable professional ABA session note from the supplied evidence only. Treat SESSION FACTS as rough factual source material, not prose to preserve: substantially rewrite fragments, dictated wording, and shorthand into objective, person-first, third-person, chronological clinical prose with clear sentence structure and generally 2–4 cohesive paragraphs. Integrate every CLEAR CURRENT-SESSION MEASUREMENT exactly once in natural context, preserving its target association, measurement type, unit, numeric value, prompt level, and attribution. Never use or mention administrative screenshot content. Use role identifiers only: the client, RBT, LBS, BCBA, BHT, and caregiver relationship roles. Preserve every supplied intervention, reinforcement, and observable response without adding events. Include a behavior of concern only when evidence says it occurred; never infer function, intent, emotion, cause, progress, training, supervision, treatment changes, or causal relationships. Say “behaviors of concern.” End with a factual participation/response summary and that the RBT will continue implementing the established treatment plan during future sessions. Return narrative paragraphs only—no title, headings, lists, markdown, data section, template language, disclaimer, or commentary.
+    Reconstruct one editable professional ABA session note from the supplied evidence only. Treat SESSION FACTS as rough factual source material, never as prose to clean up or preserve. Rebuild each supplied event by identifying its actor, clinical action, and place in the sequence; replace dictated fragments and conversational transitions with natural objective ABA documentation. Do not copy the source clause structure or repeatedly begin with “Then” or “After this.” For style only, “then went inside for work and waited” becomes “The RBT transitioned the client indoors for instructional activities and targeted waiting”; never add the example's actor or events unless supplied. Preserve the original chronology instead of regrouping events by target. Translate generic “work” only as instructional activities or a work period without inventing its content. Use person-first, third-person prose in 2–4 cohesive paragraphs.
+
+    Preserve every clinically relevant supplied fact, including location, attendees, pairing, targets, transitions, prompting, reinforcement, behaviors of concern, intervention, observable outcome, caregiver collaboration, and LBS/BCBA instruction when present. Integrate every CLEAR CURRENT-SESSION MEASUREMENT exactly once in the sentence about its matching target or behavior, preserving target association, measurement type, unit, numeric value, prompt level, and attribution; never append a detached data section. Never use or mention administrative screenshot content. Use role identifiers only: the client, RBT, LBS, BCBA, BHT, and caregiver relationship roles. Include a behavior of concern only when evidence says it occurred; never infer function, intent, emotion, cause, progress, training, supervision, treatment changes, recommendations, effectiveness, or causal relationships. Say “behaviors of concern.” End once with a supported participation/response summary and that the RBT will continue implementing the established treatment plan during future sessions. Return narrative paragraphs only—no title, headings, lists, markdown, template language, disclaimer, or commentary.
     """
 
     private static let sessionNoteCompactDraftInstructions = """
-    Reconstruct an objective third-person professional ABA session note from evidence only in 2–4 natural chronological paragraphs. Substantially rewrite rough source fragments instead of copying their wording. Integrate every clear structured measurement with its exact target, type, value, unit, and prompting. Exclude administrative screenshot content, use roles only, retain caregiver attribution, never infer or add clinical facts, say “behaviors of concern,” and close with supplied participation plus continued implementation of the established treatment plan. Return plain narrative only.
+    Reconstruct an objective third-person professional ABA session note from evidence only in 2–4 natural chronological paragraphs. Rebuild rough facts by actor, clinical action, and supplied sequence; do not copy their clause structure or conversational “Then/After this” transitions. Translate generic work only as instructional activities or a work period without inventing content. Preserve all supplied location, attendees, targets, events, behavior/intervention/outcome details, reinforcement, and supervisor collaboration. Integrate every clear structured measurement beside its exact target or behavior with unchanged type, value, unit, and prompting—never as a detached data list. Exclude administrative screenshot content, use roles only, retain caregiver attribution, never infer or add clinical facts, say “behaviors of concern,” and close once with supported participation plus continued implementation of the established treatment plan. Return plain narrative only.
     """
 
     private static let sessionNoteRepairInstructions = """
-    Re-create the professional ABA session note from the original evidence and correct only the listed validation issues. Substantially reconstruct rough source wording, integrate every clear structured measurement with its exact supplied target, type, value, unit, and prompt level, and exclude administrative screenshot content. Use role-only identity, objective third-person chronological prose, attributed caregiver reports, and “behaviors of concern.” Do not add, infer, or reinterpret facts. Return only 2–4 cohesive plain-text narrative paragraphs with the required factual participation summary and established-treatment-plan continuation.
+    Re-create the professional ABA session note from the original evidence and correct only the listed validation issues. Rebuild rough facts by supplied actor, clinical action, and chronology rather than copying source clauses or conversational transitions. Translate generic work only as instructional activities or a work period without inventing content. Preserve every supplied event, behavior/intervention/outcome detail, reinforcement, and collaboration claim. Integrate every clear structured measurement beside its exact supplied target or behavior with unchanged type, value, unit, and prompt level; exclude administrative screenshot content and detached data lists. Use role-only identity, objective third-person prose, attributed caregiver reports, and “behaviors of concern.” Do not add, infer, reinterpret, or recommend. Return only 2–4 cohesive plain-text narrative paragraphs with one supported participation summary and established-treatment-plan continuation.
     """
 
     private static func requestSessionNoteDraft(

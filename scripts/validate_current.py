@@ -464,7 +464,8 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     require_all(
         today,
         [
-            "ScenicRoyalScreenHeader",
+            "LifeRouteBrandMark(variant: .small)",
+            'Text("Built by an RBT for the days only RBTs understand.")',
             "ScenicRoyalGlassEffectContainer",
             ".scenicRoyalCard(",
             ".scenicRoyalInteractiveSurface(",

@@ -138,20 +138,37 @@ struct V054TodayView: View {
         }
     }
 
-    // Phase C replaces this compact structural header with the approved mark
-    // and exact Build 119 motto without changing command-center ownership.
     private var commandHeader: some View {
-        ScenicRoyalScreenHeader(
-            title: "Today",
-            subtitle: selectedDay.formatted(.dateTime.weekday(.wide).month(.wide).day())
+        ScenicRoyalCard(
+            role: .card,
+            cornerRadius: ScenicRoyalDesignSystem.Radius.control
         ) {
-            ScenicRoyalCompactIconButton(
-                systemImage: "calendar.badge.clock",
-                accessibilityLabel: "Choose day"
-            ) {
-                showingDayPicker = true
-                LifeRouteHaptics.selection()
+            HStack(alignment: .center, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                LifeRouteBrandMark(variant: .small)
+                    .frame(width: 50, height: 50)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("LifeRoute")
+                        .font(.title2.weight(.black))
+                        .foregroundStyle(scenicStyle.primaryText)
+
+                    Text("Built by an RBT for the days only RBTs understand.")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(scenicStyle.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                ScenicRoyalCompactIconButton(
+                    systemImage: "calendar.badge.clock",
+                    accessibilityLabel: "Choose day"
+                ) {
+                    showingDayPicker = true
+                    LifeRouteHaptics.selection()
+                }
             }
+            .accessibilityElement(children: .contain)
         }
     }
 

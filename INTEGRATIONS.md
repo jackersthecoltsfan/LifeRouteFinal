@@ -55,7 +55,7 @@ The native app uses Core Location with When-In-Use permission. Current coordinat
 
 ### Apple MapKit route calculations — implemented
 
-Build preparation adds native MapKit support for:
+The checked-in native app uses MapKit for:
 - route duration
 - route distance
 - current-location or address-based origins
@@ -99,9 +99,15 @@ LifeRoute uses username + 4-digit PIN authentication. The native build stores cr
 
 ## Release architecture
 
-The web preview, iOS CI, and TestFlight all begin with the same deterministic `scripts/prepare_build.sh` pipeline. Stability and full regression audits run before compile/release gates.
+The web preview runs fast semantic validation and its own deterministic browser
+artifact builder. Native CI runs `prepare_build.sh`, full validation, Simulator
+compilation, and smoke. TestFlight independently runs full validation against an
+explicitly authorized exact `main` SHA before archive/export/upload.
 
-Relevant `main` changes trigger iOS Build Check. A separate guarded workflow may dispatch TestFlight only when that exact current `main` commit completed iOS Build Check successfully. TestFlight itself has no direct push trigger and remains manually dispatchable.
+Relevant `main` changes trigger iOS Build Check. A separate guarded workflow may
+dispatch TestFlight only when that exact current `main` commit completed the
+required validation and the product owner explicitly authorized the release.
+TestFlight has no direct push trigger and remains manually dispatchable.
 
 ## Secrets policy
 

@@ -7,6 +7,7 @@ project, assets, and extension are the canonical v0.9.0 shipping source.
 Start current engineering work with:
 
 - `LIFEROUTE_HANDOFF.md`
+- `docs/APP_ARCHITECTURE.md`
 - `docs/BUILD_ARCHITECTURE.md`
 - `scripts/prepare_build.sh`
 - `scripts/validate_fast.sh`
@@ -14,6 +15,10 @@ Start current engineering work with:
 
 Native/TestFlight is authoritative. `LifeRoute/Web/` is a separately published,
 non-authoritative preview and is not embedded in the shipping app.
+
+For local Xcode work, use the committed shared `LifeRoute` scheme for canonical
+builds. `LifeRoute Local.xcscheme` is ignored machine-local configuration and
+must remain unshared.
 
 See `INTEGRATIONS.md` for provider configuration and `TESTFLIGHT_SETUP.md` for
 the exact-SHA, explicitly authorized release process.

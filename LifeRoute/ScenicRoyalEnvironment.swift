@@ -78,15 +78,27 @@ private struct ScenicRoyalEnvironmentReadabilityVeil: View {
     let reduceTransparency: Bool
 
     var body: some View {
-        LinearGradient(
-            colors: [
-                Color.black.opacity(topOpacity),
-                Color.clear,
-                Color.black.opacity(bottomOpacity),
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(topOpacity),
+                    Color.clear,
+                    Color.black.opacity(bottomOpacity),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            LinearGradient(
+                colors: [
+                    style.glassTint.opacity(reduceTransparency ? 0 : 0.055),
+                    Color.clear,
+                    style.accentReflection.opacity(reduceTransparency ? 0 : 0.025),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityHidden(true)

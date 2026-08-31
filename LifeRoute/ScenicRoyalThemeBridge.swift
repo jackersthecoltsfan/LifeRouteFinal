@@ -36,19 +36,46 @@ struct ScenicRoyalThemeStyle {
     }
 
     var readabilityBase: Color {
-        isBrightEnvironment ? ScenicRoyalDesignSystem.ColorToken.brandNavyDeep : palette.panel
+        switch family {
+        case .canyon, .alpine, .rainforest, .royalCurrent:
+            return glassTint
+        case .scenery, .dynamic, .core:
+            return palette.panel
+        }
     }
 
     var environmentScrimOpacity: Double {
-        isBrightEnvironment ? 0.17 : 0.08
+        isBrightEnvironment ? 0.10 : 0.045
     }
 
     var glassTintOpacity: Double {
-        isBrightEnvironment ? 0.22 : 0.16
+        isBrightEnvironment ? 0.20 : 0.16
     }
 }
 
 extension LifeRouteTheme {
+    /// Dynamic themes keep a scenic base in the shared root environment. The
+    /// Dynamic renderer supplies mood and motion above this companion scene;
+    /// it never replaces the scene or creates a per-screen background.
+    var scenicRoyalDynamicSceneryTheme: LifeRouteTheme {
+        switch self {
+        case .royalCurrent, .midnightPrism, .obsidianSpectra:
+            return .sceneryMountainsNight
+        case .auroraBloom:
+            return .sceneryArcticNight
+        case .solarPulse:
+            return .sceneryDesertNight
+        case .emeraldFlow:
+            return .sceneryRainforestNight
+        case .oceanGlass:
+            return .sceneryOceanNight
+        case .plasmaOrchid:
+            return .sceneryCanyonNight
+        default:
+            return .sceneryMountainsNight
+        }
+    }
+
     var scenicRoyalStyle: ScenicRoyalThemeStyle {
         ScenicRoyalThemeStyle(
             family: scenicRoyalEnvironmentFamily,

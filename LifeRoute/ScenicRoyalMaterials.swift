@@ -6,24 +6,27 @@ enum ScenicRoyalSurfaceRole {
     case readability
     case toolbar
     case selectedControl
+    case legibilityControl
 
-    var underlayOpacity: Double {
+    var fallbackUnderlayOpacity: Double {
         switch self {
-        case .ambient: return 0.20
-        case .card: return 0.34
-        case .readability: return 0.78
-        case .toolbar: return 0.66
-        case .selectedControl: return 0.52
+        case .ambient: return 0.03
+        case .card: return 0.05
+        case .readability: return 0.10
+        case .toolbar: return 0.07
+        case .selectedControl: return 0.06
+        case .legibilityControl: return 0.08
         }
     }
 
     var tintMultiplier: Double {
         switch self {
-        case .ambient: return 0.55
-        case .card: return 0.78
-        case .readability: return 0.52
-        case .toolbar: return 0.72
-        case .selectedControl: return 0.88
+        case .ambient: return 0.62
+        case .card: return 0.86
+        case .readability: return 0.68
+        case .toolbar: return 0.78
+        case .selectedControl: return 0.92
+        case .legibilityControl: return 0.76
         }
     }
 }
@@ -60,25 +63,18 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if reduceTransparency {
+        if reduceTransparency || contrast == .increased {
             decorated(
                 content.background {
-                    surfaceShape.fill(style.readabilityBase.opacity(0.98))
+                    surfaceShape.fill(style.readabilityBase.opacity(accessibleSurfaceOpacity))
                 },
                 opaque: true
             )
         } else if #available(iOS 26.0, *) {
             decorated(
                 content
-                    .background {
-                        surfaceShape.fill(
-                            style.readabilityBase.opacity(adjustedUnderlayOpacity)
-                        )
-                    }
                     .glassEffect(
-                        interactive
-                            ? .regular.tint(style.glassTint.opacity(glassTintOpacity)).interactive()
-                            : .regular.tint(style.glassTint.opacity(glassTintOpacity)),
+                        nativeGlass,
                         in: .rect(cornerRadius: cornerRadius)
                     ),
                 opaque: false
@@ -88,8 +84,8 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
                 content.background {
                     ZStack {
                         surfaceShape.fill(.ultraThinMaterial)
-                        surfaceShape.fill(style.readabilityBase.opacity(adjustedUnderlayOpacity))
-                        surfaceShape.fill(style.glassTint.opacity(glassTintOpacity * 0.72))
+                        surfaceShape.fill(style.readabilityBase.opacity(fallbackUnderlayOpacity))
+                        surfaceShape.fill(style.glassTint.opacity(glassTintOpacity * 0.42))
                     }
                 },
                 opaque: false
@@ -101,12 +97,37 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
     }
 
-    private var adjustedUnderlayOpacity: Double {
-        min(0.94, role.underlayOpacity + (contrast == .increased ? 0.16 : 0))
+    private var accessibleSurfaceOpacity: Double {
+        reduceTransparency ? 0.98 : 0.90
+    }
+
+    private var fallbackUnderlayOpacity: Double {
+        guard style.isBrightEnvironment else { return role.fallbackUnderlayOpacity }
+
+        switch role {
+        case .ambient: return role.fallbackUnderlayOpacity + 0.01
+        case .card, .toolbar, .selectedControl, .legibilityControl:
+            return role.fallbackUnderlayOpacity + 0.02
+        case .readability: return role.fallbackUnderlayOpacity + 0.04
+        }
     }
 
     private var glassTintOpacity: Double {
         style.glassTintOpacity * role.tintMultiplier
+    }
+
+    @available(iOS 26.0, *)
+    private var nativeGlass: Glass {
+        let base: Glass
+        switch role {
+        case .legibilityControl:
+            base = .regular
+        case .ambient, .card, .readability, .toolbar, .selectedControl:
+            base = .clear
+        }
+
+        let tinted = base.tint(style.glassTint.opacity(glassTintOpacity))
+        return interactive ? tinted.interactive() : tinted
     }
 
     private func decorated<Surface: View>(_ surface: Surface, opaque: Bool) -> some View {
@@ -126,7 +147,7 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
                 )
             }
             .shadow(
-                color: Color.black.opacity(opaque ? 0.20 : 0.28),
+                color: Color.black.opacity(opaque ? 0.20 : 0.16),
                 radius: role == .toolbar ? ScenicRoyalDesignSystem.Shadow.toolbarRadius : ScenicRoyalDesignSystem.Shadow.cardRadius,
                 y: role == .toolbar ? ScenicRoyalDesignSystem.Shadow.toolbarY : ScenicRoyalDesignSystem.Shadow.cardY
             )

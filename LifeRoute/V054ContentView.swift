@@ -201,14 +201,18 @@ extension LifeRouteAppearance {
         let primary = UIColor(palette.textPrimary)
         let secondary = UIColor(palette.textSecondary)
         let background = UIColor(palette.backgroundTop)
+        let needsOpaqueChrome = UIAccessibility.isReduceTransparencyEnabled
+            || UIAccessibility.isDarkerSystemColorsEnabled
 
         // v0.7.0 Build A shell: premium native navigation and tab chrome; routing remains unchanged.
         let chromeBlurStyle: UIBlurEffect.Style = theme == .light ? .systemUltraThinMaterialLight : .systemUltraThinMaterialDark
 
         let navigationAppearance = UINavigationBarAppearance()
         navigationAppearance.configureWithTransparentBackground()
-        navigationAppearance.backgroundEffect = UIBlurEffect(style: chromeBlurStyle)
-        navigationAppearance.backgroundColor = background.withAlphaComponent(theme == .light ? 0.84 : 0.76)
+        navigationAppearance.backgroundEffect = needsOpaqueChrome ? UIBlurEffect(style: chromeBlurStyle) : nil
+        navigationAppearance.backgroundColor = needsOpaqueChrome
+            ? background.withAlphaComponent(theme == .light ? 0.92 : 0.88)
+            : .clear
         navigationAppearance.shadowColor = accent.withAlphaComponent(0.12)
         navigationAppearance.titleTextAttributes = [
             .foregroundColor: primary,

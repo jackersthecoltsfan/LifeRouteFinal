@@ -3153,9 +3153,45 @@ struct LifeRouteDynamicGlassEnvironment: View {
     let theme: LifeRouteTheme
     let palette: LifeRouteThemePalette
     let phase: Double
+    let sceneryPhase: Double
 
     var body: some View {
-        LifeRouteDynamicGlassFrame(theme: theme, palette: palette, phase: phase)
+        GeometryReader { proxy in
+            let sceneryTheme = theme.scenicRoyalDynamicSceneryTheme
+
+            ZStack {
+                LifeRouteSceneryFrame(
+                    theme: sceneryTheme,
+                    palette: sceneryTheme.palette,
+                    phase: sceneryPhase
+                )
+
+                // Preserve the scene's luminance and detail while shifting its atmosphere
+                // into the selected Dynamic identity.
+                palette.backgroundGradient
+                    .opacity(theme == .royalCurrent ? 0.42 : 0.34)
+                    .blendMode(.color)
+
+                // Existing Dynamic motion becomes light and energy over the scene instead
+                // of an opaque replacement. Timing remains owned by the single root clock.
+                LifeRouteDynamicGlassFrame(theme: theme, palette: palette, phase: phase)
+                    .opacity(theme == .royalCurrent ? 0.52 : 0.46)
+                    .blendMode(.screen)
+
+                LinearGradient(
+                    colors: [
+                        palette.backgroundTop.opacity(0.16),
+                        Color.clear,
+                        palette.backgroundBottom.opacity(0.20),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .clipped()
+            .compositingGroup()
+        }
     }
 }
 
@@ -3185,10 +3221,14 @@ struct LifeRouteLiveThemeEnvironment: View {
         if theme.isPhaseTwoDynamic {
             let signature = theme.dynamicMotionSignature
             let livePhase = date.timeIntervalSinceReferenceDate * signature.speed
+            let sceneryTheme = theme.scenicRoyalDynamicSceneryTheme
+            let scenerySignature = sceneryTheme.sceneryMotionSignature
+            let sceneryLivePhase = date.timeIntervalSinceReferenceDate * scenerySignature.speed
             LifeRouteDynamicGlassEnvironment(
                 theme: theme,
                 palette: palette,
-                phase: reduceMotion ? signature.stillPhase : livePhase
+                phase: reduceMotion ? signature.stillPhase : livePhase,
+                sceneryPhase: reduceMotion ? scenerySignature.stillPhase : sceneryLivePhase
             )
         } else if theme.isPhaseThreeScenery {
             let signature = theme.sceneryMotionSignature

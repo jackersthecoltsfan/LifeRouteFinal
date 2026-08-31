@@ -1,102 +1,5 @@
 import SwiftUI
 
-// v0.7.1 Today exemplar surfaces: native Liquid Glass on iOS 26 with an availability-safe material fallback.
-private struct LifeRouteTodaySelectedExemplarArtwork: View {
-    let theme: LifeRouteTheme
-
-    @ViewBuilder
-    var body: some View {
-        GeometryReader { proxy in
-            if theme == .sceneryCanyonDay {
-                Image(decorative: "SceneryCanyonDay")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-            } else if theme == .royalCurrent {
-                Image(decorative: "DynamicRoyalCurrent")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-            } else {
-                Color.clear
-            }
-        }
-    }
-}
-
-private struct LifeRouteTodayGlassCardModifier: ViewModifier {
-    @Environment(\.lifeRoutePalette) private var palette
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content
-                .padding(LifeRouteDesign.Spacing.comfortable)
-                .glassEffect(
-                    .regular.tint(palette.panel.opacity(0.16)),
-                    in: .rect(cornerRadius: LifeRouteDesign.Radius.card)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
-                        .stroke(Color.white.opacity(0.15), lineWidth: LifeRouteDesign.Stroke.subtle)
-                }
-                .shadow(color: Color.black.opacity(0.18), radius: 12, y: 6)
-        } else {
-            content
-                .padding(LifeRouteDesign.Spacing.comfortable)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous))
-                .background(
-                    palette.panel.opacity(0.18),
-                    in: RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
-                        .stroke(Color.white.opacity(0.12), lineWidth: LifeRouteDesign.Stroke.subtle)
-                }
-                .shadow(color: Color.black.opacity(0.18), radius: 12, y: 6)
-        }
-    }
-}
-
-private struct LifeRouteTodayQuickActionsContainerModifier: ViewModifier {
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: 8) {
-                content
-            }
-        } else {
-            content
-        }
-    }
-}
-
-private struct LifeRouteTodayQuickActionSurfaceModifier: ViewModifier {
-    let accent: Color
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content
-                .padding(.horizontal, 3)
-                .padding(.vertical, 5)
-                .glassEffect(
-                    .regular.tint(accent.opacity(0.12)).interactive(),
-                    in: .rect(cornerRadius: 14)
-                )
-        } else {
-            content
-                .padding(.horizontal, 3)
-                .padding(.vertical, 5)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(accent.opacity(0.16), lineWidth: LifeRouteDesign.Stroke.subtle)
-                }
-        }
-    }
-}
-
 // v0.7.0 Build B Today/Home: the reference implementation for the v0.7 screen language.
 // v0.7.0 Build B.1 Today/Home parity: device-tuned against the approved target screenshot.
 // v0.7.0 Build B.2 device QA: real-iPhone density pass against the approved reference.
@@ -104,8 +7,8 @@ private struct LifeRouteTodayQuickActionSurfaceModifier: ViewModifier {
 // v0.7.0 swipeable day overview: shared CalendarCoreState selection drives native iOS-16 paging.
 struct V054TodayView: View {
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.scenicRoyalThemeStyle) private var scenicStyle
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @EnvironmentObject private var themeStore: LifeRouteThemeStore
 
     @ObservedObject var router: AppRouter
     @ObservedObject var calendarState: CalendarCoreState
@@ -214,78 +117,65 @@ struct V054TodayView: View {
     }
 
     private var hero: some View {
-        ZStack(alignment: .topLeading) {
-            // v0.7.1 Today reuses the selected exemplar's production artwork; no local competing renderer or clock.
-            LifeRouteTodaySelectedExemplarArtwork(theme: themeStore.selectedTheme)
-
-            LinearGradient(
-                colors: [Color.black.opacity(0.04), Color.black.opacity(0.10), Color.black.opacity(0.60)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            VStack(alignment: .leading, spacing: 5) {
-                // v0.7.0 official branding Today hero — the official LR mark remains the
-                // production app identity, while Today returns to the approved preview composition.
-                // v0.7.0 Today hero preview-parity repair.
-                HStack(alignment: .center, spacing: 0) {
-                    Text("Life")
-                        .foregroundStyle(.white)
-                    Text("Route")
-                        .foregroundStyle(brandGold)
-                    Spacer(minLength: 12)
-                    Button {
-                        showingDayPicker = true
-                        LifeRouteHaptics.selection()
-                    } label: {
-                        Image(systemName: "sun.max.fill")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(brandGold)
-                            .frame(width: 38, height: 38)
-                            .background(Color.black.opacity(0.30), in: Circle())
-                            .overlay {
-                                Circle().stroke(brandGold.opacity(0.25), lineWidth: 1)
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Choose day")
+        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+            HStack(alignment: .center, spacing: 0) {
+                Text("Life")
+                    .foregroundStyle(scenicStyle.primaryText)
+                Text("Route")
+                    .foregroundStyle(brandGold)
+                Spacer(minLength: 12)
+                Button {
+                    showingDayPicker = true
+                    LifeRouteHaptics.selection()
+                } label: {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(scenicStyle.accent)
+                        .frame(
+                            width: ScenicRoyalDesignSystem.Layout.minimumTouchTarget,
+                            height: ScenicRoyalDesignSystem.Layout.minimumTouchTarget
+                        )
+                        .scenicRoyalInteractiveSurface(
+                            role: .selectedControl,
+                            cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
+                        )
                 }
-                .font(.system(size: dynamicTypeSize.isAccessibilitySize ? 26 : 28, weight: .black, design: .rounded))
+                .buttonStyle(.plain)
+                .accessibilityLabel("Choose day")
+                .accessibilityHint("Opens the calendar date picker.")
+            }
+            .font(.system(.largeTitle, design: .rounded, weight: .black))
 
-                Text("Plan your day. Optimize every gap.")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.84))
+            Text("Plan your day. Optimize every gap.")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(scenicStyle.secondaryText)
 
-                Spacer(minLength: 28)
+            Spacer(minLength: dynamicTypeSize.isAccessibilitySize ? 12 : 30)
 
+            HStack(alignment: .bottom, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(dayPageTitle(selectedDay))
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(scenicStyle.primaryText)
+                    Text(selectedDay.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                        .font(.caption)
+                        .foregroundStyle(scenicStyle.secondaryText)
+                }
+                Spacer(minLength: 8)
                 if routingState.liveLocationEnabled {
-                    HStack(spacing: 6) {
-                        Image(systemName: "location.fill")
-                        Text("Live location active")
-                    }
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.90))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.30), in: Capsule())
+                    Label("Location active", systemImage: "location.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(scenicStyle.primaryText)
+                        .accessibilityLabel("Live location active")
                 }
             }
-            .padding(14)
         }
-        .frame(height: dynamicTypeSize.isAccessibilitySize ? 230 : 194)
-        .clipShape(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [palette.accent.opacity(0.46), Color.white.opacity(0.08), palette.accentSecondary.opacity(0.26)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: LifeRouteDesign.Stroke.subtle
-                )
-        }
-        .shadow(color: Color.black.opacity(0.34), radius: 18, y: 9)
+        .frame(maxWidth: .infinity, minHeight: dynamicTypeSize.isAccessibilitySize ? 210 : 168, alignment: .topLeading)
+        .scenicRoyalCard(
+            role: dynamicTypeSize.isAccessibilitySize ? .readability : .ambient,
+            cornerRadius: ScenicRoyalDesignSystem.Radius.hero
+        )
+        .accessibilityElement(children: .contain)
     }
 
     private var brandGold: Color {
@@ -555,70 +445,74 @@ struct V054TodayView: View {
 
     private var quickActions: some View {
         VStack(alignment: .leading, spacing: 7) {
-            LifeRouteSectionLabel(title: "Quick Actions")
+            ScenicRoyalSectionHeader("Quick Actions", subtitle: "Plan, locate, schedule, or add a stop.")
 
-            LazyVGrid(columns: quickActionColumns, spacing: 8) {
-                NavigationLink {
-                    DayRoutePlanningView(calendarState: calendarState, routingState: routingState, day: selectedDay)
-                } label: {
-                    quickActionLabel(
-                        "Plan Route",
-                        "arrow.triangle.turn.up.right.diamond.fill",
-                        accent: brandGold
-                    )
-                }
-                .buttonStyle(.plain)
-                .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
-
-                Button {
-                    LifeRouteHaptics.primaryAction()
-                    if routingState.liveLocationEnabled {
-                        routingState.stopLiveLocation()
-                    } else {
-                        routingState.requestCurrentLocation()
+            ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                LazyVGrid(columns: quickActionColumns, spacing: 8) {
+                    NavigationLink {
+                        DayRoutePlanningView(calendarState: calendarState, routingState: routingState, day: selectedDay)
+                    } label: {
+                        quickActionLabel(
+                            "Plan Route",
+                            "arrow.triangle.turn.up.right.diamond.fill",
+                            accent: brandGold
+                        )
                     }
-                } label: {
-                    quickActionLabel(
-                        "Current Location",
-                        routingState.liveLocationEnabled ? "location.fill.viewfinder" : "location.fill",
-                        accent: routeBlue,
-                        isActive: routingState.liveLocationEnabled
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(routingState.locationRequestInFlight)
+                    .buttonStyle(.plain)
+                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
 
-                Button {
-                    LifeRouteHaptics.selection()
-                    router.select(.schedule)
-                } label: {
-                    quickActionLabel("Open Schedule", "calendar", accent: schedulePurple)
-                }
-                .buttonStyle(.plain)
+                    Button {
+                        LifeRouteHaptics.primaryAction()
+                        if routingState.liveLocationEnabled {
+                            routingState.stopLiveLocation()
+                        } else {
+                            routingState.requestCurrentLocation()
+                        }
+                    } label: {
+                        quickActionLabel(
+                            "Current Location",
+                            routingState.liveLocationEnabled ? "location.fill.viewfinder" : "location.fill",
+                            accent: routeBlue,
+                            isActive: routingState.liveLocationEnabled
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(routingState.locationRequestInFlight)
 
-                NavigationLink {
-                    DayRoutePlanningView(calendarState: calendarState, routingState: routingState, day: selectedDay)
-                } label: {
-                    quickActionLabel("Add Stop", "plus", accent: brandGold)
+                    Button {
+                        LifeRouteHaptics.selection()
+                        router.select(.schedule)
+                    } label: {
+                        quickActionLabel("Open Schedule", "calendar", accent: schedulePurple)
+                    }
+                    .buttonStyle(.plain)
+
+                    NavigationLink {
+                        DayRoutePlanningView(calendarState: calendarState, routingState: routingState, day: selectedDay)
+                    } label: {
+                        quickActionLabel("Add Stop", "plus", accent: brandGold)
+                    }
+                    .buttonStyle(.plain)
+                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
                 }
-                .buttonStyle(.plain)
-                .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
             }
-            .modifier(LifeRouteTodayQuickActionsContainerModifier())
         }
+        .scenicRoyalCard(role: .ambient, padding: ScenicRoyalDesignSystem.Spacing.standard)
     }
 
     private var overviewCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            LifeRouteSectionLabel(
-                title: Calendar.current.isDateInToday(selectedDay) ? "Today’s Overview" : "Day Overview"
+            ScenicRoyalSectionHeader(
+                Calendar.current.isDateInToday(selectedDay) ? "Today’s Overview" : "Day Overview",
+                subtitle: "Events and current route estimates.",
+                systemImage: "calendar.day.timeline.left"
             )
 
             // v0.7.0 Today overview full-day agenda: show every appointment on the selected
             // calendar day instead of reducing the overview to only the next appointment.
             if selectedDayEvents.isEmpty {
                 HStack(spacing: 10) {
-                    LifeRouteIconBadge(systemImage: "checkmark.circle.fill", prominent: true)
+                    ScenicRoyalIconBadge(systemImage: "checkmark.circle.fill")
                     VStack(alignment: .leading, spacing: 3) {
                         Text(Calendar.current.isDateInToday(selectedDay) ? "No timed events today" : "No timed events on this day")
                             .font(.subheadline.weight(.semibold))
@@ -669,7 +563,7 @@ struct V054TodayView: View {
                 )
             }
         }
-        .modifier(LifeRouteTodayGlassCardModifier())
+        .scenicRoyalCard(role: .readability)
     }
 
     private func overviewEventCard(
@@ -751,7 +645,11 @@ struct V054TodayView: View {
     private var gapSuggestions: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack {
-                LifeRouteSectionLabel(title: "Suggested Gap Fillers")
+                ScenicRoyalSectionHeader(
+                    "Suggested Gap Fillers",
+                    subtitle: "Useful options for open time.",
+                    systemImage: "sparkles"
+                )
                 Spacer()
                 NavigationLink {
                     DayRoutePlanningView(calendarState: calendarState, routingState: routingState, day: selectedDay)
@@ -769,14 +667,14 @@ struct V054TodayView: View {
             let suggestions = routingState.savedPlaces.filter(\.useInGapSuggestions)
             if openTodos.isEmpty && suggestions.isEmpty {
                 HStack(spacing: 10) {
-                    LifeRouteIconBadge(systemImage: "sparkles", prominent: true)
+                    ScenicRoyalIconBadge(systemImage: "sparkles")
                     Text("Add a weekly to-do or mark saved places as gap suggestions in Setup and they’ll surface here.")
                         .font(.caption)
                         .foregroundStyle(palette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .modifier(LifeRouteTodayGlassCardModifier())
+                .scenicRoyalCard(role: .readability)
             } else {
                 ForEach(openTodos.prefix(1)) { todo in
                     HStack(spacing: 11) {
@@ -833,6 +731,7 @@ struct V054TodayView: View {
                 }
             }
         }
+        .scenicRoyalCard(role: .ambient, padding: ScenicRoyalDesignSystem.Spacing.standard)
     }
 
     private func gapSuggestionRow(_ place: LifeRouteSavedPlace) -> some View {
@@ -882,7 +781,7 @@ struct V054TodayView: View {
     private var liveDayCard: some View {
         VStack(alignment: .leading, spacing: 11) {
             HStack(spacing: 10) {
-                LifeRouteIconBadge(systemImage: "bolt.horizontal.circle.fill", prominent: true)
+                ScenicRoyalIconBadge(systemImage: "bolt.horizontal.circle.fill")
                 VStack(alignment: .leading, spacing: 2) {
                     Text(liveDayEnabled ? "Live Day" : "Live Day + Lock Screen")
                         .font(.subheadline.weight(.bold))
@@ -929,7 +828,7 @@ struct V054TodayView: View {
                     } label: {
                         Label("Refresh", systemImage: "arrow.clockwise")
                     }
-                    .buttonStyle(LifeRouteSecondaryButtonStyle())
+                    .buttonStyle(ScenicRoyalSecondaryButtonStyle())
 
                     Button {
                         LifeRouteHaptics.selection()
@@ -938,7 +837,7 @@ struct V054TodayView: View {
                     } label: {
                         Label("End", systemImage: "stop.fill")
                     }
-                    .buttonStyle(LifeRouteSecondaryButtonStyle())
+                    .buttonStyle(ScenicRoyalSecondaryButtonStyle())
                 }
             } else {
                 Button {
@@ -957,7 +856,7 @@ struct V054TodayView: View {
                 } label: {
                     Label("Generate + launch selected day", systemImage: "sparkles")
                 }
-                .buttonStyle(LifeRoutePrimaryButtonStyle())
+                .buttonStyle(ScenicRoyalPrimaryButtonStyle())
             }
 
             if let message = liveActivity.message {
@@ -966,7 +865,7 @@ struct V054TodayView: View {
                     .foregroundStyle(palette.textSecondary)
             }
         }
-        .modifier(LifeRouteTodayGlassCardModifier())
+        .scenicRoyalCard(role: .readability)
     }
 
     private var liveDaySequence: some View {
@@ -1076,7 +975,12 @@ struct V054TodayView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 64, alignment: .top)
         .contentShape(Rectangle())
-        .modifier(LifeRouteTodayQuickActionSurfaceModifier(accent: accent))
+        .padding(.horizontal, 3)
+        .padding(.vertical, 5)
+        .scenicRoyalInteractiveSurface(
+            role: isActive ? .selectedControl : .ambient,
+            cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
+        )
     }
 
     private func overviewMetric(

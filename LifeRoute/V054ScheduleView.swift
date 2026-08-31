@@ -4,7 +4,9 @@ import SwiftUI
 // v0.7.0 Build C compile hotfix: explicit shape fills and deployment-target-safe date strip.
 // selected-day, and routing behaviors stay owned by their existing native domains.
 struct V054ScheduleView: View {
-    @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.scenicRoyalThemeStyle) private var scenicStyle
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var calendarState: CalendarCoreState
     @ObservedObject var providerState: CalendarProviderCore
     @ObservedObject var routingState: RoutingLocationCore
@@ -22,12 +24,9 @@ struct V054ScheduleView: View {
     @State private var allDay = false
     @State private var message: String?
 
-    private let gold = Color(red: 0.96, green: 0.72, blue: 0.20)
-    private let routeBlue = Color(red: 0.30, green: 0.74, blue: 1.00)
-
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 10) {
+            LazyVStack(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                 scheduleHeader
                 rangeControl
 
@@ -48,9 +47,9 @@ struct V054ScheduleView: View {
                 travelCard
                 calendarConnectionsBar
             }
-            .padding(.horizontal, 12)
-            .padding(.top, 7)
-            .padding(.bottom, 30)
+            .padding(.horizontal, ScenicRoyalDesignSystem.Layout.pageHorizontal)
+            .padding(.top, ScenicRoyalDesignSystem.Spacing.compact)
+            .padding(.bottom, ScenicRoyalDesignSystem.Spacing.spacious * 2)
         }
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: selectedRange) { _ in LifeRouteHaptics.selection() }
@@ -72,79 +71,111 @@ struct V054ScheduleView: View {
     }
 
     private var scheduleHeader: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Schedule")
-                    .font(.system(size: 31, weight: .black, design: .rounded))
-                    .foregroundStyle(palette.textPrimary)
-
-                Text(calendarState.periodLabel(for: selectedRange))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(palette.textSecondary)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 8)
-
-            headerCircleButton(systemImage: "calendar") {
+        ScenicRoyalScreenHeader(
+            title: "Schedule",
+            subtitle: calendarState.periodLabel(for: selectedRange)
+        ) {
+            ScenicRoyalCompactIconButton(
+                systemImage: "calendar",
+                accessibilityLabel: "Choose date"
+            ) {
                 showingDatePicker = true
                 LifeRouteHaptics.selection()
             }
-            .accessibilityLabel("Choose date")
 
-            headerCircleButton(systemImage: "plus") {
+            ScenicRoyalCompactIconButton(
+                systemImage: "plus",
+                accessibilityLabel: "Add appointment"
+            ) {
                 openAppointmentSheet()
             }
-            .accessibilityLabel("Add appointment")
         }
-        .padding(.horizontal, 3)
     }
 
     private var rangeControl: some View {
-        HStack(spacing: 8) {
-            Button {
-                LifeRouteHaptics.selection()
-                calendarState.shiftSelection(selectedRange, by: -1)
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.caption.weight(.black))
-                    .frame(width: 38, height: 38)
-                    .background(palette.panelElevated.opacity(0.44), in: Circle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(palette.textPrimary)
-            .accessibilityLabel("Previous period")
+        ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+            HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                ScenicRoyalCompactIconButton(
+                    systemImage: "chevron.left",
+                    accessibilityLabel: "Previous period"
+                ) {
+                    LifeRouteHaptics.selection()
+                    calendarState.shiftSelection(selectedRange, by: -1)
+                }
 
-            Picker("Range", selection: $selectedRange) {
-                ForEach(LifeRouteCalendarRange.allCases) { range in
-                    Text(range == .day ? "Agenda" : range.rawValue).tag(range)
+                if dynamicTypeSize.isAccessibilitySize {
+                    Menu {
+                        ForEach(LifeRouteCalendarRange.allCases) { range in
+                            Button {
+                                selectedRange = range
+                            } label: {
+                                if selectedRange == range {
+                                    Label(rangeTitle(range), systemImage: "checkmark")
+                                } else {
+                                    Text(rangeTitle(range))
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(rangeTitle(selectedRange))
+                                .font(.headline.weight(.semibold))
+                            Spacer(minLength: ScenicRoyalDesignSystem.Spacing.compact)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption.weight(.bold))
+                                .accessibilityHidden(true)
+                        }
+                        .foregroundStyle(scenicStyle.primaryText)
+                        .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
+                        .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
+                        .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous))
+                        .scenicRoyalInteractiveSurface(
+                            role: .ambient,
+                            cornerRadius: ScenicRoyalDesignSystem.Radius.control
+                        )
+                    }
+                    .accessibilityLabel("Calendar range")
+                    .accessibilityValue(rangeTitle(selectedRange))
+                } else {
+                    Picker("Range", selection: $selectedRange) {
+                        ForEach(LifeRouteCalendarRange.allCases) { range in
+                            Text(rangeTitle(range)).tag(range)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(3)
+                    .scenicRoyalSurface(
+                        role: .ambient,
+                        cornerRadius: ScenicRoyalDesignSystem.Radius.control
+                    )
+                }
+
+                ScenicRoyalCompactIconButton(
+                    systemImage: "chevron.right",
+                    accessibilityLabel: "Next period"
+                ) {
+                    LifeRouteHaptics.selection()
+                    calendarState.shiftSelection(selectedRange, by: 1)
                 }
             }
-            .pickerStyle(.segmented)
-
-            Button {
-                LifeRouteHaptics.selection()
-                calendarState.shiftSelection(selectedRange, by: 1)
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.black))
-                    .frame(width: 38, height: 38)
-                    .background(palette.panelElevated.opacity(0.44), in: Circle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(palette.textPrimary)
-            .accessibilityLabel("Next period")
         }
     }
 
     private var compactDateStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 7) {
-                ForEach(calendarState.weekDates(containing: calendarState.selectedDate), id: \.self) { date in
-                    dateChip(date)
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                    HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                        ForEach(calendarState.weekDates(containing: calendarState.selectedDate), id: \.self) { date in
+                            dateChip(date)
+                                .id(Calendar.current.startOfDay(for: date))
+                        }
+                    }
+                    .padding(.vertical, 2)
                 }
             }
-            .padding(.vertical, 2)
+            .onAppear { centerSelectedDate(in: proxy) }
+            .onChange(of: calendarState.selectedDate) { _ in centerSelectedDate(in: proxy) }
         }
         // Deployment-target-safe: horizontal date browsing remains clipped by the ScrollView.
     }
@@ -154,65 +185,43 @@ struct V054ScheduleView: View {
         let today = Calendar.current.isDateInToday(date)
         let count = calendarState.events(on: date).count
 
-        return Button {
+        return ScenicRoyalCalendarDateChip(
+            date: date,
+            eventCount: count,
+            isSelected: selected,
+            isToday: today
+        ) {
             calendarState.selectedDate = date
             LifeRouteHaptics.selection()
-        } label: {
-            VStack(spacing: 4) {
-                Text(date.formatted(.dateTime.weekday(.narrow)))
-                    .font(.caption2.weight(.black))
-                    .foregroundStyle(selected ? Color.black.opacity(0.72) : palette.textSecondary)
-
-                Text(date.formatted(.dateTime.day()))
-                    .font(.subheadline.weight(.black))
-                    .foregroundStyle(selected ? Color.black.opacity(0.80) : palette.textPrimary)
-
-                Circle()
-                    .fill(count > 0 ? (selected ? Color.black.opacity(0.60) : routeBlue) : .clear)
-                    .frame(width: 4, height: 4)
-            }
-            .frame(width: 43, height: 60)
-            .background {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(selected ? gold : palette.panelElevated.opacity(today ? 0.56 : 0.34))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(today && !selected ? gold.opacity(0.45) : Color.white.opacity(0.05), lineWidth: 1)
-            }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
-        .accessibilityValue("\(count) events")
     }
 
     private var monthGrid: some View {
-        VStack(spacing: 7) {
-            HStack(spacing: 4) {
+        VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+            HStack(spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
                 ForEach(["M", "T", "W", "T", "F", "S", "S"], id: \.self) { label in
                     Text(label)
-                        .font(.caption2.weight(.black))
-                        .foregroundStyle(palette.textSecondary)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(scenicStyle.secondaryText)
                         .frame(maxWidth: .infinity)
                 }
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 5) {
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: ScenicRoyalDesignSystem.Spacing.hairline), count: 7),
+                spacing: ScenicRoyalDesignSystem.Spacing.hairline
+            ) {
                 ForEach(Array(monthGridDates.enumerated()), id: \.offset) { _, date in
                     if let date {
                         monthDay(date)
                     } else {
-                        Color.clear.frame(height: 38)
+                        Color.clear.frame(height: 40)
                     }
                 }
             }
         }
-        .padding(10)
-        .background(palette.panel.opacity(0.60), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.07), lineWidth: 1)
-        }
+        .scenicRoyalCard(role: .readability, padding: ScenicRoyalDesignSystem.Spacing.standard)
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
     private var monthGridDates: [Date?] {
@@ -226,49 +235,34 @@ struct V054ScheduleView: View {
     private func monthDay(_ date: Date) -> some View {
         let selected = Calendar.current.isDate(date, inSameDayAs: calendarState.selectedDate)
         let today = Calendar.current.isDateInToday(date)
-        let hasEvents = !calendarState.events(on: date).isEmpty
+        let count = calendarState.events(on: date).count
 
-        return Button {
+        return ScenicRoyalCalendarMonthDay(
+            date: date,
+            eventCount: count,
+            isSelected: selected,
+            isToday: today
+        ) {
             calendarState.selectedDate = date
             LifeRouteHaptics.selection()
-        } label: {
-            ZStack(alignment: .bottom) {
-                Text(date.formatted(.dateTime.day()))
-                    .font(.caption.weight(selected ? .black : .semibold))
-                    .foregroundStyle(selected ? Color.black.opacity(0.80) : palette.textPrimary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                Circle()
-                    .fill(hasEvents ? (selected ? Color.black.opacity(0.55) : routeBlue) : .clear)
-                    .frame(width: 4, height: 4)
-                    .padding(.bottom, 3)
-            }
-            .frame(height: 38)
-            .background {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(selected ? gold : (today ? gold.opacity(0.12) : Color.clear))
-            }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
     }
 
     private var selectedDayDivider: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
             Text(selectedDayLabel)
-                .font(.caption.weight(.black))
-                .tracking(0.6)
-                .foregroundStyle(palette.textPrimary)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(scenicStyle.primaryText)
 
-            Text("· \(selectedDayEvents.count) event\(selectedDayEvents.count == 1 ? "" : "s")")
+            Text("\(selectedDayEvents.count) event\(selectedDayEvents.count == 1 ? "" : "s")")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(palette.textSecondary)
+                .foregroundStyle(scenicStyle.secondaryText)
 
             Rectangle()
-                .fill(Color.white.opacity(0.10))
+                .fill(scenicStyle.accent.opacity(0.34))
                 .frame(height: 1)
         }
-        .padding(.top, 1)
+        .accessibilityElement(children: .combine)
     }
 
     private var selectedDayLabel: String {
@@ -281,9 +275,11 @@ struct V054ScheduleView: View {
         if selectedDayEvents.isEmpty {
             emptyAgendaCard
         } else {
-            VStack(spacing: 8) {
-                ForEach(selectedDayEvents) { event in
-                    timelineEventRow(event)
+            ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                    ForEach(selectedDayEvents) { event in
+                        timelineEventRow(event)
+                    }
                 }
             }
         }
@@ -295,15 +291,21 @@ struct V054ScheduleView: View {
         if days.isEmpty {
             emptyAgendaCard
         } else {
-            VStack(spacing: 12) {
-                ForEach(days) { day in
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text(day.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                            .font(.caption.weight(.black))
-                            .foregroundStyle(Calendar.current.isDateInToday(day.date) ? gold : palette.textSecondary)
+            ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                VStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
+                    ForEach(days) { day in
+                        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                            Text(day.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(
+                                    Calendar.current.isDateInToday(day.date)
+                                        ? scenicStyle.accent
+                                        : scenicStyle.secondaryText
+                                )
 
-                        ForEach(day.events) { event in
-                            timelineEventRow(event)
+                            ForEach(day.events) { event in
+                                timelineEventRow(event)
+                            }
                         }
                     }
                 }
@@ -312,96 +314,35 @@ struct V054ScheduleView: View {
     }
 
     private var emptyAgendaCard: some View {
-        HStack(spacing: 11) {
-            Image(systemName: "calendar.badge.checkmark")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(routeBlue)
-                .frame(width: 40, height: 40)
-                .background(routeBlue.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        HStack(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+            ScenicRoyalIconBadge(systemImage: "calendar.badge.checkmark")
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
                 Text("No events scheduled")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(palette.textPrimary)
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(scenicStyle.primaryText)
                 Text("This day is open for routes, errands, or a new appointment.")
-                    .font(.caption)
-                    .foregroundStyle(palette.textSecondary)
+                    .font(.subheadline)
+                    .foregroundStyle(scenicStyle.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .padding(11)
-        .background(palette.panel.opacity(0.60), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .scenicRoyalCard(role: .readability)
+        .accessibilityElement(children: .combine)
     }
 
     private func timelineEventRow(_ event: LifeRouteCalendarEvent) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(event.isAllDay ? "ALL" : event.start.formatted(date: .omitted, time: .shortened))
-                    .font(.caption.weight(.black))
-                    .foregroundStyle(event.isAllDay ? sourceAccent(event.source) : palette.textPrimary)
-                    .lineLimit(1)
-                if !event.isAllDay {
-                    Text(event.end.formatted(date: .omitted, time: .shortened))
-                        .font(.caption2)
-                        .foregroundStyle(palette.textSecondary)
-                }
-            }
-            .frame(width: 62, alignment: .trailing)
-            .padding(.top, 4)
-
-            HStack(alignment: .top, spacing: 9) {
-                Capsule()
-                    .fill(sourceAccent(event.source))
-                    .frame(width: 4)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(event.title)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(palette.textPrimary)
-                        .lineLimit(2)
-
-                    if !event.location.isEmpty {
-                        Label(event.location, systemImage: "mappin.and.ellipse")
-                            .font(.caption2)
-                            .foregroundStyle(palette.textSecondary)
-                            .lineLimit(2)
-                    }
-
-                    HStack(spacing: 5) {
-                        Image(systemName: sourceIcon(event.source))
-                        Text(sourceLabel(event.source))
-                        if !event.calendarTitle.isEmpty {
-                            Text("· \(event.calendarTitle)")
-                                .lineLimit(1)
-                        }
-                    }
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(sourceAccent(event.source).opacity(0.92))
-                }
-
-                Spacer(minLength: 4)
-
-                if event.source == .manual {
-                    Button(role: .destructive) {
-                        LifeRouteHaptics.selection()
-                        calendarState.removeEvent(id: event.id)
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(.caption.weight(.bold))
-                            .frame(width: 32, height: 32)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.red.opacity(0.88))
-                    .accessibilityLabel("Delete \(event.title)")
-                }
-            }
-            .padding(10)
-            .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 15, style: .continuous)
-                    .stroke(sourceAccent(event.source).opacity(0.14), lineWidth: 1)
-            }
-        }
+        ScenicRoyalScheduleEventRow(
+            event: event,
+            sourceLabel: sourceLabel(event.source),
+            sourceIcon: sourceIcon(event.source),
+            sourceAccent: sourceAccent(event.source),
+            onDelete: event.source == .manual ? {
+                LifeRouteHaptics.selection()
+                calendarState.removeEvent(id: event.id)
+            } : nil
+        )
     }
 
     private var travelCard: some View {
@@ -412,49 +353,10 @@ struct V054ScheduleView: View {
                 day: calendarState.selectedDate
             )
         } label: {
-            HStack(spacing: 11) {
-                Image(systemName: "car.side.fill")
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(gold)
-                    .frame(width: 42, height: 42)
-                    .background(gold.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text("Travel plan")
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(palette.textPrimary)
-                        if !knownDrivingSummary.isEmpty {
-                            Text(knownDrivingSummary)
-                                .font(.caption2.weight(.black))
-                                .foregroundStyle(routeBlue)
-                        }
-                    }
-
-                    Text(travelDetail)
-                        .font(.caption)
-                        .foregroundStyle(palette.textSecondary)
-                        .lineLimit(2)
-                }
-
-                Spacer(minLength: 5)
-
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text("PLAN ROUTE")
-                        .font(.caption2.weight(.black))
-                        .tracking(0.7)
-                        .foregroundStyle(gold)
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.black))
-                        .foregroundStyle(palette.textSecondary)
-                }
-            }
-            .padding(11)
-            .background(palette.panel.opacity(0.64), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 17, style: .continuous)
-                    .stroke(gold.opacity(0.17), lineWidth: 1)
-            }
+            ScenicRoyalTravelPlanLabel(
+                detail: travelDetail,
+                summary: knownDrivingSummary
+            )
         }
         .buttonStyle(.plain)
         .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
@@ -482,23 +384,7 @@ struct V054ScheduleView: View {
             showingProviders = true
             LifeRouteHaptics.selection()
         } label: {
-            HStack(spacing: 9) {
-                Image(systemName: "calendar.badge.clock")
-                    .foregroundStyle(routeBlue)
-                Text("Connected calendars")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(palette.textPrimary)
-                Spacer()
-                Text(connectionSummary)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(palette.textSecondary)
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.black))
-                    .foregroundStyle(palette.textSecondary)
-            }
-            .padding(.horizontal, 11)
-            .frame(minHeight: 44)
-            .background(palette.panel.opacity(0.48), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            ScenicRoyalCalendarConnectionLabel(summary: connectionSummary)
         }
         .buttonStyle(.plain)
     }
@@ -508,18 +394,33 @@ struct V054ScheduleView: View {
         return count == 0 ? "Manage" : "\(count) active"
     }
 
+    private func rangeTitle(_ range: LifeRouteCalendarRange) -> String {
+        range == .day ? "Agenda" : range.rawValue
+    }
+
+    private func centerSelectedDate(in proxy: ScrollViewProxy) {
+        let selectedDay = Calendar.current.startOfDay(for: calendarState.selectedDate)
+        if reduceMotion {
+            proxy.scrollTo(selectedDay, anchor: .center)
+        } else {
+            withAnimation(ScenicRoyalDesignSystem.Motion.selection) {
+                proxy.scrollTo(selectedDay, anchor: .center)
+            }
+        }
+    }
+
     private var datePickerSheet: some View {
         NavigationStack {
             VStack(spacing: 18) {
                 DatePicker("Selected date", selection: $calendarState.selectedDate, displayedComponents: .date)
                     .datePickerStyle(.graphical)
-                    .tint(gold)
+                    .tint(scenicStyle.accent)
 
                 Button("Today") {
                     calendarState.selectToday()
                     LifeRouteHaptics.selection()
                 }
-                .buttonStyle(LifeRouteSecondaryButtonStyle())
+                .buttonStyle(ScenicRoyalSecondaryButtonStyle())
             }
             .padding(16)
             .navigationTitle("Choose Date")
@@ -538,8 +439,9 @@ struct V054ScheduleView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Your connected calendars stay read-only in LifeRoute. Manual LifeRoute appointments remain editable and removable here.")
-                        .font(.caption)
-                        .foregroundStyle(palette.textSecondary)
+                        .font(.subheadline)
+                        .foregroundStyle(scenicStyle.secondaryText)
+                        .scenicRoyalCard(role: .readability)
 
                     providerRow(
                         title: "Apple Calendar",
@@ -600,32 +502,44 @@ struct V054ScheduleView: View {
         systemImage: String,
         action: @escaping () -> Void
     ) -> some View {
-        HStack(spacing: 11) {
-            Image(systemName: systemImage)
-                .font(.title3)
-                .foregroundStyle(connected ? gold : palette.textSecondary)
-                .frame(width: 34)
+        ScenicRoyalInsetRow(role: .readability) {
+            HStack(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                Image(systemName: systemImage)
+                    .font(.title3)
+                    .foregroundStyle(connected ? scenicStyle.accent : scenicStyle.secondaryText)
+                    .frame(width: 34)
+                    .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(palette.textPrimary)
-                Text(status)
-                    .font(.caption2)
-                    .foregroundStyle(palette.textSecondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(scenicStyle.primaryText)
+                    Text(status)
+                        .font(.caption)
+                        .foregroundStyle(scenicStyle.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
+
+                Spacer(minLength: ScenicRoyalDesignSystem.Spacing.compact)
+
+                Button(busy ? "Working…" : (connected ? "Refresh" : "Connect")) {
+                    LifeRouteHaptics.primaryAction()
+                    action()
+                }
+                .font(.caption.weight(.bold))
+                .foregroundStyle(scenicStyle.primaryText)
+                .frame(minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
+                .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.compact)
+                .contentShape(Capsule())
+                .scenicRoyalInteractiveSurface(
+                    role: .selectedControl,
+                    cornerRadius: ScenicRoyalDesignSystem.Layout.minimumTouchTarget / 2
+                )
+                .disabled(busy)
+                .accessibilityHint(connected ? "Refreshes read-only calendar events" : "Connects read-only calendar access")
             }
-
-            Spacer()
-
-            Button(busy ? "Working…" : (connected ? "Refresh" : "Connect")) {
-                LifeRouteHaptics.primaryAction()
-                action()
-            }
-            .font(.caption.weight(.bold))
-            .disabled(busy)
         }
-        .padding(11)
-        .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
     }
 
     private var appointmentSheet: some View {
@@ -633,16 +547,18 @@ struct V054ScheduleView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     TextField("Appointment title", text: $title)
-                        .padding(12)
-                        .background(fieldBackground, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                        .scenicRoyalField()
 
-                    DatePicker("Date", selection: $eventDate, displayedComponents: .date)
-                    Toggle("All day", isOn: $allDay)
+                    VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                        DatePicker("Date", selection: $eventDate, displayedComponents: .date)
+                        Toggle("All day", isOn: $allDay)
 
-                    if !allDay {
-                        DatePicker("Start", selection: $startTime, displayedComponents: .hourAndMinute)
-                        DatePicker("End", selection: $endTime, displayedComponents: .hourAndMinute)
+                        if !allDay {
+                            DatePicker("Start", selection: $startTime, displayedComponents: .hourAndMinute)
+                            DatePicker("End", selection: $endTime, displayedComponents: .hourAndMinute)
+                        }
                     }
+                    .scenicRoyalCard(role: .readability)
 
                     V054AddressField("Appointment location", text: $location)
 
@@ -651,12 +567,12 @@ struct V054ScheduleView: View {
                     } label: {
                         Label("Save appointment", systemImage: "checkmark.circle.fill")
                     }
-                    .buttonStyle(LifeRoutePrimaryButtonStyle())
+                    .buttonStyle(ScenicRoyalPrimaryButtonStyle())
 
                     if let message {
                         Text(message)
                             .font(.caption)
-                            .foregroundStyle(palette.textSecondary)
+                            .foregroundStyle(scenicStyle.secondaryText)
                     }
                 }
                 .padding(16)
@@ -670,10 +586,6 @@ struct V054ScheduleView: View {
             }
         }
         .presentationDetents([.large])
-    }
-
-    private var fieldBackground: Color {
-        palette.panelElevated.opacity(0.30)
     }
 
     private func openAppointmentSheet() {
@@ -703,22 +615,10 @@ struct V054ScheduleView: View {
         }
     }
 
-    private func headerCircleButton(systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.subheadline.weight(.black))
-                .foregroundStyle(gold)
-                .frame(width: 42, height: 42)
-                .background(palette.panelElevated.opacity(0.46), in: Circle())
-                .overlay { Circle().stroke(gold.opacity(0.20), lineWidth: 1) }
-        }
-        .buttonStyle(.plain)
-    }
-
     private func sourceAccent(_ source: LifeRouteCalendarSource) -> Color {
         switch source {
-        case .manual: return gold
-        case .apple: return routeBlue
+        case .manual: return scenicStyle.accent
+        case .apple: return .blue
         case .google: return .red
         case .calendarLink: return .purple
         }

@@ -92,11 +92,27 @@ def validate_project_and_version() -> None:
             "Assets.xcassets in Resources",
             "SessionNoteContracts.swift in Sources",
             "DayRouteContracts.swift in Sources",
+            "FullRouteHandoffContracts.swift in Sources",
+            "ScenicRoyalDesignSystem.swift in Sources",
+            "ScenicRoyalMaterials.swift in Sources",
+            "ScenicRoyalEnvironment.swift in Sources",
+            "ScenicRoyalThemeBridge.swift in Sources",
+            "ScenicRoyalComponents.swift in Sources",
+            "ScenicRoyalToolbar.swift in Sources",
+            "ScenicRoyalScheduleComponents.swift in Sources",
+            "VisualTimerFeedbackContracts.swift in Sources",
+            "ScenicRoyalToolsComponents.swift in Sources",
+            "ScenicRoyalVisualTimerView.swift in Sources",
+            "ScenicRoyalResourceComponents.swift in Sources",
+            "ScenicRoyalSetupComponents.swift in Sources",
+            "ScenicRoyalClientComponents.swift in Sources",
+            "ScenicRoyalThemeComponents.swift in Sources",
         ],
         "Xcode app/extension structure",
     )
     require("LifeRouteWebView.swift in Sources" not in project, "legacy LifeRouteWebView must remain outside shipping Sources")
     require("Web in Resources" not in project, "legacy Web runtime must remain outside shipping Resources")
+    require_count(project, 'SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";', 1, "app-target Debug fixture configuration")
 
 
 def validate_active_build_path() -> None:
@@ -112,11 +128,14 @@ def validate_active_build_path() -> None:
     require("validate_current.py full" in full, "validate_full must invoke the current full semantic validator")
     require("run_session_note_contract_tests.sh" in full, "validate_full must run executable Session Note contracts")
     require("run_day_route_contract_tests.sh" in full, "validate_full must run executable Day Route contracts")
+    require("run_visual_timer_feedback_contract_tests.sh" in full, "validate_full must run executable Visual Timer feedback contracts")
     fixture_runner = read(ROOT / "scripts" / "run_session_note_contract_tests.sh")
     fixture_source = read(ROOT / "scripts" / "session_note_contract_tests.swift")
     simulator_smoke = read(ROOT / "scripts" / "run_simulator_smoke.sh")
     day_route_fixture_runner = read(ROOT / "scripts" / "run_day_route_contract_tests.sh")
     day_route_fixture_source = read(ROOT / "scripts" / "day_route_contract_tests.swift")
+    timer_fixture_runner = read(ROOT / "scripts" / "run_visual_timer_feedback_contract_tests.sh")
+    timer_fixture_source = read(ROOT / "scripts" / "visual_timer_feedback_contract_tests.swift")
     require_all(fixture_runner, ["swiftc", "SessionNoteContracts.swift", "session_note_contract_tests.swift"], "Session Note fixture runner")
     require_all(
         fixture_source,
@@ -139,7 +158,8 @@ def validate_active_build_path() -> None:
     )
     require("run_session_note_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Session Note contracts")
     require("run_day_route_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Day Route contracts")
-    require_all(day_route_fixture_runner, ["swiftc", "DayRouteContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
+    require("run_visual_timer_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Visual Timer feedback contracts")
+    require_all(day_route_fixture_runner, ["swiftc", "DayRouteContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
     require_all(
         day_route_fixture_source,
         [
@@ -151,10 +171,35 @@ def validate_active_build_path() -> None:
             "all appointments remain in the generated day",
             "events without a route address are not silently removed",
             "a saved stop can generate a stop-only day",
+            "Google full-route planning preserves the exact leg order",
+            "Google never truncates a route beyond three mobile waypoints",
+            "Apple multi-leg routes use LifeRoute sequential continuation",
+            "Waze fallback retains every ordered leg",
+            "fallback never silently sorts or rewrites malformed input",
             "persisted stops round-trip with stable identity",
             "removal prevents a deleted stop from returning",
         ],
         "Day Route executable fixtures",
+    )
+    require_all(
+        timer_fixture_runner,
+        ["swiftc", "VisualTimerFeedbackContracts.swift", "visual_timer_feedback_contract_tests.swift"],
+        "Visual Timer feedback fixture runner",
+    )
+    require_all(
+        timer_fixture_source,
+        [
+            "audible tone choices remain ordered and bounded",
+            "Soft is the sensible default audible tone",
+            "sound is enabled independently by default",
+            "disabling sound preserves the selected audible tone",
+            "late-stage urgency accelerates exponentially",
+            "pitch rises more gradually than the old full-octave sweep",
+            "VoiceOver stays quiet above one minute",
+            "completion announcement is concise",
+            "completion haptics remain available by default",
+        ],
+        "Visual Timer feedback executable fixtures",
     )
     require_all(
         warning_assessor,
@@ -203,18 +248,22 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
     require_count(root, "@StateObject private var router = AppRouter()", 1, "root router ownership")
     require_count(root, "NavigationStack(path: $router.", 5, "five independent navigation stacks")
     require_count(root, ".tag(AppSection.", 5, "five section tags")
-    require_count(root, "private struct LifeRouteBottomToolbar: View", 1, "custom toolbar ownership")
+    toolbar = sources["ScenicRoyalToolbar.swift"]
+    require_count(toolbar, "struct ScenicRoyalToolbar: View", 1, "Scenic Royal toolbar ownership")
     require_all(
         root,
         [
             "selection: $router.selectedSection",
+            "ScenicRoyalToolbar(selection: $router.selectedSection)",
             ".tabViewStyle(.page(indexDisplayMode: .never))",
             "if router.shouldShowBottomToolbar",
             ".environmentObject(router)",
             ".toolbar(.hidden, for: .tabBar)",
             "bar.isHidden = true",
+            "-LifeRouteToolsDestinationOverride",
+            "toolsDestinationOverride == .visualTimer",
         ],
-        "paged toolbar/router synchronization and UIKit suppression",
+        "paged toolbar/router synchronization, UIKit suppression, and Debug deep-screen fixture",
     )
     require("LifeRouteWebView(" not in root, "shipping root must not activate the quarantined WebView")
 
@@ -231,19 +280,289 @@ def extract_catalog(text: str, declaration: str) -> list[str]:
 
 def validate_theme_architecture(sources: dict[str, str]) -> None:
     app = sources["LifeRouteApp.swift"]
+    environment = sources["ScenicRoyalEnvironment.swift"]
     center = sources["V054ThemeCenterView.swift"]
+    theme_components = sources["ScenicRoyalThemeComponents.swift"]
     corpus = "\n".join(sources.values())
     require_count(corpus, "struct LifeRouteLiveThemeEnvironment: View", 1, "live theme environment ownership")
     require_count(app, "TimelineView(\n            .animation(", 1, "authoritative root animation clock")
-    require_all(app, ["minimumInterval: 1.0 / 20.0", "paused: reduceMotion || !isActive", "isActive: scenePhase == .active"], "lifecycle and Reduce Motion clock pausing")
+    require_all(app, ["minimumInterval: 1.0 / 20.0", "paused: reduceMotion || !isActive"], "lifecycle and Reduce Motion clock pausing")
+    require_all(environment, ["struct ScenicRoyalEnvironmentHost", "isActive: scenePhase == .active", "reduceMotion || reduceMotionOverride"], "persistent Scenic Royal environment host")
     require("Timer.scheduledTimer" not in app, "theme architecture must not introduce a competing Timer owner")
     core = extract_catalog(app, "static let phaseOneCoreGlassCatalog")
     dynamic = extract_catalog(app, "static let v071RetainedDynamicCatalog")
     scenery = extract_catalog(app, "static let v071RetainedSceneryCatalog")
     require((len(core), len(dynamic), len(scenery)) == (12, 8, 12), f"current user-facing theme catalog counts changed: core={len(core)}, dynamic={len(dynamic)}, scenery={len(scenery)}")
     require(len(set(core + dynamic + scenery)) == 32, "current user-facing theme catalogs must not overlap")
-    require_all(center, ["return LifeRouteTheme.phaseOneCoreGlassCatalog", "return LifeRouteTheme.v071RetainedDynamicCatalog", "return LifeRouteTheme.v071RetainedSceneryCatalog"], "Theme Center current catalogs")
-    require("TimelineView" not in center, "Theme Center previews must remain static")
+    require_all(
+        center,
+        [
+            "return LifeRouteTheme.phaseOneCoreGlassCatalog",
+            "return LifeRouteTheme.v071RetainedDynamicCatalog",
+            "return LifeRouteTheme.v071RetainedSceneryCatalog",
+            "@EnvironmentObject private var themeStore: LifeRouteThemeStore",
+            "themeStore.selectedTheme = theme",
+            "dynamicTypeSize.isAccessibilitySize",
+            "ScenicRoyalThemeCard",
+        ],
+        "Theme Center current catalogs and authoritative selection owner",
+    )
+    require_all(
+        theme_components,
+        [
+            "ScenicRoyalSelectedThemeHeader",
+            "ScenicRoyalThemeCategoryPicker",
+            "ScenicRoyalThemeSectionHeading",
+            "ScenicRoyalThemePreview",
+            'accessibilityValue(isSelected ? "Selected" : "Not selected")',
+            "scenicRoyalMotionCharacter",
+            "colorSchemeContrast",
+        ],
+        "Scenic Royal Theme Center presentation and accessibility",
+    )
+    require("TimelineView" not in center + theme_components, "Theme Center previews must remain static")
+
+
+def validate_clients(sources: dict[str, str]) -> None:
+    domain = sources["ClientProfileDomain.swift"]
+    clients = sources["V054ClientViews.swift"]
+    components = sources["ScenicRoyalClientComponents.swift"]
+    require_all(
+        domain,
+        [
+            "ClientProfileCoreError.duplicateCode",
+            "clients.sort",
+            "LifeRoutePersistenceStore.shared.saveClients(clients)",
+            "func removeClient(id: UUID)",
+            "static func normalizedPair",
+        ],
+        "client normalization, sorting, deletion, and persistence",
+    )
+    require_all(
+        clients,
+        [
+            "@ObservedObject var clientState: ClientProfileCore",
+            "V054AddressField(\"Client address / service location\"",
+            "clientState.saveProfile(",
+            "clientState.removeClient(id: profile.id)",
+            "dynamicTypeSize.isAccessibilitySize",
+            "ScenicRoyalClientSummaryCard",
+            "ScenicRoyalClientTextEditor",
+        ],
+        "active client list and local editor ownership",
+    )
+    require_all(
+        components,
+        [
+            "ScenicRoyalClientHeader",
+            "ScenicRoyalClientSummaryCard",
+            "ScenicRoyalClientEditorCard",
+            "ScenicRoyalClientSaveBar",
+            "dynamicTypeSize.isAccessibilitySize",
+            'accessibilityLabel("Edit client \\(profile.code)")',
+            'accessibilityLabel("Remove client \\(profile.code)")',
+            ".accessibilityHidden(true)",
+            "role: .readability",
+        ],
+        "Scenic Royal client presentation and accessibility",
+    )
+
+
+def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
+    design = sources["ScenicRoyalDesignSystem.swift"]
+    materials = sources["ScenicRoyalMaterials.swift"]
+    environment = sources["ScenicRoyalEnvironment.swift"]
+    bridge = sources["ScenicRoyalThemeBridge.swift"]
+    components = sources["ScenicRoyalComponents.swift"]
+    toolbar = sources["ScenicRoyalToolbar.swift"]
+    today = sources["V054TodayView.swift"]
+    require_all(design, ["enum ScenicRoyalDesignSystem", "minimumTouchTarget", "standardToolbarHeight", "accessibilityToolbarHeight"], "Scenic Royal design tokens")
+    require_all(
+        materials,
+        [
+            "if #available(iOS 26.0, *)",
+            "GlassEffectContainer",
+            ".glassEffect(",
+            ".ultraThinMaterial",
+            "accessibilityReduceTransparency",
+            "colorSchemeContrast",
+        ],
+        "native Liquid Glass and fallback material boundary",
+    )
+    require_all(environment, ["ScenicRoyalEnvironmentHost", "accessibilityReduceMotion", "accessibilityReduceTransparency", "scenePhase == .active"], "persistent environment accessibility boundary")
+    require_all(bridge, ["sceneryCanyonDay", "sceneryArcticDay", "sceneryRainforestDay", "royalCurrent", "scenicRoyalThemeStyle"], "theme-to-material bridge")
+    require_all(components, ["ScenicRoyalCard", "ScenicRoyalSectionHeader", "ScenicRoyalIconBadge", "ScenicRoyalPrimaryButtonStyle", "ScenicRoyalSecondaryButtonStyle"], "shared Scenic Royal components")
+    require_all(
+        components,
+        [
+            "@Environment(\\.colorSchemeContrast) private var colorSchemeContrast",
+            "@Environment(\\.accessibilityReduceTransparency) private var reduceTransparency",
+            "if reduceTransparency || colorSchemeContrast == .increased",
+            "role: .readability",
+        ],
+        "Scenic Royal root-header accessibility readability floor",
+    )
+    require_count(toolbar, "ForEach(AppSection.allCases)", 1, "five-root Scenic Royal toolbar")
+    require_all(toolbar, ["accessibilityReduceMotion", "dynamicTypeSize", 'accessibilityLabel("Main navigation")', 'accessibilityValue(isSelected ? "Selected" : "")'], "toolbar accessibility contract")
+    require_all(today, ["ScenicRoyalSectionHeader", "ScenicRoyalGlassEffectContainer", ".scenicRoyalCard(", ".scenicRoyalInteractiveSurface("], "Today Scenic Royal migration")
+    require("LifeRouteTodaySelectedExemplarArtwork" not in today, "Today must use the persistent root scenery instead of a screen-local exemplar background")
+
+
+def validate_resources(sources: dict[str, str]) -> None:
+    domain = sources["ResourcePortalDomain.swift"]
+    views = sources["ResourcePortalViews.swift"]
+    components = sources["ScenicRoyalResourceComponents.swift"]
+
+    built_in_start = domain.find("let builtInPortals: [LifeRoutePortalLink] = [")
+    built_in_end = domain.find("\n    init()", built_in_start)
+    require(built_in_start >= 0 and built_in_end > built_in_start, "Resource Portal built-in catalog must remain inspectable")
+    require_count(domain[built_in_start:built_in_end], "LifeRoutePortalLink(", 27, "Resource Portal built-in inventory")
+    require_all(
+        domain,
+        [
+            'case clinical = "ABA Data & Clinical"',
+            'case hr = "Finance & HR"',
+            'case training = "Training & Credentials"',
+            'case other = "Other Work Portals"',
+            "normalizedURLString",
+            'private static let storageKey = "liferoute.resourcePortals.v1"',
+            "customPortals.sort",
+            "func addCustomPortal",
+            "func removeCustomPortal",
+        ],
+        "Resource Portal domain and persistence",
+    )
+    require_all(
+        views,
+        [
+            "@StateObject private var portalState = ResourcePortalCore()",
+            "ScenicRoyalResourceHeader",
+            "ScenicRoyalResourceCategorySection",
+            "ScenicRoyalCustomPortalForm",
+            "ScenicRoyalResourcePrivacyNote",
+            "portalState.portals(in: category)",
+            "portalState.addCustomPortal",
+            "portalState.removeCustomPortal",
+            "openURL(url)",
+        ],
+        "Scenic Royal Resources presentation and existing state ownership",
+    )
+    require_all(
+        components,
+        [
+            "struct ScenicRoyalResourceHeader",
+            "struct ScenicRoyalResourceCategorySection",
+            "struct ScenicRoyalResourceRow",
+            "struct ScenicRoyalCustomPortalForm",
+            "LazyVStack",
+            "dynamicTypeSize.isAccessibilitySize",
+            'Label("Custom portal"',
+            '.accessibilityHint("Opens external website in your browser")',
+            '.accessibilityHint("Deletes this custom portal from LifeRoute")',
+            "ScenicRoyalInsetRow(role: .readability)",
+            "ScenicRoyalCard(role: .readability)",
+        ],
+        "Resources readability, Dynamic Type, and accessibility components",
+    )
+    require("lifeRoutePalette" not in views + components, "Resources must not restore duplicated legacy palette styling")
+    forbidden_additions = [".searchable(", "ProgressView(", "URLSession", "async throws"]
+    present = [token for token in forbidden_additions if token in views + components]
+    require(not present, f"Resources presentation added out-of-scope search/loading/network behavior: {present}")
+
+
+def validate_setup_and_address(sources: dict[str, str]) -> None:
+    setup = sources["V054SetupView.swift"]
+    address = sources["V054AddressField.swift"]
+    components = sources["ScenicRoyalSetupComponents.swift"]
+    routing = sources["RoutingLocationDomain.swift"]
+    schedule = sources["V054ScheduleView.swift"]
+
+    require_count(setup, "ScenicRoyalSetupDisclosureGroup(", 6, "six active Scenic Royal Setup groups")
+    require_count(setup, ".lifeRouteDeepDestination()", 2, "deep Setup destination toolbar suppression")
+    require("router.setBottomToolbarSuppressed(false)" in setup, "Setup root restores the five-root toolbar after deep navigation")
+    require_all(
+        setup,
+        [
+            'title: "Appearance"',
+            'title: "Profile & Work"',
+            'title: "Navigation & Places"',
+            'title: "Weekly To-Dos"',
+            'title: "Clinical"',
+            'title: "Privacy"',
+            '@EnvironmentObject private var themeStore: LifeRouteThemeStore',
+            '@ObservedObject var routingState: RoutingLocationCore',
+            '@AppStorage("liferoute.rbtProfile.name")',
+            '@AppStorage("liferoute.preferredNavigationApp")',
+            "routingState.setHomeAddress(homeDraft)",
+            "routingState.addSavedPlace(",
+            "routingState.removeSavedPlace(id: place.id)",
+            "routingState.addTodo(",
+            "routingState.setTodoCompleted",
+            "routingState.removeTodo",
+            'V054AddressField("Home address"',
+            'V054AddressField("Address or place"',
+            'V054AddressField("Location / store (optional)"',
+            ".scrollDismissesKeyboard(.interactively)",
+            "ScenicRoyalPrimaryButtonStyle",
+            "ScenicRoyalSetupCard",
+        ],
+        "Scenic Royal Setup presentation and existing state ownership",
+    )
+    require_all(
+        components,
+        [
+            "struct ScenicRoyalSetupHeader",
+            "struct ScenicRoyalSetupDisclosureGroup",
+            "struct ScenicRoyalSetupCard",
+            "struct ScenicRoyalSavedPlaceRow",
+            "struct ScenicRoyalTodoRow",
+            "dynamicTypeSize.isAccessibilitySize",
+            "accessibilityReduceMotion",
+            "ScenicRoyalInsetRow(role: .readability)",
+            '.accessibilityHint("Deletes this saved place from LifeRoute")',
+            '.accessibilityHint("Marks this weekly to-do completed")',
+        ],
+        "Setup readability, Dynamic Type, Reduce Motion, and VoiceOver components",
+    )
+    require_all(
+        address,
+        [
+            "@StateObject private var autocomplete = LifeRouteAddressAutocomplete()",
+            "@FocusState private var isFocused: Bool",
+            "LifeRouteDestinationIntent.matches(text)",
+            "if isFocused && (!flexibleIntents.isEmpty || !autocomplete.suggestions.isEmpty)",
+            "autocomplete.update(query: value)",
+            "autocomplete.clear()",
+            "text = intent.storedValue",
+            "text = suggestion.addressText",
+            ".onSubmit(dismissSuggestions)",
+            "scenicRoyalInteractiveSurface(",
+            "role: .readability",
+            '.accessibilityHint("Fills the address field and dismisses suggestions")',
+            "Submit to keep manual entry.",
+        ],
+        "shared Scenic Royal address field behavior and accessibility",
+    )
+    require_all(
+        routing,
+        [
+            "final class LifeRouteAddressAutocomplete: NSObject, ObservableObject, MKLocalSearchCompleterDelegate",
+            "Array(completer.results.prefix(6))",
+            "completer.resultTypes = [.address, .pointOfInterest]",
+            "Address suggestions are temporarily unavailable. You can still type the address manually.",
+        ],
+        "authoritative MapKit autocomplete and manual-entry fallback",
+    )
+    require_all(
+        schedule,
+        [
+            'V054AddressField("Appointment location", text: $location)',
+            "calendarState.addManualEvent",
+        ],
+        "Schedule shared-address-field integration",
+    )
+    require("lifeRoutePalette" not in setup + address + components, "Phase 6A Setup presentation must not restore screen-local legacy palette styling")
+    require("ViewModel" not in setup + address + components, "Phase 6A must not introduce a duplicate Setup/address view model")
 
 
 def validate_clinical_and_aba(sources: dict[str, str]) -> None:
@@ -256,8 +575,28 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
     app = sources["LifeRouteApp.swift"]
     require_all(tools_domain, ["struct ClientChoiceBoard", "struct ClientVisualSchedule", "final class ClientVisualSupportCore", "General visual library"], "ABA visual domain")
     require_all(sources["PersistenceCore.swift"], ["generalVisualLibraryID", "generalVisualLibraryCode", "codeByClientID[Self.generalVisualLibraryID]"], "protected General visual library persistence")
-    require_all(tools_views, ["ClientVisualSupportCenter", "ClientVisualIconLibraryView", "ClientChoiceBoardBuilderView", "ClientFirstThenVisualView", "ClientVisualScheduleBuilderView", "VisualTimerView", "QuickSessionNotesView", "SessionPlanOrganizerView"], "Build 106 ABA/session surfaces")
-    require_all(dashboard, ["AISessionNoteGeneratorView", "AISessionPlanBuilderView", 'title: "Session Note"', 'title: "Session Plan"'], "Tools clinical entry points")
+    require_all(tools_views, ["ClientVisualSupportCenter", "ClientVisualIconLibraryView", "ClientChoiceBoardBuilderView", "ClientFirstThenVisualView", "ClientVisualScheduleBuilderView", "QuickSessionNotesView", "SessionPlanOrganizerView"], "Build 106 ABA/session surfaces")
+    require_all(
+        dashboard,
+        [
+            "ScenicRoyalToolTile",
+            "ScenicRoyalGlassEffectContainer",
+            "VisualTimerView(timer: toolsState.timer)",
+            "ClientFirstThenVisualView",
+            "VisualAIAssistedStudioView",
+            "QuickSessionNotesView",
+            "AISessionPlanBuilderView",
+            "AISessionNoteGeneratorView",
+            'title: "Visual Timer"',
+            'title: "First / Then"',
+            'title: "Visual Supports"',
+            'title: "Quick Notes"',
+            'title: "AI Session Plan"',
+            'title: "AI Session Note"',
+        ],
+        "Scenic Royal Tools dashboard and six approved entry points",
+    )
+    require("ClientVisualScheduleBuilderView(" not in dashboard, "Visual Schedule must remain hidden from the active Tools dashboard")
     require_all(
         clinical,
         [
@@ -429,9 +768,12 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
 def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
     calendar = sources["CalendarDomain.swift"]
     providers = sources["CalendarProviderCore.swift"]
+    schedule = sources["V054ScheduleView.swift"]
+    schedule_components = sources["ScenicRoyalScheduleComponents.swift"]
     routing = sources["RoutingLocationDomain.swift"]
     day_route = sources["DayRoutePlanningCore.swift"]
     day_route_contracts = sources["DayRouteContracts.swift"]
+    full_route_contracts = sources["FullRouteHandoffContracts.swift"]
     day_route_view = sources["DayRoutePlanningView.swift"]
     setup = sources["V054SetupView.swift"]
     today = sources["V054TodayView.swift"]
@@ -439,10 +781,40 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
     migration = sources["LegacyMigrationCore.swift"]
     require_all(calendar, ["case day", "case week", "case month", "loadManualCalendarEvents", "addManualEvent", "removeEvent", "persistManualEvents"], "calendar range/manual appointment behavior")
     require_all(providers, ["EKEventStore", "https://www.googleapis.com/auth/calendar.readonly", "ASWebAuthenticationSession", "kSecClassGenericPassword"], "Apple/Google read-only calendar providers")
+    require_all(
+        schedule,
+        [
+            "ScenicRoyalScreenHeader",
+            "ScenicRoyalCalendarDateChip",
+            "ScenicRoyalCalendarMonthDay",
+            "ScenicRoyalScheduleEventRow",
+            "ScenicRoyalTravelPlanLabel",
+            "ScenicRoyalCalendarConnectionLabel",
+            "ScenicRoyalGlassEffectContainer",
+            "calendarState.presentation(for: selectedRange)",
+            "calendarState.addManualEvent",
+            "calendarState.replaceProviderEvents",
+        ],
+        "Scenic Royal Schedule presentation and existing state ownership",
+    )
+    require_all(
+        schedule_components,
+        [
+            "dynamicTypeSize.isAccessibilitySize",
+            "ScenicRoyalInsetRow",
+            "ScenicRoyalRouteLegRow",
+            'accessibilityHint("Opens full-day route planning")',
+            'accessibilityHint("Opens calendar connection settings")',
+        ],
+        "Schedule readability, Dynamic Type, and accessibility components",
+    )
+    require("palette.panel" not in schedule, "Schedule must not restore duplicated legacy panel styling")
     require_all(routing, ["CLLocationManager", "requestWhenInUseAuthorization", "allowsBackgroundLocationUpdates = false", "savedPlaces", "todos", "dayStops", "addDayStop", "removeDayStop", "MKDirections", "openInMaps"], "foreground routing and saved-place ownership")
-    require_all(day_route, ["case appleMaps", "case googleMaps", "case waze", "returnHome", "LifeRouteDaySequenceBuilder.waypoints", "MKMapItem.openMaps"], "day-route handoff behavior")
+    require_all(day_route, ["startFullRoute", "continueFullRoute", "nextSequentialLegIndex", "returnHome", "LifeRouteDaySequenceBuilder.waypoints", "MKMapItem.openMaps"], "day-route handoff behavior")
     require_all(day_route_contracts, ["LifeRouteDayStop: Identifiable, Codable", "LifeRouteDayStopCollection", "LifeRouteDaySequenceBuilder", "before + events + after"], "persistent per-day stop and full-day sequence contract")
-    require_all(day_route_view, ["routingState.dayStops(on: day)", "routingState.addDayStop", "routingState.removeDayStop", '"Generate full day route"'], "Day Route persisted-stop presentation")
+    require_all(full_route_contracts, ["completeGoogleMaps", "completeAppleMaps", "maximumGoogleMobileWaypoints = 3", "maximumURLLength = 2_048", "hasVerifiedSequence", "sequentialPlan"], "bounded provider full-route contract")
+    require_all(day_route_view, ["routingState.dayStops(on: day)", "routingState.addDayStop", "routingState.removeDayStop", '"Generate full day route"', '"Start full route in \\(plan.provider.title)"', "ScenicRoyalRouteLegRow", "scenicRoyalField()"], "Day Route persisted-stop, Scenic Royal presentation, and one-action handoff")
+    require("Open this leg" not in day_route_view, "Day Route must not expose separate normal-flow launch actions for each leg")
     require_all(setup + today, ["Weekly To-Dos", "gap suggestions"], "weekly To-Dos and gap suggestions")
     require_all(persistence, ["schemaVersion", "PersistedVisualIcon", "PersistedChoiceBoard", "PersistedVisualSchedule", "dayStops", "manualCalendarEvents", "providerCalendarEvents", "FileProtectionType.completeUntilFirstUserAuthentication", "options: [.atomic]", "private actor SnapshotWriter"], "native persistence and protected visual storage")
     require_all(today, ["selectedDayStops", "selectedDayPlanWaypoints", "liveDaySequence", "dayStops: selectedDayStops"], "generated Live Day includes persisted stops")
@@ -451,12 +823,63 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
 
 def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
     timer = sources["SessionToolsDomain.swift"]
-    timer_view = sources["SessionToolsViews.swift"]
+    timer_contracts = sources["VisualTimerFeedbackContracts.swift"]
+    timer_view = sources["ScenicRoyalVisualTimerView.swift"]
     live = sources["LiveDayActivityCore.swift"]
     attributes = sources["LiveDayActivityAttributes.swift"]
     widget = sources["LiveDayLiveActivityWidget.swift"]
-    require_all(timer, ["private static let startFrequency = 432.0", "private static let endFrequency = 864.0", "func start(minutes:", "func pause(", "func resume(", "func addMinute(", "func reset()"], "Visual Timer domain")
-    require_all(timer_view, ["TimelineView(.periodic(from: .now, by: 0.10))", "timer.start", "timer.pause", "timer.resume", "timer.addMinute", "timer.reset"], "Visual Timer presentation")
+    require_all(
+        timer,
+        [
+            "func start(minutes:",
+            "func pause(",
+            "func resume(",
+            "func addMinute(",
+            "func reset()",
+            "VisualTimerFeedbackCurve.pulsesPerSecond",
+            "VisualTimerFeedbackCurve.frequency",
+            "VisualTimerFeedbackCurve.signalGain",
+            "session.setCategory(.ambient",
+            "liferoute.visualTimer.toneProfile.v1",
+            "liferoute.visualTimer.soundEnabled.v1",
+            "liferoute.visualTimer.volume.v1",
+            "liferoute.visualTimer.completionHaptics.v1",
+        ],
+        "Visual Timer countdown ownership and feedback integration",
+    )
+    require_all(
+        timer_contracts,
+        [
+            "enum VisualTimerToneProfile",
+            "case warm",
+            "case soft",
+            "case clear",
+            "let soundEnabled: Bool",
+            "let exponent = 4.0",
+            "pow(clamped(elapsedProgress), 1.65)",
+            "enum VisualTimerAccessibilityMilestone",
+        ],
+        "Visual Timer pure feedback contract",
+    )
+    require_all(
+        timer_view,
+        [
+            "TimelineView(.periodic",
+            "reduceMotion ? 1.0 : 0.10",
+            "timer.start",
+            "timer.pause",
+            "timer.resume",
+            "timer.addMinute",
+            "timer.reset",
+            "VisualTimerToneProfile.allCases",
+            "timer.setSoundEnabled",
+            "UIAccessibility.post(notification: .announcement",
+            "completionHapticsEnabled",
+            "ScenicRoyalTimerDial",
+            "-LifeRouteVisualTimerAutoStart",
+        ],
+        "Scenic Royal Visual Timer presentation and accessibility",
+    )
     require_all(live + attributes + widget, ["ActivityKit", "LifeRouteLiveDayAttributes", "plannedStopSummary", "returnHomePlanned", "Activity.request", "DynamicIsland", "ActivityConfiguration"], "Live Day app/extension contract")
 
 
@@ -502,6 +925,10 @@ def run_fast() -> None:
     validate_active_build_path()
     validate_navigation_and_ownership(sources)
     validate_theme_architecture(sources)
+    validate_clients(sources)
+    validate_scenic_royal_foundation(sources)
+    validate_resources(sources)
+    validate_setup_and_address(sources)
     validate_clinical_and_aba(sources)
 
 

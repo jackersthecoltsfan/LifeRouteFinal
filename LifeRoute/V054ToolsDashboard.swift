@@ -2,112 +2,134 @@ import SwiftUI
 import Foundation
 
 struct V054ToolsDashboard: View {
-    @Environment(\.lifeRoutePalette) private var palette
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.scenicRoyalThemeStyle) private var scenicStyle
+
     @ObservedObject var router: AppRouter
     @ObservedObject var toolsState: SessionToolsCore
     @ObservedObject var clientState: ClientProfileCore
+
     @StateObject private var visualState = ClientVisualSupportCore()
 
-    private var sessionColumns: [GridItem] {
+    private var toolColumns: [GridItem] {
         if dynamicTypeSize.isAccessibilitySize {
-            return [GridItem(.flexible(), spacing: 10)]
+            return [GridItem(.flexible(), spacing: ScenicRoyalDesignSystem.Spacing.standard)]
         }
         return [
-            GridItem(.flexible(), spacing: 10),
-            GridItem(.flexible(), spacing: 10),
+            GridItem(.flexible(), spacing: ScenicRoyalDesignSystem.Spacing.standard),
+            GridItem(.flexible(), spacing: ScenicRoyalDesignSystem.Spacing.standard),
         ]
     }
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 13) {
-                toolsHeader
-                readinessStrip
-
-                LifeRouteSectionLabel(title: "Clinical")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                NavigationLink {
-                    AISessionNoteGeneratorView(clientState: clientState, toolsState: toolsState)
-                        .lifeRouteDeepDestination()
-                } label: {
-                    clinicalCard(
-                        title: "Session Note",
-                        subtitle: "Turn supplied session facts into a reviewable ABA draft.",
-                        systemImage: "sparkles.rectangle.stack.fill",
-                        eyebrow: "DOCUMENTATION"
-                    )
+            LazyVStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
+                ScenicRoyalScreenHeader(
+                    title: "Tools",
+                    subtitle: "Practical support for clearer, calmer sessions."
+                ) {
+                    ScenicRoyalIconBadge(systemImage: "wrench.and.screwdriver")
                 }
-                .buttonStyle(.plain)
-                .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
 
-                NavigationLink {
-                    AISessionPlanBuilderView(clientState: clientState)
-                        .lifeRouteDeepDestination()
-                } label: {
-                    clinicalCard(
-                        title: "Session Plan",
-                        subtitle: "Organize approved targets, reinforcers, and session time into a usable flow.",
-                        systemImage: "brain.head.profile",
-                        eyebrow: "PREP"
-                    )
-                }
-                .buttonStyle(.plain)
-                .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
+                readinessCard
 
-                LifeRouteSectionLabel(title: "In Session")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 2)
+                ScenicRoyalSectionHeader(
+                    "Session toolkit",
+                    subtitle: "Choose a focused tool and keep your current client context.",
+                    systemImage: "square.grid.2x2"
+                )
 
-                LazyVGrid(columns: sessionColumns, spacing: 10) {
-                    NavigationLink {
-                        VisualTimerView(timer: toolsState.timer)
-                            .lifeRouteDeepDestination()
-                    } label: {
-                        sessionToolCard("Visual Timer", "Reliable timing", "timer")
+                ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                    LazyVGrid(columns: toolColumns, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                        NavigationLink {
+                            VisualTimerView(timer: toolsState.timer)
+                                .lifeRouteDeepDestination()
+                        } label: {
+                            ScenicRoyalToolTile(
+                                title: "Visual Timer",
+                                subtitle: "A calm countdown with visual, tone, and haptic choices.",
+                                systemImage: "timer"
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink {
+                            ClientFirstThenVisualView(visualState: visualState, clientState: clientState)
+                                .lifeRouteDeepDestination()
+                        } label: {
+                            ScenicRoyalToolTile(
+                                title: "First / Then",
+                                subtitle: "Build a clear two-step visual sequence.",
+                                systemImage: "arrow.right.square"
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink {
+                            VisualAIAssistedStudioView(visualState: visualState, clientState: clientState)
+                                .lifeRouteDeepDestination()
+                        } label: {
+                            ScenicRoyalToolTile(
+                                title: "Visual Supports",
+                                subtitle: "Create and reuse icons, boards, and ABA visuals.",
+                                systemImage: "photo.on.rectangle.angled"
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink {
+                            QuickSessionNotesView(toolsState: toolsState, clientState: clientState)
+                                .lifeRouteDeepDestination()
+                        } label: {
+                            ScenicRoyalToolTile(
+                                title: "Quick Notes",
+                                subtitle: "Capture useful session details with minimal friction.",
+                                systemImage: "note.text"
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink {
+                            AISessionPlanBuilderView(clientState: clientState)
+                                .lifeRouteDeepDestination()
+                        } label: {
+                            ScenicRoyalToolTile(
+                                title: "AI Session Plan",
+                                subtitle: "Organize approved targets and reinforcers into a flow.",
+                                systemImage: "brain.head.profile"
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink {
+                            AISessionNoteGeneratorView(clientState: clientState, toolsState: toolsState)
+                                .lifeRouteDeepDestination()
+                        } label: {
+                            ScenicRoyalToolTile(
+                                title: "AI Session Note",
+                                subtitle: "Create an evidence-bound draft for review and editing.",
+                                systemImage: "doc.text.magnifyingglass"
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-
-                    NavigationLink {
-                        QuickSessionNotesView(toolsState: toolsState, clientState: clientState)
-                            .lifeRouteDeepDestination()
-                    } label: {
-                        sessionToolCard("Quick Notes", "Capture details fast", "note.text")
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink {
-                        ClientFirstThenVisualView(visualState: visualState, clientState: clientState)
-                            .lifeRouteDeepDestination()
-                    } label: {
-                        sessionToolCard("First / Then", "Clear visual sequence", "arrow.right.circle.fill")
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink {
-                        VisualAIAssistedStudioView(visualState: visualState, clientState: clientState)
-                            .lifeRouteDeepDestination()
-                    } label: {
-                        sessionToolCard("Visual Supports", "Icons, boards, and ABA visuals", "photo.on.rectangle.angled")
-                    }
-                    .buttonStyle(.plain)
                 }
 
                 clientContextCard
 
                 Label(
-                    "AI drafts use Apple’s on-device model when available. Review clinical output before use.",
-                    systemImage: "lock.shield.fill"
+                    "AI drafts use Apple’s on-device model when available. Review every clinical output before use.",
+                    systemImage: "lock.shield"
                 )
                 .font(.caption)
-                .foregroundStyle(palette.textSecondary)
+                .foregroundStyle(scenicStyle.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 2)
+                .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.hairline)
+                .accessibilityElement(children: .combine)
             }
-            .padding(.horizontal, LifeRouteDesign.Layout.pageHorizontal)
-            .padding(.top, 10)
-            .padding(.bottom, 28)
+            .padding(.horizontal, ScenicRoyalDesignSystem.Layout.pageHorizontal)
+            .padding(.top, ScenicRoyalDesignSystem.Spacing.compact)
+            .padding(.bottom, ScenicRoyalDesignSystem.Spacing.spacious * 2)
         }
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
@@ -119,143 +141,81 @@ struct V054ToolsDashboard: View {
         }
     }
 
-    private var toolsHeader: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Tools")
-                    .font(.system(size: 31, weight: .black, design: .rounded))
-                    .foregroundStyle(palette.textPrimary)
-                Text("ABA workflow, ready when you are.")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(palette.textSecondary)
+    private var readinessCard: some View {
+        ScenicRoyalInsetRow(role: .readability) {
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                        readinessStatus
+                        manageClientsButton
+                    }
+                } else {
+                    HStack(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                        readinessStatus
+                        Spacer(minLength: ScenicRoyalDesignSystem.Spacing.hairline)
+                        manageClientsButton
+                    }
+                }
             }
-
-            Spacer(minLength: 8)
-
-            LifeRouteIconBadge(systemImage: "wrench.and.screwdriver.fill", prominent: true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var readinessStrip: some View {
-        HStack(spacing: 10) {
+    private var readinessStatus: some View {
+        HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
             Image(systemName: clientState.clients.isEmpty ? "person.crop.circle.badge.questionmark" : "person.crop.circle.fill")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(palette.accent)
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(scenicStyle.accent)
+                .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
                 Text(clientState.clients.isEmpty ? "General mode ready" : "Client context ready")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(palette.textPrimary)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(scenicStyle.primaryText)
                 Text(clientState.clients.isEmpty ? "No client profile required for core tools." : "\(clientState.clients.count) saved client profile\(clientState.clients.count == 1 ? "" : "s") available.")
-                    .font(.caption2)
-                    .foregroundStyle(palette.textSecondary)
-            }
-
-            Spacer(minLength: 4)
-
-            Button("Manage") {
-                LifeRouteHaptics.selection()
-                router.select(.setup)
-            }
-            .font(.caption.weight(.bold))
-            .foregroundStyle(palette.accent)
-            .frame(minHeight: 44)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .background(palette.panel.opacity(0.58), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.07), lineWidth: 1)
-        }
-    }
-
-    private func clinicalCard(title: String, subtitle: String, systemImage: String, eyebrow: String) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(palette.accent.opacity(0.14))
-                Image(systemName: systemImage)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundStyle(palette.accent)
-            }
-            .frame(width: 50, height: 50)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(eyebrow)
-                    .font(.caption2.weight(.black))
-                    .tracking(0.9)
-                    .foregroundStyle(palette.accentSecondary)
-                Text(title)
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(palette.textPrimary)
-                Text(subtitle)
                     .font(.caption)
-                    .foregroundStyle(palette.textSecondary)
-                    .lineLimit(2)
+                    .foregroundStyle(scenicStyle.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-
-            Spacer(minLength: 4)
-
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.black))
-                .foregroundStyle(palette.textSecondary)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.panel.opacity(0.64), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                .stroke(palette.accent.opacity(0.18), lineWidth: 1)
         }
     }
 
-    private func sessionToolCard(_ title: String, _ subtitle: String, _ systemImage: String) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
-            LifeRouteIconBadge(systemImage: systemImage, prominent: true)
-
-            Text(title)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(palette.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(subtitle)
-                .font(.caption2)
-                .foregroundStyle(palette.textSecondary)
-                .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
+    private var manageClientsButton: some View {
+        Button("Manage clients") {
+            LifeRouteHaptics.selection()
+            router.select(.setup)
         }
-        .frame(maxWidth: .infinity, minHeight: 118, alignment: .leading)
-        .padding(12)
-        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                .stroke(Color.white.opacity(0.07), lineWidth: 1)
-        }
+        .font(.caption.weight(.bold))
+        .foregroundStyle(scenicStyle.accent)
+        .frame(
+            maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil,
+            minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget,
+            alignment: .leading
+        )
+        .accessibilityHint("Opens Setup to manage client profiles")
     }
 
     private var clientContextCard: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "person.2.fill")
-                .foregroundStyle(palette.accent)
-                .frame(width: 34, height: 34)
-                .background(palette.accent.opacity(0.12), in: Circle())
+        ScenicRoyalCard(role: .card) {
+            HStack(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                Image(systemName: "person.2")
+                    .foregroundStyle(scenicStyle.accent)
+                    .frame(width: 34, height: 34)
+                    .scenicRoyalSurface(role: .ambient, cornerRadius: 17)
+                    .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Client context")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(palette.textPrimary)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(scenicStyle.primaryText)
                 Text(clientState.clients.isEmpty ? "General tools only" : "General + saved ABA client codes")
-                    .font(.caption2)
-                    .foregroundStyle(palette.textSecondary)
-            }
+                        .font(.caption)
+                        .foregroundStyle(scenicStyle.secondaryText)
+                }
 
-            Spacer()
+                Spacer(minLength: 0)
+            }
+            .accessibilityElement(children: .combine)
         }
-        .padding(.horizontal, 11)
-        .frame(minHeight: 48)
-        .background(palette.panel.opacity(0.42), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 

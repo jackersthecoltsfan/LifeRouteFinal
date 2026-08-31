@@ -14,6 +14,7 @@ trap 'rm -rf "$FIXTURE_DIRECTORY"' EXIT
 
 swiftc \
   LifeRoute/DayRouteContracts.swift \
+  LifeRoute/FullRouteHandoffContracts.swift \
   scripts/day_route_contract_tests.swift \
   -o "$FIXTURE_DIRECTORY/day-route-contract-tests"
 

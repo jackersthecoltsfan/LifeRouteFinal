@@ -198,41 +198,24 @@ struct ContentUnavailableView: View {
     }
 
     var body: some View {
-        VStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [palette.accent.opacity(0.20), palette.accentSecondary.opacity(0.08)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                Image(systemName: systemImage)
-                    .font(.system(size: 27, weight: .bold))
-                    .foregroundStyle(palette.accent)
-            }
-            .frame(width: 64, height: 64)
-            .shadow(color: palette.accent.opacity(0.12), radius: 14)
+        ScenicRoyalCard(role: .readability) {
+            VStack(spacing: 14) {
+                ScenicRoyalIconBadge(systemImage: systemImage)
 
-            VStack(spacing: 6) {
-                Text(title)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(palette.textPrimary)
-                description
-                    .font(.subheadline)
-                    .foregroundStyle(palette.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(spacing: 6) {
+                    Text(title)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(palette.textPrimary)
+                    description
+                        .font(.subheadline)
+                        .foregroundStyle(palette.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 22)
-        .padding(.horizontal, 14)
-        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
-                .stroke(palette.accent.opacity(0.18), lineWidth: 1)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .accessibilityElement(children: .combine)
         }
     }
 }

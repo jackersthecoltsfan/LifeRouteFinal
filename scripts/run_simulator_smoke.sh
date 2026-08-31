@@ -10,6 +10,7 @@ mkdir -p "$OUTPUT_DIRECTORY"
 
 bash "$(cd "$(dirname "$0")" && pwd)/run_session_note_contract_tests.sh"
 bash "$(cd "$(dirname "$0")" && pwd)/run_day_route_contract_tests.sh"
+bash "$(cd "$(dirname "$0")" && pwd)/run_visual_timer_feedback_contract_tests.sh"
 
 DEVICE_ID="$(xcrun simctl list --json devices available | python3 -c '
 import json, sys

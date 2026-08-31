@@ -121,7 +121,7 @@ struct V054SetupView: View {
     }
 
     private var rbtProfileCard: some View {
-        ScenicRoyalSetupCard(
+        ScenicRoyalLabeledCard(
             title: "RBT Profile",
             subtitle: "Your work identity stays separate from client profiles and is stored locally.",
             systemImage: "person.crop.circle.badge.checkmark"
@@ -159,7 +159,7 @@ struct V054SetupView: View {
     }
 
     private var navigationAppCard: some View {
-        ScenicRoyalSetupCard(
+        ScenicRoyalLabeledCard(
             title: "Navigation app",
             subtitle: "Choose the provider used to launch routes. Estimates remain MapKit-powered inside LifeRoute.",
             systemImage: "location.north.circle.fill"
@@ -236,7 +236,7 @@ struct V054SetupView: View {
     }
 
     private var homeCard: some View {
-        ScenicRoyalSetupCard(
+        ScenicRoyalLabeledCard(
             title: "Home Base",
             subtitle: "Routing fallback when live location is unavailable; also powers Return Home.",
             systemImage: "house.fill"
@@ -255,7 +255,7 @@ struct V054SetupView: View {
     }
 
     private var savedPlacesCard: some View {
-        ScenicRoyalSetupCard(
+        ScenicRoyalLabeledCard(
             title: "Saved Places",
             subtitle: "\(routingState.savedPlaces.count) saved place\(routingState.savedPlaces.count == 1 ? "" : "s") for routing, stops, and gap planning.",
             systemImage: "bookmark.fill"
@@ -270,7 +270,7 @@ struct V054SetupView: View {
                     ForEach(routingState.savedPlaces) { place in
                         ScenicRoyalSavedPlaceRow(
                             place: place,
-                            systemImage: icon(for: place.kind)
+                            systemImage: place.kind.scenicRoyalSystemImage
                         ) {
                             routingState.removeSavedPlace(id: place.id)
                         }
@@ -284,7 +284,7 @@ struct V054SetupView: View {
         let openTodos = routingState.todos.filter { !$0.completed }
         let completedTodos = routingState.todos.filter(\.completed).prefix(3)
 
-        return ScenicRoyalSetupCard(
+        return ScenicRoyalLabeledCard(
             title: "Weekly To-Dos",
             subtitle: "\(openTodos.count) open · flexible errands and tasks LifeRoute can fit around your week.",
             systemImage: "checklist"
@@ -330,7 +330,7 @@ struct V054SetupView: View {
     }
 
     private var addTodoCard: some View {
-        ScenicRoyalSetupCard(
+        ScenicRoyalLabeledCard(
             title: "Add To-Do",
             subtitle: "Create a flexible task with optional place and timing context.",
             systemImage: "plus.circle.fill"
@@ -418,7 +418,7 @@ struct V054SetupView: View {
     }
 
     private var addPlaceCard: some View {
-        ScenicRoyalSetupCard(
+        ScenicRoyalLabeledCard(
             title: "Add Place",
             subtitle: "Save a reusable stop for routing, Generate Full Day, and gap planning.",
             systemImage: "mappin.and.ellipse"
@@ -456,7 +456,7 @@ struct V054SetupView: View {
     }
 
     private var privacyCard: some View {
-        ScenicRoyalSetupCard(
+        ScenicRoyalLabeledCard(
             title: "Local-First Setup",
             subtitle: "Your configuration remains on this device unless an existing system service is explicitly opened.",
             systemImage: "lock.shield.fill"
@@ -545,16 +545,4 @@ struct V054SetupView: View {
         }
     }
 
-    private func icon(for kind: LifeRoutePlaceKind) -> String {
-        switch kind {
-        case .gym: return "figure.strengthtraining.traditional"
-        case .work: return "briefcase.fill"
-        case .coffee: return "cup.and.saucer.fill"
-        case .grocery: return "cart.fill"
-        case .park: return "leaf.fill"
-        case .library: return "books.vertical.fill"
-        case .errand: return "checklist"
-        case .other: return "mappin.circle.fill"
-        }
-    }
 }

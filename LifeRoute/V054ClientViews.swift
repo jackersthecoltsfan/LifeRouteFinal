@@ -115,7 +115,7 @@ struct V054ClientEditorView: View {
     }
 
     private var codeCard: some View {
-        ScenicRoyalClientEditorCard(
+        ScenicRoyalLabeledCard(
             title: "ABA client code",
             subtitle: "Use first two + last two initials only.",
             systemImage: "person.text.rectangle"
@@ -156,7 +156,7 @@ struct V054ClientEditorView: View {
     }
 
     private var locationCard: some View {
-        ScenicRoyalClientEditorCard(
+        ScenicRoyalLabeledCard(
             title: "Service location",
             subtitle: "Start typing and choose a MapKit suggestion, or keep a manual address.",
             systemImage: "mappin.and.ellipse"
@@ -166,7 +166,7 @@ struct V054ClientEditorView: View {
     }
 
     private var sessionSupportsCard: some View {
-        ScenicRoyalClientEditorCard(
+        ScenicRoyalLabeledCard(
             title: "Session supports",
             subtitle: "One item per line, comma, or semicolon.",
             systemImage: "list.bullet.rectangle"
@@ -178,7 +178,7 @@ struct V054ClientEditorView: View {
     }
 
     private var clinicalContextCard: some View {
-        ScenicRoyalClientEditorCard(
+        ScenicRoyalLabeledCard(
             title: "Clinical context",
             subtitle: "Keep only concise context needed during sessions.",
             systemImage: "note.text"

@@ -203,30 +203,3 @@ struct LifeRouteDynamicWaveBackdrop: View {
         }
     }
 }
-
-struct LifeRouteCinematicThemeThumbnail: View {
-    let theme: LifeRouteTheme
-
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            LifeRouteCinematicBackdrop(theme: theme, palette: theme.palette, compact: true)
-
-            LinearGradient(
-                colors: [.clear, Color.black.opacity(0.76)],
-                startPoint: .center,
-                endPoint: .bottom
-            )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(theme.name)
-                    .font(.subheadline.weight(.black))
-                    .foregroundStyle(.white)
-                Text(theme.cinematicTreatmentLabel)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.72))
-            }
-            .padding(11)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-}

@@ -22,6 +22,34 @@ struct ScenicRoyalCard<Content: View>: View {
     }
 }
 
+struct ScenicRoyalLabeledCard<Content: View>: View {
+    let title: String
+    let subtitle: String?
+    let systemImage: String
+    private let content: Content
+
+    init(
+        title: String,
+        subtitle: String? = nil,
+        systemImage: String,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.systemImage = systemImage
+        self.content = content()
+    }
+
+    var body: some View {
+        ScenicRoyalCard(role: .readability) {
+            VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                ScenicRoyalSectionHeader(title, subtitle: subtitle, systemImage: systemImage)
+                content
+            }
+        }
+    }
+}
+
 struct ScenicRoyalSectionHeader: View {
     @Environment(\.scenicRoyalThemeStyle) private var style
 
@@ -256,5 +284,20 @@ extension View {
                 role: .ambient,
                 cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
             )
+    }
+}
+
+extension LifeRoutePlaceKind {
+    var scenicRoyalSystemImage: String {
+        switch self {
+        case .gym: "figure.strengthtraining.traditional"
+        case .work: "briefcase.fill"
+        case .coffee: "cup.and.saucer.fill"
+        case .grocery: "cart.fill"
+        case .park: "leaf.fill"
+        case .library: "books.vertical.fill"
+        case .errand: "checklist"
+        case .other: "mappin.circle.fill"
+        }
     }
 }

@@ -189,6 +189,7 @@ struct ScenicRoyalInsetRow<Content: View>: View {
 struct ScenicRoyalPrimaryButtonStyle: ButtonStyle {
     @Environment(\.scenicRoyalThemeStyle) private var style
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -208,7 +209,7 @@ struct ScenicRoyalPrimaryButtonStyle: ButtonStyle {
                 RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
                     .stroke(Color.white.opacity(0.24), lineWidth: ScenicRoyalDesignSystem.Stroke.subtle)
             }
-            .opacity(configuration.isPressed ? 0.84 : 1)
+            .opacity(isEnabled ? (configuration.isPressed ? 0.84 : 1) : 0.46)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
             .animation(
                 reduceMotion ? nil : ScenicRoyalDesignSystem.Motion.selection,

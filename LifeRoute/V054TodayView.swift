@@ -630,8 +630,8 @@ struct V054TodayView: View {
                     .font(.title3.weight(.bold))
                     .foregroundStyle(scenicStyle.primaryText)
                 Spacer()
-                if liveActivity.isActive {
-                    Text("LIVE")
+                if liveActivity.isRunning {
+                    Text("IN APP")
                         .font(.caption2.weight(.black))
                         .foregroundStyle(Color.black.opacity(0.78))
                         .padding(.horizontal, 8)
@@ -640,7 +640,7 @@ struct V054TodayView: View {
                 }
             }
 
-            Text("The in-app status and Lock Screen use this generated itinerary and the same route-aware departure deadline.")
+            Text("The in-app status and optional Lock Screen projection use this generated itinerary and the same route-aware departure deadline.")
                 .font(.caption)
                 .foregroundStyle(scenicStyle.secondaryText)
 
@@ -661,7 +661,7 @@ struct V054TodayView: View {
                 }
             }
 
-            if liveActivity.isActive {
+            if liveActivity.isRunning {
                 HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
                     Button("Refresh") {
                         LifeRouteHaptics.primaryAction()
@@ -680,11 +680,17 @@ struct V054TodayView: View {
                     LifeRouteHaptics.primaryAction()
                     Task { await liveActivity.start(itinerary: itinerary) }
                 } label: {
-                    Label("Start Live Day", systemImage: "lock.iphone")
+                    Label("Start Live Day", systemImage: "figure.walk.motion")
                 }
                 .buttonStyle(ScenicRoyalPrimaryButtonStyle())
-                .disabled(LifeRouteLiveDayProjection.make(from: itinerary, at: Date()) == nil)
             }
+
+            Label(
+                liveActivity.activityStatus.userFacingDetail,
+                systemImage: liveActivity.isLockScreenActive ? "lock.iphone" : "iphone.slash"
+            )
+            .font(.caption)
+            .foregroundStyle(liveActivity.isLockScreenActive ? scenicStyle.accent : scenicStyle.secondaryText)
 
             if let message = liveActivity.message {
                 Text(message)
@@ -720,7 +726,7 @@ struct V054TodayView: View {
 
     private func generateFullDay() {
         guard canGenerate else { return }
-        if liveActivity.isActive {
+        if liveActivity.isRunning {
             Task { await liveActivity.end() }
         }
         LifeRouteHaptics.primaryAction()
@@ -762,7 +768,7 @@ struct V054TodayView: View {
     }
 
     private func endLiveDayForChangedInputs() {
-        guard liveActivity.isActive else { return }
+        guard liveActivity.isRunning else { return }
         Task { await liveActivity.end() }
     }
 

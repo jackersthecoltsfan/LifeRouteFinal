@@ -93,6 +93,7 @@ def validate_project_and_version() -> None:
             "SessionNoteContracts.swift in Sources",
             "DayRouteContracts.swift in Sources",
             "DayItineraryContracts.swift in Sources",
+            "LiveDayRunContracts.swift in Sources",
             "FullRouteHandoffContracts.swift in Sources",
             "ScenicRoyalDesignSystem.swift in Sources",
             "ScenicRoyalMaterials.swift in Sources",
@@ -164,7 +165,7 @@ def validate_active_build_path() -> None:
     require("run_session_note_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Session Note contracts")
     require("run_day_route_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Day Route contracts")
     require("run_visual_timer_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Visual Timer feedback contracts")
-    require_all(day_route_fixture_runner, ["swiftc", "DayRouteContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
+    require_all(day_route_fixture_runner, ["swiftc", "DayRouteContracts.swift", "LiveDayRunContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
     require_all(
         day_route_fixture_source,
         [
@@ -183,6 +184,9 @@ def validate_active_build_path() -> None:
             "fallback never silently sorts or rewrites malformed input",
             "persisted stops round-trip with stable identity",
             "removal prevents a deleted stop from returning",
+            "a canonical generated itinerary starts an in-app Live Day",
+            "ActivityKit projection remains independently unavailable without a timed departure",
+            "ActivityKit denial has deterministic visible handling",
         ],
         "Day Route executable fixtures",
     )
@@ -944,6 +948,7 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
     timer_contracts = sources["VisualTimerFeedbackContracts.swift"]
     timer_view = sources["ScenicRoyalVisualTimerView.swift"]
     live = sources["LiveDayActivityCore.swift"]
+    live_run = sources["LiveDayRunContracts.swift"]
     attributes = sources["LiveDayActivityAttributes.swift"]
     widget = sources["LiveDayLiveActivityWidget.swift"]
     require_all(
@@ -1005,7 +1010,7 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
         "Scenic Royal Visual Timer presentation and accessibility",
     )
     require_all(
-        live + attributes + widget,
+        live + live_run + attributes + widget,
         [
             "ActivityKit",
             "LifeRouteLiveDayAttributes",
@@ -1014,6 +1019,9 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
             "plannedStopSummary",
             "returnHomePlanned",
             "Activity.request",
+            "LifeRouteLiveDayRunPolicy.decision",
+            "run = newRun",
+            "LifeRouteLiveActivityDeliveryStatus",
             "DynamicIsland",
             "ActivityConfiguration",
         ],

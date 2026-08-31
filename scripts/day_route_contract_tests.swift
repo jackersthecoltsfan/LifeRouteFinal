@@ -98,6 +98,7 @@ struct DayRouteContractTests {
 
         testRouteBufferContracts()
         testCanonicalItineraryProjection()
+        testLiveDayRunBoundary()
         testUsableGapAndCandidateFit()
         testReturnHomeAndStopOnlyContracts()
         testUnsafeRouteBoundariesRemainVisible()
@@ -105,6 +106,80 @@ struct DayRouteContractTests {
         testFullRouteHandoffs()
 
         print("Day route executable contract fixtures passed (\(assertionCount) assertions).")
+    }
+
+    // Catches the Build 119 failure mode where ActivityKit eligibility was
+    // incorrectly treated as the prerequisite for the in-app Live Day.
+    private static func testLiveDayRunBoundary() {
+        let itinerary = exampleIntermediateStopItinerary()
+        let now = date("2026-09-01T10:24:00Z")
+        let decision = LifeRouteLiveDayRunPolicy.decision(for: itinerary, at: now)
+
+        guard case .start(let run) = decision else {
+            expect(false, "a canonical generated itinerary starts an in-app Live Day")
+            return
+        }
+        expect(run.itineraryID == itinerary.id, "Live Day records canonical itinerary identity")
+        expect(run.itineraryFingerprint == itinerary.fingerprint, "Live Day records the canonical input fingerprint")
+        expect(run.startedAt == now, "Live Day records a deterministic in-app start time")
+        expect(run.matches(itinerary), "Live Day remains synchronized with its generated itinerary")
+
+        let changed = LifeRouteGeneratedItinerary(
+            id: itinerary.id,
+            selectedDay: itinerary.selectedDay,
+            generatedAt: itinerary.generatedAt,
+            returnHome: itinerary.returnHome,
+            routeBuffer: itinerary.routeBuffer,
+            inputFingerprint: "changed-input",
+            nodes: itinerary.nodes,
+            legs: itinerary.legs
+        )
+        expect(!run.matches(changed), "Live Day rejects a changed itinerary fingerprint")
+
+        let stopOnly = LifeRouteGeneratedItinerary(
+            id: "day:stop-only-live",
+            selectedDay: now,
+            generatedAt: now,
+            returnHome: false,
+            routeBuffer: .tenMinutes,
+            inputFingerprint: "stop-only-live",
+            nodes: [
+                LifeRouteItineraryNode(
+                    id: "stop:pharmacy",
+                    kind: .stop,
+                    title: "Pharmacy",
+                    address: "1 Main Street"
+                )
+            ],
+            legs: []
+        )
+        guard case .start = LifeRouteLiveDayRunPolicy.decision(for: stopOnly, at: now) else {
+            expect(false, "a valid stop-only generated day can run in app without ActivityKit projection")
+            return
+        }
+        expect(
+            LifeRouteLiveDayProjection.make(from: stopOnly, at: now) == nil,
+            "ActivityKit projection remains independently unavailable without a timed departure"
+        )
+
+        let invalid = LifeRouteGeneratedItinerary(
+            id: "",
+            selectedDay: now,
+            generatedAt: now,
+            returnHome: false,
+            routeBuffer: .tenMinutes,
+            inputFingerprint: "",
+            nodes: [],
+            legs: []
+        )
+        guard case .reject(let reason) = LifeRouteLiveDayRunPolicy.decision(for: invalid, at: now) else {
+            expect(false, "an invalid generated day is rejected visibly")
+            return
+        }
+        expect(!reason.isEmpty, "a rejected Live Day supplies a visible reason")
+        expect(LifeRouteLiveActivityDeliveryStatus.failed != .active, "ActivityKit failure is distinct from active delivery")
+        expect(LifeRouteLiveActivityDeliveryStatus.disabled.userFacingDetail.contains("disabled"), "ActivityKit denial has deterministic visible handling")
+        expect(LifeRouteLiveActivityDeliveryStatus.noUpcomingDeparture.userFacingDetail.contains("departure"), "missing projection has deterministic visible handling")
     }
 
     // Catches a route preference that silently changes the established ten-minute

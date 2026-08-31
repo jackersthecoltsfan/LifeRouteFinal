@@ -4,36 +4,60 @@ import ActivityKit
 
 @MainActor
 final class LiveDayActivityCore: ObservableObject {
-    @Published private(set) var isActive = false
+    @Published private(set) var run: LifeRouteLiveDayRun?
+    @Published private(set) var activityStatus: LifeRouteLiveActivityDeliveryStatus = .idle
     @Published private(set) var message: String?
 
     private var activeActivityID: String?
+    private var operationID = UUID()
+
+    var isRunning: Bool { run != nil }
+    var isActive: Bool { isRunning }
+    var isLockScreenActive: Bool { activityStatus.isActive }
 
     init() {
         if #available(iOS 16.2, *) {
             activeActivityID = Activity<LifeRouteLiveDayAttributes>.activities.first?.id
-            isActive = activeActivityID != nil
+            activityStatus = activeActivityID == nil ? .idle : .active
         }
     }
 
     func start(itinerary: LifeRouteGeneratedItinerary) async {
+        let now = Date()
+        switch LifeRouteLiveDayRunPolicy.decision(for: itinerary, at: now) {
+        case .reject(let reason):
+            message = reason
+            return
+        case .start(let newRun):
+            run = newRun
+        }
+
+        let currentOperationID = UUID()
+        operationID = currentOperationID
+        message = "Live Day is running in LifeRoute."
+
         guard #available(iOS 16.2, *) else {
-            message = "Live Activities require iOS 16.2 or later."
+            activityStatus = .unavailable
+            message = "Live Day is running in LifeRoute. Lock Screen Live Activities require iOS 16.2 or later."
             return
         }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            message = "Live Activities are disabled for LifeRoute in iPhone Settings."
+            activityStatus = .disabled
+            message = "Live Day is running in LifeRoute. Lock Screen Live Activities are disabled in Settings."
             return
         }
-        let now = Date()
         guard let projection = LifeRouteLiveDayProjection.make(from: itinerary, at: now) else {
-            message = "Generate a route with an upcoming timed appointment before starting Live Day."
+            activityStatus = .noUpcomingDeparture
+            message = "Live Day is running in LifeRoute. Lock Screen projection needs an upcoming timed departure."
             return
         }
+
+        activityStatus = .requesting
 
         for activity in Activity<LifeRouteLiveDayAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
+        guard operationID == currentOperationID, run?.matches(itinerary) == true else { return }
 
         let attributes = LifeRouteLiveDayAttributes(
             launchedAt: now,
@@ -49,42 +73,117 @@ final class LiveDayActivityCore: ObservableObject {
                 content: content,
                 pushType: nil
             )
+            guard operationID == currentOperationID, run?.matches(itinerary) == true else {
+                await activity.end(nil, dismissalPolicy: .immediate)
+                return
+            }
             activeActivityID = activity.id
-            isActive = true
-            message = "Live Day is on your Lock Screen."
+            activityStatus = .active
+            message = "Live Day is running in LifeRoute and on your Lock Screen."
         } catch {
+            guard operationID == currentOperationID, run?.matches(itinerary) == true else { return }
             activeActivityID = nil
-            isActive = false
-            message = "Live Day could not start: \(error.localizedDescription)"
+            activityStatus = .failed
+            message = "Live Day is running in LifeRoute. The Lock Screen Live Activity could not start: \(error.localizedDescription)"
         }
     }
 
     func update(itinerary: LifeRouteGeneratedItinerary) async {
-        guard #available(iOS 16.2, *) else { return }
-        let now = Date()
-        guard let projection = LifeRouteLiveDayProjection.make(from: itinerary, at: now) else {
-            await end()
-            message = "Live Day ended because the generated route has no remaining departure."
-            return
-        }
-        guard let activity = matchingActivity() else {
+        guard run?.matches(itinerary) == true else {
             await start(itinerary: itinerary)
             return
         }
 
+        let currentOperationID = UUID()
+        operationID = currentOperationID
+        let now = Date()
+        guard #available(iOS 16.2, *) else {
+            activityStatus = .unavailable
+            message = "Live Day is running in LifeRoute. Lock Screen Live Activities require iOS 16.2 or later."
+            return
+        }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            await endLockScreenActivity()
+            guard operationID == currentOperationID, run?.matches(itinerary) == true else { return }
+            activityStatus = .disabled
+            message = "Live Day is running in LifeRoute. Lock Screen Live Activities are disabled in Settings."
+            return
+        }
+        guard let projection = LifeRouteLiveDayProjection.make(from: itinerary, at: now) else {
+            await endLockScreenActivity()
+            guard operationID == currentOperationID, run?.matches(itinerary) == true else { return }
+            activityStatus = .noUpcomingDeparture
+            message = "Live Day is still running in LifeRoute. There is no remaining timed departure for the Lock Screen."
+            return
+        }
+        guard let activity = matchingActivity() else {
+            await requestLockScreenActivity(
+                itinerary: itinerary,
+                projection: projection,
+                now: now,
+                operationID: currentOperationID
+            )
+            return
+        }
+
         await activity.update(Self.activityContent(projection: projection, now: now))
-        isActive = true
-        message = "Lock Screen Live Day updated."
+        guard operationID == currentOperationID, run?.matches(itinerary) == true else { return }
+        activityStatus = .active
+        message = "Live Day and its Lock Screen projection are up to date."
     }
 
     func end() async {
-        guard #available(iOS 16.2, *) else { return }
+        operationID = UUID()
+        run = nil
+        await endLockScreenActivity()
+        activityStatus = .idle
+        message = "Live Day ended."
+    }
+
+    private func endLockScreenActivity() async {
+        guard #available(iOS 16.2, *) else {
+            activeActivityID = nil
+            return
+        }
         for activity in Activity<LifeRouteLiveDayAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
         activeActivityID = nil
-        isActive = false
-        message = "Live Day ended."
+    }
+
+    @available(iOS 16.2, *)
+    private func requestLockScreenActivity(
+        itinerary: LifeRouteGeneratedItinerary,
+        projection: LifeRouteLiveDayProjection,
+        now: Date,
+        operationID expectedOperationID: UUID
+    ) async {
+        activityStatus = .requesting
+        let attributes = LifeRouteLiveDayAttributes(
+            launchedAt: run?.startedAt ?? now,
+            dayLabel: itinerary.selectedDay.formatted(
+                .dateTime.weekday(.wide).month(.abbreviated).day()
+            )
+        )
+        do {
+            let activity = try Activity.request(
+                attributes: attributes,
+                content: Self.activityContent(projection: projection, now: now),
+                pushType: nil
+            )
+            guard operationID == expectedOperationID, run?.matches(itinerary) == true else {
+                await activity.end(nil, dismissalPolicy: .immediate)
+                return
+            }
+            activeActivityID = activity.id
+            activityStatus = .active
+            message = "Live Day is running in LifeRoute and on your Lock Screen."
+        } catch {
+            guard operationID == expectedOperationID, run?.matches(itinerary) == true else { return }
+            activeActivityID = nil
+            activityStatus = .failed
+            message = "Live Day is running in LifeRoute. The Lock Screen Live Activity could not start: \(error.localizedDescription)"
+        }
     }
 
     @available(iOS 16.2, *)
@@ -95,7 +194,6 @@ final class LiveDayActivityCore: ObservableObject {
         }
         let fallback = Activity<LifeRouteLiveDayAttributes>.activities.first
         activeActivityID = fallback?.id
-        isActive = fallback != nil
         return fallback
     }
 

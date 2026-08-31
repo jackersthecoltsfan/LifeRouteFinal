@@ -23,9 +23,12 @@
 - Phase 6A Setup, shared Address Field, Home Base, Saved Places, Add Place, and
   Weekly To-Dos presentation is accepted and finalized remotely at
   `0287ef8e0d9d61c1ea298638003464fffe947cbc`.
-- Phase 6B Clients and Theme Center presentation is complete for checkpoint
-  review. Do not begin Phase 7 or legacy retirement until this checkpoint is
-  accepted.
+- Phase 6B Clients and Theme Center presentation is accepted and finalized
+  remotely at `996d9b995f257bc38bcfed3edfc4042e400ba37f`.
+- Phase 7 final integration is complete in the checkpoint commit containing
+  this handoff. It corrects Setup deep-route toolbar suppression and adds an
+  accessibility-mode readability floor to shared root-screen headers; no
+  product-domain behavior changed.
 - Do not dispatch TestFlight or merge the v0.9.0 branch without the owner's
   candidate-specific authorization.
 
@@ -54,6 +57,41 @@ stop-only day; unlocated events remain visible in the generated schedule instead
 of being silently removed. Today/Live Day and the Live Activity payload expose
 the saved-stop sequence, while existing navigation-app handoffs, travel modes,
 current-location/Home fallback, and Return Home behavior remain in place.
+
+## v0.9.0 Phase 7 final integration checkpoint
+
+- Canonical preparation, fast validation, and full validation pass.
+- Executable contracts pass: Day Route 30 assertions, Session Note 162
+  assertions, and Visual Timer feedback 42 assertions.
+- Fresh Debug and Release iOS 26.5 Simulator builds pass for the app and the
+  embedded Live Activity extension. Warning assessment reports only the known
+  no-AppIntents toolchain notice and zero unexpected compiler warnings.
+- Canonical Simulator smoke passes all five roots plus motion and Reduce Motion
+  fixtures. Direct toolbar selection stays synchronized across Today, Calendar,
+  Tools, Resources, and Setup. Desktop pointer-driven root swiping remains
+  inconclusive because the automation moved the Simulator window instead of
+  delivering the gesture; the paged `TabView` and five independent
+  `NavigationStack` owners are unchanged.
+- Direct Simulator QA proves Tools deep routes and Setup's Clients/Theme Center
+  deep routes suppress the root toolbar, Back restores it, MapKit address
+  autocomplete returns six results and selects a suggestion, client code
+  normalization/persistence survives relaunch, and theme selection applies
+  immediately and survives relaunch.
+- Phase 7 found no crash, hang, app runtime fault, scrolling regression, audio
+  engine leak symptom, or memory-growth signal requiring ETTrace or memgraph.
+  Simulator-only haptic-library and app-launch-measurement messages remain
+  physical-device verification items, not app compiler warnings.
+- Legacy presentation candidates remain deferred. `ContentView.swift` is
+  outside Sources but retained as the documented historical shell;
+  `ClientViews.swift` is still a compiled companion to that shell;
+  `CinematicThemeViews.swift` still supplies the active root backdrop; and
+  `LifeRouteWebView.swift` plus bundled web assets remain explicitly
+  quarantined. No deletion met both zero-dependency and archival-decision proof.
+- Physical-device TestFlight QA remains required for the Ring/Silent switch,
+  timer tone quality and haptic strength, external Apple/Google/Waze handoff,
+  live location/MapKit behavior, Live Activity presentation, and real-device
+  Foundation Models behavior. Stop before TestFlight until the owner authorizes
+  the exact candidate.
 
 ## v0.9.0 Phase 1 validation checkpoint
 

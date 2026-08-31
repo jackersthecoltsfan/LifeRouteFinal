@@ -5,6 +5,7 @@ struct V054SetupView: View {
     @Environment(\.scenicRoyalThemeStyle) private var style
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @EnvironmentObject private var themeStore: LifeRouteThemeStore
+    @EnvironmentObject private var router: AppRouter
     @ObservedObject var routingState: RoutingLocationCore
     @ObservedObject var clientState: ClientProfileCore
 
@@ -110,6 +111,7 @@ struct V054SetupView: View {
         .navigationTitle("Setup")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
+            router.setBottomToolbarSuppressed(false)
             if homeDraft.isEmpty { homeDraft = routingState.homeAddress }
         }
     }
@@ -200,6 +202,7 @@ struct V054SetupView: View {
     private var themeCard: some View {
         NavigationLink {
             V054ThemeCenterView()
+                .lifeRouteDeepDestination()
         } label: {
             ScenicRoyalInsetRow(role: .readability) {
                 ScenicRoyalSetupNavigationRow(
@@ -217,6 +220,7 @@ struct V054SetupView: View {
     private var clientCard: some View {
         NavigationLink {
             V054ClientProfilesView(clientState: clientState)
+                .lifeRouteDeepDestination()
         } label: {
             ScenicRoyalInsetRow(role: .readability) {
                 ScenicRoyalSetupNavigationRow(

@@ -392,6 +392,16 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     require_all(environment, ["ScenicRoyalEnvironmentHost", "accessibilityReduceMotion", "accessibilityReduceTransparency", "scenePhase == .active"], "persistent environment accessibility boundary")
     require_all(bridge, ["sceneryCanyonDay", "sceneryArcticDay", "sceneryRainforestDay", "royalCurrent", "scenicRoyalThemeStyle"], "theme-to-material bridge")
     require_all(components, ["ScenicRoyalCard", "ScenicRoyalSectionHeader", "ScenicRoyalIconBadge", "ScenicRoyalPrimaryButtonStyle", "ScenicRoyalSecondaryButtonStyle"], "shared Scenic Royal components")
+    require_all(
+        components,
+        [
+            "@Environment(\\.colorSchemeContrast) private var colorSchemeContrast",
+            "@Environment(\\.accessibilityReduceTransparency) private var reduceTransparency",
+            "if reduceTransparency || colorSchemeContrast == .increased",
+            "role: .readability",
+        ],
+        "Scenic Royal root-header accessibility readability floor",
+    )
     require_count(toolbar, "ForEach(AppSection.allCases)", 1, "five-root Scenic Royal toolbar")
     require_all(toolbar, ["accessibilityReduceMotion", "dynamicTypeSize", 'accessibilityLabel("Main navigation")', 'accessibilityValue(isSelected ? "Selected" : "")'], "toolbar accessibility contract")
     require_all(today, ["ScenicRoyalSectionHeader", "ScenicRoyalGlassEffectContainer", ".scenicRoyalCard(", ".scenicRoyalInteractiveSurface("], "Today Scenic Royal migration")
@@ -468,6 +478,8 @@ def validate_setup_and_address(sources: dict[str, str]) -> None:
     schedule = sources["V054ScheduleView.swift"]
 
     require_count(setup, "ScenicRoyalSetupDisclosureGroup(", 6, "six active Scenic Royal Setup groups")
+    require_count(setup, ".lifeRouteDeepDestination()", 2, "deep Setup destination toolbar suppression")
+    require("router.setBottomToolbarSuppressed(false)" in setup, "Setup root restores the five-root toolbar after deep navigation")
     require_all(
         setup,
         [

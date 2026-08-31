@@ -81,6 +81,8 @@ struct ScenicRoyalIconBadge: View {
 }
 
 struct ScenicRoyalScreenHeader<Actions: View>: View {
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.scenicRoyalThemeStyle) private var style
 
     let title: String
@@ -97,7 +99,21 @@ struct ScenicRoyalScreenHeader<Actions: View>: View {
         self.actions = actions()
     }
 
+    @ViewBuilder
     var body: some View {
+        if reduceTransparency || colorSchemeContrast == .increased {
+            headerContent
+                .padding(ScenicRoyalDesignSystem.Spacing.standard)
+                .scenicRoyalSurface(
+                    role: .readability,
+                    cornerRadius: ScenicRoyalDesignSystem.Radius.card
+                )
+        } else {
+            headerContent
+        }
+    }
+
+    private var headerContent: some View {
         HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
                 Text(title)

@@ -26,6 +26,7 @@ private struct SessionNoteContractFixtureRunner {
         try await pipelineFixtures()
         try await fallbackAndDiagnosticFixtures()
         try await runtimeProtectionFixtures()
+        precondition(assertionCount >= 162, "Session Note contract assertion floor regressed below 162")
         print("Session Note executable contract fixtures passed (\(assertionCount) assertions).")
     }
 

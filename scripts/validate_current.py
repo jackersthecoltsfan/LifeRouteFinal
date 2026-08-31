@@ -170,7 +170,24 @@ def validate_active_build_path() -> None:
     require("run_session_note_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Session Note contracts")
     require("run_day_route_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Day Route contracts")
     require("run_visual_timer_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Visual Timer feedback contracts")
+    require("run_runtime_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute runtime feedback contracts")
     require("run_scenery_effect_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute scenery-effect contracts")
+    require_all(
+        simulator_smoke,
+        [
+            "-LifeRouteToolsDestinationOverride visualTimer",
+            "-LifeRouteVisualTimerAutoStart",
+            "scenery.mountains.day scenery.mountains.night",
+            "scenery.ocean.day scenery.ocean.night",
+            "scenery.desert.day scenery.desert.night",
+            "scenery.rainforest.day scenery.rainforest.night",
+            "scenery.canyon.day scenery.canyon.night",
+            "scenery.arctic.day scenery.arctic.night",
+            "-LifeRouteThemeOverride scenery.canyon.day",
+            "ordinary-glass-today.png",
+        ],
+        "Build 120 simulator visual matrix",
+    )
     require_all(day_route_fixture_runner, ["swiftc", "DayRouteContracts.swift", "LiveDayRunContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
     require_all(
         day_route_fixture_source,

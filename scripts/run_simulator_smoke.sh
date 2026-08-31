@@ -11,6 +11,7 @@ mkdir -p "$OUTPUT_DIRECTORY"
 bash "$(cd "$(dirname "$0")" && pwd)/run_session_note_contract_tests.sh"
 bash "$(cd "$(dirname "$0")" && pwd)/run_day_route_contract_tests.sh"
 bash "$(cd "$(dirname "$0")" && pwd)/run_visual_timer_feedback_contract_tests.sh"
+bash "$(cd "$(dirname "$0")" && pwd)/run_runtime_feedback_contract_tests.sh"
 bash "$(cd "$(dirname "$0")" && pwd)/run_scenery_effect_contract_tests.sh"
 
 DEVICE_ID="$(xcrun simctl list --json devices available | python3 -c '
@@ -50,15 +51,48 @@ for section in today schedule tools resources setup; do
   launch_section "$section"
 done
 
-# Exercise the single live-theme host in both motion-enabled and Reduce Motion
-# fixture modes without activating any WebView runtime.
+# Exercise the Visual Timer deep destination under its bounded local renderer.
 xcrun simctl launch --terminate-running-process "$DEVICE_ID" "$BUNDLE_ID" \
-  -LifeRouteVisualFixture canyon-day
+  -LifeRouteSectionOverride tools \
+  -LifeRouteToolsDestinationOverride visualTimer \
+  -LifeRouteVisualTimerAutoStart
+sleep 3
+xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/visual-timer-running.png"
+
+# Exercise the exact Build 120 Day/Night environment matrix without activating
+# the quarantined WebView runtime. Each launch uses the same persistent host.
+SCENERY_THEMES=(
+  scenery.mountains.day scenery.mountains.night
+  scenery.ocean.day scenery.ocean.night
+  scenery.desert.day scenery.desert.night
+  scenery.rainforest.day scenery.rainforest.night
+  scenery.canyon.day scenery.canyon.night
+  scenery.arctic.day scenery.arctic.night
+)
+for theme in "${SCENERY_THEMES[@]}"; do
+  filename="${theme//./-}"
+  xcrun simctl launch --terminate-running-process "$DEVICE_ID" "$BUNDLE_ID" \
+    -LifeRouteVisualFixture "$theme"
+  sleep 2
+  xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/${filename}.png"
+done
+
+# Verify both the restrained Dynamic treatment and its Reduce Motion state.
+xcrun simctl launch --terminate-running-process "$DEVICE_ID" "$BUNDLE_ID" \
+  -LifeRouteVisualFixture royal-current
 sleep 2
-xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/theme-motion.png"
+xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/theme-dynamic-motion.png"
 xcrun simctl launch --terminate-running-process "$DEVICE_ID" "$BUNDLE_ID" \
   -LifeRouteVisualFixture royal-current -LifeRouteFixtureReduceMotion
 sleep 2
 xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/theme-reduce-motion.png"
+
+# Ordinary glass must remain visually inspectable over real scenery, not only
+# in an empty backdrop fixture.
+xcrun simctl launch --terminate-running-process "$DEVICE_ID" "$BUNDLE_ID" \
+  -LifeRouteThemeOverride scenery.canyon.day \
+  -LifeRouteSectionOverride today
+sleep 3
+xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/ordinary-glass-today.png"
 
 echo "LifeRoute simulator smoke passed on $DEVICE_ID."

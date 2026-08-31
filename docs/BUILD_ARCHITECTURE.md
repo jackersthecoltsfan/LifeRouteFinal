@@ -2,15 +2,31 @@
 
 ## Authority
 
-LifeRoute v0.9.0 shipping source is checked in directly under `LifeRoute/`,
+LifeRoute v0.9.1 candidate source is checked in directly under `LifeRoute/`,
 `LifeRouteLiveActivityWidget/`, and `LifeRoute.xcodeproj/`. A normal checkout is
 the product tree; no release replay or source mutation is required.
 
 `MARKETING_VERSION` is owned by the app and extension build configurations in
-the Xcode project and is synchronized at `0.9.0`. `CURRENT_PROJECT_VERSION` is
+the Xcode project and is synchronized at `0.9.1`. `CURRENT_PROJECT_VERSION` is
 the synchronized source development build. The separately authorized
 TestFlight workflow overrides the build number with its run number for both
 targets.
+
+## Canonical day planning
+
+`V054ContentView` owns one `DayRoutePlanningCore` and one
+`LiveDayActivityCore`. Route generation publishes one immutable
+`LifeRouteGeneratedItinerary` only after every required MapKit leg succeeds.
+Today, total raw driving, usable gaps, Gap Filler eligibility, Leave By / Leave
+In, Live Day, and the Live Activity payload consume that snapshot through the
+pure contracts in `DayItineraryContracts.swift`; they do not rebuild route or
+departure state independently.
+
+Route Buffer is persisted by `RoutingLocationCore` and applies once per timed
+appointment arrival. It never alters the displayed raw MapKit duration and does
+not apply to an untimed Return Home leg. Calendar owns schedule browsing and
+appointment/provider management, then hands the selected date to Today for
+planning.
 
 ## Current commands
 

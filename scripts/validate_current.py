@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Semantic validation for the canonical LifeRoute v0.9.0 source tree."""
+"""Semantic validation for the canonical LifeRoute v0.9.1 source tree."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ APP = ROOT / "LifeRoute"
 PROJECT = ROOT / "LifeRoute.xcodeproj" / "project.pbxproj"
 EXTENSION = ROOT / "LifeRouteLiveActivityWidget"
 WORKFLOWS = ROOT / ".github" / "workflows"
-EXPECTED_MARKETING_VERSION = "0.9.0"
-EXPECTED_RELEASE_MARKETING_VERSION = "0.9.0"
+EXPECTED_MARKETING_VERSION = "0.9.1"
+EXPECTED_RELEASE_MARKETING_VERSION = "0.9.1"
 EXPECTED_APP_BUNDLE_ID = "Com.Brandongood.LifeRoute"
 EXPECTED_EXTENSION_BUNDLE_ID = "Com.Brandongood.LifeRoute.LiveDay"
 
@@ -122,7 +122,7 @@ def validate_active_build_path() -> None:
     fast = read(ROOT / "scripts" / "validate_fast.sh")
     full = read(ROOT / "scripts" / "validate_full.sh")
     warning_assessor = read(ROOT / "scripts" / "assess_xcode_warnings.py")
-    require_all(prepare, ["validate_fast.sh", "canonical LifeRoute v0.9.0"], "current prepare_build")
+    require_all(prepare, ["validate_fast.sh", "canonical LifeRoute v0.9.1"], "current prepare_build")
     forbidden = ["patch_v0_", "audit_v0_", "scripts/archive/", "generate_v0_", "materialize"]
     present = [token for token in forbidden if token in prepare]
     require(not present, f"prepare_build must not reconstruct historical releases: {present}")
@@ -1045,8 +1045,8 @@ def validate_release_and_web_policy() -> None:
     require_all(pages, ["build_web_preview.py", "validate_fast.sh"], "decoupled web preview")
     require("scripts/**" not in pages, "Pages must not trigger for arbitrary scripts changes")
     require_all(bridge, ["AUTHORIZED_TESTFLIGHT_RELEASE=YES", "Require completed release-equivalent iOS validation", "Reconfirm main before TestFlight", "authorized_sha"], "exact-SHA assistant release bridge")
-    require_all(testflight, ["workflow_dispatch", "authorized_sha", "Verify authorized release source", EXPECTED_APP_BUNDLE_ID, EXPECTED_EXTENSION_BUNDLE_ID, "validate_full.sh", "archive", "Verify archived LifeRoute v0.9.0 identity", "Upload to TestFlight", "Clean temporary Apple signing assets", "AppIcon"], "current v0.9.0 TestFlight contract")
-    require(testflight.count(f"RELEASE_MARKETING_VERSION: {EXPECTED_RELEASE_MARKETING_VERSION}") == 1, "release workflow must match current v0.9.0 product")
+    require_all(testflight, ["workflow_dispatch", "authorized_sha", "Verify authorized release source", EXPECTED_APP_BUNDLE_ID, EXPECTED_EXTENSION_BUNDLE_ID, "validate_full.sh", "archive", "Verify archived LifeRoute v0.9.1 identity", "Upload to TestFlight", "Clean temporary Apple signing assets", "AppIcon"], "current v0.9.1 TestFlight contract")
+    require(testflight.count(f"RELEASE_MARKETING_VERSION: {EXPECTED_RELEASE_MARKETING_VERSION}") == 1, "release workflow must match current v0.9.1 product")
     for name, text in workflows.items():
         if name == "testflight.yml":
             continue
@@ -1087,7 +1087,7 @@ def main() -> int:
     except (OSError, plistlib.InvalidFileException, ValidationFailure) as error:
         print(f"LifeRoute {args.level} validation failed: {error}", file=sys.stderr)
         return 1
-    print(f"LifeRoute canonical v0.9.0 {args.level} validation passed.")
+    print(f"LifeRoute canonical v0.9.1 {args.level} validation passed.")
     return 0
 
 

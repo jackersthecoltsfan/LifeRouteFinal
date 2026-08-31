@@ -21,9 +21,11 @@
 - Phase 5 Resources implementation is accepted and finalized remotely at
   `446866ea59f86663ad4c285023e9cd3deb88259a`.
 - Phase 6A Setup, shared Address Field, Home Base, Saved Places, Add Place, and
-  Weekly To-Dos presentation is complete locally for checkpoint review. Do not
-  begin Clients, Themes, Phase 6B, Phase 7, or legacy retirement until this
-  checkpoint is accepted.
+  Weekly To-Dos presentation is accepted and finalized remotely at
+  `0287ef8e0d9d61c1ea298638003464fffe947cbc`.
+- Phase 6B Clients and Theme Center presentation is complete for checkpoint
+  review. Do not begin Phase 7 or legacy retirement until this checkpoint is
+  accepted.
 - Do not dispatch TestFlight or merge the v0.9.0 branch without the owner's
   candidate-specific authorization.
 
@@ -298,10 +300,35 @@ pre-v0.9 runway instead.
   termination, rebuild installation, theme launches, and final relaunch. No
   Phase 6A source changes touch routing or persistence domains.
 
-## Next milestone — v0.9.0 Phase 6B
+## v0.9.0 Phase 6B validation checkpoint
 
-After the owner accepts the Phase 6A checkpoint, migrate Clients and Themes in
-their bounded Phase 6B units using the accepted Phase 6 pre-implementation map.
-Themes remain inside Setup and the five-root architecture remains unchanged. Do
-not begin Phase 7 integration, legacy retirement, merge, or release work as part
-of the Phase 6B migration.
+- The active Clients list and editor now use bounded Scenic Royal presentation
+  components while retaining `ClientProfileCore` ownership, local editor state,
+  code normalization and duplicate detection, sorting, address entry, visual-
+  library cleanup associations, persistence, and immediate deletion behavior.
+- Accessibility text sizes stack client identity, metrics, and code fields.
+  The visible code badge is hidden from accessibility so each code is announced
+  once; edit and remove controls include client-specific labels and hints.
+- Theme Center remains inside Setup and continues to use the authoritative
+  `LifeRouteThemeStore`. The production inventory is unchanged at 12 Core, 8
+  Dynamic, and 12 Scenery themes (32 unique identifiers), with immediate
+  selection and `liferoute.selectedTheme` relaunch persistence intact.
+- Theme previews use fixed phases only. Category controls and cards expose name,
+  category, live/still character, and selected state; selected cards add a
+  checkmark and stronger boundary. Accessibility text sizes use one column.
+- iPhone 17 Pro / iOS 26.5 evidence covers Canyon, bright Arctic, Rainforest,
+  and Royal Current. The combined Accessibility Extra Large, Increased
+  Contrast, Reduce Transparency, and Reduce Motion Arctic pass remains legible
+  and reflows without shrinking text.
+- Preparation, fast/full validation, 30 Day Route assertions, 162 Session Note
+  assertions, 42 Visual Timer feedback assertions, Debug and Release Simulator
+  builds, app and Live Activity extension compilation, warning-budget review,
+  runtime review, protected-domain diff audit, and `git diff --check` pass.
+  Simulator-only Accessibility and haptic-library diagnostics produced no app
+  crash, hang, or protected-domain issue.
+
+## Next milestone — v0.9.0 Phase 7
+
+After the owner accepts Phase 6B, run the accepted cross-app Phase 7 integration
+and release-readiness matrix. Legacy deletion, merge, and TestFlight remain out
+of scope until their separate proof and authorization gates are satisfied.

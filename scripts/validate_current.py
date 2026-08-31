@@ -105,6 +105,8 @@ def validate_project_and_version() -> None:
             "ScenicRoyalVisualTimerView.swift in Sources",
             "ScenicRoyalResourceComponents.swift in Sources",
             "ScenicRoyalSetupComponents.swift in Sources",
+            "ScenicRoyalClientComponents.swift in Sources",
+            "ScenicRoyalThemeComponents.swift in Sources",
         ],
         "Xcode app/extension structure",
     )
@@ -280,6 +282,7 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
     app = sources["LifeRouteApp.swift"]
     environment = sources["ScenicRoyalEnvironment.swift"]
     center = sources["V054ThemeCenterView.swift"]
+    theme_components = sources["ScenicRoyalThemeComponents.swift"]
     corpus = "\n".join(sources.values())
     require_count(corpus, "struct LifeRouteLiveThemeEnvironment: View", 1, "live theme environment ownership")
     require_count(app, "TimelineView(\n            .animation(", 1, "authoritative root animation clock")
@@ -291,8 +294,78 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
     scenery = extract_catalog(app, "static let v071RetainedSceneryCatalog")
     require((len(core), len(dynamic), len(scenery)) == (12, 8, 12), f"current user-facing theme catalog counts changed: core={len(core)}, dynamic={len(dynamic)}, scenery={len(scenery)}")
     require(len(set(core + dynamic + scenery)) == 32, "current user-facing theme catalogs must not overlap")
-    require_all(center, ["return LifeRouteTheme.phaseOneCoreGlassCatalog", "return LifeRouteTheme.v071RetainedDynamicCatalog", "return LifeRouteTheme.v071RetainedSceneryCatalog"], "Theme Center current catalogs")
-    require("TimelineView" not in center, "Theme Center previews must remain static")
+    require_all(
+        center,
+        [
+            "return LifeRouteTheme.phaseOneCoreGlassCatalog",
+            "return LifeRouteTheme.v071RetainedDynamicCatalog",
+            "return LifeRouteTheme.v071RetainedSceneryCatalog",
+            "@EnvironmentObject private var themeStore: LifeRouteThemeStore",
+            "themeStore.selectedTheme = theme",
+            "dynamicTypeSize.isAccessibilitySize",
+            "ScenicRoyalThemeCard",
+        ],
+        "Theme Center current catalogs and authoritative selection owner",
+    )
+    require_all(
+        theme_components,
+        [
+            "ScenicRoyalSelectedThemeHeader",
+            "ScenicRoyalThemeCategoryPicker",
+            "ScenicRoyalThemeSectionHeading",
+            "ScenicRoyalThemePreview",
+            'accessibilityValue(isSelected ? "Selected" : "Not selected")',
+            "scenicRoyalMotionCharacter",
+            "colorSchemeContrast",
+        ],
+        "Scenic Royal Theme Center presentation and accessibility",
+    )
+    require("TimelineView" not in center + theme_components, "Theme Center previews must remain static")
+
+
+def validate_clients(sources: dict[str, str]) -> None:
+    domain = sources["ClientProfileDomain.swift"]
+    clients = sources["V054ClientViews.swift"]
+    components = sources["ScenicRoyalClientComponents.swift"]
+    require_all(
+        domain,
+        [
+            "ClientProfileCoreError.duplicateCode",
+            "clients.sort",
+            "LifeRoutePersistenceStore.shared.saveClients(clients)",
+            "func removeClient(id: UUID)",
+            "static func normalizedPair",
+        ],
+        "client normalization, sorting, deletion, and persistence",
+    )
+    require_all(
+        clients,
+        [
+            "@ObservedObject var clientState: ClientProfileCore",
+            "V054AddressField(\"Client address / service location\"",
+            "clientState.saveProfile(",
+            "clientState.removeClient(id: profile.id)",
+            "dynamicTypeSize.isAccessibilitySize",
+            "ScenicRoyalClientSummaryCard",
+            "ScenicRoyalClientTextEditor",
+        ],
+        "active client list and local editor ownership",
+    )
+    require_all(
+        components,
+        [
+            "ScenicRoyalClientHeader",
+            "ScenicRoyalClientSummaryCard",
+            "ScenicRoyalClientEditorCard",
+            "ScenicRoyalClientSaveBar",
+            "dynamicTypeSize.isAccessibilitySize",
+            'accessibilityLabel("Edit client \\(profile.code)")',
+            'accessibilityLabel("Remove client \\(profile.code)")',
+            ".accessibilityHidden(true)",
+            "role: .readability",
+        ],
+        "Scenic Royal client presentation and accessibility",
+    )
 
 
 def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
@@ -840,6 +913,7 @@ def run_fast() -> None:
     validate_active_build_path()
     validate_navigation_and_ownership(sources)
     validate_theme_architecture(sources)
+    validate_clients(sources)
     validate_scenic_royal_foundation(sources)
     validate_resources(sources)
     validate_setup_and_address(sources)

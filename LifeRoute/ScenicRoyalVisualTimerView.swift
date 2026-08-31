@@ -3,7 +3,9 @@ import UIKit
 
 struct VisualTimerView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.scenicRoyalThemeStyle) private var style
 
     @ObservedObject var timer: VisualTimerCore
@@ -74,14 +76,10 @@ struct VisualTimerView: View {
     }
 
     private var timerCard: some View {
-        TimelineView(.periodic(from: .now, by: reduceMotion ? 1.0 : 0.10)) { context in
+        TimelineView(.periodic(from: .now, by: VisualTimerFeedbackCurve.readoutInterval)) { context in
             let remaining = timer.remainingSeconds(at: context.date)
             let remainingProgress = timer.progress(at: context.date)
             let urgency = timer.urgency(forRemaining: remaining)
-            let pulsePhase = VisualTimerFeedbackCurve.visualPulsePhase(
-                elapsedSeconds: timer.durationSeconds - remaining,
-                durationSeconds: timer.durationSeconds
-            )
             let milestone = VisualTimerAccessibilityMilestone.forRemaining(remaining)
 
             VStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
@@ -95,10 +93,13 @@ struct VisualTimerView: View {
                     remainingText: timerText(remaining),
                     remainingProgress: remainingProgress,
                     urgency: urgency,
-                    pulsePhase: pulsePhase,
+                    elapsedAtSnapshot: timer.durationSeconds - remaining,
+                    durationSeconds: timer.durationSeconds,
+                    snapshotDate: context.date,
                     isRunning: timer.isRunning,
                     isFinished: timer.isFinished(at: context.date),
-                    reduceMotion: reduceMotion
+                    reduceMotion: reduceMotion,
+                    sceneIsActive: scenePhase == .active
                 )
 
                 ProgressView(value: remainingProgress)
@@ -123,10 +124,14 @@ struct VisualTimerView: View {
             .foregroundStyle(style.accentReflection)
             .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
             .frame(minHeight: 32)
-            .scenicRoyalSurface(
-                role: .ambient,
-                cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
+            .background(
+                style.readabilityBase.opacity(reduceTransparency ? 0.92 : 0.16),
+                in: Capsule()
             )
+            .overlay {
+                Capsule()
+                    .stroke(style.accentReflection.opacity(0.20), lineWidth: 0.7)
+            }
 
         if dynamicTypeSize.isAccessibilitySize {
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
@@ -362,7 +367,9 @@ struct VisualTimerView: View {
     }
 
     private func timerText(_ seconds: TimeInterval) -> String {
-        let total = max(0, Int(ceil(seconds)))
+        let finiteSeconds = seconds.isFinite ? seconds : 0
+        let boundedSeconds = min(180 * 60, max(0, finiteSeconds))
+        let total = Int(ceil(boundedSeconds))
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 }
@@ -373,23 +380,22 @@ private struct ScenicRoyalTimerDial: View {
     let remainingText: String
     let remainingProgress: Double
     let urgency: Double
-    let pulsePhase: Double
+    let elapsedAtSnapshot: TimeInterval
+    let durationSeconds: TimeInterval
+    let snapshotDate: Date
     let isRunning: Bool
     let isFinished: Bool
     let reduceMotion: Bool
+    let sceneIsActive: Bool
 
     var body: some View {
         ZStack {
             Circle()
                 .stroke(Color.white.opacity(0.10), lineWidth: 15)
+                .shadow(color: style.accent.opacity(0.10), radius: 18)
 
-            if isRunning && !reduceMotion {
-                Circle()
-                    .stroke(
-                        style.accentReflection.opacity((0.18 + urgency * 0.44) * (1 - pulsePhase)),
-                        lineWidth: 3 + urgency * 3
-                    )
-                    .scaleEffect(0.92 + pulsePhase * (0.08 + urgency * 0.08))
+            if isRunning && !isFinished && !reduceMotion {
+                pulseLayer
             }
 
             Circle()
@@ -417,10 +423,35 @@ private struct ScenicRoyalTimerDial: View {
             }
         }
         .frame(width: 238, height: 238)
-        .shadow(color: style.accent.opacity(0.10 + urgency * 0.16), radius: 18 + urgency * 10)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(isFinished ? "Timer complete" : "Time remaining")
         .accessibilityValue(remainingText)
+    }
+
+    private var pulseLayer: some View {
+        TimelineView(
+            .animation(
+                minimumInterval: VisualTimerFeedbackCurve.visualFrameInterval,
+                paused: !sceneIsActive
+            )
+        ) { context in
+            let elapsed = elapsedAtSnapshot
+                + max(0, context.date.timeIntervalSince(snapshotDate))
+            let phase = VisualTimerFeedbackCurve.visualPulsePhase(
+                elapsedSeconds: elapsed,
+                durationSeconds: durationSeconds
+            )
+            let envelope = VisualTimerFeedbackCurve.visualPulseEnvelope(phase: phase)
+
+            Circle()
+                .stroke(
+                    style.accentReflection.opacity(
+                        (0.08 + urgency * 0.24) * (0.30 + envelope * 0.70)
+                    ),
+                    lineWidth: 2.0 + urgency * 2.5 + envelope * 0.8
+                )
+                .padding(5)
+        }
     }
 }
 

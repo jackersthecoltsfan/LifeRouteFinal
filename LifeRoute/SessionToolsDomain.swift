@@ -201,7 +201,7 @@ private final class VisualTimerToneEngine {
                 let localTime = t - note.start
                 guard localTime >= 0, localTime <= 0.19 else { continue }
                 let attack = min(1, localTime / 0.012)
-                let decay = exp(-16 * localTime)
+                let decay = exp(-VisualTimerFeedbackCurve.completionDecayRate * localTime)
                 let releaseStart = 0.12
                 let releaseProgress = max(0, (localTime - releaseStart) / (0.19 - releaseStart))
                 let release = releaseProgress <= 0 ? 1 : 0.5 * (1 + cos(Double.pi * min(1, releaseProgress)))

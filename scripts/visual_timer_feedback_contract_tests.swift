@@ -9,6 +9,8 @@ struct VisualTimerFeedbackContractTests {
         testExponentialUrgency()
         testFeedbackBounds()
         testVisualPulsePhase()
+        testVisualRenderingBudget()
+        testCompletionOutputBudget()
         testAccessibilityMilestones()
         testPreferenceDefaults()
         testAudioSessionPolicy()
@@ -60,7 +62,10 @@ struct VisualTimerFeedbackContractTests {
         expect(VisualTimerFeedbackCurve.signalGain(volume: -1, elapsedProgress: 0.5) == 0, "gain clamps negative volume")
         expect(VisualTimerFeedbackCurve.signalGain(volume: 2, elapsedProgress: 1) == 1, "gain clamps excess volume")
         expect(VisualTimerFeedbackCurve.pulseSynthesisAmplitude <= 0.5, "pulse synthesis remains pleasantly bounded")
-        expect(VisualTimerFeedbackCurve.completionSynthesisAmplitude <= 0.75, "completion synthesis remains bounded")
+        expect(
+            VisualTimerFeedbackCurve.completionSynthesisAmplitude < VisualTimerFeedbackCurve.maximumSynthesisSample,
+            "completion synthesis remains bounded below the digital headroom limit"
+        )
         expect(VisualTimerFeedbackCurve.maximumSynthesisSample < 1, "synthesized completion retains clipping headroom")
     }
 
@@ -90,6 +95,88 @@ struct VisualTimerFeedbackContractTests {
             before == VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: 120, durationSeconds: 300),
             "paused visual phase stays stable without depending on wall-clock time"
         )
+        expect(
+            before == VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: 120, durationSeconds: 360),
+            "adding one minute preserves the current visual pulse phase"
+        )
+        expect(
+            VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: .nan, durationSeconds: 300) == 0,
+            "non-finite elapsed time cannot reach the renderer"
+        )
+    }
+
+    private static func testVisualRenderingBudget() {
+        let samplesPerCycle = (1 / VisualTimerFeedbackCurve.visualFrameInterval)
+            / VisualTimerFeedbackCurve.visualPulsesPerSecond
+        expect(samplesPerCycle >= 15, "localized visual pulse retains at least fifteen samples per cycle")
+        expect(VisualTimerFeedbackCurve.readoutInterval == 1, "timer readout uses a bounded one-second cadence")
+        expect(VisualTimerFeedbackCurve.visualPulsesPerSecond <= 1, "visual motion remains calm while audio cadence accelerates independently")
+
+        let phases = stride(from: 0.0, through: 1.0, by: 0.025)
+        let envelopes = phases.map(VisualTimerFeedbackCurve.visualPulseEnvelope)
+        expect(envelopes.allSatisfy { $0.isFinite && $0 >= 0 && $0 <= 1 }, "visual pulse envelope is finite and bounded")
+        expect(abs(VisualTimerFeedbackCurve.visualPulseEnvelope(phase: 0)) < 0.000_001, "visual pulse wrap begins continuously at rest")
+        expect(abs(VisualTimerFeedbackCurve.visualPulseEnvelope(phase: 1)) < 0.000_001, "visual pulse wrap ends continuously at rest")
+        expect(abs(VisualTimerFeedbackCurve.visualPulseEnvelope(phase: 0.5) - 1) < 0.000_001, "visual pulse reaches one smooth midpoint peak")
+        expect(VisualTimerFeedbackCurve.visualPulseEnvelope(phase: .infinity) == 0, "non-finite pulse phase is safely bounded")
+    }
+
+    private static func testCompletionOutputBudget() {
+        let newMetrics = VisualTimerToneProfile.allCases.map {
+            completionMetrics(
+                profile: $0,
+                amplitude: VisualTimerFeedbackCurve.completionSynthesisAmplitude,
+                decayRate: VisualTimerFeedbackCurve.completionDecayRate
+            )
+        }
+        let build119Metrics = VisualTimerToneProfile.allCases.map {
+            completionMetrics(profile: $0, amplitude: 0.68, decayRate: 16)
+        }
+
+        expect(
+            newMetrics.allSatisfy { $0.peak < VisualTimerFeedbackCurve.maximumSynthesisSample },
+            "stronger completion output retains deterministic peak headroom"
+        )
+        expect(newMetrics.allSatisfy { $0.rms > 0.24 }, "completion cue carries meaningfully stronger useful energy")
+        expect(
+            zip(newMetrics, build119Metrics).allSatisfy { $0.rms / $1.rms > 1.35 },
+            "maximum completion output is at least thirty-five percent stronger than Build 119"
+        )
+        expect(VisualTimerFeedbackCurve.maximumSynthesisSample < 1, "stronger completion output cannot reach digital full scale")
+    }
+
+    private static func completionMetrics(
+        profile: VisualTimerToneProfile,
+        amplitude: Double,
+        decayRate: Double
+    ) -> (peak: Double, rms: Double) {
+        let sampleRate = 44_100.0
+        let sampleCount = Int(sampleRate * 0.52)
+        let notes = zip([0.00, 0.15, 0.30], profile.completionFrequencies)
+        var peak = 0.0
+        var energy = 0.0
+
+        for frame in 0..<sampleCount {
+            let t = Double(frame) / sampleRate
+            var value = 0.0
+            for note in notes {
+                let localTime = t - note.0
+                guard localTime >= 0, localTime <= 0.19 else { continue }
+                let attack = min(1, localTime / 0.012)
+                let decay = exp(-decayRate * localTime)
+                let releaseProgress = max(0, (localTime - 0.12) / 0.07)
+                let release = releaseProgress <= 0
+                    ? 1
+                    : 0.5 * (1 + cos(Double.pi * min(1, releaseProgress)))
+                let fundamental = sin(2 * Double.pi * note.1 * localTime)
+                let second = profile.secondHarmonicMix
+                    * sin(2 * Double.pi * note.1 * 2 * localTime)
+                value += (fundamental + second) * attack * decay * release * amplitude
+            }
+            peak = max(peak, abs(value))
+            energy += value * value
+        }
+        return (peak, sqrt(energy / Double(sampleCount)))
     }
 
     private static func testAccessibilityMilestones() {

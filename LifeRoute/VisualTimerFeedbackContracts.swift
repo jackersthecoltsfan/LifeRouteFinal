@@ -106,8 +106,14 @@ enum VisualTimerAudioSessionPolicy {
 enum VisualTimerFeedbackCurve {
     static let minimumPulsesPerSecond = 0.72
     static let maximumPulsesPerSecond = 4.20
+    /// Visual motion stays calm and independent from the accelerating audio
+    /// cadence. Urgency changes emphasis, not animation frequency.
+    static let visualPulsesPerSecond = 0.80
+    static let visualFrameInterval: TimeInterval = 1.0 / 15.0
+    static let readoutInterval: TimeInterval = 1.0
     static let pulseSynthesisAmplitude = 0.40
-    static let completionSynthesisAmplitude = 0.68
+    static let completionSynthesisAmplitude = 0.84
+    static let completionDecayRate = 12.0
     static let maximumSynthesisSample = 0.92
 
     static func urgency(_ elapsedProgress: Double) -> Double {
@@ -136,32 +142,31 @@ enum VisualTimerFeedbackCurve {
         return clamped(boundedVolume * softCrescendo)
     }
 
-    /// Integrates the accelerating cadence from timer-relative elapsed time.
-    /// This avoids multiplying an enormous absolute timestamp by a tempo that
-    /// changes every frame, which can make the visual pulse snap or flicker.
+    /// Uses elapsed time only, so extending the duration cannot snap the pulse
+    /// to a different phase. Audio cadence remains independently accelerating.
     static func visualPulsePhase(
         elapsedSeconds: TimeInterval,
         durationSeconds: TimeInterval
     ) -> Double {
         guard durationSeconds > 0 else { return 0 }
-        let elapsed = min(durationSeconds, max(0, elapsedSeconds))
-        let progress = elapsed / durationSeconds
-        let rateRange = maximumPulsesPerSecond - minimumPulsesPerSecond
-        let cycles = minimumPulsesPerSecond * elapsed
-            + rateRange * durationSeconds * integratedUrgency(progress)
+        let elapsed = max(0, finite(elapsedSeconds))
+        let cycles = visualPulsesPerSecond * elapsed
         let phase = cycles.truncatingRemainder(dividingBy: 1)
         return phase < 0 ? phase + 1 : phase
     }
 
-    private static func integratedUrgency(_ elapsedProgress: Double) -> Double {
-        let progress = clamped(elapsedProgress)
-        let exponent = 4.0
-        return ((exp(exponent * progress) - 1) / exponent - progress)
-            / (exp(exponent) - 1)
+    /// Cosine easing closes the old sawtooth discontinuity at the wrap point.
+    static func visualPulseEnvelope(phase: Double) -> Double {
+        let boundedPhase = clamped(phase)
+        return 0.5 - 0.5 * cos(2 * Double.pi * boundedPhase)
     }
 
     private static func clamped(_ value: Double) -> Double {
-        min(1, max(0, value))
+        min(1, max(0, finite(value)))
+    }
+
+    private static func finite(_ value: Double) -> Double {
+        value.isFinite ? value : 0
     }
 }
 

@@ -211,6 +211,11 @@ def validate_active_build_path() -> None:
             "timer playback mixes instead of unnecessarily interrupting other audio",
             "LifeRoute Sound Off remains authoritative",
             "zero percent volume remains silent",
+            "adding one minute preserves the current visual pulse phase",
+            "localized visual pulse retains at least fifteen samples per cycle",
+            "visual pulse envelope is finite and bounded",
+            "maximum completion output is at least thirty-five percent stronger than Build 119",
+            "stronger completion output retains deterministic peak headroom",
         ],
         "Visual Timer feedback executable fixtures",
     )
@@ -987,14 +992,21 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
             "enum VisualTimerAudioSessionPolicy",
             "playsThroughRingSilentSwitch = true",
             "mixesWithOtherAudio = true",
+            "visualPulsesPerSecond = 0.80",
+            "visualFrameInterval: TimeInterval = 1.0 / 15.0",
+            "visualPulseEnvelope",
+            "completionSynthesisAmplitude = 0.84",
+            "completionDecayRate = 12.0",
         ],
         "Visual Timer pure feedback contract",
     )
     require_all(
         timer_view,
         [
-            "TimelineView(.periodic",
-            "reduceMotion ? 1.0 : 0.10",
+            "VisualTimerFeedbackCurve.readoutInterval",
+            ".animation(",
+            "VisualTimerFeedbackCurve.visualFrameInterval",
+            "paused: !sceneIsActive",
             "timer.start",
             "timer.pause",
             "timer.resume",
@@ -1006,6 +1018,7 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
             "completionHapticsEnabled",
             "ScenicRoyalTimerDial",
             "-LifeRouteVisualTimerAutoStart",
+            ".frame(width: 238, height: 238)",
         ],
         "Scenic Royal Visual Timer presentation and accessibility",
     )

@@ -41,10 +41,6 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
                 .background(Color.clear)
         }
         .environment(\.scenicRoyalThemeStyle, style)
-        .animation(
-            motionIsReduced ? nil : ScenicRoyalDesignSystem.Motion.environmentChange,
-            value: theme
-        )
         .environment(\.defaultMinListRowHeight, 52)
         .tint(palette.accent)
         .preferredColorScheme(theme == .light ? .light : .dark)
@@ -91,9 +87,9 @@ private struct ScenicRoyalEnvironmentReadabilityVeil: View {
 
             LinearGradient(
                 colors: [
-                    style.glassTint.opacity(reduceTransparency ? 0 : 0.055),
+                    style.glassTint.opacity(reduceTransparency ? 0 : 0.018),
                     Color.clear,
-                    style.accentReflection.opacity(reduceTransparency ? 0 : 0.025),
+                    style.accentReflection.opacity(reduceTransparency ? 0 : 0.008),
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -105,10 +101,16 @@ private struct ScenicRoyalEnvironmentReadabilityVeil: View {
     }
 
     private var topOpacity: Double {
-        min(0.28, style.environmentScrimOpacity + (reduceTransparency ? 0.06 : 0))
+        if reduceTransparency {
+            return min(0.28, style.environmentScrimOpacity + 0.06)
+        }
+        return min(0.10, style.environmentScrimOpacity * 0.34)
     }
 
     private var bottomOpacity: Double {
-        min(0.34, style.environmentScrimOpacity + 0.07 + (reduceTransparency ? 0.06 : 0))
+        if reduceTransparency {
+            return min(0.34, style.environmentScrimOpacity + 0.13)
+        }
+        return min(0.14, (style.environmentScrimOpacity + 0.07) * 0.34)
     }
 }

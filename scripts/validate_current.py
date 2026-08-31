@@ -98,6 +98,8 @@ def validate_project_and_version() -> None:
             "ScenicRoyalDesignSystem.swift in Sources",
             "ScenicRoyalMaterials.swift in Sources",
             "ScenicRoyalEnvironment.swift in Sources",
+            "SceneryEffectContracts.swift in Sources",
+            "ScenicRoyalEnvironmentalEffects.swift in Sources",
             "ScenicRoyalThemeBridge.swift in Sources",
             "ScenicRoyalComponents.swift in Sources",
             "ScenicRoyalToolbar.swift in Sources",
@@ -133,6 +135,7 @@ def validate_active_build_path() -> None:
     require("run_day_route_contract_tests.sh" in full, "validate_full must run executable Day Route contracts")
     require("run_visual_timer_feedback_contract_tests.sh" in full, "validate_full must run executable Visual Timer feedback contracts")
     require("run_runtime_feedback_contract_tests.sh" in full, "validate_full must run executable runtime feedback contracts")
+    require("run_scenery_effect_contract_tests.sh" in full, "validate_full must run executable scenery-effect contracts")
     fixture_runner = read(ROOT / "scripts" / "run_session_note_contract_tests.sh")
     fixture_source = read(ROOT / "scripts" / "session_note_contract_tests.swift")
     simulator_smoke = read(ROOT / "scripts" / "run_simulator_smoke.sh")
@@ -142,6 +145,8 @@ def validate_active_build_path() -> None:
     timer_fixture_source = read(ROOT / "scripts" / "visual_timer_feedback_contract_tests.swift")
     runtime_fixture_runner = read(ROOT / "scripts" / "run_runtime_feedback_contract_tests.sh")
     runtime_fixture_source = read(ROOT / "scripts" / "runtime_feedback_contract_tests.swift")
+    scenery_fixture_runner = read(ROOT / "scripts" / "run_scenery_effect_contract_tests.sh")
+    scenery_fixture_source = read(ROOT / "scripts" / "scenery_effect_contract_tests.swift")
     require_all(fixture_runner, ["swiftc", "SessionNoteContracts.swift", "session_note_contract_tests.swift"], "Session Note fixture runner")
     require_all(
         fixture_source,
@@ -165,6 +170,7 @@ def validate_active_build_path() -> None:
     require("run_session_note_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Session Note contracts")
     require("run_day_route_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Day Route contracts")
     require("run_visual_timer_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Visual Timer feedback contracts")
+    require("run_scenery_effect_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute scenery-effect contracts")
     require_all(day_route_fixture_runner, ["swiftc", "DayRouteContracts.swift", "LiveDayRunContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
     require_all(
         day_route_fixture_source,
@@ -233,6 +239,25 @@ def validate_active_build_path() -> None:
             "iOS 26 physical builds use view-associated feedback-generator delivery",
         ],
         "runtime feedback executable fixtures",
+    )
+    require_all(
+        scenery_fixture_runner,
+        ["swiftc", "SceneryEffectContracts.swift", "scenery_effect_contract_tests.swift"],
+        "scenery effect fixture runner",
+    )
+    require_all(
+        scenery_fixture_source,
+        [
+            "all twelve retained Day/Night scenes have profiles",
+            "every retained scene uses the fixed aspect-fill camera policy",
+            "Arctic Night has no animated or generated cloud effect",
+            "Desert Night explicitly omits daytime heat mirage",
+            "gusts remain occasional rather than constant particle noise",
+            "Rainforest Night waterfall limitation remains explicit",
+            "every approved moving-water mask is selected by the scene matrix",
+            "Rainforest Night moves its visible stream without inventing a waterfall absent from the artwork",
+        ],
+        "scene-specific environment executable fixtures",
     )
     require_all(
         warning_assessor,
@@ -351,7 +376,7 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
     theme_components = sources["ScenicRoyalThemeComponents.swift"]
     corpus = "\n".join(sources.values())
     require_count(corpus, "struct LifeRouteLiveThemeEnvironment: View", 1, "live theme environment ownership")
-    require_count(app, "TimelineView(\n            .animation(", 1, "authoritative root animation clock")
+    require_count(app, "TimelineView(", 1, "authoritative root animation clock")
     require_all(app, ["minimumInterval: 1.0 / 15.0", "paused: reduceMotion || !isActive"], "lifecycle and Reduce Motion clock pausing")
     require_all(environment, ["struct ScenicRoyalEnvironmentHost", "isActive: scenePhase == .active", "reduceMotion || reduceMotionOverride"], "persistent Scenic Royal environment host")
     require("Timer.scheduledTimer" not in app, "theme architecture must not introduce a competing Timer owner")
@@ -387,6 +412,119 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
         "Scenic Royal Theme Center presentation and accessibility",
     )
     require("TimelineView" not in center + theme_components, "Theme Center previews must remain static")
+
+
+def validate_environment_effect_architecture(sources: dict[str, str]) -> None:
+    app = sources["LifeRouteApp.swift"]
+    effects = sources["ScenicRoyalEnvironmentalEffects.swift"]
+    contracts = sources["SceneryEffectContracts.swift"]
+    root = sources["V054ContentView.swift"]
+    environment = sources["ScenicRoyalEnvironment.swift"]
+
+    base_start = effects.find("struct LifeRouteFixedSceneryBase: View")
+    base_end = effects.find("struct LifeRouteFixedSceneryGrade: View", base_start)
+    require(base_start >= 0 and base_end > base_start, "fixed scenery base must remain structurally inspectable")
+    fixed_base = effects[base_start:base_end]
+    forbidden_camera_motion = [".offset(", ".position(", ".scaleEffect(", ".rotationEffect(", "TimelineView", "let time", "let phase"]
+    present = [token for token in forbidden_camera_motion if token in fixed_base]
+    require(not present, f"fixed base scenery must not accept time-varying camera transforms: {present}")
+    require_all(fixed_base, [".scaledToFill()", ".frame(width: proxy.size.width, height: proxy.size.height)", ".clipped()"], "static aspect-fill scenery composition")
+
+    require_all(
+        app,
+        [
+            "private var fixedFrame: some View",
+            "private var fixedGrade: some View",
+            "LifeRouteFixedSceneryBase(scene: profile.scene)",
+            "LifeRouteSceneryEffectLayer(",
+            "intensity: theme.isPhaseTwoDynamic ? 0.72 : 1",
+            "minimumInterval: 1.0 / 15.0",
+            "paused: reduceMotion || !isActive",
+            "speed: 0.42, amplitude: 24",
+            "speed: 0.32, amplitude: 31",
+            ".opacity(theme == .royalCurrent ? 0.30 : 0.24)",
+        ],
+        "one-clock fixed-camera environment integration",
+    )
+    dynamic_renderers_start = app.find("private struct LifeRouteRoyalCurrentFrame: View")
+    dynamic_renderers_end = app.find("// v0.7.1 retained Scenery library", dynamic_renderers_start)
+    dynamic_renderers = app[dynamic_renderers_start:dynamic_renderers_end]
+    require(
+        ".compositingGroup()" not in dynamic_renderers,
+        "active Dynamic renderers must not force a full-screen offscreen compositing group on every environment frame",
+    )
+    require(
+        'Image(decorative: "DynamicRoyalCurrent")' not in dynamic_renderers,
+        "Royal Current's static identity artwork must remain outside the live animation clock",
+    )
+    require_count(app, 'Image(decorative: "DynamicRoyalCurrent")', 1, "static Royal Current identity artwork ownership")
+    require_all(
+        effects,
+        [
+            "Canvas(opaque: false, colorMode: .linear, rendersAsynchronously: true)",
+            "drawClouds",
+            "drawValleyFog",
+            "drawHeatMirage",
+            "drawCelestialGlints",
+            "drawSnowfall",
+            "drawAurora",
+            "LifeRouteSceneryGustPolicy.envelope",
+            "LifeRouteLocalizedWaterTextureLayer",
+            "case .waterRipple, .waterfallFlow, .streamFlow, .riverFlow:",
+            "Do not stack a",
+            "Differential translation and scaling changes the actual baked",
+            "LifeRouteWaterRegionMask",
+            ".blur(radius: 1.5)",
+            "profile.textureMotionRegions.map",
+            "case (.rainforestDay, .rainforestDayWaterfall)",
+            "case (.rainforestDay, .rainforestDayStream)",
+            "case (.rainforestNight, .rainforestNightStream)",
+            "case (.canyonDay, .canyonDayRiver)",
+            "case (.canyonNight, .canyonNightRiver)",
+            "case (.arcticDay, .arcticDayWater)",
+        ],
+        "localized reusable environment effect families",
+    )
+    forbidden_generic_water_overlays = ["drawWaterRipples", "drawWaterfall", "drawStream", "drawRiver"]
+    present_water_overlays = [token for token in forbidden_generic_water_overlays if token in effects]
+    require(
+        not present_water_overlays,
+        f"water must move through localized artwork texture masks, not generic line overlays: {present_water_overlays}",
+    )
+    require_all(
+        contracts,
+        [
+            ".init(scene: .mountainsDay, effects: [.clouds, .valleyFog]",
+            ".init(scene: .rainforestDay, effects: [.waterfallFlow, .streamFlow, .mistCycle, .rain]",
+            ".init(scene: .canyonNight, effects: [.clouds, .riverFlow, .celestialDrift]",
+            ".init(scene: .arcticNight, effects: [.aurora, .snowfall, .snowGust]",
+            "arcticNightContainsBakedClouds",
+            "canyonNightContainsBakedMoonAndStars",
+            "rainforestNightHasNoDistinctBakedWaterfall",
+            "var textureMotionRegions: [LifeRouteSceneryTextureMotionRegion]",
+            "return [.oceanFar, .oceanNear]",
+            "return [.rainforestDayWaterfall, .rainforestDayStream]",
+            "return [.rainforestNightStream]",
+            "return [.canyonDayRiver]",
+            "return [.canyonNightRiver]",
+            "return [.arcticDayWater]",
+        ],
+        "scene-specific profiles and protected-artwork limitations",
+    )
+    require(".init(scene: .arcticNight, effects: [.clouds" not in contracts, "Arctic Night must never select generated clouds")
+    live_environment_start = app.find("struct LifeRouteLiveThemeEnvironment: View")
+    live_environment_end = app.find("#if DEBUG", live_environment_start)
+    live_environment = app[live_environment_start:live_environment_end]
+    fixed_frame_index = live_environment.find("fixedFrame")
+    timeline_index = live_environment.find("TimelineView(", fixed_frame_index)
+    fixed_grade_index = live_environment.find("fixedGrade", timeline_index)
+    require(
+        fixed_frame_index >= 0 and timeline_index > fixed_frame_index and fixed_grade_index > timeline_index,
+        "the static grade must remain above both fixed and masked moving artwork without entering the timeline clock",
+    )
+    require(".animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)" not in root, "theme changes must not invalidate the entire five-root shell")
+    require("A newly selected tab can materialize a fresh UIKit container" not in root, "root paging must not recursively rewrite UIKit chrome on every selection")
+    require(".animation(" not in environment, "the persistent environment host must not animate its entire content tree")
 
 
 def validate_clients(sources: dict[str, str]) -> None:
@@ -777,9 +915,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         app,
         [
             "LifeRouteReadableTextSurfaceModifier",
-            "accessibilityReduceTransparency",
-            "colorSchemeContrast",
-            "AnyShapeStyle(.regularMaterial)",
+            ".scenicRoyalSurface(role: .readability",
             "lifeRouteReadableTextSurface",
         ],
         "accessible dense-text readability floor inside retained glass cards",
@@ -1084,6 +1220,7 @@ def run_fast() -> None:
     validate_active_build_path()
     validate_navigation_and_ownership(sources)
     validate_theme_architecture(sources)
+    validate_environment_effect_architecture(sources)
     validate_clients(sources)
     validate_scenic_royal_foundation(sources)
     validate_resources(sources)

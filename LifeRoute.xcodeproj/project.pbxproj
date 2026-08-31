@@ -55,6 +55,8 @@
 		A10000000000000000000052 /* RuntimeFeedbackContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000052 /* RuntimeFeedbackContracts.swift */; };
 		A10000000000000000000053 /* DayItineraryContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000053 /* DayItineraryContracts.swift */; };
 		A10000000000000000000054 /* LiveDayRunContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000054 /* LiveDayRunContracts.swift */; };
+		A10000000000000000000055 /* SceneryEffectContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000055 /* SceneryEffectContracts.swift */; };
+		A10000000000000000000056 /* ScenicRoyalEnvironmentalEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000056 /* ScenicRoyalEnvironmentalEffects.swift */; };
 		W10000000000000000000001 /* LiveDayLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */; };
 		W10000000000000000000002 /* LiveDayActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* LiveDayActivityAttributes.swift */; };
 		W10000000000000000000003 /* LifeRouteLiveActivityWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -120,6 +122,8 @@
 		A20000000000000000000052 /* RuntimeFeedbackContracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeFeedbackContracts.swift; sourceTree = "<group>"; };
 		A20000000000000000000053 /* DayItineraryContracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayItineraryContracts.swift; sourceTree = "<group>"; };
 		A20000000000000000000054 /* LiveDayRunContracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDayRunContracts.swift; sourceTree = "<group>"; };
+		A20000000000000000000055 /* SceneryEffectContracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneryEffectContracts.swift; sourceTree = "<group>"; };
+		A20000000000000000000056 /* ScenicRoyalEnvironmentalEffects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalEnvironmentalEffects.swift; sourceTree = "<group>"; };
 		W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDayLiveActivityWidget.swift; sourceTree = "<group>"; };
 		W20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LifeRouteLiveActivityWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -136,6 +140,8 @@
 			A20000000000000000000037 /* ScenicRoyalDesignSystem.swift */,
 			A20000000000000000000038 /* ScenicRoyalMaterials.swift */,
 			A20000000000000000000039 /* ScenicRoyalEnvironment.swift */,
+			A20000000000000000000055 /* SceneryEffectContracts.swift */,
+			A20000000000000000000056 /* ScenicRoyalEnvironmentalEffects.swift */,
 			A20000000000000000000040 /* ScenicRoyalThemeBridge.swift */,
 			A20000000000000000000041 /* ScenicRoyalComponents.swift */,
 			A20000000000000000000042 /* ScenicRoyalToolbar.swift */,
@@ -206,6 +212,8 @@
 			A10000000000000000000037 /* ScenicRoyalDesignSystem.swift in Sources */,
 			A10000000000000000000038 /* ScenicRoyalMaterials.swift in Sources */,
 			A10000000000000000000039 /* ScenicRoyalEnvironment.swift in Sources */,
+			A10000000000000000000055 /* SceneryEffectContracts.swift in Sources */,
+			A10000000000000000000056 /* ScenicRoyalEnvironmentalEffects.swift in Sources */,
 			A10000000000000000000040 /* ScenicRoyalThemeBridge.swift in Sources */,
 			A10000000000000000000041 /* ScenicRoyalComponents.swift in Sources */,
 			A10000000000000000000042 /* ScenicRoyalToolbar.swift in Sources */,

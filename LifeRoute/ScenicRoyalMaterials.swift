@@ -146,9 +146,11 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
                 surfaceShape.stroke(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(opaque ? 0.18 : (contrast == .increased ? 0.32 : 0.20)),
-                            style.accentReflection.opacity(contrast == .increased ? 0.30 : 0.18),
-                            ScenicRoyalDesignSystem.ColorToken.brandGold.opacity(role == .toolbar ? 0.34 : 0.12),
+                            Color.white.opacity(opaque ? 0.18 : (contrast == .increased ? 0.32 : 0.11)),
+                            style.accentReflection.opacity(opaque ? (contrast == .increased ? 0.30 : 0.18) : 0.08),
+                            ScenicRoyalDesignSystem.ColorToken.brandGold.opacity(
+                                opaque ? (role == .toolbar ? 0.34 : 0.12) : (role == .toolbar ? 0.10 : 0.05)
+                            ),
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -157,7 +159,7 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
                 )
             }
             .shadow(
-                color: Color.black.opacity(opaque ? 0.20 : 0.16),
+                color: Color.black.opacity(opaque ? 0.20 : 0.055),
                 radius: role == .toolbar ? ScenicRoyalDesignSystem.Shadow.toolbarRadius : ScenicRoyalDesignSystem.Shadow.cardRadius,
                 y: role == .toolbar ? ScenicRoyalDesignSystem.Shadow.toolbarY : ScenicRoyalDesignSystem.Shadow.cardY
             )

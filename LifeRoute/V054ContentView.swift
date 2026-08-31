@@ -137,9 +137,8 @@ struct V054ContentView: View {
                     .padding(.bottom, 2)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-            }
+        }
         .background(Color.clear) // v0.7.0 Theme Phase 1 reveal the single root environment
-        .animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)
         .onAppear {
 #if DEBUG
             if let section = LifeRouteDebugLaunch.sectionOverride {
@@ -157,10 +156,6 @@ struct V054ContentView: View {
         .onChange(of: router.selectedSection) { _ in
             router.setBottomToolbarSuppressed(false)
             LifeRouteHaptics.rootNavigation()
-            // A newly selected tab can materialize a fresh UIKit container after selection changes.
-            DispatchQueue.main.async {
-                LifeRouteAppearance.refreshVisibleChrome(theme: themeStore.selectedTheme)
-            }
         }
         .onChange(of: themeStore.selectedTheme) { theme in
             DispatchQueue.main.async {
@@ -300,10 +295,13 @@ extension LifeRouteAppearance {
             let bar = tabBarController.tabBar
             // v0.7.1 single-toolbar physical fix: SwiftUI's hidden modifier did not suppress the real iPhone UITabBar.
             // Keep UITabBarController/TabView as the navigation owner, but remove only the stock bar presentation.
+            let presentationChanged = !bar.isHidden || bar.alpha != 0 || bar.isUserInteractionEnabled
             bar.isHidden = true
             bar.alpha = 0
             bar.isUserInteractionEnabled = false
-            tabBarController.view.setNeedsLayout()
+            if presentationChanged {
+                tabBarController.view.setNeedsLayout()
+            }
             bar.standardAppearance = tabAppearance
             bar.scrollEdgeAppearance = tabAppearance
             bar.tintColor = accent

@@ -703,83 +703,21 @@ enum LifeRouteHaptics {
 }
 
 struct LifeRouteCardModifier: ViewModifier {
-    @Environment(\.lifeRoutePalette) private var palette
-
     func body(content: Content) -> some View {
         content
             .padding(LifeRouteDesign.Spacing.comfortable)
-            .background {
-                ZStack {
-                    RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                    RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    palette.panelElevated.opacity(0.30),
-                                    palette.panel.opacity(0.16),
-                                    palette.accent.opacity(0.025),
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                }
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.card, style: .continuous)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.18),
-                                palette.accentSecondary.opacity(0.14),
-                                palette.accent.opacity(0.08),
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: LifeRouteDesign.Stroke.subtle
-                    )
-            }
-            .shadow(color: Color.black.opacity(0.20), radius: LifeRouteDesign.Elevation.cardRadius, y: LifeRouteDesign.Elevation.cardY)
+            .scenicRoyalSurface(role: .card, cornerRadius: LifeRouteDesign.Radius.card)
     }
 }
 
 struct LifeRouteReadableTextSurfaceModifier: ViewModifier {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
-    @Environment(\.lifeRoutePalette) private var palette
-
     let cornerRadius: CGFloat
 
     func body(content: Content) -> some View {
-        let elevatedOpacity: Double = reduceTransparency ? 0.98 : (colorSchemeContrast == .increased ? 0.92 : 0.82)
-        let panelOpacity: Double = reduceTransparency ? 0.96 : (colorSchemeContrast == .increased ? 0.84 : 0.70)
-
         content
             .scrollContentBackground(.hidden)
             .padding(8)
-            .background {
-                ZStack {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(reduceTransparency ? AnyShapeStyle(palette.panelElevated) : AnyShapeStyle(.regularMaterial))
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    palette.panelElevated.opacity(elevatedOpacity),
-                                    palette.panel.opacity(panelOpacity),
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                }
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(Color.white.opacity(colorSchemeContrast == .increased ? 0.24 : 0.14), lineWidth: 0.8)
-            }
+            .scenicRoyalSurface(role: .readability, cornerRadius: cornerRadius)
     }
 }
 
@@ -1274,18 +1212,18 @@ fileprivate struct LifeRouteDynamicMotionSignature {
 extension LifeRouteTheme {
     fileprivate var dynamicMotionSignature: LifeRouteDynamicMotionSignature {
         switch self {
-        case .royalCurrent: return .init(speed: 0.90, amplitude: 32, ribbonAngle: -7, stillPhase: 0.7)
-        case .midnightPrism: return .init(speed: 0.78, amplitude: 38, ribbonAngle: 9, stillPhase: 1.4)
-        case .auroraBloom: return .init(speed: 0.68, amplitude: 44, ribbonAngle: -11, stillPhase: 2.1)
-        case .solarPulse: return .init(speed: 1.00, amplitude: 34, ribbonAngle: 6, stillPhase: 0.2)
-        case .emeraldFlow: return .init(speed: 0.82, amplitude: 40, ribbonAngle: -5, stillPhase: 1.8)
-        case .arcticHalo: return .init(speed: 0.62, amplitude: 28, ribbonAngle: 12, stillPhase: 2.7)
-        case .oceanGlass: return .init(speed: 0.86, amplitude: 42, ribbonAngle: -3, stillPhase: 1.1)
-        case .roseEmber: return .init(speed: 0.92, amplitude: 35, ribbonAngle: 8, stillPhase: 2.4)
-        case .obsidianSpectra: return .init(speed: 0.66, amplitude: 46, ribbonAngle: -9, stillPhase: 0.9)
-        case .plasmaOrchid: return .init(speed: 0.96, amplitude: 39, ribbonAngle: 7, stillPhase: 1.6)
-        case .verdantMist: return .init(speed: 0.58, amplitude: 30, ribbonAngle: -4, stillPhase: 2.9)
-        case .titaniumGlow: return .init(speed: 0.70, amplitude: 26, ribbonAngle: 10, stillPhase: 0.4)
+        case .royalCurrent: return .init(speed: 0.42, amplitude: 24, ribbonAngle: -7, stillPhase: 0.7)
+        case .midnightPrism: return .init(speed: 0.36, amplitude: 27, ribbonAngle: 9, stillPhase: 1.4)
+        case .auroraBloom: return .init(speed: 0.32, amplitude: 31, ribbonAngle: -11, stillPhase: 2.1)
+        case .solarPulse: return .init(speed: 0.44, amplitude: 25, ribbonAngle: 6, stillPhase: 0.2)
+        case .emeraldFlow: return .init(speed: 0.38, amplitude: 29, ribbonAngle: -5, stillPhase: 1.8)
+        case .arcticHalo: return .init(speed: 0.30, amplitude: 22, ribbonAngle: 12, stillPhase: 2.7)
+        case .oceanGlass: return .init(speed: 0.40, amplitude: 30, ribbonAngle: -3, stillPhase: 1.1)
+        case .roseEmber: return .init(speed: 0.42, amplitude: 26, ribbonAngle: 8, stillPhase: 2.4)
+        case .obsidianSpectra: return .init(speed: 0.32, amplitude: 32, ribbonAngle: -9, stillPhase: 0.9)
+        case .plasmaOrchid: return .init(speed: 0.42, amplitude: 28, ribbonAngle: 7, stillPhase: 1.6)
+        case .verdantMist: return .init(speed: 0.28, amplitude: 23, ribbonAngle: -4, stillPhase: 2.9)
+        case .titaniumGlow: return .init(speed: 0.34, amplitude: 21, ribbonAngle: 10, stillPhase: 0.4)
         default: return .init(speed: 0.09, amplitude: 32, ribbonAngle: 0, stillPhase: 0.8)
         }
     }
@@ -1344,13 +1282,6 @@ private struct LifeRouteRoyalCurrentFrame: View {
             let drift = sin(phase * 0.64)
 
             ZStack {
-                Image(decorative: "DynamicRoyalCurrent")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: size.width, height: size.height)
-                    .scaleEffect(1.040 + pulse * 0.022)
-                    .offset(x: drift * 9.0, y: -drift * 4.8)
-
                 LinearGradient(
                     colors: [
                         Color(red: 0.004, green: 0.025, blue: 0.085),
@@ -1515,7 +1446,6 @@ private struct LifeRouteRoyalCurrentFrame: View {
             }
             .frame(width: size.width, height: size.height)
             .clipped()
-            .compositingGroup()
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -1684,7 +1614,6 @@ private struct LifeRouteMidnightPrismFrame: View {
             }
             .frame(width: size.width, height: size.height)
             .clipped()
-            .compositingGroup()
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -1771,7 +1700,6 @@ private struct LifeRouteAuroraBloomFrame: View {
             }
             .frame(width: size.width, height: size.height)
             .clipped()
-            .compositingGroup()
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -1857,7 +1785,6 @@ private struct LifeRouteSolarPulseFrame: View {
             }
             .frame(width: size.width, height: size.height)
             .clipped()
-            .compositingGroup()
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -1941,7 +1868,6 @@ private struct LifeRouteEmeraldFlowFrame: View {
             }
             .frame(width: size.width, height: size.height)
             .clipped()
-            .compositingGroup()
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -2028,7 +1954,6 @@ private struct LifeRouteOceanGlassFrame: View {
             }
             .frame(width: size.width, height: size.height)
             .clipped()
-            .compositingGroup()
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -2112,7 +2037,6 @@ private struct LifeRouteObsidianSpectraFrame: View {
             }
             .frame(width: size.width, height: size.height)
             .clipped()
-            .compositingGroup()
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -2205,7 +2129,6 @@ private struct LifeRoutePlasmaOrchidFrame: View {
             }
             .frame(width: size.width, height: size.height)
             .clipped()
-            .compositingGroup()
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -2440,7 +2363,6 @@ struct LifeRouteDynamicGlassFrame: View {
             }
             .frame(width: size.width, height: size.height)
             .clipped()
-            .compositingGroup()
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
@@ -2468,20 +2390,20 @@ extension LifeRouteTheme {
         Self.v071RetainedSceneryCatalog.contains(self)
     }
 
-    fileprivate var v071SceneryAssetName: String? {
+    var scenerySceneID: LifeRouteScenerySceneID? {
         switch self {
-        case .sceneryMountainsDay: return "SceneryMountainsDay"
-        case .sceneryMountainsNight: return "SceneryMountainsNight"
-        case .sceneryOceanDay: return "SceneryOceanDay"
-        case .sceneryOceanNight: return "SceneryOceanNight"
-        case .sceneryDesertDay: return "SceneryDesertDay"
-        case .sceneryDesertNight: return "SceneryDesertNight"
-        case .sceneryRainforestDay: return "SceneryRainforestDay"
-        case .sceneryRainforestNight: return "SceneryRainforestNight"
-        case .sceneryCanyonDay: return "SceneryCanyonDay"
-        case .sceneryCanyonNight: return "SceneryCanyonNight"
-        case .sceneryArcticDay: return "SceneryArcticDay"
-        case .sceneryArcticNight: return "SceneryArcticNight"
+        case .sceneryMountainsDay: return .mountainsDay
+        case .sceneryMountainsNight: return .mountainsNight
+        case .sceneryOceanDay: return .oceanDay
+        case .sceneryOceanNight: return .oceanNight
+        case .sceneryDesertDay: return .desertDay
+        case .sceneryDesertNight: return .desertNight
+        case .sceneryRainforestDay: return .rainforestDay
+        case .sceneryRainforestNight: return .rainforestNight
+        case .sceneryCanyonDay: return .canyonDay
+        case .sceneryCanyonNight: return .canyonNight
+        case .sceneryArcticDay: return .arcticDay
+        case .sceneryArcticNight: return .arcticNight
         default: return nil
         }
     }
@@ -2647,8 +2569,7 @@ private struct LifeRouteCanyonDayAssetFrame: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: size.width, height: size.height)
-                    .scaleEffect(1.035)
-                    .offset(x: drift * 3.2, y: drift * 1.4)
+                    .clipped()
 
                 LinearGradient(
                     colors: [
@@ -2777,10 +2698,7 @@ private struct LifeRouteBundledSceneryAssetFrame: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: size.width, height: size.height)
-                    // Keep the photographic scene static. Living motion is
-                    // carried by the inexpensive ambient layers below instead
-                    // of resampling a full-screen image fifteen times a second.
-                    .scaleEffect(1.034)
+                    .clipped()
 
                 LinearGradient(
                     colors: [
@@ -2938,16 +2856,13 @@ struct LifeRouteSceneryFrame: View {
 
     @ViewBuilder
     var body: some View {
-        if theme == .sceneryCanyonDay {
-            // Preserve the physically validated Build #98 Canyon Day reference verbatim.
-            LifeRouteCanyonDayAssetFrame(palette: palette, phase: phase)
-        } else if let assetName = theme.v071SceneryAssetName {
-            LifeRouteBundledSceneryAssetFrame(
-                theme: theme,
-                palette: palette,
-                assetName: assetName,
-                phase: phase
-            )
+        if let scene = theme.scenerySceneID {
+            let profile = LifeRouteScenerySceneProfile.profile(for: scene)
+            ZStack {
+                LifeRouteFixedSceneryBase(scene: scene)
+                LifeRouteFixedSceneryGrade(profile: profile, palette: palette)
+                LifeRouteSceneryEffectLayer(profile: profile, palette: palette, time: phase)
+            }
         } else {
             // Retired identifiers keep their procedural migration fallback but are not user-facing.
             legacyFrame
@@ -3249,44 +3164,13 @@ struct LifeRouteDynamicGlassEnvironment: View {
     let theme: LifeRouteTheme
     let palette: LifeRouteThemePalette
     let phase: Double
-    let sceneryPhase: Double
 
     var body: some View {
-        GeometryReader { proxy in
-            let sceneryTheme = theme.scenicRoyalDynamicSceneryTheme
-
-            ZStack {
-                LifeRouteSceneryFrame(
-                    theme: sceneryTheme,
-                    palette: sceneryTheme.palette,
-                    phase: sceneryPhase
-                )
-
-                // Preserve the scene's luminance and detail while shifting its atmosphere
-                // into the selected Dynamic identity.
-                palette.backgroundGradient
-                    .opacity(theme == .royalCurrent ? 0.42 : 0.34)
-                    .blendMode(.color)
-
-                // Existing Dynamic motion becomes light and energy over the scene instead
-                // of an opaque replacement. Timing remains owned by the single root clock.
-                LifeRouteDynamicGlassFrame(theme: theme, palette: palette, phase: phase)
-                    .opacity(theme == .royalCurrent ? 0.52 : 0.46)
-                    .blendMode(.screen)
-
-                LinearGradient(
-                    colors: [
-                        palette.backgroundTop.opacity(0.16),
-                        Color.clear,
-                        palette.backgroundBottom.opacity(0.20),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-            .frame(width: proxy.size.width, height: proxy.size.height)
-            .clipped()
-        }
+        // Dynamic identity is a restrained light treatment over the selected
+        // fixed scene, never a second full-screen environment or camera.
+        LifeRouteDynamicGlassFrame(theme: theme, palette: palette, phase: phase)
+            .opacity(theme == .royalCurrent ? 0.30 : 0.24)
+            .blendMode(.screen)
     }
 }
 
@@ -3297,43 +3181,98 @@ struct LifeRouteLiveThemeEnvironment: View {
     let isActive: Bool
 
     var body: some View {
-        // v0.7.0 Theme Phase 3 single shared root environment clock. Only the selected live
-        // environment is mounted; Reduce Motion and inactive/background lifecycle pause the schedule.
-        TimelineView(
-            .animation(
-                minimumInterval: 1.0 / 15.0,
-                paused: reduceMotion || !isActive
-            )
-        ) { context in
-            liveFrame(at: context.date)
+        ZStack {
+            fixedFrame
+
+            // v0.7.0 Theme Phase 3 single shared root environment clock. Only
+            // localized effects and restrained Dynamic light are invalidated.
+            TimelineView(
+                .animation(
+                    minimumInterval: 1.0 / 15.0,
+                    paused: reduceMotion || !isActive
+                )
+            ) { context in
+                liveEffects(at: context.date)
+            }
+
+            fixedGrade
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
 
     @ViewBuilder
-    private func liveFrame(at date: Date) -> some View {
-        if theme.isPhaseTwoDynamic {
-            let signature = theme.dynamicMotionSignature
-            let livePhase = date.timeIntervalSinceReferenceDate * signature.speed
-            let sceneryTheme = theme.scenicRoyalDynamicSceneryTheme
-            let scenerySignature = sceneryTheme.sceneryMotionSignature
-            let sceneryLivePhase = date.timeIntervalSinceReferenceDate * scenerySignature.speed
-            LifeRouteDynamicGlassEnvironment(
-                theme: theme,
-                palette: palette,
-                phase: reduceMotion ? signature.stillPhase : livePhase,
-                sceneryPhase: reduceMotion ? scenerySignature.stillPhase : sceneryLivePhase
-            )
-        } else if theme.isPhaseThreeScenery {
-            let signature = theme.sceneryMotionSignature
-            let livePhase = date.timeIntervalSinceReferenceDate * signature.speed
-            LifeRouteSceneryFrame(
-                theme: theme,
-                palette: palette,
-                phase: reduceMotion ? signature.stillPhase : livePhase
-            )
+    private var fixedFrame: some View {
+        if let profile = selectedSceneryProfile {
+            ZStack {
+                LifeRouteFixedSceneryBase(scene: profile.scene)
+
+                if theme.isPhaseTwoDynamic {
+                    palette.backgroundGradient
+                        .opacity(0.16)
+                        .blendMode(.color)
+
+                    if theme == .royalCurrent {
+                        Image(decorative: "DynamicRoyalCurrent")
+                            .resizable()
+                            .scaledToFill()
+                            .clipped()
+                            .opacity(0.16)
+                            .blendMode(.screen)
+                    }
+                }
+            }
+        } else {
+            palette.backgroundGradient
         }
+    }
+
+    @ViewBuilder
+    private var fixedGrade: some View {
+        if let profile = selectedSceneryProfile {
+            LifeRouteFixedSceneryGrade(profile: profile, palette: selectedSceneryPalette)
+        }
+    }
+
+    @ViewBuilder
+    private func liveEffects(at date: Date) -> some View {
+        let time = reduceMotion ? 0 : date.timeIntervalSinceReferenceDate
+
+        ZStack {
+            if let profile = selectedSceneryProfile {
+                LifeRouteSceneryEffectLayer(
+                    profile: profile,
+                    palette: selectedSceneryPalette,
+                    time: time,
+                    intensity: theme.isPhaseTwoDynamic ? 0.72 : 1
+                )
+            }
+
+            if theme.isPhaseTwoDynamic {
+                let signature = theme.dynamicMotionSignature
+                LifeRouteDynamicGlassEnvironment(
+                    theme: theme,
+                    palette: palette,
+                    phase: reduceMotion ? signature.stillPhase : time * signature.speed
+                )
+            }
+        }
+    }
+
+    private var selectedSceneryTheme: LifeRouteTheme {
+        if theme.isPhaseTwoDynamic {
+            return theme.scenicRoyalDynamicSceneryTheme
+        }
+        return theme
+    }
+
+    private var selectedSceneryProfile: LifeRouteScenerySceneProfile? {
+        guard let scene = selectedSceneryTheme.scenerySceneID else { return nil }
+        return .profile(for: scene)
+    }
+
+    private var selectedSceneryPalette: LifeRouteThemePalette {
+        selectedSceneryTheme.palette
     }
 }
 

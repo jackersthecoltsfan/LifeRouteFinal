@@ -107,6 +107,7 @@ def validate_project_and_version() -> None:
             "ScenicRoyalSetupComponents.swift in Sources",
             "ScenicRoyalClientComponents.swift in Sources",
             "ScenicRoyalThemeComponents.swift in Sources",
+            "RuntimeFeedbackContracts.swift in Sources",
         ],
         "Xcode app/extension structure",
     )
@@ -129,6 +130,7 @@ def validate_active_build_path() -> None:
     require("run_session_note_contract_tests.sh" in full, "validate_full must run executable Session Note contracts")
     require("run_day_route_contract_tests.sh" in full, "validate_full must run executable Day Route contracts")
     require("run_visual_timer_feedback_contract_tests.sh" in full, "validate_full must run executable Visual Timer feedback contracts")
+    require("run_runtime_feedback_contract_tests.sh" in full, "validate_full must run executable runtime feedback contracts")
     fixture_runner = read(ROOT / "scripts" / "run_session_note_contract_tests.sh")
     fixture_source = read(ROOT / "scripts" / "session_note_contract_tests.swift")
     simulator_smoke = read(ROOT / "scripts" / "run_simulator_smoke.sh")
@@ -136,6 +138,8 @@ def validate_active_build_path() -> None:
     day_route_fixture_source = read(ROOT / "scripts" / "day_route_contract_tests.swift")
     timer_fixture_runner = read(ROOT / "scripts" / "run_visual_timer_feedback_contract_tests.sh")
     timer_fixture_source = read(ROOT / "scripts" / "visual_timer_feedback_contract_tests.swift")
+    runtime_fixture_runner = read(ROOT / "scripts" / "run_runtime_feedback_contract_tests.sh")
+    runtime_fixture_source = read(ROOT / "scripts" / "runtime_feedback_contract_tests.swift")
     require_all(fixture_runner, ["swiftc", "SessionNoteContracts.swift", "session_note_contract_tests.swift"], "Session Note fixture runner")
     require_all(
         fixture_source,
@@ -198,8 +202,27 @@ def validate_active_build_path() -> None:
             "VoiceOver stays quiet above one minute",
             "completion announcement is concise",
             "completion haptics remain available by default",
+            "timer playback remains audible when the Ring/Silent switch is Silent",
+            "timer playback mixes instead of unnecessarily interrupting other audio",
+            "LifeRoute Sound Off remains authoritative",
+            "zero percent volume remains silent",
         ],
         "Visual Timer feedback executable fixtures",
+    )
+    require_all(
+        runtime_fixture_runner,
+        ["swiftc", "RuntimeFeedbackContracts.swift", "runtime_feedback_contract_tests.swift"],
+        "runtime feedback fixture runner",
+    )
+    require_all(
+        runtime_fixture_source,
+        [
+            "iOS 26 leaves navigation-bar material ownership to UIKit and SwiftUI",
+            "later systems do not restore live custom navigation-bar mutation",
+            "iOS 17.5 begins view-associated feedback-generator delivery",
+            "iOS 26 physical builds use view-associated feedback-generator delivery",
+        ],
+        "runtime feedback executable fixtures",
     )
     require_all(
         warning_assessor,
@@ -219,8 +242,10 @@ def validate_active_build_path() -> None:
 
 
 def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
+    app = sources["LifeRouteApp.swift"]
     navigation = sources["AppNavigation.swift"]
     root = sources["V054ContentView.swift"]
+    runtime_feedback = sources["RuntimeFeedbackContracts.swift"]
     corpus = "\n".join(sources.values())
     require_count(corpus, "final class AppRouter: ObservableObject", 1, "shipping Swift")
     require_all(
@@ -266,6 +291,36 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
         "paged toolbar/router synchronization, UIKit suppression, and Debug deep-screen fixture",
     )
     require("LifeRouteWebView(" not in root, "shipping root must not activate the quarantined WebView")
+    require_all(
+        runtime_feedback,
+        [
+            "usesCustomNavigationBarAppearance",
+            "majorVersion < 26",
+            "usesViewAssociatedHaptics",
+            "majorVersion == 17 && minorVersion >= 5",
+        ],
+        "version-bounded UIKit runtime policy",
+    )
+    require_all(
+        root,
+        [
+            "LifeRouteRuntimeFeedbackPolicy.usesCustomNavigationBarAppearance",
+            "navigationAppearance: UINavigationBarAppearance?",
+            "if let navigationAppearance, let navigationController",
+        ],
+        "iOS 26 navigation-bar assertion regression boundary",
+    )
+    require_all(
+        app,
+        [
+            "@MainActor\nenum LifeRouteHaptics",
+            "LifeRouteRuntimeFeedbackPolicy.usesViewAssociatedHaptics",
+            "UIImpactFeedbackGenerator(style: .light, view: hostView)",
+            "UISelectionFeedbackGenerator(view: hostView)",
+            "UINotificationFeedbackGenerator(view: hostView)",
+        ],
+        "retained view-associated haptic delivery",
+    )
 
 
 def extract_catalog(text: str, declaration: str) -> list[str]:
@@ -286,7 +341,7 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
     corpus = "\n".join(sources.values())
     require_count(corpus, "struct LifeRouteLiveThemeEnvironment: View", 1, "live theme environment ownership")
     require_count(app, "TimelineView(\n            .animation(", 1, "authoritative root animation clock")
-    require_all(app, ["minimumInterval: 1.0 / 20.0", "paused: reduceMotion || !isActive"], "lifecycle and Reduce Motion clock pausing")
+    require_all(app, ["minimumInterval: 1.0 / 15.0", "paused: reduceMotion || !isActive"], "lifecycle and Reduce Motion clock pausing")
     require_all(environment, ["struct ScenicRoyalEnvironmentHost", "isActive: scenePhase == .active", "reduceMotion || reduceMotionOverride"], "persistent Scenic Royal environment host")
     require("Timer.scheduledTimer" not in app, "theme architecture must not introduce a competing Timer owner")
     core = extract_catalog(app, "static let phaseOneCoreGlassCatalog")
@@ -839,7 +894,10 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
             "VisualTimerFeedbackCurve.pulsesPerSecond",
             "VisualTimerFeedbackCurve.frequency",
             "VisualTimerFeedbackCurve.signalGain",
-            "session.setCategory(.ambient",
+            "session.setCategory(.playback",
+            "options: [.mixWithOthers]",
+            "engine.stop()",
+            "VisualTimerAudioSessionPolicy.shouldActivate",
             "liferoute.visualTimer.toneProfile.v1",
             "liferoute.visualTimer.soundEnabled.v1",
             "liferoute.visualTimer.volume.v1",
@@ -858,6 +916,9 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
             "let exponent = 4.0",
             "pow(clamped(elapsedProgress), 1.65)",
             "enum VisualTimerAccessibilityMilestone",
+            "enum VisualTimerAudioSessionPolicy",
+            "playsThroughRingSilentSwitch = true",
+            "mixesWithOtherAudio = true",
         ],
         "Visual Timer pure feedback contract",
     )

@@ -7,7 +7,14 @@
   superseded without merging.
 - Authoritative post-runway `main` and v0.9.0 branch point:
   `f35b59b5b337ba27a6196bb8d1687f4fe23f8dfc`.
-- Active branch: `feature/v0.9.0-scenic-royal-ui`.
+- v0.9.0 Build 117 was uploaded from exact `main` release SHA
+  `ebe6ea9ec886c58d32a147e69f0b7a352e095962`. Physical QA accepted it as the
+  first Scenic Royal candidate but not as the final v0.9.0 candidate.
+- Active repair branch: `fix/v0.9.0-build117-scenic-fidelity-crash`, created
+  directly from that immutable Build 117 release baseline. Commit
+  `9215b8cc4150353446b223cf77d571d61b7b7c65` contains the shared Liquid Glass,
+  continuous-scenery, Dynamic-plus-scenery, and bounded environmental-motion
+  fidelity repair.
 - Phase 0 architecture and Phase 1 foundation checkpoints are accepted. The
   Phase 1 remote checkpoint is `fe46286f916c095d61e5ebc5ef163b3d2d9b21ed`.
 - Phase 2 Today/route implementation is accepted at
@@ -29,11 +36,19 @@
   this handoff. It corrects Setup deep-route toolbar suppression and adds an
   accessibility-mode readability floor to shared root-screen headers; no
   product-domain behavior changed.
-- The owner authorized candidate
-  `c2055255f8c0aec3041c38d5cda6853f606ac620` for v0.9.0 TestFlight. Its
-  product tree was merged unchanged, and release identity metadata is being
-  synchronized to v0.9.0 before exact-main validation and guarded upload.
-- Do not dispatch TestFlight or merge the v0.9.0 branch without the owner's
+- The Build 117 physical crash report is an iOS 26.6.1 main-thread `SIGABRT`
+  through `NSAssertionHandler` and `-[UINavigationBar layoutSubviews]`, not a
+  Jetsam termination. The repair leaves iOS 26 navigation-bar material and live
+  layout ownership to UIKit while retaining the established iOS 16-25 fallback.
+  It also retains active haptic generators and gives the Visual Timer an
+  intentional, mixing playback session that follows LifeRoute's Sound/volume
+  preferences while remaining audible through the Ring/Silent switch.
+- A focused Simulator audit removed one redundant outer full-screen Dynamic
+  compositing group and reduced the single shared live-environment cadence from
+  20 to 15 fps. Royal Current retained its mountain/blue-gold composition while
+  the isolated Debug fixture dropped from roughly 87% to 41% settled host CPU;
+  no additional scenery clocks or observable owners were introduced.
+- Do not merge this repair or dispatch Build 118 without the owner's explicit
   candidate-specific authorization.
 
 The Session Note generator now presents a stable inline “Experimental AI Tool”
@@ -217,9 +232,11 @@ navigation handoff, and Live Activity presentation.
 - Warm, Soft, and Clear audible profiles plus an independent Sound toggle,
   bounded volume, and optional completion haptics persist through four narrow
   `UserDefaults` keys. Turning Sound off preserves the selected audible tone.
-  Audio uses the ambient session category so it mixes with other audio and
-  respects the physical Ring/Silent setting. Silent mode does not start the
-  tone engine.
+  Timer audio now uses a bounded playback session with `mixWithOthers`: it
+  remains audible through the physical Ring/Silent setting when LifeRoute Sound
+  is enabled, but does not activate when LifeRoute Sound is off or volume is
+  zero. The session and engine deactivate after completion, pause, reset, or
+  muting.
 - Reduce Motion lowers the visual update cadence and removes pulse animation.
   VoiceOver receives only bounded minute/30-second/10-second/5-second/completion
   milestones; the continuously changing timer display is not a live region.

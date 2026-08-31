@@ -57,6 +57,7 @@ private final class VisualTimerToneEngine {
         channels: 1
     )!
     private var isPrepared = false
+    private var isSessionActive = false
     private var completionStopTask: Task<Void, Never>?
 
     func playPulse(frequency: Double, profile: VisualTimerToneProfile, gain: Float) {
@@ -90,17 +91,23 @@ private final class VisualTimerToneEngine {
         completionStopTask?.cancel()
         completionStopTask = nil
         player.stop()
-        engine.pause()
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        engine.stop()
+        if isSessionActive {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            isSessionActive = false
+        }
     }
 
     private func prepareIfNeeded() -> Bool {
         do {
             let session = AVAudioSession.sharedInstance()
-            // Timer audio is supportive rather than essential. Ambient audio mixes with
-            // other apps and respects the iPhone Ring/Silent switch and screen locking.
-            try session.setCategory(.ambient, mode: .default)
-            try session.setActive(true)
+            if !isSessionActive {
+                // The timer has its own explicit Sound control. Playback keeps that
+                // choice audible through Ring/Silent while mixing with other audio.
+                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                try session.setActive(true)
+                isSessionActive = true
+            }
 
             if !isPrepared {
                 engine.attach(player)
@@ -111,6 +118,12 @@ private final class VisualTimerToneEngine {
             if !engine.isRunning { try engine.start() }
             return engine.isRunning
         } catch {
+            player.stop()
+            engine.stop()
+            if isSessionActive {
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                isSessionActive = false
+            }
             return false
         }
     }
@@ -344,7 +357,10 @@ final class VisualTimerCore: ObservableObject {
                     self.pausedRemainingSeconds = 0
                     self.deadline = nil
                     self.feedbackTask = nil
-                    if self.soundEnabled, self.volume > 0 {
+                    if VisualTimerAudioSessionPolicy.shouldActivate(
+                        soundEnabled: self.soundEnabled,
+                        volume: self.volume
+                    ) {
                         self.toneEngine.playCompletion(
                             profile: self.toneProfile,
                             gain: Float(self.volume)
@@ -353,7 +369,10 @@ final class VisualTimerCore: ObservableObject {
                     return
                 }
 
-                if self.soundEnabled, self.volume > 0 {
+                if VisualTimerAudioSessionPolicy.shouldActivate(
+                    soundEnabled: self.soundEnabled,
+                    volume: self.volume
+                ) {
                     self.toneEngine.playPulse(
                         frequency: self.toneFrequency(forRemaining: remaining),
                         profile: self.toneProfile,

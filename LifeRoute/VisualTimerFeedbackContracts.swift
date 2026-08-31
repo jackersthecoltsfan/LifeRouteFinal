@@ -88,6 +88,17 @@ struct VisualTimerFeedbackPreferences: Equatable {
     )
 }
 
+enum VisualTimerAudioSessionPolicy {
+    /// The Visual Timer is intentional playback controlled by its own Sound
+    /// setting, so the hardware Ring/Silent switch must not mute it.
+    static let playsThroughRingSilentSwitch = true
+    static let mixesWithOtherAudio = true
+
+    static func shouldActivate(soundEnabled: Bool, volume: Double) -> Bool {
+        soundEnabled && volume > 0
+    }
+}
+
 enum VisualTimerFeedbackCurve {
     static let minimumPulsesPerSecond = 0.72
     static let maximumPulsesPerSecond = 4.20

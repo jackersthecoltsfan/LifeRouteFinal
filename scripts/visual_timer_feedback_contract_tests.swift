@@ -10,6 +10,7 @@ struct VisualTimerFeedbackContractTests {
         testFeedbackBounds()
         testAccessibilityMilestones()
         testPreferenceDefaults()
+        testAudioSessionPolicy()
 
         print("Visual Timer feedback executable contract fixtures passed (\(assertionCount) assertions).")
     }
@@ -83,6 +84,29 @@ struct VisualTimerFeedbackContractTests {
             completionHapticsEnabled: defaults.completionHapticsEnabled
         )
         expect(mutedWarm.toneProfile == .warm && !mutedWarm.soundEnabled, "disabling sound preserves the selected audible tone")
+    }
+
+    private static func testAudioSessionPolicy() {
+        expect(
+            VisualTimerAudioSessionPolicy.playsThroughRingSilentSwitch,
+            "timer playback remains audible when the Ring/Silent switch is Silent"
+        )
+        expect(
+            VisualTimerAudioSessionPolicy.mixesWithOtherAudio,
+            "timer playback mixes instead of unnecessarily interrupting other audio"
+        )
+        expect(
+            VisualTimerAudioSessionPolicy.shouldActivate(soundEnabled: true, volume: 0.42),
+            "enabled timer sound with positive volume activates playback"
+        )
+        expect(
+            !VisualTimerAudioSessionPolicy.shouldActivate(soundEnabled: false, volume: 0.42),
+            "LifeRoute Sound Off remains authoritative"
+        )
+        expect(
+            !VisualTimerAudioSessionPolicy.shouldActivate(soundEnabled: true, volume: 0),
+            "zero percent volume remains silent"
+        )
     }
 
     private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {

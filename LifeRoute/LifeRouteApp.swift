@@ -588,23 +588,83 @@ enum LifeRouteDesign {
     }
 }
 
+@MainActor
 enum LifeRouteHaptics {
+    private final class GeneratorPool {
+        weak var hostView: UIView?
+        var primaryAction: UIImpactFeedbackGenerator?
+        var selection: UISelectionFeedbackGenerator?
+        var success: UINotificationFeedbackGenerator?
+    }
+
+    private static let generators = GeneratorPool()
+
     static func primaryAction() {
-        let generator = UIImpactFeedbackGenerator(style: .light)
+        prepareGenerators()
+        guard let generator = generators.primaryAction else { return }
         generator.prepare()
         generator.impactOccurred(intensity: 0.78)
+        generator.prepare()
     }
 
     static func selection() {
-        let generator = UISelectionFeedbackGenerator()
+        prepareGenerators()
+        guard let generator = generators.selection else { return }
         generator.prepare()
         generator.selectionChanged()
+        generator.prepare()
     }
 
     static func success() {
-        let generator = UINotificationFeedbackGenerator()
+        prepareGenerators()
+        guard let generator = generators.success else { return }
         generator.prepare()
         generator.notificationOccurred(.success)
+        generator.prepare()
+    }
+
+    private static func prepareGenerators() {
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        if #available(iOS 17.5, *),
+           LifeRouteRuntimeFeedbackPolicy.usesViewAssociatedHaptics(version),
+           let hostView = foregroundHostView() {
+            guard generators.hostView !== hostView
+                    || generators.primaryAction == nil
+                    || generators.selection == nil
+                    || generators.success == nil else { return }
+
+            generators.hostView = hostView
+            generators.primaryAction = UIImpactFeedbackGenerator(style: .light, view: hostView)
+            generators.selection = UISelectionFeedbackGenerator(view: hostView)
+            generators.success = UINotificationFeedbackGenerator(view: hostView)
+            return
+        }
+
+        guard generators.hostView != nil
+                || generators.primaryAction == nil
+                || generators.selection == nil
+                || generators.success == nil else { return }
+
+        generators.hostView = nil
+        generators.primaryAction = UIImpactFeedbackGenerator(style: .light)
+        generators.selection = UISelectionFeedbackGenerator()
+        generators.success = UINotificationFeedbackGenerator()
+    }
+
+    private static func foregroundHostView() -> UIView? {
+        let scenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
+
+        for scene in scenes {
+            if let keyWindow = scene.windows.first(where: { $0.isKeyWindow }) {
+                return keyWindow
+            }
+            if let visibleWindow = scene.windows.first(where: { !$0.isHidden && $0.alpha > 0 }) {
+                return visibleWindow
+            }
+        }
+        return nil
     }
 }
 
@@ -3190,7 +3250,6 @@ struct LifeRouteDynamicGlassEnvironment: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
-            .compositingGroup()
         }
     }
 }
@@ -3206,7 +3265,7 @@ struct LifeRouteLiveThemeEnvironment: View {
         // environment is mounted; Reduce Motion and inactive/background lifecycle pause the schedule.
         TimelineView(
             .animation(
-                minimumInterval: 1.0 / 20.0,
+                minimumInterval: 1.0 / 15.0,
                 paused: reduceMotion || !isActive
             )
         ) { context in
@@ -3468,38 +3527,45 @@ enum LifeRouteAppearance {
         let primary = UIColor(palette.textPrimary)
         let secondary = UIColor(palette.textSecondary)
 
-        let nav = UINavigationBarAppearance()
-        nav.configureWithTransparentBackground()
-        nav.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-        nav.backgroundColor = background.withAlphaComponent(0.54)
-        nav.shadowColor = accent.withAlphaComponent(0.10)
-        nav.titleTextAttributes = [.foregroundColor: primary, .font: UIFont.systemFont(ofSize: 17, weight: .semibold)]
-        nav.largeTitleTextAttributes = [.foregroundColor: primary, .font: UIFont.systemFont(ofSize: 34, weight: .bold)]
+        // UIKit owns the iOS 26 Liquid Glass navigation-bar material. Build 117
+        // combined a global appearance proxy with repeated live-bar mutation,
+        // which can leave UIKit's private navigation layout state inconsistent.
+        if LifeRouteRuntimeFeedbackPolicy.usesCustomNavigationBarAppearance(
+            ProcessInfo.processInfo.operatingSystemVersion
+        ) {
+            let nav = UINavigationBarAppearance()
+            nav.configureWithTransparentBackground()
+            nav.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
+            nav.backgroundColor = background.withAlphaComponent(0.54)
+            nav.shadowColor = accent.withAlphaComponent(0.10)
+            nav.titleTextAttributes = [.foregroundColor: primary, .font: UIFont.systemFont(ofSize: 17, weight: .semibold)]
+            nav.largeTitleTextAttributes = [.foregroundColor: primary, .font: UIFont.systemFont(ofSize: 34, weight: .bold)]
 
-        let navButton = UIBarButtonItemAppearance(style: .plain)
-        navButton.normal.titleTextAttributes = [
-            .foregroundColor: accent,
-            .font: UIFont.systemFont(ofSize: 16, weight: .semibold)
-        ]
-        navButton.highlighted.titleTextAttributes = [
-            .foregroundColor: accent.withAlphaComponent(0.68),
-            .font: UIFont.systemFont(ofSize: 16, weight: .semibold)
-        ]
-        nav.buttonAppearance = navButton
-        nav.backButtonAppearance = navButton
+            let navButton = UIBarButtonItemAppearance(style: .plain)
+            navButton.normal.titleTextAttributes = [
+                .foregroundColor: accent,
+                .font: UIFont.systemFont(ofSize: 16, weight: .semibold)
+            ]
+            navButton.highlighted.titleTextAttributes = [
+                .foregroundColor: accent.withAlphaComponent(0.68),
+                .font: UIFont.systemFont(ofSize: 16, weight: .semibold)
+            ]
+            nav.buttonAppearance = navButton
+            nav.backButtonAppearance = navButton
 
-        let doneButton = UIBarButtonItemAppearance(style: .done)
-        doneButton.normal.titleTextAttributes = [
-            .foregroundColor: accent,
-            .font: UIFont.systemFont(ofSize: 16, weight: .bold)
-        ]
-        nav.doneButtonAppearance = doneButton
+            let doneButton = UIBarButtonItemAppearance(style: .done)
+            doneButton.normal.titleTextAttributes = [
+                .foregroundColor: accent,
+                .font: UIFont.systemFont(ofSize: 16, weight: .bold)
+            ]
+            nav.doneButtonAppearance = doneButton
 
-        UINavigationBar.appearance().standardAppearance = nav
-        UINavigationBar.appearance().scrollEdgeAppearance = nav
-        UINavigationBar.appearance().compactAppearance = nav
-        UINavigationBar.appearance().tintColor = accent
-        UIBarButtonItem.appearance().tintColor = accent
+            UINavigationBar.appearance().standardAppearance = nav
+            UINavigationBar.appearance().scrollEdgeAppearance = nav
+            UINavigationBar.appearance().compactAppearance = nav
+            UINavigationBar.appearance().tintColor = accent
+            UIBarButtonItem.appearance().tintColor = accent
+        }
 
         let tab = UITabBarAppearance()
         tab.configureWithTransparentBackground()

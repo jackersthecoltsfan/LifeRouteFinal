@@ -207,21 +207,31 @@ extension LifeRouteAppearance {
         // v0.7.0 Build A shell: premium native navigation and tab chrome; routing remains unchanged.
         let chromeBlurStyle: UIBlurEffect.Style = theme == .light ? .systemUltraThinMaterialLight : .systemUltraThinMaterialDark
 
-        let navigationAppearance = UINavigationBarAppearance()
-        navigationAppearance.configureWithTransparentBackground()
-        navigationAppearance.backgroundEffect = needsOpaqueChrome ? UIBlurEffect(style: chromeBlurStyle) : nil
-        navigationAppearance.backgroundColor = needsOpaqueChrome
-            ? background.withAlphaComponent(theme == .light ? 0.92 : 0.88)
-            : .clear
-        navigationAppearance.shadowColor = accent.withAlphaComponent(0.12)
-        navigationAppearance.titleTextAttributes = [
-            .foregroundColor: primary,
-            .font: UIFontMetrics(forTextStyle: .headline).scaledFont(for: UIFont.systemFont(ofSize: 17, weight: .semibold))
-        ]
-        navigationAppearance.largeTitleTextAttributes = [
-            .foregroundColor: primary,
-            .font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: UIFont.systemFont(ofSize: 32, weight: .bold))
-        ]
+        let navigationAppearance: UINavigationBarAppearance?
+        if LifeRouteRuntimeFeedbackPolicy.usesCustomNavigationBarAppearance(
+            ProcessInfo.processInfo.operatingSystemVersion
+        ) {
+            let appearance = UINavigationBarAppearance()
+            appearance.configureWithTransparentBackground()
+            appearance.backgroundEffect = needsOpaqueChrome ? UIBlurEffect(style: chromeBlurStyle) : nil
+            appearance.backgroundColor = needsOpaqueChrome
+                ? background.withAlphaComponent(theme == .light ? 0.92 : 0.88)
+                : .clear
+            appearance.shadowColor = accent.withAlphaComponent(0.12)
+            appearance.titleTextAttributes = [
+                .foregroundColor: primary,
+                .font: UIFontMetrics(forTextStyle: .headline).scaledFont(for: UIFont.systemFont(ofSize: 17, weight: .semibold))
+            ]
+            appearance.largeTitleTextAttributes = [
+                .foregroundColor: primary,
+                .font: UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: UIFont.systemFont(ofSize: 32, weight: .bold))
+            ]
+            navigationAppearance = appearance
+        } else {
+            // iOS 26 native Liquid Glass must remain the visible navigation
+            // surface; do not rewrite a live UINavigationBar during layout.
+            navigationAppearance = nil
+        }
 
         let normalTabFont = UIFontMetrics(forTextStyle: .caption2).scaledFont(for: UIFont.systemFont(ofSize: 10, weight: .medium))
         let selectedTabFont = UIFontMetrics(forTextStyle: .caption2).scaledFont(for: UIFont.systemFont(ofSize: 10, weight: .semibold))
@@ -263,7 +273,7 @@ extension LifeRouteAppearance {
     @MainActor
     private static func refresh(
         viewController: UIViewController?,
-        navigationAppearance: UINavigationBarAppearance,
+        navigationAppearance: UINavigationBarAppearance?,
         tabAppearance: UITabBarAppearance,
         accent: UIColor,
         secondary: UIColor
@@ -273,7 +283,7 @@ extension LifeRouteAppearance {
         // v0.7.1 physical-device root environment reveal: UIKit host/controller fills must not cover the shared SwiftUI environment.
         viewController.view.backgroundColor = .clear
 
-        if let navigationController = viewController as? UINavigationController {
+        if let navigationAppearance, let navigationController = viewController as? UINavigationController {
             let bar = navigationController.navigationBar
             bar.standardAppearance = navigationAppearance
             bar.scrollEdgeAppearance = navigationAppearance

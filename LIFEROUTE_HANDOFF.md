@@ -29,6 +29,10 @@
   this handoff. It corrects Setup deep-route toolbar suppression and adds an
   accessibility-mode readability floor to shared root-screen headers; no
   product-domain behavior changed.
+- The owner authorized candidate
+  `c2055255f8c0aec3041c38d5cda6853f606ac620` for v0.9.0 TestFlight. Its
+  product tree was merged unchanged, and release identity metadata is being
+  synchronized to v0.9.0 before exact-main validation and guarded upload.
 - Do not dispatch TestFlight or merge the v0.9.0 branch without the owner's
   candidate-specific authorization.
 

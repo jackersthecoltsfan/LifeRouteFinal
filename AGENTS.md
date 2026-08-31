@@ -64,7 +64,7 @@ Use consistent design tokens and reusable components rather than isolated stylin
 
 ## Existing build and release architecture
 
-- Checked-in `LifeRoute/`, `LifeRouteLiveActivityWidget/`, and `LifeRoute.xcodeproj/` are the canonical v0.8.3 shipping source. Never reconstruct current development by replaying archived v0.x patches.
+- Checked-in `LifeRoute/`, `LifeRouteLiveActivityWidget/`, and `LifeRoute.xcodeproj/` are the canonical v0.9.0 shipping source. Never reconstruct current development by replaying archived v0.x patches.
 - `scripts/prepare_build.sh` is a deterministic, idempotent validation-only preflight. Change canonical source directly and update `validate_fast.sh` or `validate_full.sh` when a current semantic invariant changes.
 - Files under `scripts/archive/` and `docs/archive/` are archaeology only. They must not execute in normal development, pull-request, main, Pages, or release paths.
 - Keep CI and TestFlight aligned with the canonical workflow. Ordinary pushes never authorize or upload a release by themselves.

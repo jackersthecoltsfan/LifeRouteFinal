@@ -18,8 +18,11 @@
   verified at that exact Phase 3 commit before Phase 4 began.
 - Phase 4 Tools/Visual Timer implementation is accepted and finalized remotely at
   `09f8c1831db83b90dbd9019d34475069682a6360`.
-- Phase 5 Resources implementation is complete locally for checkpoint review. Do
-  not begin Setup, clients, saved places, Themes, or legacy retirement until this
+- Phase 5 Resources implementation is accepted and finalized remotely at
+  `446866ea59f86663ad4c285023e9cd3deb88259a`.
+- Phase 6A Setup, shared Address Field, Home Base, Saved Places, Add Place, and
+  Weekly To-Dos presentation is complete locally for checkpoint review. Do not
+  begin Clients, Themes, Phase 6B, Phase 7, or legacy retirement until this
   checkpoint is accepted.
 - Do not dispatch TestFlight or merge the v0.9.0 branch without the owner's
   candidate-specific authorization.
@@ -263,10 +266,42 @@ pre-v0.9 runway instead.
   Arctic pass remains legible and reflows metadata and rows without shrinking
   text. The warning budget remains the known no-AppIntents notice only.
 
-## Next milestone — v0.9.0 Phase 6
+## v0.9.0 Phase 6A validation checkpoint
 
-After the owner accepts the Phase 5 checkpoint, migrate Setup, clients, saved
-places, and Themes using the accepted Phase 6 pre-implementation map. Themes
-remain inside Setup and the five-root architecture remains unchanged. Do not
-begin Phase 7 integration, legacy retirement, merge, or release work as part of
-the Phase 6 migration.
+- The active Setup root now uses six Scenic Royal disclosure groups in the
+  established order: Appearance, Profile & Work, Navigation & Places, Weekly
+  To-Dos, Clinical, and Privacy. Theme Center and Clients remain navigation
+  links only; their destination screens are intentionally outside Phase 6A.
+- `ScenicRoyalSetupComponents.swift` provides stateless Setup headers, grouped
+  cards, navigation rows, saved-place rows, weekly to-do rows, status text, and
+  accessibility-aware disclosure presentation. Existing `@AppStorage`,
+  `LifeRouteThemeStore`, and `RoutingLocationCore` ownership remains unchanged.
+- `V054AddressField` retains its `LifeRouteAddressAutocomplete` state owner,
+  MapKit address/point-of-interest completion, six-result limit, flexible
+  destination behavior, manual-entry fallback, validation path, and focus-
+  controlled visibility. The Scenic Royal suggestion surface adds explicit
+  labels, button traits, and selection hints without introducing a view model.
+- Focused Schedule regression on iPhone 17 Pro / iOS 26.5 opened the manual-
+  appointment sheet, returned six MapKit suggestions, selected the complete
+  Apple Park address, retained a manual address, dismissed suggestion/focus
+  state, cancelled without creating data, and returned to the ordinary agenda.
+- Representative visual evidence covers Canyon, bright Arctic, Rainforest, and
+  Royal Current. A combined Accessibility Extra Large, Increased Contrast,
+  Reduce Transparency, and Reduce Motion Arctic pass reflows instead of
+  truncating; Setup groups, fields, suggestions, and actions remain individually
+  exposed through the accessibility hierarchy.
+- Preparation, fast/full validation, 30 Day Route assertions, 162 Session Note
+  assertions, 42 Visual Timer feedback assertions, Debug and Release Simulator
+  builds, app and Live Activity extension compilation, warning-budget audit,
+  runtime review, protected-domain diff audit, and `git diff --check` pass.
+- Home Base restored the same protected persisted address across repeated app
+  termination, rebuild installation, theme launches, and final relaunch. No
+  Phase 6A source changes touch routing or persistence domains.
+
+## Next milestone — v0.9.0 Phase 6B
+
+After the owner accepts the Phase 6A checkpoint, migrate Clients and Themes in
+their bounded Phase 6B units using the accepted Phase 6 pre-implementation map.
+Themes remain inside Setup and the five-root architecture remains unchanged. Do
+not begin Phase 7 integration, legacy retirement, merge, or release work as part
+of the Phase 6B migration.

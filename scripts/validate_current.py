@@ -104,6 +104,7 @@ def validate_project_and_version() -> None:
             "ScenicRoyalToolsComponents.swift in Sources",
             "ScenicRoyalVisualTimerView.swift in Sources",
             "ScenicRoyalResourceComponents.swift in Sources",
+            "ScenicRoyalSetupComponents.swift in Sources",
         ],
         "Xcode app/extension structure",
     )
@@ -384,6 +385,99 @@ def validate_resources(sources: dict[str, str]) -> None:
     forbidden_additions = [".searchable(", "ProgressView(", "URLSession", "async throws"]
     present = [token for token in forbidden_additions if token in views + components]
     require(not present, f"Resources presentation added out-of-scope search/loading/network behavior: {present}")
+
+
+def validate_setup_and_address(sources: dict[str, str]) -> None:
+    setup = sources["V054SetupView.swift"]
+    address = sources["V054AddressField.swift"]
+    components = sources["ScenicRoyalSetupComponents.swift"]
+    routing = sources["RoutingLocationDomain.swift"]
+    schedule = sources["V054ScheduleView.swift"]
+
+    require_count(setup, "ScenicRoyalSetupDisclosureGroup(", 6, "six active Scenic Royal Setup groups")
+    require_all(
+        setup,
+        [
+            'title: "Appearance"',
+            'title: "Profile & Work"',
+            'title: "Navigation & Places"',
+            'title: "Weekly To-Dos"',
+            'title: "Clinical"',
+            'title: "Privacy"',
+            '@EnvironmentObject private var themeStore: LifeRouteThemeStore',
+            '@ObservedObject var routingState: RoutingLocationCore',
+            '@AppStorage("liferoute.rbtProfile.name")',
+            '@AppStorage("liferoute.preferredNavigationApp")',
+            "routingState.setHomeAddress(homeDraft)",
+            "routingState.addSavedPlace(",
+            "routingState.removeSavedPlace(id: place.id)",
+            "routingState.addTodo(",
+            "routingState.setTodoCompleted",
+            "routingState.removeTodo",
+            'V054AddressField("Home address"',
+            'V054AddressField("Address or place"',
+            'V054AddressField("Location / store (optional)"',
+            ".scrollDismissesKeyboard(.interactively)",
+            "ScenicRoyalPrimaryButtonStyle",
+            "ScenicRoyalSetupCard",
+        ],
+        "Scenic Royal Setup presentation and existing state ownership",
+    )
+    require_all(
+        components,
+        [
+            "struct ScenicRoyalSetupHeader",
+            "struct ScenicRoyalSetupDisclosureGroup",
+            "struct ScenicRoyalSetupCard",
+            "struct ScenicRoyalSavedPlaceRow",
+            "struct ScenicRoyalTodoRow",
+            "dynamicTypeSize.isAccessibilitySize",
+            "accessibilityReduceMotion",
+            "ScenicRoyalInsetRow(role: .readability)",
+            '.accessibilityHint("Deletes this saved place from LifeRoute")',
+            '.accessibilityHint("Marks this weekly to-do completed")',
+        ],
+        "Setup readability, Dynamic Type, Reduce Motion, and VoiceOver components",
+    )
+    require_all(
+        address,
+        [
+            "@StateObject private var autocomplete = LifeRouteAddressAutocomplete()",
+            "@FocusState private var isFocused: Bool",
+            "LifeRouteDestinationIntent.matches(text)",
+            "if isFocused && (!flexibleIntents.isEmpty || !autocomplete.suggestions.isEmpty)",
+            "autocomplete.update(query: value)",
+            "autocomplete.clear()",
+            "text = intent.storedValue",
+            "text = suggestion.addressText",
+            ".onSubmit(dismissSuggestions)",
+            "scenicRoyalInteractiveSurface(",
+            "role: .readability",
+            '.accessibilityHint("Fills the address field and dismisses suggestions")',
+            "Submit to keep manual entry.",
+        ],
+        "shared Scenic Royal address field behavior and accessibility",
+    )
+    require_all(
+        routing,
+        [
+            "final class LifeRouteAddressAutocomplete: NSObject, ObservableObject, MKLocalSearchCompleterDelegate",
+            "Array(completer.results.prefix(6))",
+            "completer.resultTypes = [.address, .pointOfInterest]",
+            "Address suggestions are temporarily unavailable. You can still type the address manually.",
+        ],
+        "authoritative MapKit autocomplete and manual-entry fallback",
+    )
+    require_all(
+        schedule,
+        [
+            'V054AddressField("Appointment location", text: $location)',
+            "calendarState.addManualEvent",
+        ],
+        "Schedule shared-address-field integration",
+    )
+    require("lifeRoutePalette" not in setup + address + components, "Phase 6A Setup presentation must not restore screen-local legacy palette styling")
+    require("ViewModel" not in setup + address + components, "Phase 6A must not introduce a duplicate Setup/address view model")
 
 
 def validate_clinical_and_aba(sources: dict[str, str]) -> None:
@@ -748,6 +842,7 @@ def run_fast() -> None:
     validate_theme_architecture(sources)
     validate_scenic_royal_foundation(sources)
     validate_resources(sources)
+    validate_setup_and_address(sources)
     validate_clinical_and_aba(sources)
 
 

@@ -286,34 +286,6 @@ struct ScenicRoyalClientPrivacyNote: View {
     }
 }
 
-struct ScenicRoyalClientEditorCard<Content: View>: View {
-    let title: String
-    let subtitle: String?
-    let systemImage: String
-    private let content: Content
-
-    init(
-        title: String,
-        subtitle: String? = nil,
-        systemImage: String,
-        @ViewBuilder content: () -> Content
-    ) {
-        self.title = title
-        self.subtitle = subtitle
-        self.systemImage = systemImage
-        self.content = content()
-    }
-
-    var body: some View {
-        ScenicRoyalCard(role: .readability) {
-            VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-                ScenicRoyalSectionHeader(title, subtitle: subtitle, systemImage: systemImage)
-                content
-            }
-        }
-    }
-}
-
 struct ScenicRoyalClientTextEditor: View {
     @Environment(\.scenicRoyalThemeStyle) private var style
 

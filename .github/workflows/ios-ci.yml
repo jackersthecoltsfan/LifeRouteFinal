@@ -12,6 +12,10 @@ on:
       - 'scripts/validate_current.py'
       - 'scripts/validate_fast.sh'
       - 'scripts/validate_full.sh'
+      - 'scripts/run_contract_tests.sh'
+      - 'scripts/run_swift_contract_test.sh'
+      - 'scripts/run_*_contract_tests.sh'
+      - 'scripts/*_contract_tests.swift'
       - 'scripts/run_simulator_smoke.sh'
       - 'scripts/assess_xcode_warnings.py'
       - '.github/workflows/ios-ci.yml'
@@ -24,6 +28,10 @@ on:
       - 'scripts/validate_current.py'
       - 'scripts/validate_fast.sh'
       - 'scripts/validate_full.sh'
+      - 'scripts/run_contract_tests.sh'
+      - 'scripts/run_swift_contract_test.sh'
+      - 'scripts/run_*_contract_tests.sh'
+      - 'scripts/*_contract_tests.swift'
       - 'scripts/run_simulator_smoke.sh'
       - 'scripts/assess_xcode_warnings.py'
       - '.github/workflows/ios-ci.yml'
@@ -50,12 +58,6 @@ jobs:
           start=$SECONDS
           bash scripts/prepare_build.sh
           echo "prepare_build_seconds=$((SECONDS-start))" | tee -a "$GITHUB_STEP_SUMMARY"
-
-      - name: Run fast validation
-        run: |
-          start=$SECONDS
-          bash scripts/validate_fast.sh
-          echo "validate_fast_seconds=$((SECONDS-start))" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Run full validation
         run: |

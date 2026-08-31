@@ -37,11 +37,12 @@
 - Native/WebView stability guards for scrolling, touch delivery, and animation performance.
 
 ### Build and release
-- Shared deterministic build preparation for web preview, iOS CI, and TestFlight.
-- Full regression and stability audits before release builds.
+- Deterministic validation-only preparation for local development and native CI;
+  the web preview has its own artifact builder.
+- Full semantic and executable-contract validation before release builds.
 - iOS Simulator compile validation on relevant `main` changes.
-- Guarded automatic TestFlight dispatch only after the current `main` commit passes iOS CI.
-- TestFlight remains manually dispatchable as well.
+- Exact-SHA guarded TestFlight dispatch only after successful current-`main`
+  validation and explicit owner authorization.
 
 ## Waiting on external access or a supported provider path
 

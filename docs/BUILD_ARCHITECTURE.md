@@ -6,6 +6,10 @@ LifeRoute v0.9.0 shipping source is checked in directly under `LifeRoute/`,
 `LifeRouteLiveActivityWidget/`, and `LifeRoute.xcodeproj/`. A normal checkout is
 the product tree; no release replay or source mutation is required.
 
+The accepted TestFlight baseline for the post-v0.9 cleanup is Build 118 at exact
+SHA `67b8b4c21df3700a66abb1bb1c4190e2b040cce1`. That recorded release state does
+not replace live Git/GitHub verification and does not authorize another upload.
+
 `MARKETING_VERSION` is owned by the app and extension build configurations in
 the Xcode project and is synchronized at `0.9.0`. `CURRENT_PROJECT_VERSION` is
 the synchronized source development build. The separately authorized
@@ -18,13 +22,32 @@ targets.
   runs fast validation. It does not rewrite shipping source.
 - `scripts/validate_fast.sh`: current semantic architecture, versions, target
   structure, AppIcon, navigation/theme ownership, and clinical boundaries.
-- `scripts/validate_full.sh`: fast validation plus calendar/routing,
-  persistence/migrations, ABA tools, timer, Live Activity, WebView quarantine,
-  and release-policy contracts.
+- `scripts/validate_full.sh`: full semantic validation plus all executable
+  contracts for calendar/routing, persistence/migrations, ABA tools, timer,
+  runtime feedback, Live Activity, WebView quarantine, and release policy.
+- `scripts/run_contract_tests.sh`: stable aggregate entry point for Day Route,
+  Session Note, Visual Timer feedback, and runtime feedback contracts.
+- `scripts/run_swift_contract_test.sh`: content-addressed per-suite compiler
+  cache. Exact compiler, runner, source, or fixture changes invalidate reuse;
+  every invocation still executes the assertion binary.
 - `scripts/assess_xcode_warnings.py`: rejects unexpected warning lines from
   native Debug/Release build logs while classifying one exact Xcode 26.6 notice.
 - `scripts/run_simulator_smoke.sh`: GitHub macOS runner smoke for the five root
-  sections, repeated-launch persistence, and live-theme/Reduce Motion modes.
+  sections, repeated-launch persistence, and live-theme/Reduce Motion modes. It
+  does not duplicate contract compilation already owned by full validation and
+  waits five seconds by default so captures contain settled foreground content.
+
+`validate_current.py` parses the app and extension `PBXSourcesBuildPhase`
+entries, requires every active Swift file in the correct phase exactly once, and
+rejects detached Sources build objects. Raw project-text occurrence is not
+treated as target-membership proof.
+
+For a cold contract/full-validation timing, point
+`LIFEROUTE_CONTRACT_CACHE_DIRECTORY` at a fresh temporary directory. Normal
+focused iteration may use the default temporary content-addressed cache.
+
+`LIFEROUTE_SMOKE_SETTLE_SECONDS` may override the five-second Simulator capture
+settle for a controlled experiment. Canonical evidence uses the default.
 
 ## CI and release
 
@@ -52,3 +75,14 @@ build inputs.
 Use short-lived feature/fix branches and meaningful physically validated
 release tags/checkpoints. Never rebuild current development by restoring the old
 Build A/B/C-style reconstruction chain.
+
+## Local schemes and Xcode
+
+`LifeRoute.xcodeproj/xcshareddata/xcschemes/LifeRoute.xcscheme` is the committed
+canonical scheme. It builds the app and embedded Live Activity extension.
+Machine-specific Run configuration belongs in the ignored `LifeRoute Local`
+scheme under `xcuserdata`; never move or share it.
+
+Keep Xcode closed during broad project/scheme edits. If the shared scheme drifts
+unexpectedly, stop, quit Xcode, restore only that tracked scheme from the current
+branch, and verify that no other project file changed.

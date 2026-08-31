@@ -199,7 +199,7 @@ struct V054ScheduleView: View {
     private var monthGrid: some View {
         VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
             HStack(spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                ForEach(["M", "T", "W", "T", "F", "S", "S"], id: \.self) { label in
+                ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, label in
                     Text(label)
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(scenicStyle.secondaryText)

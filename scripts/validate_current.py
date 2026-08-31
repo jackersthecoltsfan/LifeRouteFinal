@@ -20,6 +20,13 @@ EXPECTED_MARKETING_VERSION = "0.9.0"
 EXPECTED_RELEASE_MARKETING_VERSION = "0.9.0"
 EXPECTED_APP_BUNDLE_ID = "Com.Brandongood.LifeRoute"
 EXPECTED_EXTENSION_BUNDLE_ID = "Com.Brandongood.LifeRoute.LiveDay"
+APP_SOURCES_PHASE_ID = "A60000000000000000000001"
+EXTENSION_SOURCES_PHASE_ID = "W60000000000000000000001"
+NONSHIPPING_APP_SWIFT = {
+    "ContentView.swift",
+    "LifeRouteWebView.swift",
+    "LiveActivityManager.swift",
+}
 
 
 class ValidationFailure(RuntimeError):
@@ -45,6 +52,54 @@ def require_all(text: str, tokens: list[str], owner: str) -> None:
 def require_count(text: str, token: str, count: int, owner: str) -> None:
     actual = text.count(token)
     require(actual == count, f"{owner} must contain {token!r} exactly {count} time(s), found {actual}")
+
+
+def source_build_files(project: str) -> dict[str, str]:
+    pattern = re.compile(
+        r"^\s*([A-Z0-9]+) /\* ([^\n*]+) in Sources \*/ = "
+        r"\{isa = PBXBuildFile; fileRef = [A-Z0-9]+ /\* ([^\n*]+) \*/; \};$",
+        re.MULTILINE,
+    )
+    result: dict[str, str] = {}
+    for build_id, build_label, file_label in pattern.findall(project):
+        require(build_label == file_label, f"mismatched Xcode Sources labels for {build_id}: {build_label!r} != {file_label!r}")
+        require(build_id not in result, f"duplicate PBXBuildFile identifier in Sources: {build_id}")
+        result[build_id] = file_label
+    require(result, "Xcode project contains no parseable Sources build-file objects")
+    return result
+
+
+def source_phase_entries(project: str, phase_id: str, build_files: dict[str, str]) -> list[tuple[str, str]]:
+    marker = f"{phase_id} /* Sources */ = {{isa = PBXSourcesBuildPhase;"
+    start = project.find(marker)
+    require(start >= 0, f"missing Xcode Sources phase {phase_id}")
+    end = project.find("runOnlyForDeploymentPostprocessing = 0; };", start)
+    require(end > start, f"malformed Xcode Sources phase {phase_id}")
+    entries = re.findall(r"([A-Z0-9]+) /\* ([^\n*]+) in Sources \*/", project[start:end])
+    require(entries, f"Xcode Sources phase {phase_id} is empty")
+    for build_id, label in entries:
+        require(build_id in build_files, f"Sources phase {phase_id} references missing PBXBuildFile {build_id}")
+        require(build_files[build_id] == label, f"Sources phase {phase_id} label does not match {build_id}")
+    return entries
+
+
+def validate_source_membership(project: str) -> None:
+    build_files = source_build_files(project)
+    app_entries = source_phase_entries(project, APP_SOURCES_PHASE_ID, build_files)
+    extension_entries = source_phase_entries(project, EXTENSION_SOURCES_PHASE_ID, build_files)
+    app_names = [name for _, name in app_entries]
+    extension_names = [name for _, name in extension_entries]
+
+    require(len(app_names) == len(set(app_names)), f"duplicate app Sources entries: {app_names}")
+    require(len(extension_names) == len(set(extension_names)), f"duplicate extension Sources entries: {extension_names}")
+
+    expected_app = {path.name for path in APP.glob("*.swift")} - NONSHIPPING_APP_SWIFT
+    expected_extension = {path.name for path in EXTENSION.glob("*.swift")} | {"LiveDayActivityAttributes.swift"}
+    require(set(app_names) == expected_app, f"app target Sources mismatch: missing={sorted(expected_app - set(app_names))}, unexpected={sorted(set(app_names) - expected_app)}")
+    require(set(extension_names) == expected_extension, f"extension target Sources mismatch: missing={sorted(expected_extension - set(extension_names))}, unexpected={sorted(set(extension_names) - expected_extension)}")
+
+    referenced_ids = {build_id for build_id, _ in app_entries + extension_entries}
+    require(set(build_files) == referenced_ids, f"orphan or unrecognized Sources build-file objects: {sorted(set(build_files) - referenced_ids)}")
 
 
 def swift_sources() -> dict[str, str]:
@@ -82,36 +137,16 @@ def validate_project_and_version() -> None:
     require(len(build_numbers) == 4 and len(set(build_numbers)) == 1, f"app/extension Debug/Release build numbers must share one source value: {build_numbers}")
     require(project.count(f"PRODUCT_BUNDLE_IDENTIFIER = {EXPECTED_APP_BUNDLE_ID};") == 2, "app bundle identity must be synchronized in Debug and Release")
     require(project.count(f"PRODUCT_BUNDLE_IDENTIFIER = {EXPECTED_EXTENSION_BUNDLE_ID};") == 2, "Live Day extension bundle identity must be synchronized in Debug and Release")
+    validate_source_membership(project)
     require_all(
         project,
         [
             "LifeRouteLiveActivityWidget.appex in Embed App Extensions",
             "target = W50000000000000000000001 /* LifeRouteLiveActivityWidget */",
-            "LiveDayLiveActivityWidget.swift in Sources",
-            "LiveDayActivityAttributes.swift in Sources",
             "Assets.xcassets in Resources",
-            "SessionNoteContracts.swift in Sources",
-            "DayRouteContracts.swift in Sources",
-            "FullRouteHandoffContracts.swift in Sources",
-            "ScenicRoyalDesignSystem.swift in Sources",
-            "ScenicRoyalMaterials.swift in Sources",
-            "ScenicRoyalEnvironment.swift in Sources",
-            "ScenicRoyalThemeBridge.swift in Sources",
-            "ScenicRoyalComponents.swift in Sources",
-            "ScenicRoyalToolbar.swift in Sources",
-            "ScenicRoyalScheduleComponents.swift in Sources",
-            "VisualTimerFeedbackContracts.swift in Sources",
-            "ScenicRoyalToolsComponents.swift in Sources",
-            "ScenicRoyalVisualTimerView.swift in Sources",
-            "ScenicRoyalResourceComponents.swift in Sources",
-            "ScenicRoyalSetupComponents.swift in Sources",
-            "ScenicRoyalClientComponents.swift in Sources",
-            "ScenicRoyalThemeComponents.swift in Sources",
-            "RuntimeFeedbackContracts.swift in Sources",
         ],
         "Xcode app/extension structure",
     )
-    require("LifeRouteWebView.swift in Sources" not in project, "legacy LifeRouteWebView must remain outside shipping Sources")
     require("Web in Resources" not in project, "legacy Web runtime must remain outside shipping Resources")
     require_count(project, 'SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";', 1, "app-target Debug fixture configuration")
 
@@ -127,10 +162,9 @@ def validate_active_build_path() -> None:
     require(not present, f"prepare_build must not reconstruct historical releases: {present}")
     require("validate_current.py fast" in fast, "validate_fast must invoke the current semantic validator")
     require("validate_current.py full" in full, "validate_full must invoke the current full semantic validator")
-    require("run_session_note_contract_tests.sh" in full, "validate_full must run executable Session Note contracts")
-    require("run_day_route_contract_tests.sh" in full, "validate_full must run executable Day Route contracts")
-    require("run_visual_timer_feedback_contract_tests.sh" in full, "validate_full must run executable Visual Timer feedback contracts")
-    require("run_runtime_feedback_contract_tests.sh" in full, "validate_full must run executable runtime feedback contracts")
+    require("run_contract_tests.sh" in full, "validate_full must run the canonical executable contract suite")
+    contract_runner = read(ROOT / "scripts" / "run_contract_tests.sh")
+    swift_contract_runner = read(ROOT / "scripts" / "run_swift_contract_test.sh")
     fixture_runner = read(ROOT / "scripts" / "run_session_note_contract_tests.sh")
     fixture_source = read(ROOT / "scripts" / "session_note_contract_tests.swift")
     simulator_smoke = read(ROOT / "scripts" / "run_simulator_smoke.sh")
@@ -140,7 +174,31 @@ def validate_active_build_path() -> None:
     timer_fixture_source = read(ROOT / "scripts" / "visual_timer_feedback_contract_tests.swift")
     runtime_fixture_runner = read(ROOT / "scripts" / "run_runtime_feedback_contract_tests.sh")
     runtime_fixture_source = read(ROOT / "scripts" / "runtime_feedback_contract_tests.swift")
-    require_all(fixture_runner, ["swiftc", "SessionNoteContracts.swift", "session_note_contract_tests.swift"], "Session Note fixture runner")
+    require_all(
+        contract_runner,
+        [
+            "command -v swiftc",
+            "run_day_route_contract_tests.sh",
+            "run_session_note_contract_tests.sh",
+            "run_visual_timer_feedback_contract_tests.sh",
+            "run_runtime_feedback_contract_tests.sh",
+            'wait "${pids[$index]}"',
+        ],
+        "canonical executable contract suite",
+    )
+    require_all(
+        swift_contract_runner,
+        [
+            "command -v swiftc",
+            "LIFEROUTE_CONTRACT_CACHE_DIRECTORY",
+            "shasum -a 256",
+            'swiftc "$@"',
+            "CACHED_EXECUTABLE",
+        ],
+        "content-addressed Swift contract runner",
+    )
+    require("contract_tests.sh" not in simulator_smoke, "native Simulator smoke must not duplicate executable contract validation")
+    require_all(fixture_runner, ["run_swift_contract_test.sh", "SessionNoteContracts.swift", "session_note_contract_tests.swift"], "Session Note fixture runner")
     require_all(
         fixture_source,
         [
@@ -157,13 +215,11 @@ def validate_active_build_path() -> None:
             "timeout fixture reaches the safe terminal timeout",
             "failed request preserves the previous generated draft",
             "stale request output is rejected",
+            "Session Note contract assertion floor regressed below 162",
         ],
         "Session Note executable fixtures",
     )
-    require("run_session_note_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Session Note contracts")
-    require("run_day_route_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Day Route contracts")
-    require("run_visual_timer_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Visual Timer feedback contracts")
-    require_all(day_route_fixture_runner, ["swiftc", "DayRouteContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
+    require_all(day_route_fixture_runner, ["run_swift_contract_test.sh", "DayRouteContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
     require_all(
         day_route_fixture_source,
         [
@@ -182,12 +238,13 @@ def validate_active_build_path() -> None:
             "fallback never silently sorts or rewrites malformed input",
             "persisted stops round-trip with stable identity",
             "removal prevents a deleted stop from returning",
+            "Day Route contract assertion floor regressed below 30",
         ],
         "Day Route executable fixtures",
     )
     require_all(
         timer_fixture_runner,
-        ["swiftc", "VisualTimerFeedbackContracts.swift", "visual_timer_feedback_contract_tests.swift"],
+        ["run_swift_contract_test.sh", "VisualTimerFeedbackContracts.swift", "visual_timer_feedback_contract_tests.swift"],
         "Visual Timer feedback fixture runner",
     )
     require_all(
@@ -206,12 +263,13 @@ def validate_active_build_path() -> None:
             "timer playback mixes instead of unnecessarily interrupting other audio",
             "LifeRoute Sound Off remains authoritative",
             "zero percent volume remains silent",
+            "Visual Timer feedback contract assertion floor regressed below 47",
         ],
         "Visual Timer feedback executable fixtures",
     )
     require_all(
         runtime_fixture_runner,
-        ["swiftc", "RuntimeFeedbackContracts.swift", "runtime_feedback_contract_tests.swift"],
+        ["run_swift_contract_test.sh", "RuntimeFeedbackContracts.swift", "runtime_feedback_contract_tests.swift"],
         "runtime feedback fixture runner",
     )
     require_all(
@@ -221,9 +279,24 @@ def validate_active_build_path() -> None:
             "later systems do not restore live custom navigation-bar mutation",
             "iOS 17.5 begins view-associated feedback-generator delivery",
             "iOS 26 physical builds use view-associated feedback-generator delivery",
+            "Runtime feedback contract assertion floor regressed below 9",
         ],
         "runtime feedback executable fixtures",
     )
+    executable_scripts = [
+        "prepare_build.sh",
+        "validate_fast.sh",
+        "validate_full.sh",
+        "run_contract_tests.sh",
+        "run_swift_contract_test.sh",
+        "run_day_route_contract_tests.sh",
+        "run_session_note_contract_tests.sh",
+        "run_visual_timer_feedback_contract_tests.sh",
+        "run_runtime_feedback_contract_tests.sh",
+        "run_simulator_smoke.sh",
+    ]
+    nonexecutable = [name for name in executable_scripts if not (ROOT / "scripts" / name).stat().st_mode & 0o111]
+    require(not nonexecutable, f"canonical validation scripts lost executable permission: {nonexecutable}")
     require_all(
         warning_assessor,
         [
@@ -242,7 +315,7 @@ def validate_active_build_path() -> None:
 
 
 def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
-    app = sources["LifeRouteApp.swift"]
+    feedback = sources["LifeRouteLegacyComponents.swift"]
     navigation = sources["AppNavigation.swift"]
     root = sources["V054ContentView.swift"]
     runtime_feedback = sources["RuntimeFeedbackContracts.swift"]
@@ -311,7 +384,7 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
         "iOS 26 navigation-bar assertion regression boundary",
     )
     require_all(
-        app,
+        feedback,
         [
             "@MainActor\nenum LifeRouteHaptics",
             "LifeRouteRuntimeFeedbackPolicy.usesViewAssociatedHaptics",
@@ -334,19 +407,21 @@ def extract_catalog(text: str, declaration: str) -> list[str]:
 
 
 def validate_theme_architecture(sources: dict[str, str]) -> None:
-    app = sources["LifeRouteApp.swift"]
+    theme = sources["LifeRouteTheme.swift"]
+    dynamic_renderer = sources["LifeRouteDynamicThemeRenderer.swift"]
+    scenery_renderer = sources["LifeRouteSceneryThemeRenderer.swift"]
     environment = sources["ScenicRoyalEnvironment.swift"]
     center = sources["V054ThemeCenterView.swift"]
     theme_components = sources["ScenicRoyalThemeComponents.swift"]
     corpus = "\n".join(sources.values())
     require_count(corpus, "struct LifeRouteLiveThemeEnvironment: View", 1, "live theme environment ownership")
-    require_count(app, "TimelineView(\n            .animation(", 1, "authoritative root animation clock")
-    require_all(app, ["minimumInterval: 1.0 / 15.0", "paused: reduceMotion || !isActive"], "lifecycle and Reduce Motion clock pausing")
+    require_count(scenery_renderer, "TimelineView(\n            .animation(", 1, "authoritative root animation clock")
+    require_all(scenery_renderer, ["minimumInterval: 1.0 / 15.0", "paused: reduceMotion || !isActive"], "lifecycle and Reduce Motion clock pausing")
     require_all(environment, ["struct ScenicRoyalEnvironmentHost", "isActive: scenePhase == .active", "reduceMotion || reduceMotionOverride"], "persistent Scenic Royal environment host")
-    require("Timer.scheduledTimer" not in app, "theme architecture must not introduce a competing Timer owner")
-    core = extract_catalog(app, "static let phaseOneCoreGlassCatalog")
-    dynamic = extract_catalog(app, "static let v071RetainedDynamicCatalog")
-    scenery = extract_catalog(app, "static let v071RetainedSceneryCatalog")
+    require("Timer.scheduledTimer" not in corpus, "theme architecture must not introduce a competing Timer owner")
+    core = extract_catalog(theme, "static let phaseOneCoreGlassCatalog")
+    dynamic = extract_catalog(dynamic_renderer, "static let v071RetainedDynamicCatalog")
+    scenery = extract_catalog(dynamic_renderer, "static let v071RetainedSceneryCatalog")
     require((len(core), len(dynamic), len(scenery)) == (12, 8, 12), f"current user-facing theme catalog counts changed: core={len(core)}, dynamic={len(dynamic)}, scenery={len(scenery)}")
     require(len(set(core + dynamic + scenery)) == 32, "current user-facing theme catalogs must not overlap")
     require_all(
@@ -407,11 +482,11 @@ def validate_clients(sources: dict[str, str]) -> None:
         "active client list and local editor ownership",
     )
     require_all(
-        components,
+        clients + components,
         [
             "ScenicRoyalClientHeader",
             "ScenicRoyalClientSummaryCard",
-            "ScenicRoyalClientEditorCard",
+            "ScenicRoyalLabeledCard",
             "ScenicRoyalClientSaveBar",
             "dynamicTypeSize.isAccessibilitySize",
             'accessibilityLabel("Edit client \\(profile.code)")',
@@ -431,6 +506,7 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     components = sources["ScenicRoyalComponents.swift"]
     toolbar = sources["ScenicRoyalToolbar.swift"]
     today = sources["V054TodayView.swift"]
+    corpus = "\n".join(sources.values())
     require_all(design, ["enum ScenicRoyalDesignSystem", "minimumTouchTarget", "standardToolbarHeight", "accessibilityToolbarHeight"], "Scenic Royal design tokens")
     require_all(
         materials,
@@ -446,7 +522,10 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     )
     require_all(environment, ["ScenicRoyalEnvironmentHost", "accessibilityReduceMotion", "accessibilityReduceTransparency", "scenePhase == .active"], "persistent environment accessibility boundary")
     require_all(bridge, ["sceneryCanyonDay", "sceneryArcticDay", "sceneryRainforestDay", "royalCurrent", "scenicRoyalThemeStyle"], "theme-to-material bridge")
-    require_all(components, ["ScenicRoyalCard", "ScenicRoyalSectionHeader", "ScenicRoyalIconBadge", "ScenicRoyalPrimaryButtonStyle", "ScenicRoyalSecondaryButtonStyle"], "shared Scenic Royal components")
+    require_all(components, ["ScenicRoyalCard", "ScenicRoyalLabeledCard", "ScenicRoyalSectionHeader", "ScenicRoyalIconBadge", "ScenicRoyalPrimaryButtonStyle", "ScenicRoyalSecondaryButtonStyle"], "shared Scenic Royal components")
+    require_count(corpus, "struct ScenicRoyalLabeledCard", 1, "shared labeled Scenic Royal card ownership")
+    require("struct ScenicRoyalClientEditorCard" not in corpus, "client presentation must not restore its duplicate labeled-card wrapper")
+    require("struct ScenicRoyalSetupCard" not in corpus, "Setup presentation must not restore its duplicate labeled-card wrapper")
     require_all(
         components,
         [
@@ -559,7 +638,7 @@ def validate_setup_and_address(sources: dict[str, str]) -> None:
             'V054AddressField("Location / store (optional)"',
             ".scrollDismissesKeyboard(.interactively)",
             "ScenicRoyalPrimaryButtonStyle",
-            "ScenicRoyalSetupCard",
+            "ScenicRoyalLabeledCard",
         ],
         "Scenic Royal Setup presentation and existing state ownership",
     )
@@ -568,7 +647,6 @@ def validate_setup_and_address(sources: dict[str, str]) -> None:
         [
             "struct ScenicRoyalSetupHeader",
             "struct ScenicRoyalSetupDisclosureGroup",
-            "struct ScenicRoyalSetupCard",
             "struct ScenicRoyalSavedPlaceRow",
             "struct ScenicRoyalTodoRow",
             "dynamicTypeSize.isAccessibilitySize",
@@ -622,12 +700,19 @@ def validate_setup_and_address(sources: dict[str, str]) -> None:
 
 def validate_clinical_and_aba(sources: dict[str, str]) -> None:
     tools_domain = sources["SessionToolsDomain.swift"]
-    tools_views = sources["SessionToolsViews.swift"]
+    tools_views = "\n".join(
+        [
+            sources["SessionToolsViews.swift"],
+            sources["ClientVisualSupportViews.swift"],
+            sources["ClientVisualBuilderViews.swift"],
+        ]
+    )
     dashboard = sources["V054ToolsDashboard.swift"]
-    clinical = sources["AIClinicalToolsViews.swift"]
+    visual_studio = sources["VisualAIAssistedStudioView.swift"]
+    clinical = sources["AIClinicalToolsViews.swift"] + "\n" + sources["AISessionPlanBuilderView.swift"]
     intelligence = sources["LifeRouteIntelligenceCore.swift"]
     contracts = sources["SessionNoteContracts.swift"]
-    app = sources["LifeRouteApp.swift"]
+    readability = sources["LifeRouteLegacyComponents.swift"] + "\n" + sources["LifeRouteApp.swift"]
     require_all(tools_domain, ["struct ClientChoiceBoard", "struct ClientVisualSchedule", "final class ClientVisualSupportCore", "General visual library"], "ABA visual domain")
     require_all(sources["PersistenceCore.swift"], ["generalVisualLibraryID", "generalVisualLibraryCode", "codeByClientID[Self.generalVisualLibraryID]"], "protected General visual library persistence")
     require_all(tools_views, ["ClientVisualSupportCenter", "ClientVisualIconLibraryView", "ClientChoiceBoardBuilderView", "ClientFirstThenVisualView", "ClientVisualScheduleBuilderView", "QuickSessionNotesView", "SessionPlanOrganizerView"], "Build 106 ABA/session surfaces")
@@ -751,7 +836,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         "deterministic Session Note evidence, identity, terminology, data, and output contracts",
     )
     require_all(
-        app,
+        readability,
         [
             "LifeRouteReadableTextSurfaceModifier",
             "accessibilityReduceTransparency",
@@ -777,7 +862,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         "functional ABA visual-concept interpretation",
     )
     require_all(
-        tools_views + dashboard,
+        tools_views + visual_studio,
         [
             "ABAVisualSupportConceptInterpreter.describe",
             "Functional concept:",
@@ -786,10 +871,10 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         "interpreted visual-support prompt contract",
     )
     require('VisualWorkspaceCard(title: "Schedules"' not in tools_views, "Visual Schedule must remain hidden from the visual workspace")
-    require(dashboard.count("scheduleAICard") == 1, "Visual Schedule AI card must remain dormant rather than exposed")
+    require(visual_studio.count("scheduleAICard") == 1, "Visual Schedule AI card must remain dormant rather than exposed")
     require("ClientVisualScheduleBuilderView(" not in dashboard, "Tools dashboard must not expose the dormant Visual Schedule builder")
     require_all(
-        dashboard,
+        visual_studio,
         [
             "ClientVisualIconLibraryView(",
             "embedded: true",
@@ -799,7 +884,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         ],
         "one-screen Visual AI Studio",
     )
-    require("Open Illustrated Icon Generator" not in dashboard, "Visual AI Studio must not retain the redundant generator subpage action")
+    require("Open Illustrated Icon Generator" not in visual_studio, "Visual AI Studio must not retain the redundant generator subpage action")
     require_all(
         tools_views,
         [
@@ -978,8 +1063,8 @@ def validate_release_and_web_policy() -> None:
         require(not present, f"{name} violates sole TestFlight signing/upload ownership: {present}")
 
 
-def run_fast() -> None:
-    sources = swift_sources()
+def run_fast(sources: dict[str, str] | None = None) -> None:
+    sources = sources or swift_sources()
     validate_plists()
     validate_app_icon()
     validate_project_and_version()
@@ -995,7 +1080,7 @@ def run_fast() -> None:
 
 def run_full() -> None:
     sources = swift_sources()
-    run_fast()
+    run_fast(sources)
     validate_calendar_routing_and_persistence(sources)
     validate_timer_and_live_activity(sources)
     validate_release_and_web_policy()

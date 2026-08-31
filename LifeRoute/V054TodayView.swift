@@ -745,7 +745,7 @@ struct V054TodayView: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                Image(systemName: placeIcon(place.kind))
+                Image(systemName: place.kind.scenicRoyalSystemImage)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(palette.accentSecondary)
             }
@@ -1063,16 +1063,4 @@ struct V054TodayView: View {
         return "\(minutes)m \(remaining)s"
     }
 
-    private func placeIcon(_ kind: LifeRoutePlaceKind) -> String {
-        switch kind {
-        case .gym: return "figure.strengthtraining.traditional"
-        case .work: return "briefcase.fill"
-        case .coffee: return "cup.and.saucer.fill"
-        case .grocery: return "cart.fill"
-        case .park: return "leaf.fill"
-        case .library: return "books.vertical.fill"
-        case .errand: return "checklist"
-        case .other: return "mappin.circle.fill"
-        }
-    }
 }

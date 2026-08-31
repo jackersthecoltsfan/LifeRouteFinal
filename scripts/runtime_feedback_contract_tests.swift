@@ -8,6 +8,7 @@ struct RuntimeFeedbackContractTests {
         testNavigationChromePolicy()
         testHapticGeneratorPolicy()
 
+        precondition(assertionCount >= 9, "Runtime feedback contract assertion floor regressed below 9")
         print("Runtime feedback executable contract fixtures passed (\(assertionCount) assertions).")
     }
 

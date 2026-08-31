@@ -4,13 +4,10 @@ set -euo pipefail
 APP_PATH="${1:?usage: run_simulator_smoke.sh APP_PATH OUTPUT_DIRECTORY}"
 OUTPUT_DIRECTORY="${2:?usage: run_simulator_smoke.sh APP_PATH OUTPUT_DIRECTORY}"
 BUNDLE_ID="Com.Brandongood.LifeRoute"
+SMOKE_SETTLE_SECONDS="${LIFEROUTE_SMOKE_SETTLE_SECONDS:-5}"
 
 test -d "$APP_PATH"
 mkdir -p "$OUTPUT_DIRECTORY"
-
-bash "$(cd "$(dirname "$0")" && pwd)/run_session_note_contract_tests.sh"
-bash "$(cd "$(dirname "$0")" && pwd)/run_day_route_contract_tests.sh"
-bash "$(cd "$(dirname "$0")" && pwd)/run_visual_timer_feedback_contract_tests.sh"
 
 DEVICE_ID="$(xcrun simctl list --json devices available | python3 -c '
 import json, sys
@@ -38,7 +35,7 @@ launch_section() {
   local section="$1"
   xcrun simctl launch --terminate-running-process "$DEVICE_ID" "$BUNDLE_ID" \
     -LifeRouteSectionOverride "$section"
-  sleep 2
+  sleep "$SMOKE_SETTLE_SECONDS"
   xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/${section}.png"
 }
 
@@ -53,11 +50,11 @@ done
 # fixture modes without activating any WebView runtime.
 xcrun simctl launch --terminate-running-process "$DEVICE_ID" "$BUNDLE_ID" \
   -LifeRouteVisualFixture canyon-day
-sleep 2
+sleep "$SMOKE_SETTLE_SECONDS"
 xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/theme-motion.png"
 xcrun simctl launch --terminate-running-process "$DEVICE_ID" "$BUNDLE_ID" \
   -LifeRouteVisualFixture royal-current -LifeRouteFixtureReduceMotion
-sleep 2
+sleep "$SMOKE_SETTLE_SECONDS"
 xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/theme-reduce-motion.png"
 
 echo "LifeRoute simulator smoke passed on $DEVICE_ID."

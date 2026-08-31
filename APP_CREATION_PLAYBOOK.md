@@ -19,11 +19,12 @@ Do not make the product owner manually copy source files, read routine CI logs, 
 Before substantial work, read the applicable sources in this order:
 
 1. `LIFEROUTE_HANDOFF.md` — current live project state and next action.
-2. `AGENTS.md` — repository development/security rules.
-3. `APP_CREATION_PLAYBOOK.md` — this operating model.
-4. `TESTFLIGHT_SETUP.md` — exact release authorization/signing behavior.
-5. `GITHUB_ACTIONS_RUNBOOK.md` — Actions outage, queue, cancellation, and recovery rules.
-6. relevant material in `ReusableAppWorkflow/`.
+2. `docs/APP_ARCHITECTURE.md` — current native source ownership and protected boundaries.
+3. `AGENTS.md` — repository development/security rules.
+4. `APP_CREATION_PLAYBOOK.md` — this operating model.
+5. `TESTFLIGHT_SETUP.md` — exact release authorization/signing behavior.
+6. `GITHUB_ACTIONS_RUNBOOK.md` — Actions outage, queue, cancellation, and recovery rules.
+7. relevant material in `ReusableAppWorkflow/`.
 
 The GitHub repository is the source of truth for code and workflow configuration. Live GitHub run state must be re-read rather than assumed from an old chat handoff.
 
@@ -50,7 +51,10 @@ LifeRoute should remain premium, sleek, intelligent, streamlined, professional, 
 7. Commit to GitHub.
 8. Inspect the resulting validation rather than assuming success.
 
-Prefer native SwiftUI/current Apple APIs where practical, while preserving the established WKWebView/native-bridge architecture until functionality is deliberately migrated.
+Prefer native SwiftUI/current Apple APIs for the shipping app. The retained
+WKWebView/native-bridge source and bundled web assets are quarantined history,
+outside the shipping Sources phase; preserve their compatibility until a
+separate archival decision rather than treating them as the current app shell.
 
 ## Deterministic build ownership
 

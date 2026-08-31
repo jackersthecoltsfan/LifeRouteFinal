@@ -73,6 +73,7 @@ struct DayRouteContractTests {
 
         testFullRouteHandoffs()
 
+        precondition(assertionCount >= 30, "Day Route contract assertion floor regressed below 30")
         print("Day route executable contract fixtures passed (\(assertionCount) assertions).")
     }
 

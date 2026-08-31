@@ -239,6 +239,8 @@ struct ScenicRoyalTravelPlanLabel: View {
 
     let detail: String
     let summary: String
+    var actionTitle = "Plan route"
+    var accessibilityHint = "Opens full-day route planning"
 
     var body: some View {
         Group {
@@ -257,11 +259,11 @@ struct ScenicRoyalTravelPlanLabel: View {
         }
         .padding(ScenicRoyalDesignSystem.Spacing.standard)
         .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.card, style: .continuous))
-        .scenicRoyalInteractiveSurface(role: .selectedControl, cornerRadius: ScenicRoyalDesignSystem.Radius.card)
+        .scenicRoyalInteractiveSurface(role: .ambient, cornerRadius: ScenicRoyalDesignSystem.Radius.card)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Travel plan")
         .accessibilityValue(accessibilityValue)
-        .accessibilityHint("Opens full-day route planning")
+        .accessibilityHint(accessibilityHint)
     }
 
     private var heading: some View {
@@ -295,7 +297,7 @@ struct ScenicRoyalTravelPlanLabel: View {
 
     private var actionLabel: some View {
         HStack(spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-            Text("Plan route")
+            Text(actionTitle)
                 .font(.caption.weight(.bold))
                 .foregroundStyle(style.accent)
             Image(systemName: "chevron.right")

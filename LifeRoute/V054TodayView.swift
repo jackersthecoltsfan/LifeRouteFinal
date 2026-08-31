@@ -1,23 +1,21 @@
+import Foundation
 import SwiftUI
 
-// v0.7.0 Build B Today/Home: the reference implementation for the v0.7 screen language.
-// v0.7.0 Build B.1 Today/Home parity: device-tuned against the approved target screenshot.
-// v0.7.0 Build B.2 device QA: real-iPhone density pass against the approved reference.
-// v0.7.0 Build B.3 device QA: cinematic hero and one-screen information hierarchy tuned from real-device screenshots.
-// v0.7.0 swipeable day overview: shared CalendarCoreState selection drives native iOS-16 paging.
+/// Build 119 Today command center. Calendar owns schedule browsing; Today owns
+/// the selected day's route generation, canonical itinerary, departure guidance,
+/// gap-fit suggestions, and Live Day projection.
 struct V054TodayView: View {
-    @Environment(\.lifeRoutePalette) private var palette
     @Environment(\.scenicRoyalThemeStyle) private var scenicStyle
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
     @ObservedObject var router: AppRouter
     @ObservedObject var calendarState: CalendarCoreState
     @ObservedObject var routingState: RoutingLocationCore
+    @ObservedObject var planState: DayRoutePlanningCore
+    @ObservedObject var liveActivity: LiveDayActivityCore
 
-    @StateObject private var liveActivity = LiveDayActivityCore()
-    @State private var liveDayEnabled = false
-    @State private var returnHomeOnLiveDay = true
-    // CalendarCoreState.selectedDate is the sole selected-day owner shared with Schedule.
+    @State private var showingDayPicker = false
+    @State private var routeSettingsExpanded = false
+    @State private var gapFillersExpanded = false
+
     private var selectedDay: Date {
         get { Calendar.current.startOfDay(for: calendarState.selectedDate) }
         nonmutating set {
@@ -25,1054 +23,906 @@ struct V054TodayView: View {
         }
     }
 
-    private var selectedDayBinding: Binding<Date> {
-        Binding(
-            get: { selectedDay },
-            set: { selectedDay = $0 }
-        )
-    }
-
-    // Apple and Google provider refreshes currently materialize yesterday through +45 days.
-    private var pagingDays: [Date] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        return (-1...45).compactMap { offset in
-            calendar.date(byAdding: .day, value: offset, to: today).map(calendar.startOfDay(for:))
-        }
-    }
-    @State private var showingDayPicker = false
-
-    var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 8) {
-                hero
-                dayOverviewPager
-                quickActions
-                overviewCard
-                gapSuggestions
-                liveDayCard
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 7)
-            .padding(.bottom, 30)
-        }
-        .scrollIndicators(.hidden)
-        .background(Color.clear)
-        .toolbar(.hidden, for: .navigationBar)
-        .onChange(of: selectedDay) { _ in
-            liveDayEnabled = false
-        }
-        .sheet(isPresented: $showingDayPicker) {
-            dayPickerSheet
-        }
-    }
-
     private var selectedDayEvents: [LifeRouteCalendarEvent] {
-        calendarState.events(on: selectedDay).sorted { $0.start < $1.start }
+        calendarState.events(on: selectedDay).sorted {
+            if $0.start != $1.start { return $0.start < $1.start }
+            return $0.id < $1.id
+        }
     }
 
     private var selectedDayStops: [LifeRouteDayStop] {
         routingState.dayStops(on: selectedDay)
     }
 
-    private var selectedDayPlanWaypoints: [LifeRouteDayWaypoint] {
-        LifeRouteDaySequenceBuilder.waypoints(
-            appointments: selectedDayEvents.map {
-                LifeRouteRouteAppointment(
-                    id: $0.id,
-                    title: $0.title,
-                    address: $0.location,
-                    start: $0.start
-                )
-            },
-            beforeStops: selectedDayStops.filter { $0.position == .before },
-            afterStops: selectedDayStops.filter { $0.position == .after }
+    private var routeAppointments: [LifeRouteRouteAppointment] {
+        selectedDayEvents.map {
+            LifeRouteRouteAppointment(
+                id: $0.id,
+                title: $0.title,
+                address: $0.location,
+                start: $0.start,
+                end: $0.end,
+                isAllDay: $0.isAllDay
+            )
+        }
+    }
+
+    private var beforeStops: [LifeRouteDayStop] {
+        selectedDayStops.filter { $0.position == .before }
+    }
+
+    private var afterStops: [LifeRouteDayStop] {
+        selectedDayStops.filter { $0.position == .after }
+    }
+
+    private var selectedItinerary: LifeRouteGeneratedItinerary? {
+        guard let itinerary = planState.generatedItinerary,
+              Calendar.current.isDate(itinerary.selectedDay, inSameDayAs: selectedDay) else {
+            return nil
+        }
+        return itinerary
+    }
+
+    private var itineraryIsCurrent: Bool {
+        planState.matchesGeneratedItinerary(
+            selectedDay: selectedDay,
+            appointments: routeAppointments,
+            beforeStops: beforeStops,
+            afterStops: afterStops,
+            routeBufferMinutes: routingState.routeBufferMinutes,
+            homeAddress: routingState.homeAddress,
+            currentLocation: routingState.currentLocation
         )
     }
 
-    private var nextEvent: LifeRouteCalendarEvent? {
-        Calendar.current.isDateInToday(selectedDay)
-            ? selectedDayEvents.first { $0.end > Date() }
-            : selectedDayEvents.first
+    private var authoritativeItinerary: LifeRouteGeneratedItinerary? {
+        itineraryIsCurrent ? selectedItinerary : nil
     }
 
-    private var drivingEstimates: [LifeRouteRouteEstimate] {
-        routingState.routeEstimates.values.filter { $0.mode == .driving }
+    private var canGenerate: Bool {
+        let hasDestination = routeAppointments.contains {
+            !$0.isAllDay && !$0.address.isEmpty
+        } || !selectedDayStops.isEmpty
+        let hasOrigin = routingState.currentLocation != nil || !routingState.homeAddress.isEmpty
+        let canReturnHome = !planState.returnHome || !routingState.homeAddress.isEmpty
+        return hasDestination && hasOrigin && canReturnHome
     }
 
-    private var quickActionColumns: [GridItem] {
-        let count = dynamicTypeSize.isAccessibilitySize ? 2 : 4
-        return Array(
-            repeating: GridItem(.flexible(minimum: 64), spacing: 8, alignment: .top),
-            count: count
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
+                commandHeader
+                dayControls
+                commandStatus
+                itineraryCard
+                if let itinerary = authoritativeItinerary,
+                   !itinerary.usableGaps.isEmpty {
+                    gapFillersCard(itinerary)
+                }
+                if let itinerary = authoritativeItinerary {
+                    liveDayCard(itinerary)
+                }
+            }
+            .padding(.horizontal, ScenicRoyalDesignSystem.Layout.pageHorizontal)
+            .padding(.top, ScenicRoyalDesignSystem.Spacing.compact)
+            .padding(.bottom, ScenicRoyalDesignSystem.Spacing.spacious * 2)
+        }
+        .scrollIndicators(.hidden)
+        .background(Color.clear)
+        .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $showingDayPicker) {
+            dayPickerSheet
+        }
+        .onAppear {
+            if routingState.homeAddress.isEmpty {
+                planState.returnHome = false
+            }
+        }
+        .onChange(of: selectedDay) { _ in
+            endLiveDayForChangedInputs()
+        }
+        .onChange(of: selectedDayEvents) { _ in
+            endLiveDayForChangedInputs()
+        }
+        .onChange(of: selectedDayStops) { _ in
+            endLiveDayForChangedInputs()
+        }
+        .onChange(of: routingState.routeBufferMinutes) { _ in
+            endLiveDayForChangedInputs()
+        }
+        .onChange(of: planState.routeMode) { _ in
+            endLiveDayForChangedInputs()
+        }
+        .onChange(of: planState.returnHome) { _ in
+            endLiveDayForChangedInputs()
+        }
+    }
+
+    // Phase C replaces this compact structural header with the approved mark
+    // and exact Build 119 motto without changing command-center ownership.
+    private var commandHeader: some View {
+        ScenicRoyalScreenHeader(
+            title: "Today",
+            subtitle: selectedDay.formatted(.dateTime.weekday(.wide).month(.wide).day())
+        ) {
+            ScenicRoyalCompactIconButton(
+                systemImage: "calendar.badge.clock",
+                accessibilityLabel: "Choose day"
+            ) {
+                showingDayPicker = true
+                LifeRouteHaptics.selection()
+            }
+        }
+    }
+
+    private var dayControls: some View {
+        HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+            dayShiftButton(-1, systemImage: "chevron.left", label: "Previous day")
+
+            Button {
+                selectedDay = Date()
+                LifeRouteHaptics.selection()
+            } label: {
+                VStack(spacing: 2) {
+                    Text(dayContextTitle)
+                        .font(.subheadline.weight(.bold))
+                    Text(selectedDay.formatted(.dateTime.month(.abbreviated).day()))
+                        .font(.caption2)
+                        .foregroundStyle(scenicStyle.secondaryText)
+                }
+                .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Returns the command center to today")
+
+            dayShiftButton(1, systemImage: "chevron.right", label: "Next day")
+        }
+        .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.compact)
+        .scenicRoyalInteractiveSurface(
+            role: .ambient,
+            cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
         )
     }
 
-    private var overviewMetricColumns: [GridItem] {
-        let count = dynamicTypeSize.isAccessibilitySize ? 1 : 3
-        return Array(
-            repeating: GridItem(.flexible(minimum: 72), spacing: 7, alignment: .top),
-            count: count
-        )
+    private var commandStatus: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            commandStatusContent(now: context.date)
+        }
     }
 
-    private var hero: some View {
-        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-            HStack(alignment: .center, spacing: 0) {
-                Text("Life")
+    private func commandStatusContent(now: Date) -> some View {
+        let current = currentEvent(at: now)
+        let next = nextEvent(at: now)
+        let guidance = authoritativeItinerary?.departureGuidance(
+            at: Calendar.current.isDateInToday(selectedDay) ? now : selectedDay
+        )
+
+        return VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
+            HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                Image(systemName: routingState.currentLocation == nil ? "house.fill" : "location.fill")
+                    .foregroundStyle(scenicStyle.accent)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("STARTING FROM")
+                        .font(.caption2.weight(.black))
+                        .tracking(0.8)
+                        .foregroundStyle(scenicStyle.secondaryText)
+                    Text(startingPointLabel)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(scenicStyle.primaryText)
+                }
+            }
+
+            Divider().overlay(scenicStyle.accent.opacity(0.18))
+
+            HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(current == nil ? "NEXT" : "RIGHT NOW")
+                        .font(.caption2.weight(.black))
+                        .tracking(0.8)
+                        .foregroundStyle(scenicStyle.accent)
+                    Text((current ?? next)?.title ?? emptyDayStatus)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(scenicStyle.primaryText)
+                        .lineLimit(2)
+                    if let event = current ?? next {
+                        Text(eventStatusLine(event, now: now))
+                            .font(.caption)
+                            .foregroundStyle(scenicStyle.secondaryText)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(departureEyebrow(guidance))
+                        .font(.caption2.weight(.black))
+                        .tracking(0.8)
+                        .foregroundStyle(scenicStyle.secondaryText)
+                    Text(departureHeadline(guidance))
+                        .font(.title3.weight(.black))
+                        .foregroundStyle(guidance == nil ? scenicStyle.secondaryText : scenicStyle.accentReflection)
+                        .multilineTextAlignment(.trailing)
+                    if let guidance {
+                        Text("Leave by \(guidance.leaveBy.formatted(date: .omitted, time: .shortened))")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(scenicStyle.secondaryText)
+                    }
+                }
+            }
+
+            if let guidance {
+                HStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
+                    Label("Drive \(durationLabel(guidance.rawTravelSeconds))", systemImage: "car.fill")
+                    Label(
+                        guidance.bufferSeconds > 0
+                            ? "Buffer +\(durationLabel(guidance.bufferSeconds))"
+                            : "No buffer",
+                        systemImage: "clock.badge.plus"
+                    )
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(scenicStyle.secondaryText)
+            }
+        }
+        .scenicRoyalCard(role: .readability)
+    }
+
+    private var itineraryCard: some View {
+        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
+            HStack(alignment: .firstTextBaseline) {
+                Label("Day timeline", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                    .font(.title3.weight(.bold))
                     .foregroundStyle(scenicStyle.primaryText)
-                Text("Route")
-                    .foregroundStyle(brandGold)
-                Spacer(minLength: 12)
-                Button {
-                    showingDayPicker = true
+                Spacer()
+                if let itinerary = selectedItinerary {
+                    Text("\(durationLabel(itinerary.totalRawTravelSeconds)) driving")
+                        .font(.caption.weight(.black))
+                        .foregroundStyle(scenicStyle.accent)
+                }
+            }
+
+            if let itinerary = selectedItinerary {
+                if !itineraryIsCurrent {
+                    Label(
+                        "Appointments, stops, location, or route settings changed. Regenerate before using departure guidance.",
+                        systemImage: "arrow.triangle.2.circlepath"
+                    )
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(scenicStyle.accentReflection)
+                }
+                timeline(itinerary)
+            } else {
+                ungeneratedTimeline
+            }
+
+            if let blocker = generationBlocker {
+                Text(blocker)
+                    .font(.caption)
+                    .foregroundStyle(scenicStyle.secondaryText)
+            }
+
+            Button {
+                generateFullDay()
+            } label: {
+                Label(
+                    planState.isCalculating
+                        ? "Generating full day…"
+                        : (selectedItinerary == nil ? "Generate Full Day" : "Regenerate Full Day"),
+                    systemImage: "map.fill"
+                )
+            }
+            .buttonStyle(ScenicRoyalPrimaryButtonStyle())
+            .disabled(planState.isCalculating || !canGenerate)
+
+            NavigationLink {
+                DayRoutePlanningView(
+                    calendarState: calendarState,
+                    routingState: routingState,
+                    planState: planState,
+                    day: selectedDay
+                )
+                .lifeRouteDeepDestination()
+            } label: {
+                Label("Edit stops & route options", systemImage: "slider.horizontal.3")
+            }
+            .buttonStyle(ScenicRoyalSecondaryButtonStyle())
+            .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
+
+            DisclosureGroup(isExpanded: $routeSettingsExpanded) {
+                VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                    Picker("Travel mode", selection: $planState.routeMode) {
+                        ForEach(LifeRouteTransportMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Toggle("Return Home", isOn: $planState.returnHome)
+                        .disabled(routingState.homeAddress.isEmpty)
+
+                    HStack {
+                        Label("Route Buffer", systemImage: "clock.badge.plus")
+                        Spacer()
+                        Text(routingState.routeBufferMinutes == 0
+                            ? "None"
+                            : "+\(routingState.routeBufferMinutes) min")
+                            .foregroundStyle(scenicStyle.accentReflection)
+                    }
+                    .font(.subheadline.weight(.semibold))
+
+                    Button("Change Route Buffer in Setup") {
+                        router.select(.setup)
+                    }
+                    .font(.caption.weight(.semibold))
+                }
+                .padding(.top, ScenicRoyalDesignSystem.Spacing.compact)
+            } label: {
+                Label("Route settings", systemImage: "gearshape.2.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(scenicStyle.primaryText)
+            }
+
+            if let message = planState.message {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(scenicStyle.secondaryText)
+            }
+        }
+        .scenicRoyalCard(role: .readability)
+    }
+
+    @ViewBuilder
+    private func timeline(_ itinerary: LifeRouteGeneratedItinerary) -> some View {
+        let nodes = itinerary.nodes.reduce(into: [String: LifeRouteItineraryNode]()) {
+            result,
+            node in
+            if result[node.id] == nil {
+                result[node.id] = node
+            }
+        }
+        ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+            VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                ForEach(itinerary.timeline) { item in
+                    timelineRow(item, nodes: nodes)
+                }
+            }
+        }
+    }
+
+    private func timelineRow(
+        _ item: LifeRouteItineraryTimelineItem,
+        nodes: [String: LifeRouteItineraryNode]
+    ) -> some View {
+        ScenicRoyalInsetRow(role: item.kind == .usableGap ? .selectedControl : .ambient) {
+            HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                Image(systemName: timelineIcon(item.kind))
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(item.kind == .usableGap ? scenicStyle.accentReflection : scenicStyle.accent)
+                    .frame(width: 22)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    switch item.kind {
+                    case .drive:
+                        if let leg = item.leg {
+                            Text("\(durationLabel(leg.rawTravelSeconds)) drive")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(scenicStyle.primaryText)
+                            let destination = nodes[leg.toNodeID]?.title ?? "next stop"
+                            Text("To \(destination) · \(distanceLabel(leg.rawDistanceMeters))")
+                                .font(.caption)
+                                .foregroundStyle(scenicStyle.secondaryText)
+                        }
+                    case .usableGap:
+                        if let gap = item.gap {
+                            Text(gap.usableSeconds.map { "\(durationLabel($0)) usable" } ?? "Route data needed")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(scenicStyle.primaryText)
+                            Text("Calendar gap \(durationLabel(gap.rawCalendarGapSeconds)) · travel, planned stops, and buffer already deducted")
+                                .font(.caption)
+                                .foregroundStyle(scenicStyle.secondaryText)
+                        }
+                    case .origin, .appointment, .stop, .home:
+                        if let node = item.node {
+                            Text(node.title)
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(scenicStyle.primaryText)
+                            Text(nodeDetail(node))
+                                .font(.caption)
+                                .foregroundStyle(scenicStyle.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text(timelineKindLabel(item.kind))
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(scenicStyle.secondaryText)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var ungeneratedTimeline: some View {
+        let waypoints = LifeRouteDaySequenceBuilder.waypoints(
+            appointments: routeAppointments,
+            beforeStops: beforeStops,
+            afterStops: afterStops
+        )
+        return Group {
+            if waypoints.isEmpty {
+                VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.title2)
+                        .foregroundStyle(scenicStyle.accent)
+                    Text("No appointments or saved stops yet")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(scenicStyle.primaryText)
+                    Button("Open Calendar") {
+                        router.select(.schedule)
+                    }
+                    .font(.caption.weight(.bold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, ScenicRoyalDesignSystem.Spacing.comfortable)
+            } else {
+                ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                    VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                        ForEach(waypoints) { waypoint in
+                            previewRow(waypoint)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func previewRow(_ waypoint: LifeRouteDayWaypoint) -> some View {
+        ScenicRoyalInsetRow(role: .ambient) {
+            HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                Image(systemName: waypoint.kind == .stop ? "mappin.and.ellipse" : "calendar")
+                    .foregroundStyle(scenicStyle.accent)
+                    .frame(width: 22)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(waypoint.title)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(scenicStyle.primaryText)
+                    Text(previewDetail(waypoint))
+                        .font(.caption)
+                        .foregroundStyle(scenicStyle.secondaryText)
+                }
+                Spacer()
+                Text(waypoint.kind == .stop ? "STOP" : "EVENT")
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(scenicStyle.secondaryText)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func gapFillersCard(_ itinerary: LifeRouteGeneratedItinerary) -> some View {
+        DisclosureGroup(isExpanded: $gapFillersExpanded) {
+            VStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
+                ForEach(itinerary.usableGaps) { gap in
+                    gapBlock(gap, itinerary: itinerary)
+                }
+            }
+            .padding(.top, ScenicRoyalDesignSystem.Spacing.compact)
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                Label("Gap Fillers", systemImage: "sparkles")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(scenicStyle.primaryText)
+                Text("Only activities that fit after route time and buffer are eligible.")
+                    .font(.caption)
+                    .foregroundStyle(scenicStyle.secondaryText)
+            }
+        }
+        .scenicRoyalCard(role: .readability)
+    }
+
+    private func gapBlock(
+        _ gap: LifeRouteUsableGap,
+        itinerary: LifeRouteGeneratedItinerary
+    ) -> some View {
+        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Calendar gap: \(durationLabel(gap.rawCalendarGapSeconds))")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(scenicStyle.secondaryText)
+                    Text(gap.usableSeconds.map { "Actual usable gap: \(durationLabel($0))" } ?? "Actual usable gap: route unavailable")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(scenicStyle.accentReflection)
+                }
+                Spacer()
+                if planState.gapEvaluationInFlight.contains(gap.id) {
+                    ProgressView().tint(scenicStyle.accent)
+                }
+            }
+
+            if let recommendations = planState.gapRecommendationsByGapID[gap.id] {
+                if recommendations.isEmpty {
+                    Text("No saved place or To-Do currently fits this route-safe gap.")
+                        .font(.caption)
+                        .foregroundStyle(scenicStyle.secondaryText)
+                } else {
+                    ForEach(recommendations) { recommendation in
+                        recommendationRow(recommendation, gap: gap)
+                    }
+                }
+            } else {
+                Button("Find Gap Fillers") {
                     LifeRouteHaptics.selection()
+                    planState.evaluateGapFillers(
+                        for: gap,
+                        itinerary: itinerary,
+                        savedPlaces: routingState.savedPlaces,
+                        todos: routingState.todos
+                    )
+                }
+                .buttonStyle(ScenicRoyalSecondaryButtonStyle())
+                .disabled(!gap.isRouteSafe)
+            }
+        }
+        .padding(ScenicRoyalDesignSystem.Spacing.compact)
+        .scenicRoyalInteractiveSurface(
+            role: .ambient,
+            cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
+        )
+    }
+
+    private func recommendationRow(
+        _ recommendation: LifeRouteGapFillerRecommendation,
+        gap: LifeRouteUsableGap
+    ) -> some View {
+        HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(recommendation.title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(scenicStyle.primaryText)
+                Text("Fits · \(recommendation.durationMinutes) min")
+                    .font(.caption)
+                    .foregroundStyle(scenicStyle.secondaryText)
+            }
+            Spacer()
+            if !recommendation.address.isEmpty {
+                Button {
+                    addRecommendation(recommendation, after: gap.previousAppointmentNodeID)
                 } label: {
-                    Image(systemName: "calendar.badge.clock")
-                        .font(.system(size: 18, weight: .semibold))
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
                         .foregroundStyle(scenicStyle.accent)
                         .frame(
                             width: ScenicRoyalDesignSystem.Layout.minimumTouchTarget,
                             height: ScenicRoyalDesignSystem.Layout.minimumTouchTarget
                         )
-                        .scenicRoyalInteractiveSurface(
-                            role: .selectedControl,
-                            cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
-                        )
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Choose day")
-                .accessibilityHint("Opens the calendar date picker.")
-            }
-            .font(.system(.largeTitle, design: .rounded, weight: .black))
-
-            Text("Plan your day. Optimize every gap.")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(scenicStyle.secondaryText)
-
-            Spacer(minLength: dynamicTypeSize.isAccessibilitySize ? 12 : 30)
-
-            HStack(alignment: .bottom, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(dayPageTitle(selectedDay))
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(scenicStyle.primaryText)
-                    Text(selectedDay.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                        .font(.caption)
-                        .foregroundStyle(scenicStyle.secondaryText)
-                }
-                Spacer(minLength: 8)
-                if routingState.liveLocationEnabled {
-                    Label("Location active", systemImage: "location.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(scenicStyle.primaryText)
-                        .accessibilityLabel("Live location active")
-                }
+                .accessibilityLabel("Add \(recommendation.title) to this gap")
             }
         }
-        .frame(maxWidth: .infinity, minHeight: dynamicTypeSize.isAccessibilitySize ? 210 : 168, alignment: .topLeading)
-        .scenicRoyalCard(
-            role: dynamicTypeSize.isAccessibilitySize ? .readability : .ambient,
-            cornerRadius: ScenicRoyalDesignSystem.Radius.hero
-        )
-        .accessibilityElement(children: .contain)
     }
 
-    private var brandGold: Color {
-        Color(red: 0.96, green: 0.72, blue: 0.20)
-    }
-
-    private var routeBlue: Color {
-        Color(red: 0.28, green: 0.72, blue: 0.96)
-    }
-
-    private var schedulePurple: Color {
-        Color(red: 0.68, green: 0.40, blue: 0.96)
-    }
-
-    private var selectedDayContext: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "calendar")
-                .foregroundStyle(brandGold)
-            Text(selectedDay.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(palette.textPrimary)
-            Spacer(minLength: 8)
-            Button("Back to Today") {
-                selectedDay = Calendar.current.startOfDay(for: Date())
-                LifeRouteHaptics.selection()
-            }
-            .font(.caption2.weight(.bold))
-            .foregroundStyle(brandGold)
-        }
-        .padding(.horizontal, 11)
-        .frame(minHeight: 36)
-        .background(palette.panel.opacity(0.52), in: Capsule())
-        .overlay {
-            Capsule().stroke(Color.white.opacity(0.07), lineWidth: LifeRouteDesign.Stroke.subtle)
-        }
-    }
-
-    private var dayPickerSheet: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 14) {
-                LifeRouteScreenHeader(
-                    title: "Choose Day",
-                    subtitle: "Home stays compact; date browsing remains available here.",
-                    systemImage: "calendar"
-                )
-                daySelector
-                Spacer(minLength: 0)
-            }
-            .padding(16)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        showingDayPicker = false
-                    }
-                    .fontWeight(.semibold)
-                }
-            }
-        }
-        .presentationDetents([.height(245)])
-        .lifeRouteModalChrome()
-    }
-
-    private var daySelector: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // v0.6.3 responsive day selector layout remains protected in the v0.7 compact treatment.
-            HStack(spacing: 10) {
-                Button {
-                    shiftSelectedDay(by: -1)
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.subheadline.weight(.bold))
-                        .frame(width: LifeRouteDesign.Layout.minimumTouchTarget, height: LifeRouteDesign.Layout.minimumTouchTarget)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(palette.textSecondary)
-                .accessibilityLabel("Previous day")
-
-                VStack(spacing: 2) {
-                    Text(Calendar.current.isDateInToday(selectedDay) ? "Today" : selectedDay.formatted(.dateTime.weekday(.wide)))
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(palette.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                    Text(selectedDay.formatted(date: .abbreviated, time: .omitted))
-                        .font(.caption2)
-                        .foregroundStyle(palette.textSecondary)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity)
-                .layoutPriority(1)
-
-                Button {
-                    shiftSelectedDay(by: 1)
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.subheadline.weight(.bold))
-                        .frame(width: LifeRouteDesign.Layout.minimumTouchTarget, height: LifeRouteDesign.Layout.minimumTouchTarget)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(palette.textSecondary)
-                .accessibilityLabel("Next day")
-            }
-
-            HStack(spacing: 8) {
-                Label("Choose date", systemImage: "calendar")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(palette.textSecondary)
-                Spacer(minLength: 6)
-                DatePicker("Choose day", selection: selectedDayBinding, displayedComponents: .date)
-                    .labelsHidden()
-                    .datePickerStyle(.compact)
-                    .fixedSize()
-                    .tint(palette.accent)
-
-                if !Calendar.current.isDateInToday(selectedDay) {
-                    Button {
-                        selectedDay = Calendar.current.startOfDay(for: Date())
-                        LifeRouteHaptics.selection()
-                    } label: {
-                        Text("Today")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(palette.accent)
-                            .padding(.horizontal, 8)
-                            .frame(minHeight: 30)
-                            .background(palette.accent.opacity(0.10), in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Jump to Today")
-                }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(palette.panel.opacity(0.72))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.07), lineWidth: LifeRouteDesign.Stroke.subtle)
-        }
-    }
-
-    @ViewBuilder
-    private var dayOverviewPager: some View {
-        if pagingDays.contains(selectedDay) {
-            TabView(selection: selectedDayBinding) {
-                ForEach(pagingDays, id: \.self) { date in
-                    dayOverviewPage(date)
-                        .tag(date)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: dynamicTypeSize.isAccessibilitySize ? 128 : 94)
-            .accessibilityHint("Swipe left or right to browse one day at a time.")
-        } else {
-            // Schedule can intentionally select dates beyond the connected-provider horizon.
-            // Keep that shared selection truthful instead of snapping Today to an unrelated page.
-            selectedDayContext
-        }
-    }
-
-    private func dayOverviewPage(_ date: Date) -> some View {
-        let events = calendarState.events(on: date).sorted { $0.start < $1.start }
-        let event = pageSummaryEvent(on: date, events: events)
-        let isSelected = Calendar.current.isDate(date, inSameDayAs: selectedDay)
-
-        return VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(dayPageTitle(date))
-                        .font(.subheadline.weight(.black))
-                        .foregroundStyle(palette.textPrimary)
-                    Text(date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(palette.textSecondary)
-                }
-
-                Spacer(minLength: 8)
-
-                Text("\(events.count) event\(events.count == 1 ? "" : "s")")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(brandGold)
-                    .padding(.horizontal, 8)
-                    .frame(minHeight: 28)
-                    .background(brandGold.opacity(0.10), in: Capsule())
-            }
-
-            HStack(spacing: 7) {
-                Image(systemName: event == nil ? "checkmark.circle.fill" : "clock.fill")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(event == nil ? routeBlue : brandGold)
-                    .accessibilityHidden(true)
-
-                if let event {
-                    Text(event.title)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(palette.textPrimary)
-                        .lineLimit(1)
-                    Spacer(minLength: 6)
-                    Text(pageEventTime(event, on: date))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(palette.textSecondary)
-                        .lineLimit(1)
-                } else {
-                    Text("Clear day")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(palette.textSecondary)
-                    Spacer(minLength: 0)
-                }
-            }
-        }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 9)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.panel.opacity(0.58), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(isSelected ? brandGold.opacity(0.30) : Color.white.opacity(0.06), lineWidth: LifeRouteDesign.Stroke.subtle)
-        }
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(dayPageAccessibilityLabel(date, eventCount: events.count, event: event))
-        .accessibilityValue(isSelected ? "Selected page" : "")
-    }
-
-    private func pageSummaryEvent(on date: Date, events: [LifeRouteCalendarEvent]) -> LifeRouteCalendarEvent? {
-        if Calendar.current.isDateInToday(date) {
-            return events.first { $0.end > Date() }
-        }
-        return events.first
-    }
-
-    private func dayPageTitle(_ date: Date) -> String {
-        if Calendar.current.isDateInToday(date) { return "Today" }
-        if Calendar.current.isDateInTomorrow(date) { return "Tomorrow" }
-        return date.formatted(.dateTime.weekday(.wide))
-    }
-
-    private func pageEventTime(_ event: LifeRouteCalendarEvent, on date: Date) -> String {
-        if event.isAllDay { return "All day" }
-        if Calendar.current.isDateInToday(date), event.start <= Date(), event.end > Date() {
-            return "Now"
-        }
-        return event.start.formatted(date: .omitted, time: .shortened)
-    }
-
-    private func dayPageAccessibilityLabel(
-        _ date: Date,
-        eventCount: Int,
-        event: LifeRouteCalendarEvent?
-    ) -> String {
-        let dateLabel: String
-        if Calendar.current.isDateInToday(date) {
-            dateLabel = "Today"
-        } else if Calendar.current.isDateInTomorrow(date) {
-            dateLabel = "Tomorrow"
-        } else {
-            dateLabel = date.formatted(date: .complete, time: .omitted)
-        }
-
-        if let event {
-            return "\(dateLabel), \(eventCount) events, next event \(event.title), \(pageEventTime(event, on: date))"
-        }
-        return "\(dateLabel), no events, clear day"
-    }
-
-    private var quickActions: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            ScenicRoyalSectionHeader("Quick Actions", subtitle: "Plan, locate, schedule, or add a stop.")
-
-            ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                LazyVGrid(columns: quickActionColumns, spacing: 8) {
-                    NavigationLink {
-                        DayRoutePlanningView(calendarState: calendarState, routingState: routingState, day: selectedDay)
-                    } label: {
-                        quickActionLabel(
-                            "Plan Route",
-                            "arrow.triangle.turn.up.right.diamond.fill",
-                            accent: brandGold
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
-
-                    Button {
-                        LifeRouteHaptics.primaryAction()
-                        if routingState.liveLocationEnabled {
-                            routingState.stopLiveLocation()
-                        } else {
-                            routingState.requestCurrentLocation()
-                        }
-                    } label: {
-                        quickActionLabel(
-                            "Current Location",
-                            routingState.liveLocationEnabled ? "location.fill.viewfinder" : "location.fill",
-                            accent: routeBlue,
-                            isActive: routingState.liveLocationEnabled
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(routingState.locationRequestInFlight)
-
-                    Button {
-                        LifeRouteHaptics.selection()
-                        router.select(.schedule)
-                    } label: {
-                        quickActionLabel("Open Schedule", "calendar", accent: schedulePurple)
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink {
-                        DayRoutePlanningView(calendarState: calendarState, routingState: routingState, day: selectedDay)
-                    } label: {
-                        quickActionLabel("Add Stop", "plus", accent: brandGold)
-                    }
-                    .buttonStyle(.plain)
-                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
-                }
-            }
-        }
-        .scenicRoyalCard(role: .ambient, padding: ScenicRoyalDesignSystem.Spacing.standard)
-    }
-
-    private var overviewCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ScenicRoyalSectionHeader(
-                Calendar.current.isDateInToday(selectedDay) ? "Today’s Overview" : "Day Overview",
-                subtitle: "Events and current route estimates.",
-                systemImage: "calendar.day.timeline.left"
-            )
-
-            // v0.7.0 Today overview full-day agenda: show every appointment on the selected
-            // calendar day instead of reducing the overview to only the next appointment.
-            if selectedDayEvents.isEmpty {
-                HStack(spacing: 10) {
-                    ScenicRoyalIconBadge(systemImage: "checkmark.circle.fill")
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(Calendar.current.isDateInToday(selectedDay) ? "No timed events today" : "No timed events on this day")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(palette.textPrimary)
-                        Text("Your selected day is clear.")
-                            .font(.caption)
-                            .foregroundStyle(palette.textSecondary)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
-                .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-            } else {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    VStack(spacing: 7) {
-                        ForEach(selectedDayEvents) { event in
-                            overviewEventCard(
-                                event,
-                                now: context.date,
-                                isFocus: event.id == nextEvent?.id
-                            )
-                        }
-                    }
-                }
-            }
-
-            LazyVGrid(columns: overviewMetricColumns, spacing: 7) {
-                overviewMetric(
-                    value: "\(selectedDayEvents.count)",
-                    label: "Events",
-                    detail: dayPageTitle(selectedDay),
-                    systemImage: "calendar",
-                    accent: schedulePurple
-                )
-                overviewMetric(
-                    value: "\(drivingEstimates.count)",
-                    label: "Total Drives",
-                    detail: "Current route data",
-                    systemImage: "car.fill",
-                    accent: brandGold
-                )
-                overviewMetric(
-                    value: totalDrivingDurationLabel,
-                    label: "Est. Driving",
-                    detail: "Current route data",
-                    systemImage: "clock.fill",
-                    accent: routeBlue
-                )
-            }
-        }
-        .scenicRoyalCard(role: .readability)
-    }
-
-    private func overviewEventCard(
-        _ event: LifeRouteCalendarEvent,
-        now: Date,
-        isFocus: Bool
-    ) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(isFocus ? "Next Event" : overviewEventLabel(event, now: now))
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(palette.textSecondary)
-                Text(event.title)
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(isFocus ? brandGold : palette.textPrimary)
-                    .lineLimit(2)
-                Text(event.isAllDay ? "All day" : "\(event.start.formatted(date: .omitted, time: .shortened)) – \(event.end.formatted(date: .omitted, time: .shortened))")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(palette.textPrimary.opacity(0.82))
-                if !event.location.isEmpty {
-                    Label(event.location, systemImage: "mappin")
-                        .font(.caption2)
-                        .foregroundStyle(palette.textSecondary)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer(minLength: 8)
-
-            VStack(alignment: .trailing, spacing: 3) {
-                Text(isFocus ? nextEventCountdownLabel(event, now: now) : overviewEventStatusLabel(event, now: now))
-                    .font(.caption2)
-                    .foregroundStyle(palette.textSecondary)
-                Text(isFocus ? nextEventCountdownValue(event, now: now) : overviewEventStatusValue(event, now: now))
-                    .font(.title3.weight(.bold))
-                    .monospacedDigit()
-                    .foregroundStyle(isFocus ? routeBlue : palette.textPrimary.opacity(0.82))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-            }
-        }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(palette.panelElevated.opacity(isFocus ? 0.46 : 0.30))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(isFocus ? brandGold.opacity(0.28) : Color.white.opacity(0.07), lineWidth: LifeRouteDesign.Stroke.subtle)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private func overviewEventLabel(_ event: LifeRouteCalendarEvent, now: Date) -> String {
-        guard Calendar.current.isDateInToday(selectedDay) else { return "Scheduled" }
-        if event.end <= now { return "Completed" }
-        if event.start <= now { return "In Progress" }
-        return "Later Today"
-    }
-
-    private func overviewEventStatusLabel(_ event: LifeRouteCalendarEvent, now: Date) -> String {
-        if event.isAllDay { return "Time" }
-        guard Calendar.current.isDateInToday(selectedDay) else { return "Starts" }
-        if event.end <= now { return "Status" }
-        if event.start <= now { return "Status" }
-        return "Starts"
-    }
-
-    private func overviewEventStatusValue(_ event: LifeRouteCalendarEvent, now: Date) -> String {
-        if event.isAllDay { return "All day" }
-        guard Calendar.current.isDateInToday(selectedDay) else {
-            return event.start.formatted(date: .omitted, time: .shortened)
-        }
-        if event.end <= now { return "Done" }
-        if event.start <= now { return "Now" }
-        return event.start.formatted(date: .omitted, time: .shortened)
-    }
-
-    private var gapSuggestions: some View {
-        VStack(alignment: .leading, spacing: 9) {
+    private func liveDayCard(_ itinerary: LifeRouteGeneratedItinerary) -> some View {
+        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
             HStack {
-                ScenicRoyalSectionHeader(
-                    "Suggested Gap Fillers",
-                    subtitle: "Useful options for open time.",
-                    systemImage: "sparkles"
-                )
+                Label("Live Day", systemImage: "figure.walk.motion")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(scenicStyle.primaryText)
                 Spacer()
-                NavigationLink {
-                    DayRoutePlanningView(calendarState: calendarState, routingState: routingState, day: selectedDay)
-                } label: {
-                    Text("See all")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(palette.accent)
-                }
-                .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
-                .buttonStyle(.plain)
-            }
-
-            // v0.7.0 restored To-Do gap fillers: flexible weekly tasks surface before saved-place ideas.
-            let openTodos = routingState.todos.filter { !$0.completed }
-            let suggestions = routingState.savedPlaces.filter(\.useInGapSuggestions)
-            if openTodos.isEmpty && suggestions.isEmpty {
-                HStack(spacing: 10) {
-                    ScenicRoyalIconBadge(systemImage: "sparkles")
-                    Text("Add a weekly to-do or mark saved places as gap suggestions in Setup and they’ll surface here.")
-                        .font(.caption)
-                        .foregroundStyle(palette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .scenicRoyalCard(role: .readability)
-            } else {
-                ForEach(openTodos.prefix(1)) { todo in
-                    HStack(spacing: 11) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(palette.accent.opacity(0.15))
-                            Image(systemName: todo.category.systemImage)
-                                .foregroundStyle(palette.accentSecondary)
-                        }
-                        .frame(width: 42, height: 42)
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(todo.title)
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(palette.textPrimary)
-                            Text("\(todo.durationMinutes) min · due \(todo.dueDate.formatted(date: .abbreviated, time: .omitted))")
-                                .font(.caption2)
-                                .foregroundStyle(palette.textSecondary)
-                            if !todo.address.isEmpty {
-                                Text(todo.address)
-                                    .font(.caption2)
-                                    .foregroundStyle(palette.textSecondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        Spacer()
-                        Button {
-                            routingState.setTodoCompleted(id: todo.id, completed: true)
-                            LifeRouteHaptics.success()
-                        } label: {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(palette.accentSecondary)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Complete \(todo.title)")
-                    }
-                    .padding(8)
-                    .background(palette.panel.opacity(0.72), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color.white.opacity(0.07), lineWidth: LifeRouteDesign.Stroke.subtle)
-                    }
-                }
-
-                ForEach(suggestions.prefix(openTodos.isEmpty ? 1 : 0)) { place in
-                    NavigationLink {
-                        DayRoutePlanningView(calendarState: calendarState, routingState: routingState, day: selectedDay)
-                    } label: {
-                        gapSuggestionRow(place)
-                    }
-                    .buttonStyle(.plain)
-                    .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
-                }
-            }
-        }
-        .scenicRoyalCard(role: .ambient, padding: ScenicRoyalDesignSystem.Spacing.standard)
-    }
-
-    private func gapSuggestionRow(_ place: LifeRouteSavedPlace) -> some View {
-        HStack(spacing: 11) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [palette.accent.opacity(0.25), palette.panelElevated.opacity(0.64)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                Image(systemName: placeIcon(place.kind))
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(palette.accentSecondary)
-            }
-            .frame(width: 42, height: 42)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(place.name)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(palette.textPrimary)
-                    .lineLimit(1)
-                Text(gapSuggestionDetail(place))
-                    .font(.caption2)
-                    .foregroundStyle(palette.textSecondary)
-                    .lineLimit(1)
-            }
-
-            Spacer(minLength: 6)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(palette.textSecondary.opacity(0.82))
-        }
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(palette.panel.opacity(0.72))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.white.opacity(0.07), lineWidth: LifeRouteDesign.Stroke.subtle)
-        }
-    }
-
-    private var liveDayCard: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            HStack(spacing: 10) {
-                ScenicRoyalIconBadge(systemImage: "bolt.horizontal.circle.fill")
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(liveDayEnabled ? "Live Day" : "Live Day + Lock Screen")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(palette.textPrimary)
-                    Text("Keep the selected day’s next-event timing available at a glance.")
-                        .font(.caption2)
-                        .foregroundStyle(palette.textSecondary)
-                }
-                Spacer(minLength: 6)
                 if liveActivity.isActive {
                     Text("LIVE")
                         .font(.caption2.weight(.black))
-                        .tracking(0.6)
                         .foregroundStyle(Color.black.opacity(0.78))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
-                        .background(palette.accent, in: Capsule())
+                        .background(scenicStyle.accent, in: Capsule())
                 }
             }
 
-            Toggle("Return home after the day", isOn: $returnHomeOnLiveDay)
-                .font(.caption.weight(.semibold))
-                .disabled(routingState.homeAddress.isEmpty)
+            Text("The in-app status and Lock Screen use this generated itinerary and the same route-aware departure deadline.")
+                .font(.caption)
+                .foregroundStyle(scenicStyle.secondaryText)
 
-            if liveDayEnabled {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    liveSummary(now: context.date)
+            if let projection = LifeRouteLiveDayProjection.make(from: itinerary, at: Date()) {
+                HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(projection.phaseLabel)
+                            .font(.caption2.weight(.black))
+                            .foregroundStyle(scenicStyle.accent)
+                        Text(projection.primaryTitle)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(scenicStyle.primaryText)
+                    }
+                    Spacer()
+                    Text(projection.countdownTarget.formatted(date: .omitted, time: .shortened))
+                        .font(.headline.weight(.black))
+                        .foregroundStyle(scenicStyle.accentReflection)
                 }
+            }
 
-                liveDaySequence
-
-                HStack(spacing: 9) {
-                    Button {
+            if liveActivity.isActive {
+                HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                    Button("Refresh") {
                         LifeRouteHaptics.primaryAction()
-                        Task {
-                            await liveActivity.update(
-                                events: selectedDayEvents,
-                                dayStops: selectedDayStops,
-                                savedPlaces: routingState.savedPlaces,
-                                routeEstimates: routingState.routeEstimates,
-                                returnHomePlanned: returnHomeOnLiveDay
-                            )
-                        }
-                    } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
+                        Task { await liveActivity.update(itinerary: itinerary) }
                     }
                     .buttonStyle(ScenicRoyalSecondaryButtonStyle())
 
-                    Button {
+                    Button("End") {
                         LifeRouteHaptics.selection()
-                        liveDayEnabled = false
                         Task { await liveActivity.end() }
-                    } label: {
-                        Label("End", systemImage: "stop.fill")
                     }
                     .buttonStyle(ScenicRoyalSecondaryButtonStyle())
                 }
             } else {
                 Button {
-                    liveDayEnabled = true
                     LifeRouteHaptics.primaryAction()
-                    Task {
-                        await liveActivity.start(
-                            events: selectedDayEvents,
-                            dayStops: selectedDayStops,
-                            savedPlaces: routingState.savedPlaces,
-                            routeEstimates: routingState.routeEstimates,
-                            returnHomePlanned: returnHomeOnLiveDay,
-                            day: selectedDay
-                        )
-                    }
+                    Task { await liveActivity.start(itinerary: itinerary) }
                 } label: {
-                    Label("Generate + launch selected day", systemImage: "sparkles")
+                    Label("Start Live Day", systemImage: "lock.iphone")
                 }
                 .buttonStyle(ScenicRoyalPrimaryButtonStyle())
+                .disabled(LifeRouteLiveDayProjection.make(from: itinerary, at: Date()) == nil)
             }
 
             if let message = liveActivity.message {
                 Text(message)
-                    .font(.caption2)
-                    .foregroundStyle(palette.textSecondary)
+                    .font(.caption)
+                    .foregroundStyle(scenicStyle.secondaryText)
             }
         }
         .scenicRoyalCard(role: .readability)
     }
 
-    private var liveDaySequence: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack {
-                Text("GENERATED DAY")
-                    .font(.caption2.weight(.black))
-                    .tracking(0.8)
-                    .foregroundStyle(palette.accent)
-                Spacer()
-                if !selectedDayStops.isEmpty {
-                    Text("\(selectedDayStops.count) SAVED STOP\(selectedDayStops.count == 1 ? "" : "S")")
-                        .font(.caption2.weight(.black))
-                        .foregroundStyle(palette.accentSecondary)
+    private var dayPickerSheet: some View {
+        NavigationStack {
+            DatePicker(
+                "Selected day",
+                selection: Binding(
+                    get: { selectedDay },
+                    set: { selectedDay = $0 }
+                ),
+                displayedComponents: .date
+            )
+            .datePickerStyle(.graphical)
+            .padding()
+            .navigationTitle("Choose Day")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { showingDayPicker = false }
                 }
-            }
-
-            ForEach(selectedDayPlanWaypoints) { waypoint in
-                HStack(spacing: 9) {
-                    Image(systemName: waypoint.kind == .stop ? "mappin.and.ellipse" : "calendar")
-                        .foregroundStyle(waypoint.kind == .stop ? palette.accentSecondary : palette.accent)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(waypoint.title)
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(palette.textPrimary)
-                        Text(waypoint.address.isEmpty ? "No location" : waypoint.address)
-                            .font(.caption2)
-                            .foregroundStyle(palette.textSecondary)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 4)
-                    Text(waypoint.kind == .stop ? "STOP" : "EVENT")
-                        .font(.caption2.weight(.black))
-                        .foregroundStyle(palette.textSecondary)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(palette.panelElevated.opacity(0.28), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .accessibilityElement(children: .combine)
             }
         }
+        .presentationDetents([.medium, .large])
     }
 
-    @ViewBuilder
-    private func liveSummary(now: Date) -> some View {
-        if let event = selectedDayEvents.first(where: { $0.end > now }) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(event.start <= now ? "CURRENT EVENT" : "NEXT EVENT")
-                        .font(.caption2.weight(.black))
-                        .tracking(0.8)
-                        .foregroundStyle(palette.accent)
-                    Text(event.title)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(palette.textPrimary)
-                        .lineLimit(1)
-                }
-                Spacer(minLength: 8)
-                Text(timeRemaining(to: event.start <= now ? event.end : event.start, now: now))
-                    .font(.headline.weight(.bold))
-                    .monospacedDigit()
-                    .foregroundStyle(palette.accentSecondary)
-            }
-            .padding(11)
-            .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        } else {
-            Text("The selected day’s timed events are complete.")
-                .font(.caption)
-                .foregroundStyle(palette.textSecondary)
+    private func generateFullDay() {
+        guard canGenerate else { return }
+        if liveActivity.isActive {
+            Task { await liveActivity.end() }
         }
-    }
-
-    private func quickActionLabel(
-        _ title: String,
-        _ systemImage: String,
-        accent: Color,
-        isActive: Bool = false
-    ) -> some View {
-        VStack(spacing: 7) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [accent.opacity(isActive ? 0.34 : 0.22), palette.panelElevated.opacity(0.70)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                Image(systemName: systemImage)
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(accent)
-            }
-            .frame(width: 42, height: 42)
-            .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(accent.opacity(isActive ? 0.48 : 0.26), lineWidth: LifeRouteDesign.Stroke.subtle)
-            }
-            .shadow(color: accent.opacity(isActive ? 0.18 : 0.08), radius: 8, y: 3)
-
-            Text(title)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(palette.textPrimary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.78)
-        }
-        .frame(maxWidth: .infinity, minHeight: 64, alignment: .top)
-        .contentShape(Rectangle())
-        .padding(.horizontal, 3)
-        .padding(.vertical, 5)
-        .scenicRoyalInteractiveSurface(
-            role: isActive ? .selectedControl : .ambient,
-            cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
+        LifeRouteHaptics.primaryAction()
+        planState.calculate(
+            selectedDay: selectedDay,
+            appointments: routeAppointments,
+            beforeStops: beforeStops,
+            afterStops: afterStops,
+            routeBufferMinutes: routingState.routeBufferMinutes,
+            homeAddress: routingState.homeAddress,
+            currentLocation: routingState.currentLocation
         )
     }
 
-    private func overviewMetric(
-        value: String,
-        label: String,
-        detail: String,
-        systemImage: String,
-        accent: Color
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
-                Image(systemName: systemImage)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(accent)
-                Text(label)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(palette.textSecondary)
-                    .lineLimit(1)
-            }
-            Text(value)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(accent)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-            Text(detail)
-                .font(.caption2)
-                .foregroundStyle(palette.textSecondary)
+    private func addRecommendation(
+        _ recommendation: LifeRouteGapFillerRecommendation,
+        after previousNodeID: String
+    ) {
+        let appointmentID = previousNodeID.hasPrefix("event:")
+            ? String(previousNodeID.dropFirst("event:".count))
+            : previousNodeID
+        let savedPlaceID: UUID?
+        switch recommendation.source {
+        case .savedPlace(let id): savedPlaceID = id
+        case .todo: savedPlaceID = nil
         }
-        .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
-        .padding(8)
-        .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.06), lineWidth: LifeRouteDesign.Stroke.subtle)
+        let inserted = routingState.addDayStop(
+            title: recommendation.title,
+            address: recommendation.address,
+            position: .after,
+            day: selectedDay,
+            savedPlaceID: savedPlaceID,
+            durationMinutes: recommendation.durationMinutes,
+            afterAppointmentID: appointmentID
+        )
+        guard inserted else { return }
+        LifeRouteHaptics.success()
+        generateFullDay()
+    }
+
+    private func endLiveDayForChangedInputs() {
+        guard liveActivity.isActive else { return }
+        Task { await liveActivity.end() }
+    }
+
+    private func dayShiftButton(
+        _ offset: Int,
+        systemImage: String,
+        label: String
+    ) -> some View {
+        Button {
+            guard let shifted = Calendar.current.date(byAdding: .day, value: offset, to: selectedDay) else { return }
+            selectedDay = shifted
+            LifeRouteHaptics.selection()
+        } label: {
+            Image(systemName: systemImage)
+                .font(.subheadline.weight(.bold))
+                .frame(
+                    width: ScenicRoyalDesignSystem.Layout.minimumTouchTarget,
+                    height: ScenicRoyalDesignSystem.Layout.minimumTouchTarget
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    private var dayContextTitle: String {
+        if Calendar.current.isDateInToday(selectedDay) { return "Today" }
+        if Calendar.current.isDateInTomorrow(selectedDay) { return "Tomorrow" }
+        if Calendar.current.isDateInYesterday(selectedDay) { return "Yesterday" }
+        return selectedDay.formatted(.dateTime.weekday(.wide))
+    }
+
+    private var startingPointLabel: String {
+        if routingState.currentLocation != nil { return "Current Location" }
+        if !routingState.homeAddress.isEmpty { return "Home" }
+        return "Add Home in Setup"
+    }
+
+    private var emptyDayStatus: String {
+        selectedDayEvents.isEmpty ? "No appointments scheduled" : "No remaining timed appointment"
+    }
+
+    private var generationBlocker: String? {
+        let hasDestination = routeAppointments.contains {
+            !$0.isAllDay && !$0.address.isEmpty
+        } || !selectedDayStops.isEmpty
+        if !hasDestination {
+            return "Add a located appointment in Calendar or a saved stop to generate this day."
+        }
+        if routingState.currentLocation == nil && routingState.homeAddress.isEmpty {
+            return "Start live location or add Home in Setup before generating."
+        }
+        if planState.returnHome && routingState.homeAddress.isEmpty {
+            return "Add Home in Setup or turn off Return Home."
+        }
+        return nil
+    }
+
+    private func currentEvent(at now: Date) -> LifeRouteCalendarEvent? {
+        guard Calendar.current.isDateInToday(selectedDay) else { return nil }
+        return selectedDayEvents.first {
+            !$0.isAllDay && $0.start <= now && $0.end > now
         }
     }
 
-    private var totalDrivingDurationLabel: String {
-        let seconds = drivingEstimates.reduce(0) { $0 + $1.travelTimeSeconds }
-        let minutes = max(0, Int((seconds / 60).rounded()))
-        guard minutes > 0 else { return "0m" }
+    private func nextEvent(at now: Date) -> LifeRouteCalendarEvent? {
+        if Calendar.current.isDateInToday(selectedDay) {
+            return selectedDayEvents.first { !$0.isAllDay && $0.start > now }
+        }
+        return selectedDayEvents.first { !$0.isAllDay }
+    }
+
+    private func eventStatusLine(_ event: LifeRouteCalendarEvent, now: Date) -> String {
+        if event.isAllDay { return "All day" }
+        if event.start <= now && event.end > now {
+            return "Until \(event.end.formatted(date: .omitted, time: .shortened))"
+        }
+        let time = event.start.formatted(date: .omitted, time: .shortened)
+        return event.location.isEmpty ? time : "\(time) · \(event.location)"
+    }
+
+    private func departureEyebrow(_ guidance: LifeRouteDepartureGuidance?) -> String {
+        guard guidance != nil else { return "DEPARTURE" }
+        return Calendar.current.isDateInToday(selectedDay) ? "ROUTE-AWARE" : "LEAVE BY"
+    }
+
+    private func departureHeadline(_ guidance: LifeRouteDepartureGuidance?) -> String {
+        guard let guidance else {
+            return selectedItinerary == nil ? "Generate route" : "Regenerate"
+        }
+        guard Calendar.current.isDateInToday(selectedDay) else {
+            return guidance.leaveBy.formatted(date: .omitted, time: .shortened)
+        }
+        switch guidance.state {
+        case .leaveIn:
+            return "Leave in \(countdownLabel(guidance.secondsUntilDeparture))"
+        case .leaveNow, .overdue:
+            return "Leave now"
+        }
+    }
+
+    private func nodeDetail(_ node: LifeRouteItineraryNode) -> String {
+        switch node.kind {
+        case .origin, .home:
+            return node.address
+        case .stop:
+            return "\(durationLabel(node.stopDurationSeconds)) stop · \(node.address)"
+        case .appointment:
+            if node.isAllDay { return "All day · not used for route timing" }
+            let time: String
+            if let start = node.start, let end = node.end {
+                time = "\(start.formatted(date: .omitted, time: .shortened))–\(end.formatted(date: .omitted, time: .shortened))"
+            } else {
+                time = "Time unavailable"
+            }
+            return node.address.isEmpty ? "\(time) · No route location" : "\(time) · \(node.address)"
+        }
+    }
+
+    private func previewDetail(_ waypoint: LifeRouteDayWaypoint) -> String {
+        switch waypoint.kind {
+        case .appointment:
+            let eventID = String(waypoint.id.dropFirst("event:".count))
+            guard let event = selectedDayEvents.first(where: { $0.id == eventID }) else {
+                return waypoint.address.isEmpty ? "No route location" : waypoint.address
+            }
+            return eventStatusLine(event, now: Date())
+        case .stop:
+            let stopID = String(waypoint.id.dropFirst("stop:".count))
+            guard let stop = selectedDayStops.first(where: { $0.id.uuidString == stopID }) else {
+                return waypoint.address
+            }
+            return "\(stop.durationMinutes) min · \(stop.address)"
+        }
+    }
+
+    private func timelineIcon(_ kind: LifeRouteItineraryTimelineItem.Kind) -> String {
+        switch kind {
+        case .origin: return "location.fill"
+        case .drive: return "car.fill"
+        case .stop: return "mappin.and.ellipse"
+        case .appointment: return "calendar"
+        case .usableGap: return "hourglass.bottomhalf.filled"
+        case .home: return "house.fill"
+        }
+    }
+
+    private func timelineKindLabel(_ kind: LifeRouteItineraryTimelineItem.Kind) -> String {
+        switch kind {
+        case .origin: return "START"
+        case .drive: return "DRIVE"
+        case .stop: return "STOP"
+        case .appointment: return "EVENT"
+        case .usableGap: return "GAP"
+        case .home: return "HOME"
+        }
+    }
+
+    private func durationLabel(_ seconds: TimeInterval) -> String {
+        let minutes = max(0, Int(ceil(seconds / 60)))
         if minutes < 60 { return "\(minutes)m" }
         let hours = minutes / 60
-        let remaining = minutes % 60
-        return remaining == 0 ? "\(hours)h" : "\(hours)h \(remaining)m"
+        let remainder = minutes % 60
+        return remainder == 0 ? "\(hours)h" : "\(hours)h \(remainder)m"
     }
 
-    private func nextEventCountdownLabel(_ event: LifeRouteCalendarEvent, now: Date) -> String {
-        guard Calendar.current.isDateInToday(selectedDay) else { return "Starts at" }
-        return event.start <= now ? "Ends in" : "Starts in"
-    }
-
-    private func nextEventCountdownValue(_ event: LifeRouteCalendarEvent, now: Date) -> String {
-        guard Calendar.current.isDateInToday(selectedDay) else {
-            return event.start.formatted(date: .omitted, time: .shortened)
-        }
-        return timeRemaining(to: event.start <= now ? event.end : event.start, now: now)
-    }
-
-    private func gapSuggestionDetail(_ place: LifeRouteSavedPlace) -> String {
-        if let estimate = routingState.routeEstimates[place.id] {
-            return "\(estimate.durationLabel) away · \(place.minimumVisitMinutes) min visit"
-        }
-        return "\(place.minimumVisitMinutes) min visit · route when ready"
-    }
-
-    private func shiftSelectedDay(by days: Int) {
-        guard let shifted = Calendar.current.date(byAdding: .day, value: days, to: selectedDay) else { return }
-        selectedDay = Calendar.current.startOfDay(for: shifted)
-        LifeRouteHaptics.selection()
-    }
-
-    private func timeRemaining(to target: Date, now: Date) -> String {
-        let seconds = max(0, Int(target.timeIntervalSince(now)))
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        let remaining = seconds % 60
+    private func countdownLabel(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let remaining = total % 60
         if hours > 0 { return "\(hours)h \(minutes)m" }
         if minutes >= 10 { return "\(minutes)m" }
         return "\(minutes)m \(remaining)s"
     }
 
-    private func placeIcon(_ kind: LifeRoutePlaceKind) -> String {
-        switch kind {
-        case .gym: return "figure.strengthtraining.traditional"
-        case .work: return "briefcase.fill"
-        case .coffee: return "cup.and.saucer.fill"
-        case .grocery: return "cart.fill"
-        case .park: return "leaf.fill"
-        case .library: return "books.vertical.fill"
-        case .errand: return "checklist"
-        case .other: return "mappin.circle.fill"
-        }
+    private func distanceLabel(_ meters: Double) -> String {
+        let miles = meters / 1609.344
+        return miles < 0.1 ? "<0.1 mi" : String(format: "%.1f mi", miles)
     }
 }

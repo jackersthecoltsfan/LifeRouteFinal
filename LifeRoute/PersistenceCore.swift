@@ -13,8 +13,15 @@ struct RestoredRoutingPersistenceState {
     var savedPlaces: [LifeRouteSavedPlace]
     var todos: [LifeRouteTodo]
     var dayStops: [LifeRouteDayStop]
+    var routeBufferMinutes: Int
 
-    static let empty = RestoredRoutingPersistenceState(homeAddress: "", savedPlaces: [], todos: [], dayStops: [])
+    static let empty = RestoredRoutingPersistenceState(
+        homeAddress: "",
+        savedPlaces: [],
+        todos: [],
+        dayStops: [],
+        routeBufferMinutes: 10
+    )
 }
 
 @MainActor
@@ -130,11 +137,12 @@ final class LifeRoutePersistenceStore {
         var savedPlaces: [LifeRouteSavedPlace]
         var todos: [LifeRouteTodo]
         var dayStops: [LifeRouteDayStop]
+        var routeBufferMinutes: Int
         var manualCalendarEvents: [LifeRouteCalendarEvent]
         var providerCalendarEvents: [LifeRouteCalendarEvent]
 
         init(
-            schemaVersion: Int = 5,
+            schemaVersion: Int = 6,
             clients: [LifeRouteClientProfile] = [],
             visualIcons: [PersistedVisualIcon] = [],
             choiceBoards: [PersistedChoiceBoard] = [],
@@ -143,6 +151,7 @@ final class LifeRoutePersistenceStore {
             savedPlaces: [LifeRouteSavedPlace] = [],
             todos: [LifeRouteTodo] = [],
             dayStops: [LifeRouteDayStop] = [],
+            routeBufferMinutes: Int = 10,
             manualCalendarEvents: [LifeRouteCalendarEvent] = [],
             providerCalendarEvents: [LifeRouteCalendarEvent] = []
         ) {
@@ -155,6 +164,7 @@ final class LifeRoutePersistenceStore {
             self.savedPlaces = savedPlaces
             self.todos = todos
             self.dayStops = dayStops
+            self.routeBufferMinutes = max(0, min(180, routeBufferMinutes))
             self.manualCalendarEvents = manualCalendarEvents
             self.providerCalendarEvents = providerCalendarEvents
         }
@@ -169,6 +179,7 @@ final class LifeRoutePersistenceStore {
             case savedPlaces
             case todos
             case dayStops
+            case routeBufferMinutes
             case manualCalendarEvents
             case providerCalendarEvents
         }
@@ -184,6 +195,10 @@ final class LifeRoutePersistenceStore {
             savedPlaces = try container.decodeIfPresent([LifeRouteSavedPlace].self, forKey: .savedPlaces) ?? []
             todos = try container.decodeIfPresent([LifeRouteTodo].self, forKey: .todos) ?? []
             dayStops = try container.decodeIfPresent([LifeRouteDayStop].self, forKey: .dayStops) ?? []
+            routeBufferMinutes = max(
+                0,
+                min(180, try container.decodeIfPresent(Int.self, forKey: .routeBufferMinutes) ?? 10)
+            )
             manualCalendarEvents = try container.decodeIfPresent([LifeRouteCalendarEvent].self, forKey: .manualCalendarEvents) ?? []
             providerCalendarEvents = try container.decodeIfPresent([LifeRouteCalendarEvent].self, forKey: .providerCalendarEvents) ?? []
         }
@@ -436,7 +451,8 @@ final class LifeRoutePersistenceStore {
             homeAddress: state.homeAddress,
             savedPlaces: state.savedPlaces,
             todos: state.todos,
-            dayStops: state.dayStops
+            dayStops: state.dayStops,
+            routeBufferMinutes: state.routeBufferMinutes
         )
     }
 
@@ -450,7 +466,8 @@ final class LifeRoutePersistenceStore {
             homeAddress: homeAddress,
             savedPlaces: savedPlaces,
             todos: todos,
-            dayStops: state.dayStops
+            dayStops: state.dayStops,
+            routeBufferMinutes: state.routeBufferMinutes
         )
     }
 
@@ -458,13 +475,15 @@ final class LifeRoutePersistenceStore {
         homeAddress: String,
         savedPlaces: [LifeRouteSavedPlace],
         todos: [LifeRouteTodo],
-        dayStops: [LifeRouteDayStop]
+        dayStops: [LifeRouteDayStop],
+        routeBufferMinutes: Int
     ) {
         var next = state
         next.homeAddress = homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         next.savedPlaces = Self.sanitizedSavedPlaces(savedPlaces)
         next.todos = todos
         next.dayStops = LifeRouteDayStopCollection.sanitized(dayStops)
+        next.routeBufferMinutes = max(0, min(180, routeBufferMinutes))
         state = Self.sanitized(next)
         persist()
     }
@@ -584,7 +603,7 @@ final class LifeRoutePersistenceStore {
         let providerCalendarEvents = sanitizedProviderCalendarEvents(input.providerCalendarEvents)
 
         return NativeState(
-            schemaVersion: max(5, input.schemaVersion),
+            schemaVersion: max(6, input.schemaVersion),
             clients: clients,
             visualIcons: icons,
             choiceBoards: boards,
@@ -593,6 +612,7 @@ final class LifeRoutePersistenceStore {
             savedPlaces: savedPlaces,
             todos: todos,
             dayStops: dayStops,
+            routeBufferMinutes: max(0, min(180, input.routeBufferMinutes)),
             manualCalendarEvents: manualCalendarEvents,
             providerCalendarEvents: providerCalendarEvents
         )

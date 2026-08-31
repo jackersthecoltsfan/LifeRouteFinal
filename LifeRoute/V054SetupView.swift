@@ -20,6 +20,8 @@ struct V054SetupView: View {
     @State private var placeKind: LifeRoutePlaceKind = .other
     @State private var minimumVisitMinutes = 30
     @State private var gapSuggestion = true
+    @State private var customRouteBufferMinutes = 10
+    @State private var customRouteBufferSelected = false
     @State private var message: String?
 
     // v0.7.1 Setup disclosure groups: Appearance is immediately useful; heavier sections start collapsed.
@@ -113,6 +115,10 @@ struct V054SetupView: View {
         .onAppear {
             router.setBottomToolbarSuppressed(false)
             if homeDraft.isEmpty { homeDraft = routingState.homeAddress }
+            if !routeBufferPresets.contains(routingState.routeBufferMinutes) {
+                customRouteBufferMinutes = routingState.routeBufferMinutes
+                customRouteBufferSelected = true
+            }
         }
     }
 
@@ -151,6 +157,48 @@ struct V054SetupView: View {
             profileField("Your name", text: $rbtName, contentType: .name)
             profileField("Organization / agency (optional)", text: $rbtOrganization, contentType: .organizationName)
             profileField("RBT credential ID (optional)", text: $rbtCredential, contentType: nil)
+
+            Divider()
+                .overlay(style.accent.opacity(0.18))
+
+            VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                Label("Route Buffer", systemImage: "clock.badge.plus")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(style.primaryText)
+
+                Text("Adds one arrival margin before each timed appointment. Raw MapKit drive estimates stay unchanged.")
+                    .font(.caption)
+                    .foregroundStyle(style.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Picker("Route Buffer", selection: routeBufferSelection) {
+                    Text("None").tag(0)
+                    ForEach(routeBufferPresets.filter { $0 > 0 }, id: \.self) { minutes in
+                        Text("\(minutes) min").tag(minutes)
+                    }
+                    Text("Custom").tag(-1)
+                }
+                .pickerStyle(.menu)
+                .tint(style.accent)
+                .scenicRoyalField()
+
+                if customRouteBufferSelected {
+                    Stepper(
+                        "Custom buffer: \(customRouteBufferMinutes) min",
+                        value: $customRouteBufferMinutes,
+                        in: 1...180
+                    )
+                    .font(.subheadline.weight(.semibold))
+                    .scenicRoyalField()
+                    .onChange(of: customRouteBufferMinutes) { minutes in
+                        routingState.setRouteBufferMinutes(minutes)
+                    }
+                }
+
+                Text(routeBufferSummary)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(style.accentReflection)
+            }
 
             Label("Saved automatically", systemImage: "checkmark.circle.fill")
                 .font(.caption.weight(.semibold))
@@ -470,6 +518,37 @@ struct V054SetupView: View {
 
     private var preferredNavigationApp: LifeRouteNavigationApp {
         LifeRouteNavigationApp(rawValue: preferredNavigationAppRaw) ?? .appleMaps
+    }
+
+    private var routeBufferPresets: [Int] { [0, 5, 10, 15, 20, 30] }
+
+    private var routeBufferSelection: Binding<Int> {
+        Binding(
+            get: {
+                !customRouteBufferSelected && routeBufferPresets.contains(routingState.routeBufferMinutes)
+                    ? routingState.routeBufferMinutes
+                    : -1
+            },
+            set: { selection in
+                if selection >= 0 {
+                    customRouteBufferSelected = false
+                    routingState.setRouteBufferMinutes(selection)
+                    return
+                }
+                customRouteBufferSelected = true
+                let custom = routeBufferPresets.contains(routingState.routeBufferMinutes)
+                    ? max(1, customRouteBufferMinutes)
+                    : routingState.routeBufferMinutes
+                customRouteBufferMinutes = custom
+                routingState.setRouteBufferMinutes(custom)
+            }
+        )
+    }
+
+    private var routeBufferSummary: String {
+        routingState.routeBufferMinutes == 0
+            ? "No additional arrival margin"
+            : "+\(routingState.routeBufferMinutes) min before each timed appointment"
     }
 
     private var profileInitials: String {

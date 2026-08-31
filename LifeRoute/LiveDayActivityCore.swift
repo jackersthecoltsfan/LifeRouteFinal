@@ -16,14 +16,7 @@ final class LiveDayActivityCore: ObservableObject {
         }
     }
 
-    func start(
-        events: [LifeRouteCalendarEvent],
-        dayStops: [LifeRouteDayStop],
-        savedPlaces: [LifeRouteSavedPlace],
-        routeEstimates: [UUID: LifeRouteRouteEstimate],
-        returnHomePlanned: Bool,
-        day: Date = Date()
-    ) async {
+    func start(itinerary: LifeRouteGeneratedItinerary) async {
         guard #available(iOS 16.2, *) else {
             message = "Live Activities require iOS 16.2 or later."
             return
@@ -32,15 +25,9 @@ final class LiveDayActivityCore: ObservableObject {
             message = "Live Activities are disabled for LifeRoute in iPhone Settings."
             return
         }
-        guard let state = Self.contentState(
-            events: events,
-            dayStops: dayStops,
-            savedPlaces: savedPlaces,
-            routeEstimates: routeEstimates,
-            returnHomePlanned: returnHomePlanned,
-            now: Date()
-        ) else {
-            message = "Add a timed event on the selected day before starting Live Day on the Lock Screen."
+        let now = Date()
+        guard let projection = LifeRouteLiveDayProjection.make(from: itinerary, at: now) else {
+            message = "Generate a route with an upcoming timed appointment before starting Live Day."
             return
         }
 
@@ -49,14 +36,12 @@ final class LiveDayActivityCore: ObservableObject {
         }
 
         let attributes = LifeRouteLiveDayAttributes(
-            launchedAt: Date(),
-            dayLabel: day.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
+            launchedAt: now,
+            dayLabel: itinerary.selectedDay.formatted(
+                .dateTime.weekday(.wide).month(.abbreviated).day()
+            )
         )
-        let content = ActivityContent(
-            state: state,
-            staleDate: state.eventEnd.addingTimeInterval(30 * 60),
-            relevanceScore: 1
-        )
+        let content = Self.activityContent(projection: projection, now: now)
 
         do {
             let activity = try Activity.request(
@@ -74,38 +59,27 @@ final class LiveDayActivityCore: ObservableObject {
         }
     }
 
-    func update(
-        events: [LifeRouteCalendarEvent],
-        dayStops: [LifeRouteDayStop],
-        savedPlaces: [LifeRouteSavedPlace],
-        routeEstimates: [UUID: LifeRouteRouteEstimate],
-        returnHomePlanned: Bool
-    ) async {
+    func update(itinerary: LifeRouteGeneratedItinerary) async {
         guard #available(iOS 16.2, *) else { return }
-        guard let activity = matchingActivity(),
-              let state = Self.contentState(
-                events: events,
-                dayStops: dayStops,
-                savedPlaces: savedPlaces,
-                routeEstimates: routeEstimates,
-                returnHomePlanned: returnHomePlanned,
-                now: Date()
-              ) else { return }
+        let now = Date()
+        guard let projection = LifeRouteLiveDayProjection.make(from: itinerary, at: now) else {
+            await end()
+            message = "Live Day ended because the generated route has no remaining departure."
+            return
+        }
+        guard let activity = matchingActivity() else {
+            await start(itinerary: itinerary)
+            return
+        }
 
-        let content = ActivityContent(
-            state: state,
-            staleDate: state.eventEnd.addingTimeInterval(30 * 60),
-            relevanceScore: 1
-        )
-        await activity.update(content)
+        await activity.update(Self.activityContent(projection: projection, now: now))
         isActive = true
         message = "Lock Screen Live Day updated."
     }
 
     func end() async {
         guard #available(iOS 16.2, *) else { return }
-        let activities = Activity<LifeRouteLiveDayAttributes>.activities
-        for activity in activities {
+        for activity in Activity<LifeRouteLiveDayAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
         activeActivityID = nil
@@ -121,86 +95,31 @@ final class LiveDayActivityCore: ObservableObject {
         }
         let fallback = Activity<LifeRouteLiveDayAttributes>.activities.first
         activeActivityID = fallback?.id
+        isActive = fallback != nil
         return fallback
     }
 
-    private static func contentState(
-        events: [LifeRouteCalendarEvent],
-        dayStops: [LifeRouteDayStop],
-        savedPlaces: [LifeRouteSavedPlace],
-        routeEstimates: [UUID: LifeRouteRouteEstimate],
-        returnHomePlanned: Bool,
+    @available(iOS 16.2, *)
+    private static func activityContent(
+        projection: LifeRouteLiveDayProjection,
         now: Date
-    ) -> LifeRouteLiveDayAttributes.ContentState? {
-        let timed = events
-            .filter { !$0.isAllDay && $0.end > now }
-            .sorted { $0.start < $1.start }
-        guard let event = timed.first else { return nil }
-
-        let estimate = matchingEstimate(
-            for: event,
-            savedPlaces: savedPlaces,
-            routeEstimates: routeEstimates
+    ) -> ActivityContent<LifeRouteLiveDayAttributes.ContentState> {
+        let eventEnd = max(
+            projection.appointmentStart,
+            projection.appointmentEnd ?? projection.appointmentStart
         )
-        let leaveDate = estimate.map { event.start.addingTimeInterval(-($0.travelTimeSeconds + 10 * 60)) }
-
-        let phaseLabel: String
-        let target: Date
-        let secondary: String
-        if event.start <= now && event.end > now {
-            phaseLabel = "CURRENT EVENT"
-            target = event.end
-            secondary = "Ends in"
-        } else if let leaveDate, leaveDate > now {
-            phaseLabel = "LEAVE IN"
-            target = leaveDate
-            secondary = event.location.isEmpty ? "Next: \(event.title)" : event.location
-        } else {
-            phaseLabel = "NEXT EVENT IN"
-            target = event.start
-            secondary = event.location.isEmpty ? "Up next" : event.location
-        }
-
-        let routeSummary: String
-        if let estimate {
-            routeSummary = "\(estimate.durationLabel) · \(estimate.distanceLabel)"
-        } else {
-            routeSummary = "Route estimate not loaded"
-        }
-
-        return LifeRouteLiveDayAttributes.ContentState(
-            phaseLabel: phaseLabel,
-            primaryTitle: event.title,
-            secondaryText: secondary,
-            countdownTarget: target,
-            eventStart: event.start,
-            eventEnd: event.end,
-            routeSummary: routeSummary,
-            plannedStopSummary: plannedStopSummary(for: dayStops),
-            returnHomePlanned: returnHomePlanned
+        let state = LifeRouteLiveDayAttributes.ContentState(
+            phaseLabel: projection.phaseLabel,
+            primaryTitle: projection.primaryTitle,
+            secondaryText: projection.secondaryText ?? "Next route commitment",
+            countdownTarget: projection.countdownTarget,
+            eventStart: projection.appointmentStart,
+            eventEnd: eventEnd,
+            routeSummary: projection.routeSummary,
+            plannedStopSummary: projection.plannedStopSummary,
+            returnHomePlanned: projection.returnHomePlanned
         )
-    }
-
-    private static func plannedStopSummary(for dayStops: [LifeRouteDayStop]) -> String? {
-        let stops = LifeRouteDayStopCollection.sanitized(dayStops)
-        guard !stops.isEmpty else { return nil }
-        let names = stops.prefix(2).map(\.title).joined(separator: " · ")
-        let remaining = stops.count - min(stops.count, 2)
-        return remaining > 0 ? "Stops: \(names) +\(remaining)" : "Stops: \(names)"
-    }
-
-    private static func matchingEstimate(
-        for event: LifeRouteCalendarEvent,
-        savedPlaces: [LifeRouteSavedPlace],
-        routeEstimates: [UUID: LifeRouteRouteEstimate]
-    ) -> LifeRouteRouteEstimate? {
-        let eventLocation = event.location.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !eventLocation.isEmpty else { return nil }
-        guard let place = savedPlaces.first(where: {
-            let address = $0.address.lowercased()
-            let name = $0.name.lowercased()
-            return eventLocation.contains(address) || address.contains(eventLocation) || eventLocation.contains(name)
-        }) else { return nil }
-        return routeEstimates[place.id]
+        let staleDate = max(now.addingTimeInterval(60), projection.countdownTarget)
+        return ActivityContent(state: state, staleDate: staleDate, relevanceScore: 1)
     }
 }

@@ -4,16 +4,15 @@ struct DayRoutePlanningView: View {
     @Environment(\.scenicRoyalThemeStyle) private var scenicStyle
     @ObservedObject var calendarState: CalendarCoreState
     @ObservedObject var routingState: RoutingLocationCore
+    @ObservedObject var planState: DayRoutePlanningCore
     var day: Date = Date()
 
-    @StateObject private var planState = DayRoutePlanningCore()
     @StateObject private var stopAutocomplete = LifeRouteAddressAutocomplete()
 
-    @State private var routeMode: LifeRouteTransportMode = .driving
-    @State private var returnHome = true
     @State private var stopTitle = ""
     @State private var stopAddress = ""
     @State private var stopPosition: LifeRouteDayStop.Position = .before
+    @State private var stopDurationMinutes = 20
     @State private var message: String?
     @State private var suppressStopAutocompleteQuery = false
     @FocusState private var stopAddressFocused: Bool
@@ -34,12 +33,23 @@ struct DayRoutePlanningView: View {
         }
         .navigationTitle("Day Route")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if routingState.homeAddress.isEmpty {
+                planState.returnHome = false
+            }
+        }
     }
 
     private var dayEvents: [LifeRouteCalendarEvent] {
         calendarState.events(on: day)
-            .filter { !$0.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .sorted { $0.start < $1.start }
+    }
+
+    private var routableDayEvents: [LifeRouteCalendarEvent] {
+        dayEvents.filter {
+            !$0.isAllDay
+                && !$0.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
     }
 
     private var stops: [LifeRouteDayStop] {
@@ -78,7 +88,7 @@ struct DayRoutePlanningView: View {
                 .foregroundStyle(scenicStyle.primaryText)
 
             if dayEvents.isEmpty {
-                Text("No calendar events with locations are available on \(day.formatted(date: .abbreviated, time: .omitted)). Add or refresh an event location in Schedule first.")
+                Text("No calendar events are available on \(day.formatted(date: .abbreviated, time: .omitted)). Add an appointment in Calendar or add a saved stop below.")
                     .font(.subheadline)
                     .foregroundStyle(scenicStyle.secondaryText)
             } else {
@@ -94,7 +104,7 @@ struct DayRoutePlanningView: View {
                                         Text(event.title)
                                             .font(.headline)
                                             .foregroundStyle(scenicStyle.primaryText)
-                                        Text(event.location)
+                                        Text(event.location.isEmpty ? "No route location" : event.location)
                                             .font(.caption)
                                             .foregroundStyle(scenicStyle.secondaryText)
                                         Text(event.start.formatted(date: .abbreviated, time: .shortened))
@@ -198,6 +208,15 @@ struct DayRoutePlanningView: View {
                 .accessibilityHint("Uses this address for the new stop")
             }
 
+            Stepper(
+                "Stop duration: \(stopDurationMinutes) min",
+                value: $stopDurationMinutes,
+                in: 5...240,
+                step: 5
+            )
+            .font(.subheadline.weight(.semibold))
+            .scenicRoyalField()
+
             Button("Add stop") {
                 addCustomStop()
             }
@@ -238,14 +257,14 @@ struct DayRoutePlanningView: View {
                 .font(.title3.weight(.bold))
                 .foregroundStyle(scenicStyle.primaryText)
 
-            Picker("Travel mode", selection: $routeMode) {
+            Picker("Travel mode", selection: $planState.routeMode) {
                 ForEach(LifeRouteTransportMode.allCases) { mode in
                     Text(mode.rawValue).tag(mode)
                 }
             }
             .pickerStyle(.segmented)
 
-            Toggle(isOn: $returnHome) {
+            Toggle(isOn: $planState.returnHome) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Return home after the last stop")
                         .font(.subheadline.weight(.bold))
@@ -275,7 +294,7 @@ struct DayRoutePlanningView: View {
                 Label(planState.isCalculating ? "Generating route…" : "Generate full day route", systemImage: "map.fill")
             }
             .buttonStyle(ScenicRoyalPrimaryButtonStyle())
-            .disabled(planState.isCalculating || (dayEvents.isEmpty && stops.isEmpty))
+            .disabled(planState.isCalculating || (routableDayEvents.isEmpty && stops.isEmpty))
 
             if let routeMessage = planState.message {
                 Text(routeMessage)
@@ -302,9 +321,9 @@ struct DayRoutePlanningView: View {
                 Button {
                     if planState.hasStartedSequentialHandoff,
                        planState.nextSequentialLegIndex != nil {
-                        planState.continueFullRoute(mode: routeMode)
+                        planState.continueFullRoute(mode: planState.routeMode)
                     } else {
-                        planState.startFullRoute(mode: routeMode)
+                        planState.startFullRoute(mode: planState.routeMode)
                     }
                 } label: {
                     Label(fullRouteActionTitle(plan), systemImage: fullRouteActionIcon(plan))
@@ -345,6 +364,15 @@ struct DayRoutePlanningView: View {
                         .font(.caption)
                         .foregroundStyle(scenicStyle.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
+                    Text("\(stop.durationMinutes) min planned")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(scenicStyle.accentReflection)
+                    if let appointmentID = stop.afterAppointmentID,
+                       let appointment = dayEvents.first(where: { $0.id == appointmentID }) {
+                        Text("After \(appointment.title)")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(scenicStyle.accentReflection)
+                    }
                 }
                 Spacer(minLength: ScenicRoyalDesignSystem.Spacing.compact)
                 Button(role: .destructive) {
@@ -369,7 +397,9 @@ struct DayRoutePlanningView: View {
             title: place.name,
             address: place.address,
             position: position,
-            day: day
+            day: day,
+            savedPlaceID: place.id,
+            durationMinutes: place.minimumVisitMinutes
         )
         message = inserted ? "Added \(place.name)." : "That stop is already in this day."
     }
@@ -385,11 +415,13 @@ struct DayRoutePlanningView: View {
             title: cleanTitle.isEmpty ? "Stop" : cleanTitle,
             address: cleanAddress,
             position: stopPosition,
-            day: day
+            day: day,
+            durationMinutes: stopDurationMinutes
         )
         stopTitle = ""
         suppressStopAutocompleteQuery = true
         stopAddress = ""
+        stopDurationMinutes = 20
         stopAutocomplete.clear()
         stopAddressFocused = false
         message = inserted ? "Stop saved for this day." : "That stop is already in this day."
@@ -397,20 +429,22 @@ struct DayRoutePlanningView: View {
 
     private func buildRoute() {
         planState.calculate(
+            selectedDay: day,
             appointments: dayEvents.map {
                 LifeRouteRouteAppointment(
                     id: $0.id,
                     title: $0.title,
                     address: $0.location,
-                    start: $0.start
+                    start: $0.start,
+                    end: $0.end,
+                    isAllDay: $0.isAllDay
                 )
             },
             beforeStops: beforeStops,
             afterStops: afterStops,
-            returnHome: returnHome,
+            routeBufferMinutes: routingState.routeBufferMinutes,
             homeAddress: routingState.homeAddress,
-            currentLocation: routingState.currentLocation,
-            mode: routeMode
+            currentLocation: routingState.currentLocation
         )
     }
 

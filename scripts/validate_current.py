@@ -92,6 +92,7 @@ def validate_project_and_version() -> None:
             "Assets.xcassets in Resources",
             "SessionNoteContracts.swift in Sources",
             "DayRouteContracts.swift in Sources",
+            "DayItineraryContracts.swift in Sources",
             "FullRouteHandoffContracts.swift in Sources",
             "ScenicRoyalDesignSystem.swift in Sources",
             "ScenicRoyalMaterials.swift in Sources",
@@ -460,7 +461,18 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     )
     require_count(toolbar, "ForEach(AppSection.allCases)", 1, "five-root Scenic Royal toolbar")
     require_all(toolbar, ["accessibilityReduceMotion", "dynamicTypeSize", 'accessibilityLabel("Main navigation")', 'accessibilityValue(isSelected ? "Selected" : "")'], "toolbar accessibility contract")
-    require_all(today, ["ScenicRoyalSectionHeader", "ScenicRoyalGlassEffectContainer", ".scenicRoyalCard(", ".scenicRoyalInteractiveSurface("], "Today Scenic Royal migration")
+    require_all(
+        today,
+        [
+            "ScenicRoyalScreenHeader",
+            "ScenicRoyalGlassEffectContainer",
+            ".scenicRoyalCard(",
+            ".scenicRoyalInteractiveSurface(",
+            '"Generate Full Day"',
+            "authoritativeItinerary",
+        ],
+        "Today Scenic Royal command center",
+    )
     require("LifeRouteTodaySelectedExemplarArtwork" not in today, "Today must use the persistent root scenery instead of a screen-local exemplar background")
 
 
@@ -829,6 +841,7 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
     routing = sources["RoutingLocationDomain.swift"]
     day_route = sources["DayRoutePlanningCore.swift"]
     day_route_contracts = sources["DayRouteContracts.swift"]
+    itinerary_contracts = sources["DayItineraryContracts.swift"]
     full_route_contracts = sources["FullRouteHandoffContracts.swift"]
     day_route_view = sources["DayRoutePlanningView.swift"]
     setup = sources["V054SetupView.swift"]
@@ -859,21 +872,69 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
             "dynamicTypeSize.isAccessibilitySize",
             "ScenicRoyalInsetRow",
             "ScenicRoyalRouteLegRow",
-            'accessibilityHint("Opens full-day route planning")',
+            'var accessibilityHint = "Opens full-day route planning"',
             'accessibilityHint("Opens calendar connection settings")',
         ],
         "Schedule readability, Dynamic Type, and accessibility components",
     )
     require("palette.panel" not in schedule, "Schedule must not restore duplicated legacy panel styling")
     require_all(routing, ["CLLocationManager", "requestWhenInUseAuthorization", "allowsBackgroundLocationUpdates = false", "savedPlaces", "todos", "dayStops", "addDayStop", "removeDayStop", "MKDirections", "openInMaps"], "foreground routing and saved-place ownership")
-    require_all(day_route, ["startFullRoute", "continueFullRoute", "nextSequentialLegIndex", "returnHome", "LifeRouteDaySequenceBuilder.waypoints", "MKMapItem.openMaps"], "day-route handoff behavior")
-    require_all(day_route_contracts, ["LifeRouteDayStop: Identifiable, Codable", "LifeRouteDayStopCollection", "LifeRouteDaySequenceBuilder", "before + events + after"], "persistent per-day stop and full-day sequence contract")
+    require_all(
+        day_route,
+        [
+            "generatedItinerary",
+            "LifeRouteGeneratedItinerary(",
+            "evaluateGapFillers",
+            "inputFingerprint",
+            "startFullRoute",
+            "continueFullRoute",
+            "nextSequentialLegIndex",
+            "returnHome",
+            "MKMapItem.openMaps",
+        ],
+        "canonical generated-itinerary and day-route handoff behavior",
+    )
+    require_all(
+        day_route_contracts,
+        [
+            "LifeRouteDayStop: Identifiable, Codable",
+            "afterAppointmentID",
+            "LifeRouteDayStopCollection",
+            "LifeRouteDaySequenceBuilder",
+            "before + eventsAndAnchoredStops + after",
+        ],
+        "persistent per-day stop and intermediate-stop sequence contract",
+    )
+    require_all(
+        itinerary_contracts,
+        [
+            "LifeRouteGeneratedItinerary",
+            "LifeRouteRouteBuffer",
+            "LifeRouteUsableGap",
+            "LifeRouteGapFitResult",
+            "totalRawTravelSeconds",
+            "departureGuidance",
+            "LifeRouteLiveDayProjection",
+        ],
+        "canonical itinerary, usable-gap, Route Buffer, and Live Day projection contracts",
+    )
     require_all(full_route_contracts, ["completeGoogleMaps", "completeAppleMaps", "maximumGoogleMobileWaypoints = 3", "maximumURLLength = 2_048", "hasVerifiedSequence", "sequentialPlan"], "bounded provider full-route contract")
     require_all(day_route_view, ["routingState.dayStops(on: day)", "routingState.addDayStop", "routingState.removeDayStop", '"Generate full day route"', '"Start full route in \\(plan.provider.title)"', "ScenicRoyalRouteLegRow", "scenicRoyalField()"], "Day Route persisted-stop, Scenic Royal presentation, and one-action handoff")
     require("Open this leg" not in day_route_view, "Day Route must not expose separate normal-flow launch actions for each leg")
     require_all(setup + today, ["Weekly To-Dos", "gap suggestions"], "weekly To-Dos and gap suggestions")
     require_all(persistence, ["schemaVersion", "PersistedVisualIcon", "PersistedChoiceBoard", "PersistedVisualSchedule", "dayStops", "manualCalendarEvents", "providerCalendarEvents", "FileProtectionType.completeUntilFirstUserAuthentication", "options: [.atomic]", "private actor SnapshotWriter"], "native persistence and protected visual storage")
-    require_all(today, ["selectedDayStops", "selectedDayPlanWaypoints", "liveDaySequence", "dayStops: selectedDayStops"], "generated Live Day includes persisted stops")
+    require_all(
+        today,
+        [
+            "authoritativeItinerary",
+            "itinerary.totalRawTravelSeconds",
+            "itinerary.usableGaps",
+            "planState.evaluateGapFillers",
+            "LifeRouteLiveDayProjection.make(from: itinerary",
+            "liveActivity.start(itinerary: itinerary)",
+        ],
+        "Today, Gap Fillers, total driving, and Live Day share the generated itinerary",
+    )
     require_all(migration, ["LegacyMigrationPayload", "clients", "manualCalendarEvents", "places", "homeAddress"], "installed-version migration boundary")
 
 
@@ -942,7 +1003,21 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
         ],
         "Scenic Royal Visual Timer presentation and accessibility",
     )
-    require_all(live + attributes + widget, ["ActivityKit", "LifeRouteLiveDayAttributes", "plannedStopSummary", "returnHomePlanned", "Activity.request", "DynamicIsland", "ActivityConfiguration"], "Live Day app/extension contract")
+    require_all(
+        live + attributes + widget,
+        [
+            "ActivityKit",
+            "LifeRouteLiveDayAttributes",
+            "func start(itinerary: LifeRouteGeneratedItinerary)",
+            "LifeRouteLiveDayProjection.make(from: itinerary",
+            "plannedStopSummary",
+            "returnHomePlanned",
+            "Activity.request",
+            "DynamicIsland",
+            "ActivityConfiguration",
+        ],
+        "canonical-itinerary Live Day app/extension contract",
+    )
 
 
 def validate_release_and_web_policy() -> None:

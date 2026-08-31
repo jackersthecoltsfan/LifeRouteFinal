@@ -5,8 +5,10 @@ import CoreLocation
 import UIKit
 
 struct LifeRouteDayRouteLeg: Identifiable, Hashable {
-    let id: UUID
+    let id: String
     let sequence: Int
+    let fromNodeID: String
+    let toNodeID: String
     let fromTitle: String
     let fromAddress: String
     let toTitle: String
@@ -28,6 +30,20 @@ struct LifeRouteDayRouteLeg: Identifiable, Hashable {
     }
 }
 
+struct LifeRouteGapFillerRecommendation: Identifiable, Hashable {
+    enum Source: Hashable {
+        case savedPlace(UUID)
+        case todo(UUID)
+    }
+
+    let id: String
+    let source: Source
+    let title: String
+    let address: String
+    let durationMinutes: Int
+    let fit: LifeRouteGapFitResult
+}
+
 enum DayRoutePlanningError: LocalizedError {
     case missingDestination
     case missingOrigin
@@ -38,7 +54,7 @@ enum DayRoutePlanningError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingDestination:
-            return "Add at least one calendar event with a location before building the route."
+            return "Add at least one routed appointment or saved stop before building the route."
         case .missingOrigin:
             return "Start live location or save a home address before building the route."
         case .locationNotFound(let value):
@@ -54,35 +70,66 @@ enum DayRoutePlanningError: LocalizedError {
 @MainActor
 final class DayRoutePlanningCore: ObservableObject {
     @Published private(set) var legs: [LifeRouteDayRouteLeg] = []
+    @Published private(set) var generatedItinerary: LifeRouteGeneratedItinerary?
     @Published private(set) var isCalculating = false
     @Published private(set) var message: String?
     @Published private(set) var fullRoutePlan: LifeRouteFullRouteHandoffPlan?
     @Published private(set) var nextSequentialLegIndex: Int?
     @Published private(set) var hasStartedSequentialHandoff = false
+    @Published private(set) var gapRecommendationsByGapID: [String: [LifeRouteGapFillerRecommendation]] = [:]
+    @Published private(set) var gapEvaluationInFlight: Set<String> = []
+    @Published var routeMode: LifeRouteTransportMode = .driving
+    @Published var returnHome = true
 
     private var calculationTask: Task<Void, Never>?
+    private var calculationID: UUID?
+    private var gapEvaluationTasks: [String: Task<Void, Never>] = [:]
+    private var gapEvaluationIDs: [String: UUID] = [:]
 
     func calculate(
+        selectedDay: Date,
         appointments: [LifeRouteRouteAppointment],
         beforeStops: [LifeRouteDayStop],
         afterStops: [LifeRouteDayStop],
-        returnHome: Bool,
+        routeBufferMinutes: Int,
         homeAddress: String,
-        currentLocation: CLLocation?,
-        mode: LifeRouteTransportMode
+        currentLocation: CLLocation?
     ) {
         calculationTask?.cancel()
+        gapEvaluationTasks.values.forEach { $0.cancel() }
+        gapEvaluationTasks = [:]
+        gapEvaluationIDs = [:]
+        gapEvaluationInFlight = []
+        gapRecommendationsByGapID = [:]
+        let token = UUID()
+        calculationID = token
         legs = []
+        generatedItinerary = nil
         fullRoutePlan = nil
         nextSequentialLegIndex = nil
         hasStartedSequentialHandoff = false
         isCalculating = true
         message = "Building day route…"
 
+        let mode = self.routeMode
+        let returnHome = self.returnHome
+        let routeBuffer = LifeRouteRouteBuffer(minutes: routeBufferMinutes)
+        let fingerprint = Self.inputFingerprint(
+            selectedDay: selectedDay,
+            appointments: appointments,
+            beforeStops: beforeStops,
+            afterStops: afterStops,
+            returnHome: returnHome,
+            routeBuffer: routeBuffer,
+            homeAddress: homeAddress,
+            currentLocation: currentLocation,
+            mode: mode
+        )
+
         calculationTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let built = try await Self.buildLegs(
+                let built = try await Self.buildRoute(
                     appointments: appointments,
                     beforeStops: beforeStops,
                     afterStops: afterStops,
@@ -92,23 +139,222 @@ final class DayRoutePlanningCore: ObservableObject {
                     mode: mode
                 )
                 try Task.checkCancellation()
-                self.legs = built
+                guard self.calculationID == token else { return }
+                self.legs = built.legs
+                self.generatedItinerary = LifeRouteGeneratedItinerary(
+                    id: UUID().uuidString,
+                    selectedDay: Calendar.current.startOfDay(for: selectedDay),
+                    generatedAt: Date(),
+                    returnHome: returnHome,
+                    routeBuffer: routeBuffer,
+                    inputFingerprint: fingerprint,
+                    nodes: built.nodes,
+                    legs: built.legs.map {
+                        LifeRouteItineraryLeg(
+                            id: $0.id,
+                            sequence: $0.sequence,
+                            fromNodeID: $0.fromNodeID,
+                            toNodeID: $0.toNodeID,
+                            rawTravelSeconds: $0.travelTimeSeconds,
+                            rawDistanceMeters: $0.distanceMeters
+                        )
+                    }
+                )
                 self.fullRoutePlan = self.makeFullRoutePlan(mode: mode)
-                self.message = built.isEmpty ? "No route legs were created." : "Day route ready."
+                self.message = built.legs.isEmpty ? "No route legs were created." : "Day route ready."
             } catch is CancellationError {
+                guard self.calculationID == token else { return }
                 self.message = nil
             } catch {
+                guard self.calculationID == token else { return }
                 self.message = error.localizedDescription
             }
+            guard self.calculationID == token else { return }
             self.isCalculating = false
             self.calculationTask = nil
+            self.calculationID = nil
         }
     }
 
     func cancel() {
         calculationTask?.cancel()
         calculationTask = nil
+        calculationID = nil
         isCalculating = false
+    }
+
+    func matchesGeneratedItinerary(
+        selectedDay: Date,
+        appointments: [LifeRouteRouteAppointment],
+        beforeStops: [LifeRouteDayStop],
+        afterStops: [LifeRouteDayStop],
+        routeBufferMinutes: Int,
+        homeAddress: String,
+        currentLocation: CLLocation?
+    ) -> Bool {
+        guard let generatedItinerary else { return false }
+        let fingerprint = Self.inputFingerprint(
+            selectedDay: selectedDay,
+            appointments: appointments,
+            beforeStops: beforeStops,
+            afterStops: afterStops,
+            returnHome: returnHome,
+            routeBuffer: LifeRouteRouteBuffer(minutes: routeBufferMinutes),
+            homeAddress: homeAddress,
+            currentLocation: currentLocation,
+            mode: routeMode
+        )
+        return generatedItinerary.inputFingerprint == fingerprint
+    }
+
+    func evaluateGapFillers(
+        for gap: LifeRouteUsableGap,
+        itinerary: LifeRouteGeneratedItinerary,
+        savedPlaces: [LifeRouteSavedPlace],
+        todos: [LifeRouteTodo]
+    ) {
+        guard generatedItinerary?.id == itinerary.id,
+              generatedItinerary?.inputFingerprint == itinerary.inputFingerprint else {
+            return
+        }
+        gapEvaluationTasks[gap.id]?.cancel()
+
+        let calendar = Calendar.current
+        let dayEnd = calendar.date(byAdding: .day, value: 1, to: itinerary.selectedDay)
+            ?? itinerary.selectedDay.addingTimeInterval(86_400)
+        let eligibleTodos = todos.filter {
+            !$0.completed && $0.dueDate < dayEnd
+        }
+        let locationlessRecommendations = eligibleTodos.compactMap { todo -> LifeRouteGapFillerRecommendation? in
+            let address = Self.resolvedAddress(for: todo, savedPlaces: savedPlaces)
+            guard address.isEmpty else { return nil }
+            let fit = gap.fit(
+                .locationlessTodo(
+                    id: "todo:\(todo.id.uuidString)",
+                    title: todo.title,
+                    durationSeconds: TimeInterval(todo.durationMinutes * 60)
+                )
+            )
+            guard fit.state == .fits else { return nil }
+            return LifeRouteGapFillerRecommendation(
+                id: "todo:\(todo.id.uuidString)",
+                source: .todo(todo.id),
+                title: todo.title,
+                address: "",
+                durationMinutes: todo.durationMinutes,
+                fit: fit
+            )
+        }
+        gapRecommendationsByGapID[gap.id] = locationlessRecommendations
+
+        guard gap.isRouteSafe,
+              gap.requiredStopSeconds == 0,
+              let previous = itinerary.nodes.first(where: { $0.id == gap.previousAppointmentNodeID }),
+              let next = itinerary.nodes.first(where: { $0.id == gap.nextAppointmentNodeID }),
+              previous.isRoutable,
+              next.isRoutable else {
+            gapEvaluationInFlight.remove(gap.id)
+            return
+        }
+
+        let existingAddresses = Set(
+            itinerary.nodes
+                .filter { $0.kind == .stop }
+                .map { Self.normalizedAddress($0.address) }
+        )
+        var locatedCandidates: [GapLocationCandidate] = savedPlaces
+            .filter {
+                $0.useInGapSuggestions
+                    && !existingAddresses.contains(Self.normalizedAddress($0.address))
+            }
+            .map {
+                GapLocationCandidate(
+                    id: "place:\($0.id.uuidString)",
+                    source: .savedPlace($0.id),
+                    title: $0.name,
+                    address: $0.address,
+                    durationMinutes: $0.minimumVisitMinutes
+                )
+            }
+        locatedCandidates += eligibleTodos.compactMap { todo in
+            let address = Self.resolvedAddress(for: todo, savedPlaces: savedPlaces)
+            guard !address.isEmpty,
+                  !existingAddresses.contains(Self.normalizedAddress(address)) else { return nil }
+            return GapLocationCandidate(
+                id: "todo:\(todo.id.uuidString)",
+                source: .todo(todo.id),
+                title: todo.title,
+                address: address,
+                durationMinutes: todo.durationMinutes
+            )
+        }
+        locatedCandidates = Array(locatedCandidates.prefix(8))
+        guard !locatedCandidates.isEmpty else {
+            gapEvaluationInFlight.remove(gap.id)
+            return
+        }
+
+        let token = UUID()
+        gapEvaluationIDs[gap.id] = token
+        gapEvaluationInFlight.insert(gap.id)
+        let mode = routeMode
+        gapEvaluationTasks[gap.id] = Task { [weak self] in
+            guard let self else { return }
+            var recommendations = locationlessRecommendations
+            do {
+                let sourceItem = try await Self.mapItem(for: previous.address, fallbackName: previous.title)
+                let destinationItem = try await Self.mapItem(for: next.address, fallbackName: next.title)
+                for candidate in locatedCandidates {
+                    try Task.checkCancellation()
+                    let candidateItem = try await Self.mapItem(
+                        for: candidate.address,
+                        fallbackName: candidate.title
+                    )
+                    let inbound = try await Self.routeDuration(
+                        from: sourceItem,
+                        to: candidateItem,
+                        mode: mode
+                    )
+                    let outbound = try await Self.routeDuration(
+                        from: candidateItem,
+                        to: destinationItem,
+                        mode: mode
+                    )
+                    let fit = gap.fit(
+                        .located(
+                            id: candidate.id,
+                            title: candidate.title,
+                            durationSeconds: TimeInterval(candidate.durationMinutes * 60),
+                            inboundTravelSeconds: inbound,
+                            outboundTravelSeconds: outbound
+                        )
+                    )
+                    guard fit.state == .fits else { continue }
+                    recommendations.append(
+                        LifeRouteGapFillerRecommendation(
+                            id: candidate.id,
+                            source: candidate.source,
+                            title: candidate.title,
+                            address: candidate.address,
+                            durationMinutes: candidate.durationMinutes,
+                            fit: fit
+                        )
+                    )
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                // Keep already-proven locationless suggestions. A failed MapKit
+                // candidate is never presented as fitting.
+            }
+            guard self.gapEvaluationIDs[gap.id] == token,
+                  self.generatedItinerary?.id == itinerary.id,
+                  self.generatedItinerary?.inputFingerprint == itinerary.inputFingerprint else { return }
+            self.gapRecommendationsByGapID[gap.id] = recommendations
+            self.gapEvaluationInFlight.remove(gap.id)
+            self.gapEvaluationTasks[gap.id] = nil
+            self.gapEvaluationIDs[gap.id] = nil
+        }
     }
 
     func startFullRoute(mode: LifeRouteTransportMode) {
@@ -271,7 +517,25 @@ final class DayRoutePlanningCore: ObservableObject {
             : LifeRouteDestinationIntent.naturalLanguageQuery(forStoredValue: address)
     }
 
-    private static func buildLegs(
+    private struct BuiltRoute {
+        let nodes: [LifeRouteItineraryNode]
+        let legs: [LifeRouteDayRouteLeg]
+    }
+
+    private struct ResolvedWaypoint {
+        let node: LifeRouteItineraryNode
+        let item: MKMapItem
+    }
+
+    private struct GapLocationCandidate {
+        let id: String
+        let source: LifeRouteGapFillerRecommendation.Source
+        let title: String
+        let address: String
+        let durationMinutes: Int
+    }
+
+    private static func buildRoute(
         appointments: [LifeRouteRouteAppointment],
         beforeStops: [LifeRouteDayStop],
         afterStops: [LifeRouteDayStop],
@@ -279,74 +543,227 @@ final class DayRoutePlanningCore: ObservableObject {
         homeAddress: String,
         currentLocation: CLLocation?,
         mode: LifeRouteTransportMode
-    ) async throws -> [LifeRouteDayRouteLeg] {
-        let plannedWaypoints = LifeRouteDaySequenceBuilder.waypoints(
-            appointments: appointments.filter { !$0.address.isEmpty },
-            beforeStops: beforeStops,
-            afterStops: afterStops
-        )
-        guard !plannedWaypoints.isEmpty else {
+    ) async throws -> BuiltRoute {
+        let orderedAppointments = appointments.sorted {
+            if $0.start != $1.start { return $0.start < $1.start }
+            return $0.id < $1.id
+        }
+        let beforeNodes = LifeRouteDayStopCollection.sanitized(beforeStops)
+            .filter { $0.position == .before }
+            .map(Self.stopNode)
+        let cleanAfterStops = LifeRouteDayStopCollection.sanitized(afterStops)
+            .filter { $0.position == .after }
+        let appointmentIDs = Set(orderedAppointments.map(\.id))
+        let appointmentsAndAnchoredStops = orderedAppointments.flatMap { appointment -> [LifeRouteItineraryNode] in
+            let appointmentNode = LifeRouteItineraryNode(
+                id: "event:\(appointment.id)",
+                kind: .appointment,
+                title: appointment.title.isEmpty ? "Appointment" : appointment.title,
+                address: appointment.address,
+                start: appointment.start,
+                end: appointment.end,
+                isAllDay: appointment.isAllDay,
+                isRoutable: !appointment.isAllDay && !appointment.address.isEmpty
+            )
+            let anchoredStops = cleanAfterStops
+                .filter { $0.afterAppointmentID == appointment.id }
+                .map(Self.stopNode)
+            return [appointmentNode] + anchoredStops
+        }
+        let trailingNodes = cleanAfterStops.filter {
+            guard let anchor = $0.afterAppointmentID else { return true }
+            return !appointmentIDs.contains(anchor)
+        }.map(Self.stopNode)
+        let plannedNodes = beforeNodes + appointmentsAndAnchoredStops + trailingNodes
+        guard plannedNodes.contains(where: \.isRoutable) else {
             throw DayRoutePlanningError.missingDestination
         }
 
-        var waypoints: [(title: String, address: String, item: MKMapItem)] = []
+        let originNode: LifeRouteItineraryNode
+        let originItem: MKMapItem
 
         if let currentLocation {
             let item = MKMapItem(placemark: MKPlacemark(coordinate: currentLocation.coordinate))
             item.name = "Current Location"
-            waypoints.append(("Current Location", "Current Location", item))
+            originNode = LifeRouteItineraryNode(
+                id: "origin:current",
+                kind: .origin,
+                title: "Current Location",
+                address: "Current Location",
+                isRoutable: true
+            )
+            originItem = item
         } else {
             let cleanHome = homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !cleanHome.isEmpty else { throw DayRoutePlanningError.missingOrigin }
-            waypoints.append(("Home", cleanHome, try await mapItem(for: cleanHome, fallbackName: "Home")))
+            originNode = LifeRouteItineraryNode(
+                id: "origin:home",
+                kind: .origin,
+                title: "Home",
+                address: cleanHome,
+                isRoutable: true
+            )
+            originItem = try await mapItem(for: cleanHome, fallbackName: "Home")
         }
 
-        for waypoint in plannedWaypoints {
-            waypoints.append(
-                (
-                    waypoint.title,
-                    waypoint.address,
-                    try await mapItem(for: waypoint.address, fallbackName: waypoint.title)
+        var routeWaypoints = [ResolvedWaypoint(node: originNode, item: originItem)]
+        for node in plannedNodes where node.isRoutable {
+            routeWaypoints.append(
+                ResolvedWaypoint(
+                    node: node,
+                    item: try await mapItem(for: node.address, fallbackName: node.title)
                 )
             )
         }
 
+        var returnHomeNode: LifeRouteItineraryNode?
         if returnHome {
             let cleanHome = homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !cleanHome.isEmpty else { throw DayRoutePlanningError.missingOrigin }
-            waypoints.append(("Home", cleanHome, try await mapItem(for: cleanHome, fallbackName: "Home")))
+            let node = LifeRouteItineraryNode(
+                id: "home:return",
+                kind: .home,
+                title: "Home",
+                address: cleanHome,
+                isRoutable: true
+            )
+            returnHomeNode = node
+            routeWaypoints.append(
+                ResolvedWaypoint(
+                    node: node,
+                    item: try await mapItem(for: cleanHome, fallbackName: "Home")
+                )
+            )
         }
 
-        guard waypoints.count >= 2 else { return [] }
+        guard routeWaypoints.count >= 2 else {
+            return BuiltRoute(nodes: [originNode] + plannedNodes + [returnHomeNode].compactMap { $0 }, legs: [])
+        }
 
         var result: [LifeRouteDayRouteLeg] = []
-        for index in 0..<(waypoints.count - 1) {
+        for index in 0..<(routeWaypoints.count - 1) {
             try Task.checkCancellation()
-            let source = waypoints[index]
-            let destination = waypoints[index + 1]
+            let source = routeWaypoints[index]
+            let destination = routeWaypoints[index + 1]
             let request = MKDirections.Request()
             request.source = source.item
             request.destination = destination.item
             request.transportType = mode.mapKitType
             let response = try await MKDirections(request: request).calculate()
             guard let route = response.routes.first else {
-                throw DayRoutePlanningError.routeUnavailable(destination.title)
+                throw DayRoutePlanningError.routeUnavailable(destination.node.title)
             }
 
             result.append(
                 LifeRouteDayRouteLeg(
-                    id: UUID(),
+                    id: "leg:\(source.node.id)->\(destination.node.id)",
                     sequence: index + 1,
-                    fromTitle: source.title,
-                    fromAddress: source.address,
-                    toTitle: destination.title,
-                    toAddress: destination.address,
+                    fromNodeID: source.node.id,
+                    toNodeID: destination.node.id,
+                    fromTitle: source.node.title,
+                    fromAddress: source.node.address,
+                    toTitle: destination.node.title,
+                    toAddress: destination.node.address,
                     travelTimeSeconds: route.expectedTravelTime,
                     distanceMeters: route.distance
                 )
             )
         }
-        return result
+        return BuiltRoute(
+            nodes: [originNode] + plannedNodes + [returnHomeNode].compactMap { $0 },
+            legs: result
+        )
+    }
+
+    private static func stopNode(_ stop: LifeRouteDayStop) -> LifeRouteItineraryNode {
+        LifeRouteItineraryNode(
+            id: "stop:\(stop.id.uuidString)",
+            kind: .stop,
+            title: stop.title,
+            address: stop.address,
+            isRoutable: !stop.address.isEmpty,
+            stopDurationSeconds: TimeInterval(stop.durationMinutes * 60)
+        )
+    }
+
+    private static func inputFingerprint(
+        selectedDay: Date,
+        appointments: [LifeRouteRouteAppointment],
+        beforeStops: [LifeRouteDayStop],
+        afterStops: [LifeRouteDayStop],
+        returnHome: Bool,
+        routeBuffer: LifeRouteRouteBuffer,
+        homeAddress: String,
+        currentLocation: CLLocation?,
+        mode: LifeRouteTransportMode
+    ) -> String {
+        let appointmentParts = appointments.sorted {
+            if $0.start != $1.start { return $0.start < $1.start }
+            return $0.id < $1.id
+        }.map {
+            [
+                $0.id,
+                $0.title,
+                $0.address,
+                String($0.start.timeIntervalSinceReferenceDate),
+                String($0.end.timeIntervalSinceReferenceDate),
+                String($0.isAllDay),
+            ].joined(separator: "~")
+        }
+        let stopParts = (beforeStops + afterStops).map {
+            [
+                $0.id.uuidString,
+                $0.title,
+                $0.address,
+                $0.position.rawValue,
+                String($0.durationMinutes),
+                $0.afterAppointmentID ?? "",
+            ].joined(separator: "~")
+        }
+        let cleanHome = homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A generated itinerary is an immutable route snapshot. Live GPS drift
+        // must not invalidate it while the user is actively traveling; only a
+        // change between live-location and Home origin changes this input.
+        let origin = currentLocation == nil ? "home:\(cleanHome)" : "current-location"
+        let returnDestination = returnHome ? "return:\(cleanHome)" : "no-return"
+        return ([
+            String(Calendar.current.startOfDay(for: selectedDay).timeIntervalSinceReferenceDate),
+            mode.rawValue,
+            String(returnHome),
+            String(routeBuffer.minutes),
+            origin,
+            returnDestination,
+        ] + appointmentParts + stopParts).joined(separator: "|")
+    }
+
+    private static func resolvedAddress(
+        for todo: LifeRouteTodo,
+        savedPlaces: [LifeRouteSavedPlace]
+    ) -> String {
+        let direct = todo.address.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !direct.isEmpty { return direct }
+        guard let savedPlaceID = todo.savedPlaceID else { return "" }
+        return savedPlaces.first(where: { $0.id == savedPlaceID })?.address ?? ""
+    }
+
+    private static func normalizedAddress(_ value: String) -> String {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private static func routeDuration(
+        from source: MKMapItem,
+        to destination: MKMapItem,
+        mode: LifeRouteTransportMode
+    ) async throws -> TimeInterval {
+        let request = MKDirections.Request()
+        request.source = source
+        request.destination = destination
+        request.transportType = mode.mapKitType
+        let response = try await MKDirections(request: request).calculate()
+        guard let route = response.routes.first else {
+            throw DayRoutePlanningError.routeUnavailable(destination.name ?? "destination")
+        }
+        return route.expectedTravelTime
     }
 
     private static func mapItem(for query: String, fallbackName: String) async throws -> MKMapItem {

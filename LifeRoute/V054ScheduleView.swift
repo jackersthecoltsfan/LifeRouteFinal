@@ -7,9 +7,9 @@ struct V054ScheduleView: View {
     @Environment(\.scenicRoyalThemeStyle) private var scenicStyle
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var router: AppRouter
     @ObservedObject var calendarState: CalendarCoreState
     @ObservedObject var providerState: CalendarProviderCore
-    @ObservedObject var routingState: RoutingLocationCore
 
     @State private var selectedRange: LifeRouteCalendarRange = .day
     @State private var showingDatePicker = false
@@ -72,7 +72,7 @@ struct V054ScheduleView: View {
 
     private var scheduleHeader: some View {
         ScenicRoyalScreenHeader(
-            title: "Schedule",
+            title: "Calendar",
             subtitle: calendarState.periodLabel(for: selectedRange)
         ) {
             ScenicRoyalCompactIconButton(
@@ -346,37 +346,26 @@ struct V054ScheduleView: View {
     }
 
     private var travelCard: some View {
-        NavigationLink {
-            DayRoutePlanningView(
-                calendarState: calendarState,
-                routingState: routingState,
-                day: calendarState.selectedDate
-            )
+        Button {
+            LifeRouteHaptics.selection()
+            router.select(.today)
         } label: {
             ScenicRoyalTravelPlanLabel(
                 detail: travelDetail,
-                summary: knownDrivingSummary
+                summary: "",
+                actionTitle: "Open Today",
+                accessibilityHint: "Opens the selected day in the Today command center"
             )
         }
         .buttonStyle(.plain)
-        .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
     }
 
     private var travelDetail: String {
         let count = selectedDayLocatedEvents.count
         if count == 0 {
-            return "Add locations to appointments to build the selected day’s route."
+            return "Plan this selected day in Today. Add locations before generating its route."
         }
-        return "\(count) located appointment\(count == 1 ? "" : "s") ready for appointment-to-appointment routing."
-    }
-
-    private var knownDrivingSummary: String {
-        let seconds = routingState.routeEstimates.values
-            .filter { $0.mode == .driving }
-            .reduce(0.0) { $0 + $1.travelTimeSeconds }
-        guard seconds > 0 else { return "" }
-        let minutes = max(1, Int((seconds / 60).rounded()))
-        return "· \(minutes)m known"
+        return "\(count) located appointment\(count == 1 ? "" : "s"). Continue planning this day in Today."
     }
 
     private var calendarConnectionsBar: some View {
@@ -438,7 +427,7 @@ struct V054ScheduleView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Your connected calendars stay read-only in LifeRoute. Manual LifeRoute appointments remain editable and removable here.")
+                    Text("Your connected calendars stay read-only in LifeRoute. Manual LifeRoute appointments can be added or removed here.")
                         .font(.subheadline)
                         .foregroundStyle(scenicStyle.secondaryText)
                         .scenicRoyalCard(role: .readability)

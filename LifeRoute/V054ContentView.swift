@@ -60,6 +60,8 @@ struct V054ContentView: View {
     @StateObject private var calendarState = CalendarCoreState()
     @StateObject private var providerState = CalendarProviderCore()
     @StateObject private var routingState = RoutingLocationCore()
+    @StateObject private var dayPlanState = DayRoutePlanningCore()
+    @StateObject private var liveDayActivity = LiveDayActivityCore()
     @StateObject private var clientState = ClientProfileCore()
     @StateObject private var toolsState = SessionToolsCore()
 
@@ -70,7 +72,9 @@ struct V054ContentView: View {
                     V054TodayView(
                         router: router,
                         calendarState: calendarState,
-                        routingState: routingState
+                        routingState: routingState,
+                        planState: dayPlanState,
+                        liveActivity: liveDayActivity
                     )
                 }
                 .background(Color.clear)
@@ -80,8 +84,7 @@ struct V054ContentView: View {
                 NavigationStack(path: $router.schedulePath) {
                     V054ScheduleView(
                         calendarState: calendarState,
-                        providerState: providerState,
-                        routingState: routingState
+                        providerState: providerState
                     )
                 }
                 .background(Color.clear)

@@ -333,6 +333,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
     @Published private(set) var routeEstimates: [UUID: LifeRouteRouteEstimate] = [:]
     @Published private(set) var routeMessage: String?
     @Published private(set) var homeAddress = ""
+    @Published private(set) var routeBufferMinutes = 10
     @Published private(set) var locationRequestInFlight = false
     @Published private(set) var liveLocationEnabled = false
     @Published private(set) var routeRequestsInFlight: Set<UUID> = []
@@ -353,6 +354,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
         self.todos = restored.todos
         self.dayStops = restored.dayStops
         self.homeAddress = restored.homeAddress
+        self.routeBufferMinutes = restored.routeBufferMinutes
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
@@ -505,13 +507,19 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
         title: String,
         address: String,
         position: LifeRouteDayStop.Position,
-        day: Date
+        day: Date,
+        savedPlaceID: UUID? = nil,
+        durationMinutes: Int = 20,
+        afterAppointmentID: String? = nil
     ) -> Bool {
         let candidate = LifeRouteDayStop(
             title: title.isEmpty ? "Stop" : title,
             address: address,
             position: position,
-            day: day
+            day: day,
+            savedPlaceID: savedPlaceID,
+            durationMinutes: durationMinutes,
+            afterAppointmentID: afterAppointmentID
         )
         let result = LifeRouteDayStopCollection.adding(candidate, to: dayStops)
         guard result.inserted else { return false }
@@ -525,6 +533,13 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
         guard updated.count != dayStops.count else { return }
         dayStops = updated
         persistDayStopInputs()
+    }
+
+    func setRouteBufferMinutes(_ minutes: Int) {
+        let bounded = max(0, min(180, minutes))
+        guard routeBufferMinutes != bounded else { return }
+        routeBufferMinutes = bounded
+        persistRoutingInputs()
     }
 
     private func sortTodos() {
@@ -751,7 +766,8 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
             homeAddress: homeAddress,
             savedPlaces: savedPlaces,
             todos: todos,
-            dayStops: dayStops
+            dayStops: dayStops,
+            routeBufferMinutes: routeBufferMinutes
         )
     }
 
@@ -760,7 +776,8 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
             homeAddress: homeAddress,
             savedPlaces: savedPlaces,
             todos: todos,
-            dayStops: dayStops
+            dayStops: dayStops,
+            routeBufferMinutes: routeBufferMinutes
         )
     }
 
@@ -769,7 +786,8 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
             homeAddress: homeAddress,
             savedPlaces: savedPlaces,
             todos: todos,
-            dayStops: dayStops
+            dayStops: dayStops,
+            routeBufferMinutes: routeBufferMinutes
         )
     }
 

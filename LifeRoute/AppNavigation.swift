@@ -149,9 +149,13 @@ private struct LifeRouteDeepDestinationModifier: ViewModifier {
     @EnvironmentObject private var router: AppRouter
 
     func body(content: Content) -> some View {
-        content.onAppear {
-            router.setBottomToolbarSuppressed(true)
-        }
+        content
+            .onAppear {
+                router.setBottomToolbarSuppressed(true)
+            }
+            .onDisappear {
+                router.setBottomToolbarSuppressed(false)
+            }
     }
 }
 

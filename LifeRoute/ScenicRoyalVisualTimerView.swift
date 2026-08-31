@@ -68,7 +68,7 @@ struct VisualTimerView: View {
         .onReceive(timer.$deadline) { deadline in
             guard deadline == nil, timer.remainingSeconds() <= 0 else { return }
             if timer.completionHapticsEnabled {
-                LifeRouteHaptics.success()
+                LifeRouteHaptics.timerCompletion()
             }
         }
     }
@@ -78,10 +78,10 @@ struct VisualTimerView: View {
             let remaining = timer.remainingSeconds(at: context.date)
             let remainingProgress = timer.progress(at: context.date)
             let urgency = timer.urgency(forRemaining: remaining)
-            let tempo = timer.pulsesPerSecond(forRemaining: remaining)
-            let interval = 1.0 / tempo
-            let pulsePhase = context.date.timeIntervalSinceReferenceDate
-                .truncatingRemainder(dividingBy: interval) / interval
+            let pulsePhase = VisualTimerFeedbackCurve.visualPulsePhase(
+                elapsedSeconds: timer.durationSeconds - remaining,
+                durationSeconds: timer.durationSeconds
+            )
             let milestone = VisualTimerAccessibilityMilestone.forRemaining(remaining)
 
             VStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
@@ -217,7 +217,7 @@ struct VisualTimerView: View {
             .accessibilityHint("Adds one optional haptic when the timer completes")
 
             Label(
-                "Timer audio mixes with other audio and follows the iPhone Ring/Silent switch.",
+                "When Sound is on, timer audio stays audible even when the iPhone Ring/Silent switch is set to Silent.",
                 systemImage: "iphone.radiowaves.left.and.right"
             )
             .font(.caption)
@@ -416,8 +416,7 @@ private struct ScenicRoyalTimerDial: View {
                     .foregroundStyle(style.secondaryText)
             }
         }
-        .frame(maxWidth: 238, maxHeight: 238)
-        .aspectRatio(1, contentMode: .fit)
+        .frame(width: 238, height: 238)
         .shadow(color: style.accent.opacity(0.10 + urgency * 0.16), radius: 18 + urgency * 10)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(isFinished ? "Timer complete" : "Time remaining")

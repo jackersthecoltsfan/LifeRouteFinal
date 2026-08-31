@@ -592,18 +592,28 @@ enum LifeRouteDesign {
 enum LifeRouteHaptics {
     private final class GeneratorPool {
         weak var hostView: UIView?
+        var rootNavigation: UIImpactFeedbackGenerator?
         var primaryAction: UIImpactFeedbackGenerator?
+        var timerCompletion: UIImpactFeedbackGenerator?
         var selection: UISelectionFeedbackGenerator?
-        var success: UINotificationFeedbackGenerator?
+        var notification: UINotificationFeedbackGenerator?
     }
 
     private static let generators = GeneratorPool()
+
+    static func rootNavigation() {
+        prepareGenerators()
+        guard let generator = generators.rootNavigation else { return }
+        generator.prepare()
+        generator.impactOccurred(intensity: LifeRouteRuntimeFeedbackPolicy.rootNavigationIntensity)
+        generator.prepare()
+    }
 
     static func primaryAction() {
         prepareGenerators()
         guard let generator = generators.primaryAction else { return }
         generator.prepare()
-        generator.impactOccurred(intensity: 0.78)
+        generator.impactOccurred(intensity: LifeRouteRuntimeFeedbackPolicy.primaryActionIntensity)
         generator.prepare()
     }
 
@@ -617,9 +627,25 @@ enum LifeRouteHaptics {
 
     static func success() {
         prepareGenerators()
-        guard let generator = generators.success else { return }
+        guard let generator = generators.notification else { return }
         generator.prepare()
         generator.notificationOccurred(.success)
+        generator.prepare()
+    }
+
+    static func warning() {
+        prepareGenerators()
+        guard let generator = generators.notification else { return }
+        generator.prepare()
+        generator.notificationOccurred(.warning)
+        generator.prepare()
+    }
+
+    static func timerCompletion() {
+        prepareGenerators()
+        guard let generator = generators.timerCompletion else { return }
+        generator.prepare()
+        generator.impactOccurred(intensity: LifeRouteRuntimeFeedbackPolicy.timerCompletionIntensity)
         generator.prepare()
     }
 
@@ -629,26 +655,34 @@ enum LifeRouteHaptics {
            LifeRouteRuntimeFeedbackPolicy.usesViewAssociatedHaptics(version),
            let hostView = foregroundHostView() {
             guard generators.hostView !== hostView
+                    || generators.rootNavigation == nil
                     || generators.primaryAction == nil
+                    || generators.timerCompletion == nil
                     || generators.selection == nil
-                    || generators.success == nil else { return }
+                    || generators.notification == nil else { return }
 
             generators.hostView = hostView
-            generators.primaryAction = UIImpactFeedbackGenerator(style: .light, view: hostView)
+            generators.rootNavigation = UIImpactFeedbackGenerator(style: .medium, view: hostView)
+            generators.primaryAction = UIImpactFeedbackGenerator(style: .medium, view: hostView)
+            generators.timerCompletion = UIImpactFeedbackGenerator(style: .heavy, view: hostView)
             generators.selection = UISelectionFeedbackGenerator(view: hostView)
-            generators.success = UINotificationFeedbackGenerator(view: hostView)
+            generators.notification = UINotificationFeedbackGenerator(view: hostView)
             return
         }
 
         guard generators.hostView != nil
+                || generators.rootNavigation == nil
                 || generators.primaryAction == nil
+                || generators.timerCompletion == nil
                 || generators.selection == nil
-                || generators.success == nil else { return }
+                || generators.notification == nil else { return }
 
         generators.hostView = nil
-        generators.primaryAction = UIImpactFeedbackGenerator(style: .light)
+        generators.rootNavigation = UIImpactFeedbackGenerator(style: .medium)
+        generators.primaryAction = UIImpactFeedbackGenerator(style: .medium)
+        generators.timerCompletion = UIImpactFeedbackGenerator(style: .heavy)
         generators.selection = UISelectionFeedbackGenerator()
-        generators.success = UINotificationFeedbackGenerator()
+        generators.notification = UINotificationFeedbackGenerator()
     }
 
     private static func foregroundHostView() -> UIView? {
@@ -2676,8 +2710,8 @@ private struct LifeRouteSceneryAmbientParticleField: View {
                     let seed = Double(index) * 1.731 + 0.47
                     let baseX = size.width * CGFloat(0.08 + Double(index % 5) * 0.205)
                     let baseY = size.height * CGFloat(0.08 + Double(index / 5) * 0.17 + Double(index % 3) * 0.035)
-                    let swayX = CGFloat(sin(phase * 6.2 + seed) * (4.0 + Double(index % 3)))
-                    let swayY = CGFloat(cos(phase * 4.6 + seed * 1.3) * 2.4)
+                    let swayX = CGFloat(sin(phase * 6.2 + seed) * (7.0 + Double(index % 3) * 1.5))
+                    let swayY = CGFloat(cos(phase * 4.6 + seed * 1.3) * 4.2)
                     let leafWidth = CGFloat(7 + index % 3 * 2)
                     let leafHeight = leafWidth * 0.46
 
@@ -2693,7 +2727,7 @@ private struct LifeRouteSceneryAmbientParticleField: View {
                         )),
                         with: .color(
                             Color(red: 0.62, green: 0.90, blue: 0.56)
-                                .opacity(isNight ? 0.055 : 0.085)
+                                .opacity(isNight ? 0.085 : 0.13)
                         )
                     )
                 }
@@ -2743,8 +2777,10 @@ private struct LifeRouteBundledSceneryAssetFrame: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: size.width, height: size.height)
-                    .scaleEffect(1.026 + breathe * 0.008)
-                    .offset(x: drift * 4.2, y: -breathe * 2.2)
+                    // Keep the photographic scene static. Living motion is
+                    // carried by the inexpensive ambient layers below instead
+                    // of resampling a full-screen image fifteen times a second.
+                    .scaleEffect(1.034)
 
                 LinearGradient(
                     colors: [
@@ -2791,15 +2827,15 @@ private struct LifeRouteBundledSceneryAssetFrame: View {
         switch theme.sceneryFamily {
         case .mountains:
             Capsule()
-                .fill(Color.white.opacity(theme.sceneryIsNight ? 0.028 : 0.050))
+                .fill(Color.white.opacity(theme.sceneryIsNight ? 0.045 : 0.078))
                 .frame(width: size.width * 0.90, height: max(34, size.height * 0.052))
                 .blur(radius: 20)
-                .offset(x: drift * size.width * 0.035, y: -size.height * 0.08)
+                .offset(x: drift * size.width * 0.070, y: -size.height * 0.08)
             Capsule()
-                .fill(palette.accentSecondary.opacity(theme.sceneryIsNight ? 0.022 : 0.034))
+                .fill(palette.accentSecondary.opacity(theme.sceneryIsNight ? 0.034 : 0.052))
                 .frame(width: size.width * 0.76, height: max(26, size.height * 0.040))
                 .blur(radius: 17)
-                .offset(x: -drift * size.width * 0.025, y: size.height * 0.16)
+                .offset(x: -drift * size.width * 0.050, y: size.height * 0.16)
 
         case .ocean:
             LifeRouteSceneryWave(
@@ -2808,7 +2844,7 @@ private struct LifeRouteBundledSceneryAssetFrame: View {
                 amplitude: max(4, size.height * 0.008),
                 frequency: 1.18
             )
-            .stroke(Color.white.opacity(theme.sceneryIsNight ? 0.15 : 0.24), lineWidth: 2.0)
+            .stroke(Color.white.opacity(theme.sceneryIsNight ? 0.21 : 0.34), lineWidth: 2.2)
             .blur(radius: 0.8)
             .blendMode(.screen)
             LifeRouteSceneryWave(
@@ -2817,7 +2853,7 @@ private struct LifeRouteBundledSceneryAssetFrame: View {
                 amplitude: max(5, size.height * 0.010),
                 frequency: 0.92
             )
-            .stroke(palette.accentSecondary.opacity(theme.sceneryIsNight ? 0.16 : 0.26), lineWidth: 2.4)
+            .stroke(palette.accentSecondary.opacity(theme.sceneryIsNight ? 0.22 : 0.36), lineWidth: 2.6)
             .blur(radius: 1.2)
             .blendMode(.screen)
 
@@ -2842,25 +2878,25 @@ private struct LifeRouteBundledSceneryAssetFrame: View {
                 isNight: theme.sceneryIsNight
             )
             Capsule()
-                .fill(Color.white.opacity(theme.sceneryIsNight ? 0.040 : 0.060))
+                .fill(Color.white.opacity(theme.sceneryIsNight ? 0.058 : 0.086))
                 .frame(width: size.width * 0.98, height: max(48, size.height * 0.075))
                 .blur(radius: 26)
-                .offset(x: drift * size.width * 0.030, y: size.height * 0.10)
+                .offset(x: drift * size.width * 0.055, y: size.height * 0.10)
             Ellipse()
-                .fill(palette.accentSecondary.opacity(theme.sceneryIsNight ? 0.040 : 0.055))
+                .fill(palette.accentSecondary.opacity(theme.sceneryIsNight ? 0.055 : 0.075))
                 .frame(width: size.width * 0.78, height: size.height * 0.18)
                 .blur(radius: 24)
-                .offset(x: -drift * size.width * 0.024, y: -size.height * 0.18)
+                .offset(x: -drift * size.width * 0.045, y: -size.height * 0.18)
 
         case .canyon:
             Capsule()
-                .fill(Color.white.opacity(theme.sceneryIsNight ? 0.030 : 0.044))
+                .fill(Color.white.opacity(theme.sceneryIsNight ? 0.042 : 0.064))
                 .frame(width: size.width * 0.94, height: max(42, size.height * 0.060))
                 .blur(radius: 24)
-                .offset(x: drift * size.width * 0.028, y: -size.height * 0.04)
+                .offset(x: drift * size.width * 0.050, y: -size.height * 0.04)
             RadialGradient(
-                colors: [palette.accent.opacity(theme.sceneryIsNight ? 0.055 : 0.075), Color.clear],
-                center: UnitPoint(x: CGFloat(0.54 + drift * 0.025), y: 0.58),
+                colors: [palette.accent.opacity(theme.sceneryIsNight ? 0.070 : 0.095), Color.clear],
+                center: UnitPoint(x: CGFloat(0.54 + drift * 0.040), y: 0.58),
                 startRadius: 2,
                 endRadius: max(size.width, size.height) * 0.42
             )

@@ -4,6 +4,10 @@ import Foundation
 /// supported OS generations. Keeping these decisions pure lets validation
 /// prove the iOS 26 path without constructing UIKit objects.
 enum LifeRouteRuntimeFeedbackPolicy {
+    static let rootNavigationIntensity = 0.90
+    static let primaryActionIntensity = 0.94
+    static let timerCompletionIntensity = 1.0
+
     static func usesCustomNavigationBarAppearance(majorVersion: Int) -> Bool {
         majorVersion < 26
     }

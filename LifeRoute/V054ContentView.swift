@@ -153,7 +153,7 @@ struct V054ContentView: View {
         }
         .onChange(of: router.selectedSection) { _ in
             router.setBottomToolbarSuppressed(false)
-            LifeRouteHaptics.selection()
+            LifeRouteHaptics.rootNavigation()
             // A newly selected tab can materialize a fresh UIKit container after selection changes.
             DispatchQueue.main.async {
                 LifeRouteAppearance.refreshVisibleChrome(theme: themeStore.selectedTheme)
@@ -351,6 +351,7 @@ private final class LifeRouteThemeFeedbackSound {
     )!
 
     func play() {
+        guard LifeRouteAudioSessionOwnership.allowsThemeFeedback else { return }
         queue.async { [weak self] in
             guard let self else { return }
             do {

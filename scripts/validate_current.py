@@ -315,7 +315,8 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
         [
             "@MainActor\nenum LifeRouteHaptics",
             "LifeRouteRuntimeFeedbackPolicy.usesViewAssociatedHaptics",
-            "UIImpactFeedbackGenerator(style: .light, view: hostView)",
+            "UIImpactFeedbackGenerator(style: .medium, view: hostView)",
+            "UIImpactFeedbackGenerator(style: .heavy, view: hostView)",
             "UISelectionFeedbackGenerator(view: hostView)",
             "UINotificationFeedbackGenerator(view: hostView)",
         ],

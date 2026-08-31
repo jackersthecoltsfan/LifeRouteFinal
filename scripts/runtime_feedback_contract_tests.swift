@@ -51,6 +51,18 @@ struct RuntimeFeedbackContractTests {
             LifeRouteRuntimeFeedbackPolicy.usesViewAssociatedHaptics(majorVersion: 26, minorVersion: 6),
             "iOS 26 physical builds use view-associated feedback-generator delivery"
         )
+        expect(
+            LifeRouteRuntimeFeedbackPolicy.rootNavigationIntensity >= 0.85,
+            "root navigation uses a deliberate tactile impact"
+        )
+        expect(
+            LifeRouteRuntimeFeedbackPolicy.primaryActionIntensity >= LifeRouteRuntimeFeedbackPolicy.rootNavigationIntensity,
+            "primary actions remain at least as strong as root navigation"
+        )
+        expect(
+            LifeRouteRuntimeFeedbackPolicy.timerCompletionIntensity == 1,
+            "timer completion uses the strongest retained completion impact"
+        )
     }
 
     private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {

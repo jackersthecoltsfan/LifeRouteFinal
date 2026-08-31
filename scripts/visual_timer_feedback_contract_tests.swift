@@ -8,6 +8,7 @@ struct VisualTimerFeedbackContractTests {
         testToneProfiles()
         testExponentialUrgency()
         testFeedbackBounds()
+        testVisualPulsePhase()
         testAccessibilityMilestones()
         testPreferenceDefaults()
         testAudioSessionPolicy()
@@ -58,6 +59,37 @@ struct VisualTimerFeedbackContractTests {
 
         expect(VisualTimerFeedbackCurve.signalGain(volume: -1, elapsedProgress: 0.5) == 0, "gain clamps negative volume")
         expect(VisualTimerFeedbackCurve.signalGain(volume: 2, elapsedProgress: 1) == 1, "gain clamps excess volume")
+        expect(VisualTimerFeedbackCurve.pulseSynthesisAmplitude <= 0.5, "pulse synthesis remains pleasantly bounded")
+        expect(VisualTimerFeedbackCurve.completionSynthesisAmplitude <= 0.75, "completion synthesis remains bounded")
+        expect(VisualTimerFeedbackCurve.maximumSynthesisSample < 1, "synthesized completion retains clipping headroom")
+    }
+
+    private static func testVisualPulsePhase() {
+        let phases = stride(from: 0.0, through: 300.0, by: 0.25).map {
+            VisualTimerFeedbackCurve.visualPulsePhase(
+                elapsedSeconds: $0,
+                durationSeconds: 300
+            )
+        }
+        expect(phases.allSatisfy { $0 >= 0 && $0 < 1 }, "timer-relative visual phase stays within one cycle")
+        expect(
+            VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: -5, durationSeconds: 300) == 0,
+            "visual phase clamps negative elapsed time"
+        )
+        expect(
+            VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: 12, durationSeconds: 0) == 0,
+            "visual phase handles an invalid duration safely"
+        )
+
+        let before = VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: 120, durationSeconds: 300)
+        let after = VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: 120.01, durationSeconds: 300)
+        let directDistance = abs(after - before)
+        let wrappedDistance = min(directDistance, 1 - directDistance)
+        expect(wrappedDistance < 0.05, "timer-relative pulse advances continuously between display frames")
+        expect(
+            before == VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: 120, durationSeconds: 300),
+            "paused visual phase stays stable without depending on wall-clock time"
+        )
     }
 
     private static func testAccessibilityMilestones() {
@@ -106,6 +138,14 @@ struct VisualTimerFeedbackContractTests {
         expect(
             !VisualTimerAudioSessionPolicy.shouldActivate(soundEnabled: true, volume: 0),
             "zero percent volume remains silent"
+        )
+        expect(
+            VisualTimerAudioSessionPolicy.allowsThemeFeedback(timerPlaybackActive: false),
+            "optional theme feedback may play when timer playback is inactive"
+        )
+        expect(
+            !VisualTimerAudioSessionPolicy.allowsThemeFeedback(timerPlaybackActive: true),
+            "timer playback ownership prevents a theme sound from downgrading the audio session"
         )
     }
 

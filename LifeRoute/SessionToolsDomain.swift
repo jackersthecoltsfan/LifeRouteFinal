@@ -2,6 +2,27 @@ import Foundation
 import Combine
 import AVFoundation
 
+enum LifeRouteAudioSessionOwnership {
+    // Both the timer engine and SwiftUI theme-change hook access this on the
+    // main thread; keeping the tiny ownership flag synchronous avoids moving
+    // AVAudioEngine work across actors.
+    private(set) static var timerPlaybackActive = false
+
+    static var allowsThemeFeedback: Bool {
+        VisualTimerAudioSessionPolicy.allowsThemeFeedback(
+            timerPlaybackActive: timerPlaybackActive
+        )
+    }
+
+    static func timerDidActivatePlayback() {
+        timerPlaybackActive = true
+    }
+
+    static func timerDidDeactivatePlayback() {
+        timerPlaybackActive = false
+    }
+}
+
 enum SessionToolRoute: Hashable {
     case visualTimer
     case quickNotes
@@ -95,6 +116,7 @@ private final class VisualTimerToneEngine {
         if isSessionActive {
             try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
             isSessionActive = false
+            LifeRouteAudioSessionOwnership.timerDidDeactivatePlayback()
         }
     }
 
@@ -107,6 +129,7 @@ private final class VisualTimerToneEngine {
                 try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
                 try session.setActive(true)
                 isSessionActive = true
+                LifeRouteAudioSessionOwnership.timerDidActivatePlayback()
             }
 
             if !isPrepared {
@@ -124,6 +147,7 @@ private final class VisualTimerToneEngine {
                 try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
                 isSessionActive = false
             }
+            LifeRouteAudioSessionOwnership.timerDidDeactivatePlayback()
             return false
         }
     }
@@ -148,7 +172,13 @@ private final class VisualTimerToneEngine {
             let fundamental = sin(2 * Double.pi * frequency * t)
             let softSecond = profile.secondHarmonicMix * sin(2 * Double.pi * frequency * 2.0 * t)
             let softDetune = profile.detuneMix * sin(2 * Double.pi * frequency * 1.004 * t)
-            samples[frame] = Float((fundamental + softSecond + softDetune) * attack * decay * release * 0.26)
+            samples[frame] = Float(
+                (fundamental + softSecond + softDetune)
+                    * attack
+                    * decay
+                    * release
+                    * VisualTimerFeedbackCurve.pulseSynthesisAmplitude
+            )
         }
         return buffer
     }
@@ -177,9 +207,18 @@ private final class VisualTimerToneEngine {
                 let release = releaseProgress <= 0 ? 1 : 0.5 * (1 + cos(Double.pi * min(1, releaseProgress)))
                 let fundamental = sin(2 * Double.pi * note.frequency * localTime)
                 let softSecond = profile.secondHarmonicMix * sin(2 * Double.pi * note.frequency * 2.0 * localTime)
-                value += (fundamental + softSecond) * attack * decay * release * 0.54
+                value += (fundamental + softSecond)
+                    * attack
+                    * decay
+                    * release
+                    * VisualTimerFeedbackCurve.completionSynthesisAmplitude
             }
-            samples[frame] = Float(max(-0.92, min(0.92, value)))
+            samples[frame] = Float(
+                max(
+                    -VisualTimerFeedbackCurve.maximumSynthesisSample,
+                    min(VisualTimerFeedbackCurve.maximumSynthesisSample, value)
+                )
+            )
         }
         return buffer
     }

@@ -120,14 +120,24 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
     private var nativeGlass: Glass {
         let base: Glass
         switch role {
-        case .legibilityControl:
-            base = .regular
-        case .ambient, .card, .readability, .toolbar, .selectedControl:
+        case .ambient, .card, .readability, .toolbar:
             base = .clear
+        case .selectedControl, .legibilityControl:
+            base = .regular
         }
 
-        let tinted = base.tint(style.glassTint.opacity(glassTintOpacity))
-        return interactive ? tinted.interactive() : tinted
+        // Ordinary content surfaces rely on untinted native Clear glass so
+        // scenery remains visible instead of reading as a dark rectangle.
+        // Regular glass and theme tint are reserved for controls whose
+        // selection or legibility needs explicit emphasis.
+        let styled: Glass
+        switch role {
+        case .selectedControl, .legibilityControl:
+            styled = base.tint(style.glassTint.opacity(glassTintOpacity))
+        case .ambient, .card, .readability, .toolbar:
+            styled = base
+        }
+        return interactive ? styled.interactive() : styled
     }
 
     private func decorated<Surface: View>(_ surface: Surface, opaque: Bool) -> some View {

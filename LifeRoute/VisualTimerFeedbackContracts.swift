@@ -97,11 +97,18 @@ enum VisualTimerAudioSessionPolicy {
     static func shouldActivate(soundEnabled: Bool, volume: Double) -> Bool {
         soundEnabled && volume > 0
     }
+
+    static func allowsThemeFeedback(timerPlaybackActive: Bool) -> Bool {
+        !timerPlaybackActive
+    }
 }
 
 enum VisualTimerFeedbackCurve {
     static let minimumPulsesPerSecond = 0.72
     static let maximumPulsesPerSecond = 4.20
+    static let pulseSynthesisAmplitude = 0.40
+    static let completionSynthesisAmplitude = 0.68
+    static let maximumSynthesisSample = 0.92
 
     static func urgency(_ elapsedProgress: Double) -> Double {
         let progress = clamped(elapsedProgress)
@@ -125,8 +132,32 @@ enum VisualTimerFeedbackCurve {
 
     static func signalGain(volume: Double, elapsedProgress: Double) -> Double {
         let boundedVolume = clamped(volume)
-        let softCrescendo = 0.72 + 0.28 * urgency(elapsedProgress)
+        let softCrescendo = 0.82 + 0.18 * urgency(elapsedProgress)
         return clamped(boundedVolume * softCrescendo)
+    }
+
+    /// Integrates the accelerating cadence from timer-relative elapsed time.
+    /// This avoids multiplying an enormous absolute timestamp by a tempo that
+    /// changes every frame, which can make the visual pulse snap or flicker.
+    static func visualPulsePhase(
+        elapsedSeconds: TimeInterval,
+        durationSeconds: TimeInterval
+    ) -> Double {
+        guard durationSeconds > 0 else { return 0 }
+        let elapsed = min(durationSeconds, max(0, elapsedSeconds))
+        let progress = elapsed / durationSeconds
+        let rateRange = maximumPulsesPerSecond - minimumPulsesPerSecond
+        let cycles = minimumPulsesPerSecond * elapsed
+            + rateRange * durationSeconds * integratedUrgency(progress)
+        let phase = cycles.truncatingRemainder(dividingBy: 1)
+        return phase < 0 ? phase + 1 : phase
+    }
+
+    private static func integratedUrgency(_ elapsedProgress: Double) -> Double {
+        let progress = clamped(elapsedProgress)
+        let exponent = 4.0
+        return ((exp(exponent * progress) - 1) / exponent - progress)
+            / (exp(exponent) - 1)
     }
 
     private static func clamped(_ value: Double) -> Double {

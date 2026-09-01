@@ -46,6 +46,11 @@ enum LifeRouteOrdinaryGlassRole: CaseIterable, Hashable, Sendable {
     case toolbar
 }
 
+enum LifeRouteOrdinarySurfaceParticipation: Equatable, Sendable {
+    case container
+    case nestedContent
+}
+
 /// Large ordinary surfaces are intentionally not native adaptive glass. They
 /// frequently contain more ordinary rows and sit inside GlassEffectContainer;
 /// making every level native glass compounds blur and adaptive darkening on a
@@ -53,6 +58,19 @@ enum LifeRouteOrdinaryGlassRole: CaseIterable, Hashable, Sendable {
 /// native Regular glass where its depth communicates interaction or selection.
 enum LifeRouteOrdinaryGlassPolicy {
     static let highlightOpacity = 0.028
+    static let nestedOutlineOpacity = 0.055
+
+    static func participation(atNestingDepth nestingDepth: Int) -> LifeRouteOrdinarySurfaceParticipation {
+        nestingDepth > 0 ? .nestedContent : .container
+    }
+
+    static func drawsIndependentFill(for participation: LifeRouteOrdinarySurfaceParticipation) -> Bool {
+        participation == .container
+    }
+
+    static func drawsIndependentShadow(for participation: LifeRouteOrdinarySurfaceParticipation) -> Bool {
+        participation == .container
+    }
 
     static func usesNativeAdaptiveGlass(for role: LifeRouteOrdinaryGlassRole) -> Bool {
         false

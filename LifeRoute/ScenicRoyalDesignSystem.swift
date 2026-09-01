@@ -31,6 +31,7 @@ enum ScenicRoyalDesignSystem {
         static let minimumTouchTarget: CGFloat = 44
         static let standardToolbarHeight: CGFloat = 49
         static let accessibilityToolbarHeight: CGFloat = 66
+        static let bottomToolbarClearance: CGFloat = 10
     }
 
     enum Stroke {

@@ -680,7 +680,7 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     components = sources["ScenicRoyalComponents.swift"]
     toolbar = sources["ScenicRoyalToolbar.swift"]
     today = sources["V054TodayView.swift"]
-    require_all(design, ["enum ScenicRoyalDesignSystem", "minimumTouchTarget", "standardToolbarHeight", "accessibilityToolbarHeight"], "Scenic Royal design tokens")
+    require_all(design, ["enum ScenicRoyalDesignSystem", "minimumTouchTarget", "standardToolbarHeight", "accessibilityToolbarHeight", "bottomToolbarClearance"], "Scenic Royal design tokens")
     require_all(
         materials,
         [
@@ -692,6 +692,8 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
             "colorSchemeContrast",
             "LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity",
             "LifeRouteOrdinaryGlassPolicy.highlightOpacity",
+            "scenicRoyalOrdinarySurfaceDepth",
+            "nestedOrdinarySurface",
             "ordinaryGlassRole",
         ],
         "native Liquid Glass and fallback material boundary",

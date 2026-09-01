@@ -1,5 +1,16 @@
 import SwiftUI
 
+private struct ScenicRoyalOrdinarySurfaceDepthKey: EnvironmentKey {
+    static let defaultValue = 0
+}
+
+private extension EnvironmentValues {
+    var scenicRoyalOrdinarySurfaceDepth: Int {
+        get { self[ScenicRoyalOrdinarySurfaceDepthKey.self] }
+        set { self[ScenicRoyalOrdinarySurfaceDepthKey.self] = newValue }
+    }
+}
+
 enum ScenicRoyalSurfaceRole {
     case ambient
     case card
@@ -55,6 +66,7 @@ struct ScenicRoyalGlassEffectContainer<Content: View>: View {
 private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.scenicRoyalOrdinarySurfaceDepth) private var ordinarySurfaceDepth
     @Environment(\.scenicRoyalThemeStyle) private var style
 
     let role: ScenicRoyalSurfaceRole
@@ -63,17 +75,30 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
 
     @ViewBuilder
     func body(content: Content) -> some View {
+        let ordinaryGlassRole = role.ordinaryGlassRole
+        let participation = LifeRouteOrdinaryGlassPolicy.participation(
+            atNestingDepth: ordinarySurfaceDepth
+        )
+        let nestedContent = content.environment(
+            \.scenicRoyalOrdinarySurfaceDepth,
+            ordinaryGlassRole == nil ? ordinarySurfaceDepth : ordinarySurfaceDepth + 1
+        )
+
         if reduceTransparency || contrast == .increased {
             decorated(
-                content.background {
+                nestedContent.background {
                     surfaceShape.fill(style.readabilityBase.opacity(accessibleSurfaceOpacity))
                 },
                 opaque: true
             )
+        } else if ordinaryGlassRole != nil
+                    && !LifeRouteOrdinaryGlassPolicy.drawsIndependentFill(for: participation)
+                    && !LifeRouteOrdinaryGlassPolicy.drawsIndependentShadow(for: participation) {
+            nestedOrdinarySurface(nestedContent)
         } else if #available(iOS 26.0, *) {
-            if let ordinaryGlassRole = role.ordinaryGlassRole {
+            if let ordinaryGlassRole {
                 decorated(
-                    content.background {
+                    nestedContent.background {
                         ZStack {
                             surfaceShape.fill(
                                 style.readabilityBase.opacity(
@@ -99,7 +124,7 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
                 )
             } else {
                 decorated(
-                    content
+                    nestedContent
                         .glassEffect(
                             emphasizedNativeGlass,
                             in: .rect(cornerRadius: cornerRadius)
@@ -109,7 +134,7 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
             }
         } else {
             decorated(
-                content.background {
+                nestedContent.background {
                     ZStack {
                         surfaceShape.fill(.ultraThinMaterial)
                         surfaceShape.fill(style.readabilityBase.opacity(fallbackUnderlayOpacity))
@@ -173,6 +198,15 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
                 radius: role == .toolbar ? ScenicRoyalDesignSystem.Shadow.toolbarRadius : ScenicRoyalDesignSystem.Shadow.cardRadius,
                 y: role == .toolbar ? ScenicRoyalDesignSystem.Shadow.toolbarY : ScenicRoyalDesignSystem.Shadow.cardY
             )
+    }
+
+    private func nestedOrdinarySurface<Surface: View>(_ surface: Surface) -> some View {
+        surface.overlay {
+            surfaceShape.stroke(
+                Color.white.opacity(LifeRouteOrdinaryGlassPolicy.nestedOutlineOpacity),
+                lineWidth: ScenicRoyalDesignSystem.Stroke.subtle
+            )
+        }
     }
 }
 

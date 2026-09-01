@@ -45,7 +45,7 @@ struct ScenicRoyalCalendarDateChip: View {
             }
             .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl, style: .continuous))
             .scenicRoyalInteractiveSurface(
-                role: isSelected ? .selectedControl : .legibilityControl,
+                role: isSelected ? .selectedControl : .ambient,
                 cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
             )
         }

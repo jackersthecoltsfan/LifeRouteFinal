@@ -129,7 +129,7 @@ struct V054ContentView: View {
                     ScenicRoyalToolbar(selection: $router.selectedSection)
                     .padding(.horizontal, 10)
                     .padding(.top, 4)
-                    .padding(.bottom, 2)
+                    .padding(.bottom, ScenicRoyalDesignSystem.Layout.bottomToolbarClearance)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
         }

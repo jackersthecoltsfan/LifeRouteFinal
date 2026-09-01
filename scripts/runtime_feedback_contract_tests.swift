@@ -141,6 +141,35 @@ struct RuntimeFeedbackContractTests {
                 && LifeRouteOrdinaryGlassPolicy.highlightOpacity <= 0.04,
             "ordinary surfaces retain only a subtle neutral reflection highlight"
         )
+        expect(
+            LifeRouteOrdinaryGlassPolicy.participation(atNestingDepth: 0) == .container,
+            "a root ordinary surface owns the shared container recipe"
+        )
+        expect(
+            LifeRouteOrdinaryGlassPolicy.participation(atNestingDepth: 1) == .nestedContent,
+            "a child ordinary surface participates as content instead of stacking another recipe"
+        )
+        expect(
+            LifeRouteOrdinaryGlassPolicy.participation(atNestingDepth: 4) == .nestedContent,
+            "all deeper ordinary descendants remain content participants"
+        )
+        expect(
+            LifeRouteOrdinaryGlassPolicy.drawsIndependentFill(for: .container),
+            "the root ordinary container retains one bounded readability fill"
+        )
+        expect(
+            !LifeRouteOrdinaryGlassPolicy.drawsIndependentFill(for: .nestedContent),
+            "nested ordinary content does not compound fills"
+        )
+        expect(
+            !LifeRouteOrdinaryGlassPolicy.drawsIndependentShadow(for: .nestedContent),
+            "nested ordinary content does not compound shadows"
+        )
+        expect(
+            LifeRouteOrdinaryGlassPolicy.nestedOutlineOpacity > 0
+                && LifeRouteOrdinaryGlassPolicy.nestedOutlineOpacity <= 0.08,
+            "nested content retains only a subtle boundary cue"
+        )
     }
 
     private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {

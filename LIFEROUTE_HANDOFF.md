@@ -1,119 +1,96 @@
 # LifeRoute current engineering handoff
 
-## Build 123 physical-acceptance authority
+## Current authority
 
-- Marketing version: `0.9.1`.
-- Exact stable Build 122 baseline and current `main` at branch creation:
-  `b7866decf0b10793ad3a41ff0c548a58d9087a02`.
-- Build 123 branch: `fix/v0.9.1-build123-physical-acceptance`.
+- Build 123 / v0.9.1 is the accepted stable physical baseline.
+- Exact baseline and unchanged local/remote `main`:
+  `f9c2b13c4c8c7c19c67e3f118176635ea8576808`.
+- Sanitation branch: `chore/post-v0.9.1-sanitation-v1`.
 - Isolated worktree:
-  `/Users/brand/Documents/GitHub/LifeRouteFinal-build123-physical-acceptance`.
-- The guarded TestFlight workflow remains the only build-number owner. The
-  checked-in `CURRENT_PROJECT_VERSION` remains `2`; do not hard-code `123`.
+  `/Users/brand/Documents/GitHub/LifeRouteFinal-post-v0.9.1-sanitation-v1`.
+- Detailed evidence:
+  `docs/POST_V091_SANITATION_VELOCITY_CHECKPOINT.md`.
+- Stop point: `POST-v0.9.1 SANITATION / VELOCITY CHECKPOINT`.
 
-This checkpoint contains exactly the authorized ordinary-glass, Visual Timer
-completion-output, and composite virtual-location repairs. Build 122's physical
-stability repairs and all frozen navigation, environment-host, Live Day, Live
-Location, general routing, performance, scenery, Session Note, Image Playground,
-Developer Velocity, PR #127, cleanup, and v0.9.2 work remain untouched. `main`
-was not promoted and no TestFlight workflow was dispatched.
+Do not merge this branch, create Build 124, open a PR, or dispatch TestFlight
+without separate owner authorization. Build 123's ordinary-glass opacity and
+Visual Timer physical-loudness limitations remain deferred product issues.
 
-## Ordinary surface composition
+## Sanitation v1 result
 
-Build 122 reduced opacity on each native Clear glass layer, but large cards and
-their child rows still participated independently in native adaptive glass
-inside `GlassEffectContainer`. On physical iPhone those nested adaptive blur and
-darkening passes compounded, so reducing only the outer layer opacity did not
-make scenery read through the hierarchy.
+Five behavior-neutral, independently rollbackable slices are retained:
 
-Build 123 removes native adaptive glass from the ordinary ambient, card,
-readability, and toolbar roles. These roles now use a lightweight custom
-readability fill (`0.025`-`0.075` for dark scenes and `0.040`-`0.105` for bright
-scenes), a `0.028` neutral highlight, and the existing subtle border/shadow.
-Native Regular glass remains reserved for selected and legibility controls.
-Reduce Transparency, increased-contrast, and pre-iOS 26 material fallbacks are
-unchanged.
+1. `93e6d842` — Debug Swift explicitly uses `-Onone`.
+2. `711e385b` — historical `ClientViews.swift` is excluded from app compilation;
+   its source and the historical `ContentView.swift` remain retained.
+3. `4e4887a7` — five Swift contract runners share one content-addressed compiler
+   cache while preserving focused entry points.
+4. `32f09ec` — full validation reuses its source snapshot, workflow reads have
+   one owner, release policy runs in fast validation, CI notices contract-only
+   changes, and accepted assertion floors are executable.
+5. `dc2dd8e` — a specific local Debug destination builds its active architecture;
+   generic Simulator/CI remains dual architecture.
 
-The Simulator canyon fixture shows scene detail plainly through the large Today
-cards, timeline area, Calendar rows, Tools cards, Resources rows, and Setup rows.
-Physical appearance remains authoritative.
+No production Swift implementation changed. Navigation, routing, Live Location,
+Live Day/Activity, Session Note/Plan, Visual Timer behavior/audio, glass,
+scenery, calendar, haptics, accessibility, app icon, signing, identifiers,
+versions, release workflows, and the protected shared scheme remain frozen.
 
-## Visual Timer completion output
+## Measured developer effect
 
-The output path has no hidden attenuation: generated mono PCM reaches an
-`AVAudioPlayerNode` at persisted player volume up to `1`, through the established
-`.playback` / `.default` / `.mixWithOthers` session. Build 122's limitation was
-the cue master itself: peak normalization held `0.92` peak, but the 1.20-second
-three-note waveform retained a `1.61`-`1.70` crest factor and too little
-sustained practical output.
+- Preparation median: `0.07 -> 0.05 s`.
+- Fast validation median: `0.06 -> 0.05 s`.
+- Full validation median: `11.64 -> 3.76 s` warm; cold `10.10 s`.
+- Generic fresh Debug: `201.11 -> 101.70 s`.
+- Generic fresh Release: `223.99 -> 188.37 s`.
+- Generic no-change Debug median: `1.24 -> 1.21 s`.
+- Specific local fresh Debug, dual versus active architecture:
+  `121.28 -> 62.53 s`.
+- Specific local real leaf edit median: `8.71 -> 5.33 s`.
+- Real generic shared-style edit median: `26.41 -> 22.28 s`.
+- Real generic planning/core edit median: `11.58 -> 10.37 s`.
+- Real generic leaf edit was noisy and slower: `7.98 -> 10.12 s`; retained as
+  an explicit regression because the ordinary local leaf path, generic clean
+  path, shared-style path, and core path materially improve.
 
-Build 123 keeps the `0.92` clipping headroom, uses one 2.10-second five-note
-completion event, extends the sustained envelope, and applies bounded `tanh`
-soft limiting at drive `1.40`. Deterministic 44.1 kHz measurements are:
-
-- Warm: RMS `0.5405 -> 0.6650`; crest `1.702 -> 1.383`; energy
-  `15458.6 -> 40959.8`.
-- Soft: RMS `0.5590 -> 0.6797`; crest `1.646 -> 1.354`; energy
-  `16539.2 -> 42780.6`.
-- Clear: RMS `0.5717 -> 0.6890`; crest `1.609 -> 1.335`; energy
-  `17295.6 -> 43961.6`.
-
-Sound Off and 0% remain silent. Persisted volume, Ring/Silent playback,
-Warm/Soft/Clear identities, a single completion event, bounded samples, smooth
-attack/release, and the independent completion-haptic preference are preserved.
-Same-device physical loudness and sound-quality comparison is still required.
-
-## Composite virtual-location routing
-
-The Build 122 classifier recognized exact provider-only labels and meeting URLs,
-but exact-set matching let `Home — Microsoft Teams Meeting` pass through as a
-MapKit destination. Build 123 splits only explicit composite separators and
-rejects a known virtual provider segment when every remaining segment is from a
-narrow non-address context list such as Home or Virtual.
-
-The exact physical-QA string now remains a chronological timed commitment,
-constrains both usable gaps, receives no MapKit leg, and preserves the bridged
-physical route and truthful Leave By behavior. Exact provider labels, meeting
-URLs, `Virtual — Zoom Meeting`, empty locations, and all-day locations remain
-non-routable. `123 Microsoft Teams Way` and
-`123 Main Street — Microsoft Teams Meeting` remain routable controls.
+Timestamp-only results are lower-bound invalidation measurements and are labeled
+separately in the detailed report. Exact temporary source edits, hashes,
+DerivedData paths, raw trials, medians, and task fan-out are also preserved there.
 
 ## Validation checkpoint
 
-- Preparation, fast validation, and full validation passed.
-- Day Route: `163` assertions (Build 122 floor `159`).
-- Session Note: `162` assertions (floor preserved).
-- Visual Timer feedback: `119` assertions (Build 122 floor `100`).
-- Runtime feedback: `25` assertions (Build 122 floor `21`).
-- Scenery effects: `54` assertions (floor preserved).
-- Fresh Debug and Release generic-Simulator clean builds passed with no emitted
-  compiler-warning lines.
-- Debug and Release each produced the v0.9.1 main app and embedded Live Activity
-  extension.
-- Canonical Simulator smoke passed all five roots, the Visual Timer deep route,
-  all 12 scenery profiles, Dynamic, Reduce Motion, and ordinary-glass fixtures.
-  Calendar and Tools first landed on pre-settlement frames during rapid launch
-  automation; bounded five-second settled retries rendered both correctly.
-- Simulator review found no `NSAssertion`, `UINavigationBar`, fatal, uncaught-
-  exception, `SIGABRT`, or crash signature, and no LifeRoute diagnostic report.
+- Day Route: `163` assertions.
+- Session Note: `162` assertions.
+- Visual Timer feedback: `119` assertions.
+- Runtime Feedback: `25` assertions.
+- Scenery Effects: `54` assertions.
+- Preparation, fast validation, cold full validation, and warm full validation
+  passed.
+- A negative Runtime Feedback floor test failed as intended, then the restored
+  25-assertion fixture passed with its original hash.
+- Contract cache invalidation created a distinct binary after a temporary source
+  change, then the exact fixture bytes were restored.
+- Fresh generic Debug at the final native compile surface and final fresh
+  generic Release passed with app plus extension, dual architectures, and zero
+  unexpected compiler warnings. The final branch also passed three no-change
+  generic Debug builds.
 - Shared scheme SHA-256 remains
   `4b47ab85e3841de3202b4c0bdfed9540435ea2fbff5aeedb87ea095895105429`.
-- App/extension version, source build number, project structure, signing, bundle
-  identifiers, protected scheme, and workflows are unchanged.
 
-## Physical QA and stop condition
+## Deliberate non-work
 
-Owner review should physically verify only the three Build 123 acceptance items:
+- PR #127-style wholesale splitting remains rejected because its recorded
+  cleanup increased no-change Debug `1.97 -> 5.39 s`, fresh Debug
+  `110.68 -> 245.92 s`, and fresh Release `116.38 -> 253.54 s`.
+- Broader dead-declaration deletion, mega-file splitting, folder redesign,
+  wrappers/protocols, Scenic Royal ownership extraction, smoke-suite ownership
+  changes, and labeled-card/place-symbol abstractions are deferred.
+- No benchmark infrastructure was added; the checkpoint report is the durable
+  reproduction record.
 
-- ordinary large/nested cards show scenery plainly while text remains readable,
-  including bright scenes and accessibility fallbacks;
-- 100% Visual Timer completion output is in the same practical loudness class as
-  the same-device reference without clipping, harsh distortion, duplicated
-  playback, or any silence/identity/haptic regression;
-- a real calendar event with `Home — Microsoft Teams Meeting` generates the day
-  without `MKErrorDomain` error 4, while a real physical-address control still
-  routes correctly between surrounding commitments.
+## Next owner action
 
-Stop at `v0.9.1 BUILD 123 PHYSICAL ACCEPTANCE IMPLEMENTATION CHECKPOINT` for
-owner review. Do not promote `main`, dispatch TestFlight, or begin any frozen or
-deferred work.
+Review the isolated branch and the detailed checkpoint. The recommendation is to
+keep all five small commits and stop. If a future cleanup proposes shared-style
+decomposition, require a real source-byte benchmark that reduces the observed
+19-file fan-out without slowing the specific local edit/build/run loop.

@@ -1,20 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+SCRIPT_DIRECTORY="$(cd "$(dirname "$0")" && pwd)"
 
-if ! command -v swiftc >/dev/null 2>&1; then
-  echo "Swift compiler unavailable; Visual Timer feedback executable contract fixtures skipped on this host."
-  exit 0
-fi
-
-FIXTURE_DIRECTORY="$(mktemp -d "${TMPDIR:-/tmp}/liferoute-visual-timer-feedback-contracts.XXXXXX")"
-trap 'rm -rf "$FIXTURE_DIRECTORY"' EXIT
-
-swiftc \
+exec bash "$SCRIPT_DIRECTORY/run_swift_contract_test.sh" \
+  "Visual Timer feedback" \
+  "visual-timer-feedback-contract-tests" \
   LifeRoute/VisualTimerFeedbackContracts.swift \
-  scripts/visual_timer_feedback_contract_tests.swift \
-  -o "$FIXTURE_DIRECTORY/visual-timer-feedback-contract-tests"
-
-"$FIXTURE_DIRECTORY/visual-timer-feedback-contract-tests"
+  scripts/visual_timer_feedback_contract_tests.swift

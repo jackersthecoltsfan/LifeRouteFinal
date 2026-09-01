@@ -128,6 +128,7 @@ def validate_active_build_path() -> None:
     fast = read(ROOT / "scripts" / "validate_fast.sh")
     full = read(ROOT / "scripts" / "validate_full.sh")
     warning_assessor = read(ROOT / "scripts" / "assess_xcode_warnings.py")
+    swift_contract_runner = read(ROOT / "scripts" / "run_swift_contract_test.sh")
     require_all(prepare, ["validate_fast.sh", "canonical LifeRoute v0.9.1"], "current prepare_build")
     forbidden = ["patch_v0_", "audit_v0_", "scripts/archive/", "generate_v0_", "materialize"]
     present = [token for token in forbidden if token in prepare]
@@ -150,7 +151,20 @@ def validate_active_build_path() -> None:
     runtime_fixture_source = read(ROOT / "scripts" / "runtime_feedback_contract_tests.swift")
     scenery_fixture_runner = read(ROOT / "scripts" / "run_scenery_effect_contract_tests.sh")
     scenery_fixture_source = read(ROOT / "scripts" / "scenery_effect_contract_tests.swift")
-    require_all(fixture_runner, ["swiftc", "SessionNoteContracts.swift", "session_note_contract_tests.swift"], "Session Note fixture runner")
+    require_all(
+        swift_contract_runner,
+        [
+            "command -v swiftc",
+            "LIFEROUTE_CONTRACT_CACHE_DIRECTORY",
+            "LifeRoute Swift contract cache v1",
+            "shasum -a 256",
+            "SWIFT_COMPILER",
+            "CACHED_EXECUTABLE",
+            '"$SWIFT_COMPILER" "$@"',
+        ],
+        "content-addressed Swift contract runner",
+    )
+    require_all(fixture_runner, ["run_swift_contract_test.sh", "SessionNoteContracts.swift", "session_note_contract_tests.swift"], "Session Note fixture runner")
     require_all(
         fixture_source,
         [
@@ -191,7 +205,7 @@ def validate_active_build_path() -> None:
         ],
         "Build 120 simulator visual matrix",
     )
-    require_all(day_route_fixture_runner, ["swiftc", "DayRouteContracts.swift", "LiveDayRunContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
+    require_all(day_route_fixture_runner, ["run_swift_contract_test.sh", "DayRouteContracts.swift", "DayItineraryContracts.swift", "LiveDayRunContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
     require_all(
         day_route_fixture_source,
         [
@@ -218,7 +232,7 @@ def validate_active_build_path() -> None:
     )
     require_all(
         timer_fixture_runner,
-        ["swiftc", "VisualTimerFeedbackContracts.swift", "visual_timer_feedback_contract_tests.swift"],
+        ["run_swift_contract_test.sh", "VisualTimerFeedbackContracts.swift", "visual_timer_feedback_contract_tests.swift"],
         "Visual Timer feedback fixture runner",
     )
     require_all(
@@ -248,7 +262,7 @@ def validate_active_build_path() -> None:
     )
     require_all(
         runtime_fixture_runner,
-        ["swiftc", "RuntimeFeedbackContracts.swift", "runtime_feedback_contract_tests.swift"],
+        ["run_swift_contract_test.sh", "RuntimeFeedbackContracts.swift", "runtime_feedback_contract_tests.swift"],
         "runtime feedback fixture runner",
     )
     require_all(
@@ -265,7 +279,7 @@ def validate_active_build_path() -> None:
     )
     require_all(
         scenery_fixture_runner,
-        ["swiftc", "SceneryEffectContracts.swift", "scenery_effect_contract_tests.swift"],
+        ["run_swift_contract_test.sh", "SceneryEffectContracts.swift", "scenery_effect_contract_tests.swift"],
         "scenery effect fixture runner",
     )
     require_all(

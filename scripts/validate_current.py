@@ -237,8 +237,9 @@ def validate_active_build_path() -> None:
             "adding one minute preserves the current visual pulse phase",
             "localized visual pulse retains at least fifteen samples per cycle",
             "visual pulse envelope is finite and bounded",
-            "maximum completion output is at least thirty-five percent stronger than Build 119",
-            "stronger completion output retains deterministic peak headroom",
+            "maximum completion RMS is at least ninety percent stronger than Build 120",
+            "maximum completion cue carries more than eight times Build 120 signal energy",
+            "peak normalization does not introduce a clipped plateau",
         ],
         "Visual Timer feedback executable fixtures",
     )
@@ -252,6 +253,8 @@ def validate_active_build_path() -> None:
         [
             "iOS 26 leaves navigation-bar material ownership to UIKit and SwiftUI",
             "later systems do not restore live custom navigation-bar mutation",
+            "iOS 26 forbids runtime UIKit controller-tree chrome mutation",
+            "later systems cannot restore runtime UIKit chrome mutation",
             "iOS 17.5 begins view-associated feedback-generator delivery",
             "iOS 26 physical builds use view-associated feedback-generator delivery",
         ],
@@ -323,7 +326,8 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
     )
     require_all(navigation, ["todayPath = NavigationPath()", "schedulePath = NavigationPath()", "toolsPath = NavigationPath()", "resourcesPath = NavigationPath()", "setupPath = NavigationPath()"], "independent router paths")
     require_count(root, "@StateObject private var router = AppRouter()", 1, "root router ownership")
-    require_count(root, "NavigationStack(path: $router.", 5, "five independent navigation stacks")
+    require_count(root, "LifeRouteRootNavigationStack(path: $router.", 5, "five roots share one navigation-container owner")
+    require_count(root, "NavigationStack(path: $path)", 1, "shared root navigation-stack implementation")
     require_count(root, ".tag(AppSection.", 5, "five section tags")
     toolbar = sources["ScenicRoyalToolbar.swift"]
     require_count(toolbar, "struct ScenicRoyalToolbar: View", 1, "Scenic Royal toolbar ownership")
@@ -339,8 +343,26 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
             "bar.isHidden = true",
             "-LifeRouteToolsDestinationOverride",
             "toolsDestinationOverride == .visualTimer",
+            "private struct LifeRouteRootNavigationStack<Content: View>: View",
+            "if #available(iOS 26.0, *)",
+            "content.containerBackground(Color.clear, for: .navigation)",
         ],
-        "paged toolbar/router synchronization, UIKit suppression, and Debug deep-screen fixture",
+        "paged toolbar/router synchronization, declarative transparent navigation ownership, UIKit suppression, and Debug deep-screen fixture",
+    )
+    require_count(
+        root,
+        "content.containerBackground(Color.clear, for: .navigation)",
+        1,
+        "shared root navigation-container transparency",
+    )
+    require_all(
+        navigation,
+        [
+            "navigationContent(content)",
+            "if #available(iOS 26.0, *)",
+            ".containerBackground(Color.clear, for: .navigation)",
+        ],
+        "shared deep-destination navigation-container transparency",
     )
     require("LifeRouteWebView(" not in root, "shipping root must not activate the quarantined WebView")
     require_all(
@@ -348,6 +370,7 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
         [
             "usesCustomNavigationBarAppearance",
             "majorVersion < 26",
+            "allowsRuntimeUIKitChromeRefresh",
             "usesViewAssociatedHaptics",
             "majorVersion == 17 && minorVersion >= 5",
         ],
@@ -357,10 +380,22 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
         root,
         [
             "LifeRouteRuntimeFeedbackPolicy.usesCustomNavigationBarAppearance",
+            "LifeRouteRuntimeFeedbackPolicy.allowsRuntimeUIKitChromeRefresh",
             "navigationAppearance: UINavigationBarAppearance?",
             "if let navigationAppearance, let navigationController",
         ],
         "iOS 26 navigation-bar assertion regression boundary",
+    )
+    refresh_start = root.find("static func refreshVisibleChrome")
+    runtime_guard = root.find("allowsRuntimeUIKitChromeRefresh", refresh_start)
+    controller_traversal = root.find("UIApplication.shared", refresh_start)
+    require(
+        refresh_start >= 0 and refresh_start < runtime_guard < controller_traversal,
+        "runtime UIKit chrome guard must precede all scene/controller traversal",
+    )
+    require(
+        "setNeedsLayout()" not in root and "layoutIfNeeded()" not in root,
+        "shipping chrome refresh must not force UIKit layout",
     )
     require_all(
         app,
@@ -1148,8 +1183,11 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
             "visualPulsesPerSecond = 0.80",
             "visualFrameInterval: TimeInterval = 1.0 / 15.0",
             "visualPulseEnvelope",
-            "completionSynthesisAmplitude = 0.84",
-            "completionDecayRate = 12.0",
+            "enum VisualTimerCompletionCue",
+            "duration: TimeInterval = 1.20",
+            "presenceSecondHarmonicMix = 0.12",
+            "presenceThirdHarmonicMix = 0.04",
+            "maximumSynthesisSample / rawPeak",
         ],
         "Visual Timer pure feedback contract",
     )

@@ -68,7 +68,7 @@ struct V054ContentView: View {
     var body: some View {
         // v0.7.0 Theme Phase 1 single environment shell: background is mounted once by LifeRouteApp chrome.
         TabView(selection: $router.selectedSection) {
-                NavigationStack(path: $router.todayPath) {
+                LifeRouteRootNavigationStack(path: $router.todayPath) {
                     V054TodayView(
                         router: router,
                         calendarState: calendarState,
@@ -77,21 +77,19 @@ struct V054ContentView: View {
                         liveActivity: liveDayActivity
                     )
                 }
-                .background(Color.clear)
                 .tabItem { Label(AppSection.today.title, systemImage: AppSection.today.systemImage) }
                 .tag(AppSection.today)
 
-                NavigationStack(path: $router.schedulePath) {
+                LifeRouteRootNavigationStack(path: $router.schedulePath) {
                     V054ScheduleView(
                         calendarState: calendarState,
                         providerState: providerState
                     )
                 }
-                .background(Color.clear)
                 .tabItem { Label(AppSection.schedule.title, systemImage: AppSection.schedule.systemImage) }
                 .tag(AppSection.schedule)
 
-                NavigationStack(path: $router.toolsPath) {
+                LifeRouteRootNavigationStack(path: $router.toolsPath) {
 #if DEBUG
                     if LifeRouteDebugLaunch.toolsDestinationOverride == .visualTimer {
                         VisualTimerView(timer: toolsState.timer)
@@ -103,24 +101,21 @@ struct V054ContentView: View {
                     toolsDashboard
 #endif
                 }
-                .background(Color.clear)
                 .tabItem { Label(AppSection.tools.title, systemImage: AppSection.tools.systemImage) }
                 .tag(AppSection.tools)
 
-                NavigationStack(path: $router.resourcesPath) {
+                LifeRouteRootNavigationStack(path: $router.resourcesPath) {
                     ResourcePortalHubView()
                 }
-                .background(Color.clear)
                 .tabItem { Label(AppSection.resources.title, systemImage: AppSection.resources.systemImage) }
                 .tag(AppSection.resources)
 
-                NavigationStack(path: $router.setupPath) {
+                LifeRouteRootNavigationStack(path: $router.setupPath) {
                     V054SetupView(
                         routingState: routingState,
                         clientState: clientState
                     )
                 }
-                .background(Color.clear)
                 .tabItem { Label(AppSection.setup.title, systemImage: AppSection.setup.systemImage) }
                 .tag(AppSection.setup)
             }
@@ -191,9 +186,44 @@ struct V054ContentView: View {
     }
 }
 
+/// Owns the transparent navigation-container surface once for every paged root.
+/// On iOS 26 this replaces the former live UIKit controller-tree mutation that
+/// could both expose black lazy-page backgrounds and assert inside navigation layout.
+private struct LifeRouteRootNavigationStack<Content: View>: View {
+    @Binding var path: NavigationPath
+    private let content: Content
+
+    init(path: Binding<NavigationPath>, @ViewBuilder content: () -> Content) {
+        _path = path
+        self.content = content()
+    }
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            navigationContent
+        }
+        .background(Color.clear)
+    }
+
+    @ViewBuilder
+    private var navigationContent: some View {
+        if #available(iOS 26.0, *) {
+            content.containerBackground(Color.clear, for: .navigation)
+        } else {
+            content
+        }
+    }
+}
+
 extension LifeRouteAppearance {
     @MainActor
     static func refreshVisibleChrome(theme: LifeRouteTheme) {
+        guard LifeRouteRuntimeFeedbackPolicy.allowsRuntimeUIKitChromeRefresh(
+            ProcessInfo.processInfo.operatingSystemVersion
+        ) else {
+            return
+        }
+
         let palette = theme.palette
         let accent = UIColor(palette.accent)
         let primary = UIColor(palette.textPrimary)
@@ -295,13 +325,9 @@ extension LifeRouteAppearance {
             let bar = tabBarController.tabBar
             // v0.7.1 single-toolbar physical fix: SwiftUI's hidden modifier did not suppress the real iPhone UITabBar.
             // Keep UITabBarController/TabView as the navigation owner, but remove only the stock bar presentation.
-            let presentationChanged = !bar.isHidden || bar.alpha != 0 || bar.isUserInteractionEnabled
             bar.isHidden = true
             bar.alpha = 0
             bar.isUserInteractionEnabled = false
-            if presentationChanged {
-                tabBarController.view.setNeedsLayout()
-            }
             bar.standardAppearance = tabAppearance
             bar.scrollEdgeAppearance = tabAppearance
             bar.tintColor = accent

@@ -12,12 +12,23 @@ enum LifeRouteRuntimeFeedbackPolicy {
         majorVersion < 26
     }
 
+    /// Live UIKit controller-tree mutation is a legacy fallback only. On iOS
+    /// 26 and later SwiftUI owns navigation and tab-bar layout throughout
+    /// transitions, foreground restoration, and theme changes.
+    static func allowsRuntimeUIKitChromeRefresh(majorVersion: Int) -> Bool {
+        majorVersion < 26
+    }
+
     static func usesViewAssociatedHaptics(majorVersion: Int, minorVersion: Int) -> Bool {
         majorVersion > 17 || (majorVersion == 17 && minorVersion >= 5)
     }
 
     static func usesCustomNavigationBarAppearance(_ version: OperatingSystemVersion) -> Bool {
         usesCustomNavigationBarAppearance(majorVersion: version.majorVersion)
+    }
+
+    static func allowsRuntimeUIKitChromeRefresh(_ version: OperatingSystemVersion) -> Bool {
+        allowsRuntimeUIKitChromeRefresh(majorVersion: version.majorVersion)
     }
 
     static func usesViewAssociatedHaptics(_ version: OperatingSystemVersion) -> Bool {

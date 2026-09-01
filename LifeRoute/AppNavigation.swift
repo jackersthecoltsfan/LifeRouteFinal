@@ -149,13 +149,23 @@ private struct LifeRouteDeepDestinationModifier: ViewModifier {
     @EnvironmentObject private var router: AppRouter
 
     func body(content: Content) -> some View {
-        content
+        navigationContent(content)
             .onAppear {
                 router.setBottomToolbarSuppressed(true)
             }
             .onDisappear {
                 router.setBottomToolbarSuppressed(false)
             }
+    }
+
+    @ViewBuilder
+    private func navigationContent(_ content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .containerBackground(Color.clear, for: .navigation)
+        } else {
+            content
+        }
     }
 }
 

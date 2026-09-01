@@ -6,6 +6,7 @@ struct RuntimeFeedbackContractTests {
 
     static func main() {
         testNavigationChromePolicy()
+        testRuntimeChromeTraversalPolicy()
         testHapticGeneratorPolicy()
 
         print("Runtime feedback executable contract fixtures passed (\(assertionCount) assertions).")
@@ -27,6 +28,25 @@ struct RuntimeFeedbackContractTests {
         expect(
             !LifeRouteRuntimeFeedbackPolicy.usesCustomNavigationBarAppearance(majorVersion: 27),
             "later systems do not restore live custom navigation-bar mutation"
+        )
+    }
+
+    private static func testRuntimeChromeTraversalPolicy() {
+        expect(
+            LifeRouteRuntimeFeedbackPolicy.allowsRuntimeUIKitChromeRefresh(majorVersion: 16),
+            "iOS 16 retains the legacy UIKit chrome fallback"
+        )
+        expect(
+            LifeRouteRuntimeFeedbackPolicy.allowsRuntimeUIKitChromeRefresh(majorVersion: 25),
+            "iOS 25 retains the legacy UIKit chrome fallback"
+        )
+        expect(
+            !LifeRouteRuntimeFeedbackPolicy.allowsRuntimeUIKitChromeRefresh(majorVersion: 26),
+            "iOS 26 forbids runtime UIKit controller-tree chrome mutation"
+        )
+        expect(
+            !LifeRouteRuntimeFeedbackPolicy.allowsRuntimeUIKitChromeRefresh(majorVersion: 27),
+            "later systems cannot restore runtime UIKit chrome mutation"
         )
     }
 

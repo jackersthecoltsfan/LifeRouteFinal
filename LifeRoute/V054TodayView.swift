@@ -346,6 +346,9 @@ struct V054TodayView: View {
                     .foregroundStyle(scenicStyle.accentReflection)
                 }
                 timeline(itinerary)
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    startRouteControl(itinerary, now: context.date)
+                }
             } else {
                 ungeneratedTimeline
             }
@@ -424,6 +427,51 @@ struct V054TodayView: View {
             }
         }
         .scenicRoyalCard(role: .readability)
+    }
+
+    @ViewBuilder
+    private func startRouteControl(_ itinerary: LifeRouteGeneratedItinerary, now: Date) -> some View {
+        let decision = itinerary.startRouteDecision(
+            selectedDay: selectedDay,
+            itineraryIsCurrent: itineraryIsCurrent,
+            now: now
+        )
+        switch decision {
+        case .ready(let navigationLeg):
+            Button {
+                LifeRouteHaptics.primaryAction()
+                planState.startRoute(
+                    navigationLeg,
+                    itinerary: itinerary,
+                    mode: planState.routeMode
+                )
+            } label: {
+                Label(
+                    planState.isLaunchingNavigation
+                        ? "Opening \(LifeRouteNavigationApp.preferred.title)…"
+                        : "Start Route: \(navigationLeg.destination.title)",
+                    systemImage: "location.fill"
+                )
+            }
+            .buttonStyle(ScenicRoyalPrimaryButtonStyle())
+            .disabled(planState.isLaunchingNavigation)
+            .accessibilityHint("Opens the next physical destination in \(LifeRouteNavigationApp.preferred.title)")
+
+        case .stale:
+            Label("Regenerate this day before starting navigation.", systemImage: "arrow.triangle.2.circlepath")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(scenicStyle.secondaryText)
+
+        case .wrongDay:
+            Label("Generate a route for the selected day before navigating.", systemImage: "calendar.badge.exclamationmark")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(scenicStyle.secondaryText)
+
+        case .noPhysicalDestination:
+            Label("No physical route destination remains for this generated day.", systemImage: "location.slash")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(scenicStyle.secondaryText)
+        }
     }
 
     @ViewBuilder

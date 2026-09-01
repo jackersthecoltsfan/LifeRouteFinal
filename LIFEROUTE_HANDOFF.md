@@ -2,95 +2,84 @@
 
 ## Current authority
 
-- Build 123 / v0.9.1 is the accepted stable physical baseline.
-- Exact baseline and unchanged local/remote `main`:
-  `f9c2b13c4c8c7c19c67e3f118176635ea8576808`.
-- Sanitation branch: `chore/post-v0.9.1-sanitation-v1`.
-- Isolated worktree:
-  `/Users/brand/Documents/GitHub/LifeRouteFinal-post-v0.9.1-sanitation-v1`.
-- Detailed evidence:
-  `docs/POST_V091_SANITATION_VELOCITY_CHECKPOINT.md`.
-- Stop point: `POST-v0.9.1 SANITATION / VELOCITY CHECKPOINT`.
+- Build 123 / `f9c2b13c4c8c7c19c67e3f118176635ea8576808` remains the last physically accepted TestFlight release.
+- Sanitized development baseline: `08615656deb0f4c71e92464c886f7c68522a8a31`.
+- Feature branch: `feat/generated-day-navigation-calendar-edit-v1`.
+- Isolated worktree: `/Users/brand/Documents/GitHub/LifeRouteFinal-generated-day-navigation-calendar-edit-v1`.
+- Stop point: `GENERATED-DAY NAVIGATION + MANUAL CALENDAR EDITING IMPLEMENTATION CHECKPOINT`.
 
-Do not merge this branch, create Build 124, open a PR, or dispatch TestFlight
-without separate owner authorization. Build 123's ordinary-glass opacity and
-Visual Timer physical-loudness limitations remain deferred product issues.
+Do not merge this branch, dispatch TestFlight, change signing/version/build
+numbers, or create a shipping archive without separate owner authorization.
 
-## Sanitation v1 result
+## Feature checkpoint
 
-Five behavior-neutral, independently rollbackable slices are retained:
-
-1. `93e6d842` — Debug Swift explicitly uses `-Onone`.
-2. `711e385b` — historical `ClientViews.swift` is excluded from app compilation;
-   its source and the historical `ContentView.swift` remain retained.
-3. `4e4887a7` — five Swift contract runners share one content-addressed compiler
-   cache while preserving focused entry points.
-4. `32f09ec` — full validation reuses its source snapshot, workflow reads have
-   one owner, release policy runs in fast validation, CI notices contract-only
-   changes, and accepted assertion floors are executable.
-5. `dc2dd8e` — a specific local Debug destination builds its active architecture;
-   generic Simulator/CI remains dual architecture.
-
-No production Swift implementation changed. Navigation, routing, Live Location,
-Live Day/Activity, Session Note/Plan, Visual Timer behavior/audio, glass,
-scenery, calendar, haptics, accessibility, app icon, signing, identifiers,
-versions, release workflows, and the protected shared scheme remain frozen.
-
-## Measured developer effect
-
-- Preparation median: `0.07 -> 0.05 s`.
-- Fast validation median: `0.06 -> 0.05 s`.
-- Full validation median: `11.64 -> 3.76 s` warm; cold `10.10 s`.
-- Generic fresh Debug: `201.11 -> 101.70 s`.
-- Generic fresh Release: `223.99 -> 188.37 s`.
-- Generic no-change Debug median: `1.24 -> 1.21 s`.
-- Specific local fresh Debug, dual versus active architecture:
-  `121.28 -> 62.53 s`.
-- Specific local real leaf edit median: `8.71 -> 5.33 s`.
-- Real generic shared-style edit median: `26.41 -> 22.28 s`.
-- Real generic planning/core edit median: `11.58 -> 10.37 s`.
-- Real generic leaf edit was noisy and slower: `7.98 -> 10.12 s`; retained as
-  an explicit regression because the ordinary local leaf path, generic clean
-  path, shared-style path, and core path materially improve.
-
-Timestamp-only results are lower-bound invalidation measurements and are labeled
-separately in the detailed report. Exact temporary source edits, hashes,
-DerivedData paths, raw trials, medians, and task fan-out are also preserved there.
+- `CalendarCoreState` owns one manual-event update operation. It preserves the
+  event ID and manual source, validates title and timed ranges, calculates
+  all-day intervals, moves events across day indexes, sorts, and persists the
+  complete manual collection without mutating provider events.
+- Calendar rows now open honestly: manual events reuse the appointment sheet in
+  edit mode; Apple, Google, and calendar-link events open source-managed,
+  read-only details. Existing row deletion remains and the edit sheet adds a
+  bounded confirmed Delete action.
+- `LifeRouteGeneratedItinerary.startRouteDecision` owns destination selection
+  from the authoritative canonical itinerary. It rejects wrong-day/stale
+  itineraries and skips virtual, empty, non-routable, and all-day destinations.
+- `DayRoutePlanningCore` remains the Maps-launch owner. Start Route validates
+  canonical itinerary membership, preserves transport mode, honors the existing
+  persisted Apple Maps / Google Maps / Waze preference, reports success only
+  after a successful handoff, keeps failures visible, and prevents overlapping
+  launch tasks.
+- The exact `Home — Microsoft Teams Meeting` virtual-location regression remains
+  chronological while the surrounding physical route stays actionable.
 
 ## Validation checkpoint
 
-- Day Route: `163` assertions.
+- Preparation, fast validation, and full validation passed using the sanitized
+  contract cache.
+- Day Route: `177` assertions.
+- Calendar Edit: `29` assertions.
 - Session Note: `162` assertions.
 - Visual Timer feedback: `119` assertions.
 - Runtime Feedback: `25` assertions.
 - Scenery Effects: `54` assertions.
-- Preparation, fast validation, cold full validation, and warm full validation
-  passed.
-- A negative Runtime Feedback floor test failed as intended, then the restored
-  25-assertion fixture passed with its original hash.
-- Contract cache invalidation created a distinct binary after a temporary source
-  change, then the exact fixture bytes were restored.
-- Fresh generic Debug at the final native compile surface and final fresh
-  generic Release passed with app plus extension, dual architectures, and zero
-  unexpected compiler warnings. The final branch also passed three no-change
-  generic Debug builds.
-- Shared scheme SHA-256 remains
+- Fresh generic Debug and non-archival Release Simulator builds passed for the
+  app plus embedded Live Activity extension and both simulator architectures.
+- Compiler warning audit: zero unexpected warnings; only the two known
+  no-AppIntents metadata notices.
+- Canonical Simulator smoke passed on iPhone 17 Pro / iOS 26.5. The first fresh
+  Today and Calendar screenshots caught transient launch frames; one bounded
+  six-second readiness retry rendered both roots correctly. Later smoke roots
+  rendered normally.
+- Interactive Simulator QA passed add, prefilled edit, title/location/date/time
+  change, cross-day move, persistence, bounded deletion, generated-day
+  readiness, stale-after-edit rejection, regeneration, exact
+  virtual-plus-physical routing, and Apple Maps handoff with driving mode and
+  the correct physical destination. After deleting only `QA Virtual Meeting`,
+  app reconstruction retained exactly the unrelated physical QA appointment;
+  deterministic contracts also retained provider/imported events.
+- No LifeRoute crash reports, fatal errors, runtime failures, failed
+  preconditions, or assertion failures were found. Fresh-smoke logs contained
+  one Simulator CFBundle audio/plugin factory notice; text-entry QA also emitted
+  known Simulator keyboard/haptics service noise.
+- Shared scheme SHA-256 must remain
   `4b47ab85e3841de3202b4c0bdfed9540435ea2fbff5aeedb87ea095895105429`.
+
+## Remaining physical QA
+
+- Confirm manual add/edit/move/all-day/delete persistence on a physical iPhone.
+- Confirm provider-event read-only details with connected Apple, Google, and
+  calendar-link accounts; no provider mutation is implemented.
+- Confirm Start Route and visible failure/cancellation behavior with installed
+  Apple Maps and any configured third-party provider on a physical iPhone.
+- Confirm transport mode, live-origin behavior, repeated-tap suppression, and
+  the exact virtual-plus-physical itinerary under real network/location state.
 
 ## Deliberate non-work
 
-- PR #127-style wholesale splitting remains rejected because its recorded
-  cleanup increased no-change Debug `1.97 -> 5.39 s`, fresh Debug
-  `110.68 -> 245.92 s`, and fresh Release `116.38 -> 253.54 s`.
-- Broader dead-declaration deletion, mega-file splitting, folder redesign,
-  wrappers/protocols, Scenic Royal ownership extraction, smoke-suite ownership
-  changes, and labeled-card/place-symbol abstractions are deferred.
-- No benchmark infrastructure was added; the checkpoint report is the durable
-  reproduction record.
-
-## Next owner action
-
-Review the isolated branch and the detailed checkpoint. The recommendation is to
-keep all five small commits and stop. If a future cleanup proposes shared-style
-decomposition, require a real source-byte benchmark that reduces the observed
-19-file fan-out without slowing the specific local edit/build/run loop.
+- No provider write scopes or mutation, recurring-event editing, calendar
+  toggles/deduplication, To-Do changes, stop-management redesign, broad routing
+  refactor, visual/scenery/navigation-container work, sanitation, release
+  workflow, signing, version, or build-number changes.
+- No second calendar store, generated itinerary, route-ordering engine,
+  current/next-step engine, or Maps subsystem was introduced.
+- No TestFlight dispatch or main-branch merge belongs to this checkpoint.

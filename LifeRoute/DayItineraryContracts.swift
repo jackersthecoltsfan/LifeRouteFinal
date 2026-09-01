@@ -123,6 +123,45 @@ struct LifeRouteItineraryLeg: Identifiable, Codable, Hashable, Sendable {
     }
 }
 
+struct LifeRouteItineraryNavigationLeg: Hashable, Sendable {
+    let leg: LifeRouteItineraryLeg
+    let source: LifeRouteItineraryNode
+    let destination: LifeRouteItineraryNode
+}
+
+enum LifeRouteDayNavigationDecision: Hashable, Sendable {
+    case ready(LifeRouteItineraryNavigationLeg)
+    case stale
+    case wrongDay
+    case noPhysicalDestination
+
+    var navigationLeg: LifeRouteItineraryNavigationLeg? {
+        guard case .ready(let navigationLeg) = self else { return nil }
+        return navigationLeg
+    }
+
+    var leg: LifeRouteItineraryLeg? { navigationLeg?.leg }
+    var destination: LifeRouteItineraryNode? { navigationLeg?.destination }
+}
+
+struct LifeRouteMapsLaunchGate {
+    private var activeToken: UUID?
+
+    var isLaunching: Bool { activeToken != nil }
+
+    mutating func begin() -> UUID? {
+        guard activeToken == nil else { return nil }
+        let token = UUID()
+        activeToken = token
+        return token
+    }
+
+    mutating func finish(_ token: UUID) {
+        guard activeToken == token else { return }
+        activeToken = nil
+    }
+}
+
 struct LifeRouteGapCandidate: Identifiable, Codable, Hashable, Sendable {
     enum Kind: String, Codable, Hashable, Sendable {
         case located
@@ -478,6 +517,59 @@ struct LifeRouteGeneratedItinerary: Identifiable, Codable, Hashable, Sendable {
             }
         }
         return items
+    }
+
+    func startRouteDecision(
+        selectedDay: Date,
+        itineraryIsCurrent: Bool,
+        now: Date,
+        calendar: Calendar = .current
+    ) -> LifeRouteDayNavigationDecision {
+        guard calendar.isDate(self.selectedDay, inSameDayAs: selectedDay) else {
+            return .wrongDay
+        }
+        guard itineraryIsCurrent else {
+            return .stale
+        }
+
+        let nodeIndexByID = Dictionary(
+            uniqueKeysWithValues: nodes.enumerated().map { ($0.element.id, $0.offset) }
+        )
+        let lastStartedAppointmentIndex: Int?
+        if calendar.isDate(selectedDay, inSameDayAs: now) {
+            lastStartedAppointmentIndex = nodes.indices.last { index in
+                let node = nodes[index]
+                return node.kind == .appointment
+                    && !node.isAllDay
+                    && node.start.map { $0 <= now } == true
+            }
+        } else {
+            lastStartedAppointmentIndex = nil
+        }
+        let minimumDestinationIndex = lastStartedAppointmentIndex.map { $0 + 1 } ?? nodes.startIndex
+
+        for leg in legs.sorted(by: { $0.sequence < $1.sequence }) {
+            guard let sourceIndex = nodeIndexByID[leg.fromNodeID],
+                  let destinationIndex = nodeIndexByID[leg.toNodeID],
+                  destinationIndex >= minimumDestinationIndex else {
+                continue
+            }
+            let source = nodes[sourceIndex]
+            let destination = nodes[destinationIndex]
+            guard destination.kind != .origin,
+                  destination.isRoutable,
+                  !destination.isAllDay else {
+                continue
+            }
+            return .ready(
+                LifeRouteItineraryNavigationLeg(
+                    leg: leg,
+                    source: source,
+                    destination: destination
+                )
+            )
+        }
+        return .noPhysicalDestination
     }
 
     func departureGuidance(at now: Date) -> LifeRouteDepartureGuidance? {

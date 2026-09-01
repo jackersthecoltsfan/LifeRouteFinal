@@ -4,6 +4,23 @@ import SwiftUI
 // v0.7.0 Build C compile hotfix: explicit shape fills and deployment-target-safe date strip.
 // selected-day, and routing behaviors stay owned by their existing native domains.
 struct V054ScheduleView: View {
+    private enum PresentedCalendarSheet: Identifiable {
+        case addAppointment
+        case editAppointment(LifeRouteCalendarEvent)
+        case providerDetails(LifeRouteCalendarEvent)
+
+        var id: String {
+            switch self {
+            case .addAppointment:
+                return "add-appointment"
+            case .editAppointment(let event):
+                return "edit-\(event.id)"
+            case .providerDetails(let event):
+                return "details-\(event.source.rawValue)-\(event.id)"
+            }
+        }
+    }
+
     @Environment(\.scenicRoyalThemeStyle) private var scenicStyle
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -14,7 +31,9 @@ struct V054ScheduleView: View {
     @State private var selectedRange: LifeRouteCalendarRange = .day
     @State private var showingDatePicker = false
     @State private var showingProviders = false
-    @State private var showingAddAppointment = false
+    @State private var presentedCalendarSheet: PresentedCalendarSheet?
+    @State private var eventPendingRowDeletion: LifeRouteCalendarEvent?
+    @State private var showingEditDeleteConfirmation = false
 
     @State private var title = ""
     @State private var eventDate = Date()
@@ -55,7 +74,33 @@ struct V054ScheduleView: View {
         .onChange(of: selectedRange) { _ in LifeRouteHaptics.selection() }
         .sheet(isPresented: $showingDatePicker) { datePickerSheet }
         .sheet(isPresented: $showingProviders) { providerSheet }
-        .sheet(isPresented: $showingAddAppointment) { appointmentSheet }
+        .sheet(item: $presentedCalendarSheet) { sheet in
+            switch sheet {
+            case .addAppointment, .editAppointment:
+                appointmentSheet(sheet)
+            case .providerDetails(let event):
+                providerEventDetailsSheet(event)
+            }
+        }
+        .confirmationDialog(
+            "Delete this appointment?",
+            isPresented: Binding(
+                get: { eventPendingRowDeletion != nil },
+                set: { if !$0 { eventPendingRowDeletion = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete appointment", role: .destructive) {
+                guard let event = eventPendingRowDeletion else { return }
+                deleteManualEvent(event)
+                eventPendingRowDeletion = nil
+            }
+            Button("Cancel", role: .cancel) {
+                eventPendingRowDeletion = nil
+            }
+        } message: {
+            Text("Only this LifeRoute appointment will be removed.")
+        }
     }
 
     private var presentation: LifeRouteCalendarRangePresentation {
@@ -338,9 +383,12 @@ struct V054ScheduleView: View {
             sourceLabel: sourceLabel(event.source),
             sourceIcon: sourceIcon(event.source),
             sourceAccent: sourceAccent(event.source),
+            onOpen: {
+                openEvent(event)
+            },
             onDelete: event.source == .manual ? {
                 LifeRouteHaptics.selection()
-                calendarState.removeEvent(id: event.id)
+                eventPendingRowDeletion = event
             } : nil
         )
     }
@@ -531,7 +579,7 @@ struct V054ScheduleView: View {
         }
     }
 
-    private var appointmentSheet: some View {
+    private func appointmentSheet(_ sheet: PresentedCalendarSheet) -> some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
@@ -552,11 +600,37 @@ struct V054ScheduleView: View {
                     V054AddressField("Appointment location", text: $location)
 
                     Button {
-                        saveAppointment()
+                        saveAppointment(for: sheet)
                     } label: {
-                        Label("Save appointment", systemImage: "checkmark.circle.fill")
+                        Label(
+                            isEditing(sheet) ? "Save changes" : "Save appointment",
+                            systemImage: "checkmark.circle.fill"
+                        )
                     }
                     .buttonStyle(ScenicRoyalPrimaryButtonStyle())
+
+                    if case .editAppointment(let event) = sheet {
+                        Button(role: .destructive) {
+                            LifeRouteHaptics.selection()
+                            showingEditDeleteConfirmation = true
+                        } label: {
+                            Label("Delete appointment", systemImage: "trash")
+                        }
+                        .buttonStyle(ScenicRoyalSecondaryButtonStyle())
+                        .confirmationDialog(
+                            "Delete \(event.title)?",
+                            isPresented: $showingEditDeleteConfirmation,
+                            titleVisibility: .visible
+                        ) {
+                            Button("Delete appointment", role: .destructive) {
+                                deleteManualEvent(event)
+                                presentedCalendarSheet = nil
+                            }
+                            Button("Cancel", role: .cancel) {}
+                        } message: {
+                            Text("Only this LifeRoute appointment will be removed.")
+                        }
+                    }
 
                     if let message {
                         Text(message)
@@ -566,11 +640,11 @@ struct V054ScheduleView: View {
                 }
                 .padding(16)
             }
-            .navigationTitle("Add Appointment")
+            .navigationTitle(isEditing(sheet) ? "Edit Appointment" : "Add Appointment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { showingAddAppointment = false }
+                    Button("Cancel") { presentedCalendarSheet = nil }
                 }
             }
         }
@@ -578,30 +652,117 @@ struct V054ScheduleView: View {
     }
 
     private func openAppointmentSheet() {
+        title = ""
         eventDate = calendarState.selectedDate
+        startTime = Date()
+        endTime = Date().addingTimeInterval(60 * 60)
+        location = ""
+        allDay = false
         message = nil
-        showingAddAppointment = true
+        presentedCalendarSheet = .addAppointment
         LifeRouteHaptics.primaryAction()
     }
 
-    private func saveAppointment() {
+    private func openEvent(_ event: LifeRouteCalendarEvent) {
+        LifeRouteHaptics.selection()
+        message = nil
+        guard event.source == .manual else {
+            presentedCalendarSheet = .providerDetails(event)
+            return
+        }
+        title = event.title
+        eventDate = event.start
+        startTime = event.start
+        endTime = event.end
+        location = event.location
+        allDay = event.isAllDay
+        presentedCalendarSheet = .editAppointment(event)
+    }
+
+    private func saveAppointment(for sheet: PresentedCalendarSheet) {
         do {
-            try calendarState.addManualEvent(
-                title: title,
-                date: eventDate,
-                startTime: startTime,
-                endTime: endTime,
-                location: location,
-                isAllDay: allDay
-            )
+            switch sheet {
+            case .addAppointment:
+                try calendarState.addManualEvent(
+                    title: title,
+                    date: eventDate,
+                    startTime: startTime,
+                    endTime: endTime,
+                    location: location,
+                    isAllDay: allDay
+                )
+            case .editAppointment(let event):
+                try calendarState.updateManualEvent(
+                    id: event.id,
+                    title: title,
+                    date: eventDate,
+                    startTime: startTime,
+                    endTime: endTime,
+                    location: location,
+                    isAllDay: allDay
+                )
+            case .providerDetails:
+                return
+            }
             title = ""
             location = ""
-            message = "Appointment saved."
-            showingAddAppointment = false
+            message = nil
+            presentedCalendarSheet = nil
             LifeRouteHaptics.success()
         } catch {
             message = error.localizedDescription
         }
+    }
+
+    private func deleteManualEvent(_ event: LifeRouteCalendarEvent) {
+        guard calendarState.removeEvent(id: event.id) else { return }
+        LifeRouteHaptics.success()
+    }
+
+    private func isEditing(_ sheet: PresentedCalendarSheet) -> Bool {
+        if case .editAppointment = sheet { return true }
+        return false
+    }
+
+    private func providerEventDetailsSheet(_ event: LifeRouteCalendarEvent) -> some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                    Text(event.title)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(scenicStyle.primaryText)
+
+                    Label(eventTimeDescription(event), systemImage: "clock")
+                    if !event.location.isEmpty {
+                        Label(event.location, systemImage: "mappin.and.ellipse")
+                    }
+                    Label(sourceLabel(event.source), systemImage: sourceIcon(event.source))
+
+                    Text("This appointment is managed by its calendar source and is read-only in LifeRoute.")
+                        .font(.subheadline)
+                        .foregroundStyle(scenicStyle.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .scenicRoyalCard(role: .readability)
+                .padding(16)
+            }
+            .navigationTitle("Appointment Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { presentedCalendarSheet = nil }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func eventTimeDescription(_ event: LifeRouteCalendarEvent) -> String {
+        if event.isAllDay {
+            return "All day · \(event.start.formatted(date: .abbreviated, time: .omitted))"
+        }
+        return "\(event.start.formatted(date: .abbreviated, time: .shortened))–\(event.end.formatted(date: .omitted, time: .shortened))"
     }
 
     private func sourceAccent(_ source: LifeRouteCalendarSource) -> Color {

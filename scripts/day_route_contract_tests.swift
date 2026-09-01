@@ -103,13 +103,14 @@ struct DayRouteContractTests {
         testReturnHomeAndStopOnlyContracts()
         testUnsafeRouteBoundariesRemainVisible()
         testVirtualLocationRoutingContracts()
+        testGeneratedDayNavigationContracts()
         testRouteOriginAndGenerationContracts()
         testStableIdentityAndOrdering()
         testFullRouteHandoffs()
 
         precondition(
-            assertionCount >= 163,
-            "Day Route regression floor requires at least 163 assertions; found \(assertionCount)."
+            assertionCount >= 177,
+            "Day Route regression floor requires at least 177 assertions; found \(assertionCount)."
         )
         print("Day route executable contract fixtures passed (\(assertionCount) assertions).")
     }
@@ -779,6 +780,131 @@ struct DayRouteContractTests {
         )
         expect(withAllDay.timeline.contains { $0.node?.id == allDay.id }, "an all-day locationless item remains visible")
         expect(withAllDay.usableGaps.count == 2, "an all-day locationless item never becomes a timed gap anchor")
+    }
+
+    private static func testGeneratedDayNavigationContracts() {
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let day = date("2026-09-01T00:00:00Z")
+        let origin = LifeRouteItineraryNode(
+            id: "origin:current",
+            kind: .origin,
+            title: "Current Location",
+            address: "Current Location"
+        )
+        let first = LifeRouteItineraryNode(
+            id: "event:first",
+            kind: .appointment,
+            title: "First physical appointment",
+            address: "1 First Street",
+            start: date("2026-09-01T09:00:00Z"),
+            end: date("2026-09-01T10:00:00Z")
+        )
+        let virtual = LifeRouteItineraryNode(
+            id: "event:teams",
+            kind: .appointment,
+            title: "Teams appointment",
+            address: "Home — Microsoft Teams Meeting",
+            start: date("2026-09-01T11:00:00Z"),
+            end: date("2026-09-01T12:00:00Z"),
+            isRoutable: false
+        )
+        let final = LifeRouteItineraryNode(
+            id: "event:final",
+            kind: .appointment,
+            title: "Final physical appointment",
+            address: "3 Final Street",
+            start: date("2026-09-01T13:00:00Z"),
+            end: date("2026-09-01T14:00:00Z")
+        )
+        let allDay = LifeRouteItineraryNode(
+            id: "event:all-day",
+            kind: .appointment,
+            title: "All-day context",
+            address: "4 Context Street",
+            start: day,
+            end: day.addingTimeInterval(86_400),
+            isAllDay: true,
+            isRoutable: false
+        )
+        let itinerary = LifeRouteGeneratedItinerary(
+            id: "day:navigation",
+            selectedDay: day,
+            generatedAt: date("2026-09-01T08:00:00Z"),
+            returnHome: false,
+            routeBuffer: .tenMinutes,
+            inputFingerprint: "current-input",
+            nodes: [origin, allDay, first, virtual, final],
+            legs: [
+                .init(id: "leg:origin-first", sequence: 1, fromNodeID: origin.id, toNodeID: first.id, rawTravelSeconds: 20 * 60, rawDistanceMeters: 8_000),
+                .init(id: "leg:first-final", sequence: 2, fromNodeID: first.id, toNodeID: final.id, rawTravelSeconds: 30 * 60, rawDistanceMeters: 14_000),
+            ]
+        )
+
+        let futureDecision = itinerary.startRouteDecision(
+            selectedDay: day,
+            itineraryIsCurrent: true,
+            now: date("2026-08-31T20:00:00Z"),
+            calendar: utcCalendar
+        )
+        expect(futureDecision.destination?.id == first.id, "a future generated day starts with its first physical destination")
+        expect(futureDecision.leg?.id == "leg:origin-first", "future navigation consumes the first canonical route leg")
+
+        let todayDecision = itinerary.startRouteDecision(
+            selectedDay: day,
+            itineraryIsCurrent: true,
+            now: date("2026-09-01T10:30:00Z"),
+            calendar: utcCalendar
+        )
+        expect(todayDecision.destination?.id == final.id, "today navigation selects the next remaining physical destination")
+        expect(todayDecision.destination?.address == "3 Final Street", "today navigation hands off the canonical physical address")
+        expect(todayDecision.leg?.id == "leg:first-final", "today navigation preserves canonical leg ordering")
+        expect(todayDecision.destination?.id != virtual.id, "a virtual event is never selected as a Maps destination")
+        expect(itinerary.nodes.contains { $0.address == "Home — Microsoft Teams Meeting" }, "Home — Microsoft Teams Meeting remains chronological itinerary evidence")
+
+        let staleDecision = itinerary.startRouteDecision(
+            selectedDay: day,
+            itineraryIsCurrent: false,
+            now: date("2026-09-01T10:30:00Z"),
+            calendar: utcCalendar
+        )
+        expect(staleDecision == .stale, "a stale generated itinerary is rejected before Maps launch")
+
+        let wrongDayDecision = itinerary.startRouteDecision(
+            selectedDay: date("2026-09-02T00:00:00Z"),
+            itineraryIsCurrent: true,
+            now: date("2026-09-01T10:30:00Z"),
+            calendar: utcCalendar
+        )
+        expect(wrongDayDecision == .wrongDay, "an itinerary for another selected day is rejected")
+
+        let virtualOnly = LifeRouteGeneratedItinerary(
+            id: "day:virtual-only",
+            selectedDay: day,
+            generatedAt: itinerary.generatedAt,
+            returnHome: false,
+            routeBuffer: .tenMinutes,
+            inputFingerprint: "virtual-only",
+            nodes: [origin, allDay, virtual],
+            legs: []
+        )
+        expect(
+            virtualOnly.startRouteDecision(
+                selectedDay: day,
+                itineraryIsCurrent: true,
+                now: date("2026-09-01T08:00:00Z"),
+                calendar: utcCalendar
+            ) == .noPhysicalDestination,
+            "a generated day without a physical leg reports no actionable destination"
+        )
+
+        var launchGate = LifeRouteMapsLaunchGate()
+        let firstToken = launchGate.begin()
+        expect(firstToken != nil && launchGate.isLaunching, "the first Maps launch acquires the in-flight gate")
+        expect(launchGate.begin() == nil, "a repeated tap cannot start an overlapping Maps launch")
+        launchGate.finish(firstToken!)
+        expect(!launchGate.isLaunching, "the Maps launch gate clears after completion or failure")
+        expect(launchGate.begin() != nil, "a later Maps launch can begin after the prior launch finishes")
     }
 
     private static func testRouteOriginAndGenerationContracts() {

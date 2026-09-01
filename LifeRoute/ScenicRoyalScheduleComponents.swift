@@ -117,6 +117,7 @@ struct ScenicRoyalScheduleEventRow: View {
     let sourceLabel: String
     let sourceIcon: String
     let sourceAccent: Color
+    let onOpen: () -> Void
     let onDelete: (() -> Void)?
 
     var body: some View {
@@ -137,14 +138,22 @@ struct ScenicRoyalScheduleEventRow: View {
 
     private var compactLayout: some View {
         HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-            timeBlock
-                .frame(width: 68, alignment: .leading)
+            Button(action: onOpen) {
+                HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                    timeBlock
+                        .frame(width: 68, alignment: .leading)
 
-            sourceAccent
-                .frame(width: 3)
-                .clipShape(Capsule())
+                    sourceAccent
+                        .frame(width: 3)
+                        .clipShape(Capsule())
 
-            eventDetails
+                    eventDetails
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(openHint)
+
             deleteButton
         }
     }
@@ -152,17 +161,29 @@ struct ScenicRoyalScheduleEventRow: View {
     private var accessibilityLayout: some View {
         VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
             HStack(alignment: .firstTextBaseline) {
-                timeBlock
+                Button(action: onOpen) {
+                    timeBlock
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(openHint)
+
                 Spacer(minLength: ScenicRoyalDesignSystem.Spacing.compact)
                 deleteButton
             }
 
-            Rectangle()
-                .fill(sourceAccent)
-                .frame(height: 3)
-                .clipShape(Capsule())
+            Button(action: onOpen) {
+                VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                    Rectangle()
+                        .fill(sourceAccent)
+                        .frame(height: 3)
+                        .clipShape(Capsule())
 
-            eventDetails
+                    eventDetails
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(openHint)
         }
     }
 
@@ -230,6 +251,12 @@ struct ScenicRoyalScheduleEventRow: View {
             return sourceLabel
         }
         return "\(sourceLabel), \(event.calendarTitle)"
+    }
+
+    private var openHint: String {
+        event.source == .manual
+            ? "Opens this LifeRoute appointment for editing"
+            : "Shows read-only details for this source-managed appointment"
     }
 }
 

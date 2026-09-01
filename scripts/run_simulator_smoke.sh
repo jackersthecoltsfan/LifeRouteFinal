@@ -10,6 +10,7 @@ mkdir -p "$OUTPUT_DIRECTORY"
 
 bash "$(cd "$(dirname "$0")" && pwd)/run_session_note_contract_tests.sh"
 bash "$(cd "$(dirname "$0")" && pwd)/run_day_route_contract_tests.sh"
+bash "$(cd "$(dirname "$0")" && pwd)/run_calendar_edit_contract_tests.sh"
 bash "$(cd "$(dirname "$0")" && pwd)/run_visual_timer_feedback_contract_tests.sh"
 bash "$(cd "$(dirname "$0")" && pwd)/run_runtime_feedback_contract_tests.sh"
 bash "$(cd "$(dirname "$0")" && pwd)/run_scenery_effect_contract_tests.sh"

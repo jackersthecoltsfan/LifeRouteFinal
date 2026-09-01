@@ -139,6 +139,7 @@ def validate_active_build_path() -> None:
     require("validate_current.py full" in full, "validate_full must invoke the current full semantic validator")
     require("run_session_note_contract_tests.sh" in full, "validate_full must run executable Session Note contracts")
     require("run_day_route_contract_tests.sh" in full, "validate_full must run executable Day Route contracts")
+    require("run_calendar_edit_contract_tests.sh" in full, "validate_full must run executable Calendar Edit contracts")
     require("run_visual_timer_feedback_contract_tests.sh" in full, "validate_full must run executable Visual Timer feedback contracts")
     require("run_runtime_feedback_contract_tests.sh" in full, "validate_full must run executable runtime feedback contracts")
     require("run_scenery_effect_contract_tests.sh" in full, "validate_full must run executable scenery-effect contracts")
@@ -147,6 +148,8 @@ def validate_active_build_path() -> None:
     simulator_smoke = read(ROOT / "scripts" / "run_simulator_smoke.sh")
     day_route_fixture_runner = read(ROOT / "scripts" / "run_day_route_contract_tests.sh")
     day_route_fixture_source = read(ROOT / "scripts" / "day_route_contract_tests.swift")
+    calendar_edit_fixture_runner = read(ROOT / "scripts" / "run_calendar_edit_contract_tests.sh")
+    calendar_edit_fixture_source = read(ROOT / "scripts" / "calendar_edit_contract_tests.swift")
     timer_fixture_runner = read(ROOT / "scripts" / "run_visual_timer_feedback_contract_tests.sh")
     timer_fixture_source = read(ROOT / "scripts" / "visual_timer_feedback_contract_tests.swift")
     runtime_fixture_runner = read(ROOT / "scripts" / "run_runtime_feedback_contract_tests.sh")
@@ -189,6 +192,7 @@ def validate_active_build_path() -> None:
     )
     require("run_session_note_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Session Note contracts")
     require("run_day_route_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Day Route contracts")
+    require("run_calendar_edit_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Calendar Edit contracts")
     require("run_visual_timer_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Visual Timer feedback contracts")
     require("run_runtime_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute runtime feedback contracts")
     require("run_scenery_effect_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute scenery-effect contracts")
@@ -209,6 +213,22 @@ def validate_active_build_path() -> None:
         "Build 120 simulator visual matrix",
     )
     require_all(day_route_fixture_runner, ["run_swift_contract_test.sh", "DayRouteContracts.swift", "DayItineraryContracts.swift", "LiveDayRunContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
+    require_all(calendar_edit_fixture_runner, ["run_swift_contract_test.sh", "CalendarDomain.swift", "calendar_edit_contract_tests.swift"], "Calendar Edit fixture runner")
+    require_all(
+        calendar_edit_fixture_source,
+        [
+            "manual update preserves identity",
+            "updated manual event restores from persistence",
+            "old day index drops a moved event",
+            "all-day update uses the complete selected-day interval",
+            "empty-title update is rejected",
+            "invalid timed update is rejected",
+            "provider-event update is explicitly rejected",
+            "manual deletion removes only the selected event",
+            "Calendar Edit regression floor requires at least 29 assertions",
+        ],
+        "Calendar Edit executable fixtures",
+    )
     require_all(
         day_route_fixture_source,
         [
@@ -230,7 +250,11 @@ def validate_active_build_path() -> None:
             "a canonical generated itinerary starts an in-app Live Day",
             "ActivityKit projection remains independently unavailable without a timed departure",
             "ActivityKit denial has deterministic visible handling",
-            "Day Route regression floor requires at least 163 assertions",
+            "a stale generated itinerary is rejected before Maps launch",
+            "a virtual event is never selected as a Maps destination",
+            "Home — Microsoft Teams Meeting remains chronological itinerary evidence",
+            "a repeated tap cannot start an overlapping Maps launch",
+            "Day Route regression floor requires at least 177 assertions",
         ],
         "Day Route executable fixtures",
     )
@@ -1073,7 +1097,7 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
     today = sources["V054TodayView.swift"]
     persistence = sources["PersistenceCore.swift"]
     migration = sources["LegacyMigrationCore.swift"]
-    require_all(calendar, ["case day", "case week", "case month", "loadManualCalendarEvents", "addManualEvent", "removeEvent", "persistManualEvents"], "calendar range/manual appointment behavior")
+    require_all(calendar, ["case day", "case week", "case month", "loadManualCalendarEvents", "addManualEvent", "updateManualEvent", "providerEventReadOnly", "removeEvent", "persistManualEvents"], "calendar range/manual appointment behavior")
     require_all(providers, ["EKEventStore", "https://www.googleapis.com/auth/calendar.readonly", "ASWebAuthenticationSession", "kSecClassGenericPassword"], "Apple/Google read-only calendar providers")
     require_all(
         schedule,
@@ -1087,6 +1111,9 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
             "ScenicRoyalGlassEffectContainer",
             "calendarState.presentation(for: selectedRange)",
             "calendarState.addManualEvent",
+            "calendarState.updateManualEvent",
+            "providerEventDetailsSheet",
+            "Delete appointment",
             "calendarState.replaceProviderEvents",
         ],
         "Scenic Royal Schedule presentation and existing state ownership",
@@ -1112,6 +1139,8 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
             "evaluateGapFillers",
             "inputFingerprint",
             "startFullRoute",
+            "startRoute(",
+            "isLaunchingNavigation",
             "continueFullRoute",
             "nextSequentialLegIndex",
             "returnHome",
@@ -1139,6 +1168,8 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
             "LifeRouteGapFitResult",
             "totalRawTravelSeconds",
             "departureGuidance",
+            "startRouteDecision",
+            "LifeRouteMapsLaunchGate",
             "LifeRouteLiveDayProjection",
         ],
         "canonical itinerary, usable-gap, Route Buffer, and Live Day projection contracts",
@@ -1157,6 +1188,8 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
             "planState.evaluateGapFillers",
             "LifeRouteLiveDayProjection.make(from: itinerary",
             "liveActivity.start(itinerary: itinerary)",
+            "Start Route:",
+            "planState.startRoute(",
         ],
         "Today, Gap Fillers, total driving, and Live Day share the generated itinerary",
     )

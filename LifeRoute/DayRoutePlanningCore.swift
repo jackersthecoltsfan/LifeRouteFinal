@@ -76,6 +76,7 @@ final class DayRoutePlanningCore: ObservableObject {
     @Published private(set) var fullRoutePlan: LifeRouteFullRouteHandoffPlan?
     @Published private(set) var nextSequentialLegIndex: Int?
     @Published private(set) var hasStartedSequentialHandoff = false
+    @Published private(set) var isLaunchingNavigation = false
     @Published private(set) var gapRecommendationsByGapID: [String: [LifeRouteGapFillerRecommendation]] = [:]
     @Published private(set) var gapEvaluationInFlight: Set<String> = []
     @Published var routeMode: LifeRouteTransportMode = .driving
@@ -85,6 +86,7 @@ final class DayRoutePlanningCore: ObservableObject {
     private var calculationToken: LifeRouteRouteGenerationToken?
     private var gapEvaluationTasks: [String: Task<Void, Never>] = [:]
     private var gapEvaluationIDs: [String: UUID] = [:]
+    private var mapsLaunchGate = LifeRouteMapsLaunchGate()
 
     func calculate(
         selectedDay: Date,
@@ -366,6 +368,7 @@ final class DayRoutePlanningCore: ObservableObject {
     }
 
     func startFullRoute(mode: LifeRouteTransportMode) {
+        guard !isLaunchingNavigation else { return }
         guard let plan = makeFullRoutePlan(mode: mode) else { return }
         fullRoutePlan = plan
         nextSequentialLegIndex = nil
@@ -386,7 +389,48 @@ final class DayRoutePlanningCore: ObservableObject {
         }
     }
 
+    func startRoute(
+        _ navigationLeg: LifeRouteItineraryNavigationLeg,
+        itinerary: LifeRouteGeneratedItinerary,
+        mode: LifeRouteTransportMode
+    ) {
+        guard let generatedItinerary,
+              generatedItinerary.id == itinerary.id,
+              generatedItinerary.inputFingerprint == itinerary.inputFingerprint,
+              itinerary.legs.contains(navigationLeg.leg),
+              itinerary.nodes.contains(navigationLeg.source),
+              itinerary.nodes.contains(navigationLeg.destination),
+              navigationLeg.destination.isRoutable,
+              !navigationLeg.destination.isAllDay else {
+            message = "Appointments, stops, location, or route settings changed. Regenerate before starting navigation."
+            return
+        }
+
+        let provider = LifeRouteNavigationApp.preferred
+        let leg = LifeRouteFullRouteLegDescriptor(
+            sequence: navigationLeg.leg.sequence,
+            fromTitle: navigationLeg.source.title,
+            fromAddress: providerAddress(navigationLeg.source.address),
+            toTitle: navigationLeg.destination.title,
+            toAddress: providerAddress(navigationLeg.destination.address)
+        )
+        let completion: (Bool) -> Void = { [weak self] opened in
+            guard opened else { return }
+            self?.message = "Navigation to \(navigationLeg.destination.title) sent to \(provider.title)."
+        }
+
+        switch provider {
+        case .appleMaps:
+            openAppleMaps(leg, mode: mode, completion: completion)
+        case .googleMaps:
+            openURL(googleMapsURL(for: leg, mode: mode), app: provider, completion: completion)
+        case .waze:
+            openURL(wazeURL(for: leg), app: provider, completion: completion)
+        }
+    }
+
     func continueFullRoute(mode: LifeRouteTransportMode) {
+        guard !isLaunchingNavigation else { return }
         guard let plan = fullRoutePlan,
               plan.requiresSequentialContinuation,
               let nextSequentialLegIndex else { return }
@@ -425,6 +469,7 @@ final class DayRoutePlanningCore: ObservableObject {
         mode: LifeRouteTransportMode,
         completion: @escaping (Bool) -> Void
     ) {
+        guard let launchToken = beginMapsLaunch() else { return }
         Task {
             do {
                 let source: MKMapItem
@@ -436,13 +481,18 @@ final class DayRoutePlanningCore: ObservableObject {
                 let destination = try await Self.mapItem(for: leg.toAddress, fallbackName: leg.toTitle)
                 source.name = leg.fromTitle
                 destination.name = leg.toTitle
-                MKMapItem.openMaps(
+                let opened = MKMapItem.openMaps(
                     with: [source, destination],
                     launchOptions: [MKLaunchOptionsDirectionsModeKey: mode.mapsLaunchMode]
                 )
-                completion(true)
+                if !opened {
+                    message = DayRoutePlanningError.navigationUnavailable(LifeRouteNavigationApp.appleMaps.title).localizedDescription
+                }
+                finishMapsLaunch(launchToken)
+                completion(opened)
             } catch {
                 message = error.localizedDescription
+                finishMapsLaunch(launchToken)
                 completion(false)
             }
         }
@@ -458,14 +508,27 @@ final class DayRoutePlanningCore: ObservableObject {
             completion(false)
             return
         }
+        guard let launchToken = beginMapsLaunch() else { return }
         UIApplication.shared.open(url, options: [:]) { [weak self] opened in
             Task { @MainActor in
                 if !opened {
                     self?.message = DayRoutePlanningError.navigationUnavailable(app.title).localizedDescription
                 }
+                self?.finishMapsLaunch(launchToken)
                 completion(opened)
             }
         }
+    }
+
+    private func beginMapsLaunch() -> UUID? {
+        guard let token = mapsLaunchGate.begin() else { return nil }
+        isLaunchingNavigation = true
+        return token
+    }
+
+    private func finishMapsLaunch(_ token: UUID) {
+        mapsLaunchGate.finish(token)
+        isLaunchingNavigation = mapsLaunchGate.isLaunching
     }
 
     private func googleMapsURL(

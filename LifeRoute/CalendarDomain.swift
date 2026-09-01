@@ -69,9 +69,11 @@ struct LifeRouteCalendarRangePresentation: Hashable {
     var timedMinutes: Int { visibleEvents.reduce(0) { $0 + $1.durationMinutes } }
 }
 
-enum CalendarCoreError: LocalizedError {
+enum CalendarCoreError: LocalizedError, Equatable {
     case missingTitle
     case invalidTimeRange
+    case eventNotFound
+    case providerEventReadOnly
 
     var errorDescription: String? {
         switch self {
@@ -79,6 +81,10 @@ enum CalendarCoreError: LocalizedError {
             return "Enter an appointment title."
         case .invalidTimeRange:
             return "The end time must be after the start time."
+        case .eventNotFound:
+            return "This LifeRoute appointment is no longer available."
+        case .providerEventReadOnly:
+            return "This appointment is managed by its calendar provider and is read-only in LifeRoute."
         }
     }
 }
@@ -149,6 +155,56 @@ final class CalendarCoreState: ObservableObject {
         persistManualEvents()
     }
 
+    @discardableResult
+    func updateManualEvent(
+        id: LifeRouteCalendarEvent.ID,
+        title: String,
+        date: Date,
+        startTime: Date,
+        endTime: Date,
+        location: String,
+        isAllDay: Bool
+    ) throws -> LifeRouteCalendarEvent {
+        guard let eventIndex = events.firstIndex(where: { $0.id == id && $0.source == .manual }) else {
+            if events.contains(where: { $0.id == id && $0.source != .manual }) {
+                throw CalendarCoreError.providerEventReadOnly
+            }
+            throw CalendarCoreError.eventNotFound
+        }
+
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTitle.isEmpty else { throw CalendarCoreError.missingTitle }
+
+        let start: Date
+        let end: Date
+        if isAllDay {
+            start = calendar.startOfDay(for: date)
+            end = calendar.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86_400)
+        } else {
+            start = combine(date: date, time: startTime)
+            end = combine(date: date, time: endTime)
+            guard end > start else { throw CalendarCoreError.invalidTimeRange }
+        }
+
+        let existing = events[eventIndex]
+        let updated = LifeRouteCalendarEvent(
+            id: existing.id,
+            title: cleanTitle,
+            start: start,
+            end: end,
+            location: location,
+            calendarTitle: existing.calendarTitle,
+            isAllDay: isAllDay,
+            source: .manual
+        )
+        events[eventIndex] = updated
+        events.sort(by: Self.eventSort)
+        rebuildEventIndexes()
+        selectedDate = date
+        persistManualEvents()
+        return updated
+    }
+
     func replaceProviderEvents(_ incoming: [LifeRouteCalendarEvent], source: LifeRouteCalendarSource) {
         guard source != .manual else { return }
         let nextEvents = (
@@ -174,13 +230,16 @@ final class CalendarCoreState: ObservableObject {
         eventCountsBySource[source, default: 0]
     }
 
-    func removeEvent(id: LifeRouteCalendarEvent.ID) {
+    @discardableResult
+    func removeEvent(id: LifeRouteCalendarEvent.ID) -> Bool {
         let previousCount = events.count
         events.removeAll { $0.id == id && $0.source == .manual }
         if events.count != previousCount {
             rebuildEventIndexes()
             persistManualEvents()
+            return true
         }
+        return false
     }
 
     func events(on date: Date) -> [LifeRouteCalendarEvent] {

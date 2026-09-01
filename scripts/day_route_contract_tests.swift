@@ -538,6 +538,27 @@ struct DayRouteContractTests {
         )
         expect(
             !LifeRouteRouteLocationClassifier.isRoutable(
+                address: "Home — Microsoft Teams Meeting",
+                isAllDay: false
+            ),
+            "the exact physical-QA composite Teams location is not sent to MapKit"
+        )
+        expect(
+            !LifeRouteRouteLocationClassifier.isRoutable(
+                address: "Virtual — Zoom Meeting",
+                isAllDay: false
+            ),
+            "a generic virtual context plus a provider-only meeting label is temporal only"
+        )
+        expect(
+            !LifeRouteRouteLocationClassifier.isRoutable(
+                address: "",
+                isAllDay: false
+            ),
+            "an empty timed-event location remains temporal only"
+        )
+        expect(
+            !LifeRouteRouteLocationClassifier.isRoutable(
                 address: "https://teams.microsoft.com/l/meetup-join/example",
                 isAllDay: false
             ),
@@ -558,6 +579,13 @@ struct DayRouteContractTests {
             "a real street containing provider words remains routable"
         )
         expect(
+            LifeRouteRouteLocationClassifier.isRoutable(
+                address: "123 Main Street — Microsoft Teams Meeting",
+                isAllDay: false
+            ),
+            "a composite string retaining a genuine street address remains routable"
+        )
+        expect(
             !LifeRouteRouteLocationClassifier.isRoutable(
                 address: "4 Context Street",
                 isAllDay: true
@@ -575,7 +603,7 @@ struct DayRouteContractTests {
         let virtualAppointment = LifeRouteRouteAppointment(
             id: "virtual",
             title: "Interview",
-            address: "Microsoft Teams Meeting",
+            address: "Home — Microsoft Teams Meeting",
             start: date("2026-09-01T11:00:00Z"),
             end: date("2026-09-01T12:00:00Z")
         )
@@ -599,7 +627,7 @@ struct DayRouteContractTests {
             sequence.map(\.id) == ["event:physical-first", "event:virtual", "event:physical-final"],
             "mixed physical and virtual appointments retain chronological order"
         )
-        expect(sequence[1].address == "Microsoft Teams Meeting", "virtual provider text remains visible in the timeline")
+        expect(sequence[1].address == "Home — Microsoft Teams Meeting", "the exact composite provider text remains visible in the timeline")
 
         let origin = LifeRouteItineraryNode(
             id: "origin:current",

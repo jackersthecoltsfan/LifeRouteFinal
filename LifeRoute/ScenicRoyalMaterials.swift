@@ -74,17 +74,26 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
             if let ordinaryGlassRole = role.ordinaryGlassRole {
                 decorated(
                     content.background {
-                        surfaceShape
-                            .fill(Color.clear)
-                            .glassEffect(
-                                nativeGlass,
-                                in: .rect(cornerRadius: cornerRadius)
-                            )
-                            .opacity(
-                                LifeRouteOrdinaryGlassPolicy.layerOpacity(
-                                    for: ordinaryGlassRole
+                        ZStack {
+                            surfaceShape.fill(
+                                style.readabilityBase.opacity(
+                                    LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(
+                                        for: ordinaryGlassRole,
+                                        isBrightEnvironment: style.isBrightEnvironment
+                                    )
                                 )
                             )
+                            surfaceShape.fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(LifeRouteOrdinaryGlassPolicy.highlightOpacity),
+                                        Color.white.opacity(0),
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        }
                     },
                     opaque: false
                 )
@@ -92,7 +101,7 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
                 decorated(
                     content
                         .glassEffect(
-                            nativeGlass,
+                            emphasizedNativeGlass,
                             in: .rect(cornerRadius: cornerRadius)
                         ),
                     opaque: false
@@ -136,26 +145,8 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
     }
 
     @available(iOS 26.0, *)
-    private var nativeGlass: Glass {
-        let base: Glass
-        switch role {
-        case .ambient, .card, .readability, .toolbar:
-            base = .clear
-        case .selectedControl, .legibilityControl:
-            base = .regular
-        }
-
-        // Ordinary content surfaces rely on untinted native Clear glass so
-        // scenery remains visible instead of reading as a dark rectangle.
-        // Regular glass and theme tint are reserved for controls whose
-        // selection or legibility needs explicit emphasis.
-        let styled: Glass
-        switch role {
-        case .selectedControl, .legibilityControl:
-            styled = base.tint(style.glassTint.opacity(glassTintOpacity))
-        case .ambient, .card, .readability, .toolbar:
-            styled = base
-        }
+    private var emphasizedNativeGlass: Glass {
+        let styled = Glass.regular.tint(style.glassTint.opacity(glassTintOpacity))
         return interactive ? styled.interactive() : styled
     }
 

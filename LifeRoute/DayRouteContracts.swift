@@ -176,6 +176,21 @@ enum LifeRouteRouteLocationClassifier {
         "zoomgov.com/",
     ]
 
+    /// Calendar providers commonly combine a non-address context with their
+    /// own meeting label (for example, "Home — Microsoft Teams Meeting").
+    /// These values add no physical routing information. Keep this list narrow
+    /// so named venues and real street addresses remain routable.
+    private static let nonAddressCompositeLabels: Set<String> = [
+        "home",
+        "online",
+        "remote",
+        "telephone",
+        "video",
+        "virtual",
+        "web",
+        "work from home",
+    ]
+
     static func isRoutable(address: String, isAllDay: Bool) -> Bool {
         guard !isAllDay else { return false }
         let clean = address.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -187,6 +202,24 @@ enum LifeRouteRouteLocationClassifier {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !virtualOnlyLabels.contains(normalized) else { return false }
         guard !virtualURLMarkers.contains(where: normalized.contains) else { return false }
+
+        let compositeParts = normalized
+            .replacingOccurrences(
+                of: "\\s+(?:-|–|—|\\||•|;)\\s+|:\\s+",
+                with: "\n",
+                options: .regularExpression
+            )
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let hasVirtualProviderPart = compositeParts.contains(where: virtualOnlyLabels.contains)
+        if hasVirtualProviderPart {
+            let remainingParts = compositeParts.filter { !virtualOnlyLabels.contains($0) }
+            if remainingParts.isEmpty
+                || remainingParts.allSatisfy(nonAddressCompositeLabels.contains) {
+                return false
+            }
+        }
         return true
     }
 }

@@ -46,16 +46,36 @@ enum LifeRouteOrdinaryGlassRole: CaseIterable, Hashable, Sendable {
     case toolbar
 }
 
-/// Ordinary content glass keeps native depth while allowing the persistent
-/// scenery to remain plainly visible. Emphasized controls intentionally stay
-/// outside this policy and retain full-strength Regular glass.
+/// Large ordinary surfaces are intentionally not native adaptive glass. They
+/// frequently contain more ordinary rows and sit inside GlassEffectContainer;
+/// making every level native glass compounds blur and adaptive darkening on a
+/// physical display. Emphasized controls stay outside this policy and retain
+/// native Regular glass where its depth communicates interaction or selection.
 enum LifeRouteOrdinaryGlassPolicy {
-    static func layerOpacity(for role: LifeRouteOrdinaryGlassRole) -> Double {
+    static let highlightOpacity = 0.028
+
+    static func usesNativeAdaptiveGlass(for role: LifeRouteOrdinaryGlassRole) -> Bool {
+        false
+    }
+
+    static func surfaceFillOpacity(
+        for role: LifeRouteOrdinaryGlassRole,
+        isBrightEnvironment: Bool
+    ) -> Double {
+        let base: Double
         switch role {
-        case .ambient: return 0.34
-        case .card: return 0.40
-        case .readability: return 0.46
-        case .toolbar: return 0.42
+        case .ambient: base = 0.025
+        case .card: base = 0.040
+        case .readability: base = 0.075
+        case .toolbar: base = 0.055
+        }
+
+        guard isBrightEnvironment else { return base }
+        switch role {
+        case .ambient: return base + 0.015
+        case .card: return base + 0.020
+        case .readability: return base + 0.030
+        case .toolbar: return base + 0.025
         }
     }
 }

@@ -168,21 +168,26 @@ enum VisualTimerFeedbackCurve {
     }
 }
 
-/// A longer, peak-normalized completion cue raises useful speaker energy while
-/// keeping every generated sample finite and below digital full scale. The
-/// selected tone still owns the three fundamental completion pitches, with
-/// related upper-mid partials that reproduce more effectively on phone speakers.
+/// A sustained, softly limited completion cue raises useful average output
+/// without unbounded gain or digital clipping. The selected tone still owns
+/// the fundamental completion pitches and their related upper-mid partials.
 enum VisualTimerCompletionCue {
-    static let duration: TimeInterval = 1.20
-    static let noteOffsets: [TimeInterval] = [0.00, 0.40, 0.80]
-    static let noteDuration: TimeInterval = 0.38
-    static let attackDuration: TimeInterval = 0.006
-    static let releaseStart: TimeInterval = 0.29
-    static let decayRate = 0.70
+    static let duration: TimeInterval = 2.10
+    static let noteOffsets: [TimeInterval] = [0.00, 0.42, 0.84, 1.26, 1.68]
+    static let notePitchIndices = [0, 1, 2, 1, 2]
+    static let noteDuration: TimeInterval = 0.40
+    static let attackDuration: TimeInterval = 0.004
+    static let releaseStart: TimeInterval = 0.32
+    static let decayRate = 0.28
+    static let softLimiterDrive = 1.40
     static let presenceSecondHarmonicMix = 0.12
     static let presenceThirdHarmonicMix = 0.12
     static let presenceFourthHarmonicMix = 0.12
     static let playbackTail: TimeInterval = 0.15
+
+    static func noteFrequencies(for profile: VisualTimerToneProfile) -> [Double] {
+        notePitchIndices.map { profile.completionFrequencies[$0] }
+    }
 
     static func samples(
         for profile: VisualTimerToneProfile,
@@ -202,7 +207,7 @@ enum VisualTimerCompletionCue {
             let time = Double(frame) / sampleRate
             var value = 0.0
 
-            for (offset, frequency) in zip(noteOffsets, profile.completionFrequencies) {
+            for (offset, frequency) in zip(noteOffsets, noteFrequencies(for: profile)) {
                 let localTime = time - offset
                 guard localTime >= 0, localTime <= noteDuration else { continue }
 
@@ -232,7 +237,15 @@ enum VisualTimerCompletionCue {
 
         guard rawPeak.isFinite, rawPeak > 0 else { return [] }
         let normalizationGain = VisualTimerFeedbackCurve.maximumSynthesisSample / rawPeak
-        return rawSamples.map { Float($0 * normalizationGain) }
+        let limit = VisualTimerFeedbackCurve.maximumSynthesisSample
+        let limiterScale = tanh(softLimiterDrive)
+        return rawSamples.map { rawSample in
+            let normalizedSample = rawSample * normalizationGain
+            let limitedSample = limit
+                * tanh(softLimiterDrive * normalizedSample / limit)
+                / limiterScale
+            return Float(limitedSample)
+        }
     }
 }
 

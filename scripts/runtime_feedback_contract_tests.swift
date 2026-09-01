@@ -88,23 +88,54 @@ struct RuntimeFeedbackContractTests {
 
     private static func testOrdinaryGlassTransparencyPolicy() {
         let roles = LifeRouteOrdinaryGlassRole.allCases
-        let opacities = roles.map(LifeRouteOrdinaryGlassPolicy.layerOpacity)
+        let darkSceneOpacities = roles.map {
+            LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(
+                for: $0,
+                isBrightEnvironment: false
+            )
+        }
+        let brightSceneOpacities = roles.map {
+            LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(
+                for: $0,
+                isBrightEnvironment: true
+            )
+        }
         expect(roles == [.ambient, .card, .readability, .toolbar], "ordinary glass policy covers only the four non-emphasized roles")
-        expect(opacities.allSatisfy { $0 > 0 && $0 <= 0.50 }, "ordinary native glass is substantially attenuated while retaining depth")
         expect(
-            LifeRouteOrdinaryGlassPolicy.layerOpacity(for: .ambient)
-                < LifeRouteOrdinaryGlassPolicy.layerOpacity(for: .card),
-            "ambient glass remains more transparent than a standard card"
+            roles.allSatisfy { !LifeRouteOrdinaryGlassPolicy.usesNativeAdaptiveGlass(for: $0) },
+            "ordinary surfaces do not compound native adaptive glass inside shared containers"
         )
         expect(
-            LifeRouteOrdinaryGlassPolicy.layerOpacity(for: .card)
-                < LifeRouteOrdinaryGlassPolicy.layerOpacity(for: .readability),
-            "readability glass retains the strongest ordinary depth"
+            darkSceneOpacities.allSatisfy { $0 > 0 && $0 <= 0.08 },
+            "ordinary dark-scene surfaces use only a very light custom readability fill"
         )
         expect(
-            LifeRouteOrdinaryGlassPolicy.layerOpacity(for: .toolbar)
-                <= LifeRouteOrdinaryGlassPolicy.layerOpacity(for: .readability),
-            "toolbar glass never exceeds the ordinary readability floor"
+            brightSceneOpacities.allSatisfy { $0 > 0 && $0 <= 0.11 },
+            "ordinary bright-scene surfaces remain transparent while retaining readability"
+        )
+        expect(
+            zip(darkSceneOpacities, brightSceneOpacities).allSatisfy { $0 <= $1 },
+            "bright scenery receives only the bounded additional readability fill"
+        )
+        expect(
+            LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(for: .ambient, isBrightEnvironment: false)
+                < LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(for: .card, isBrightEnvironment: false),
+            "ambient boundaries remain more transparent than a standard card"
+        )
+        expect(
+            LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(for: .card, isBrightEnvironment: false)
+                < LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(for: .readability, isBrightEnvironment: false),
+            "readability surfaces retain the strongest ordinary custom fill"
+        )
+        expect(
+            LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(for: .toolbar, isBrightEnvironment: false)
+                < LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(for: .readability, isBrightEnvironment: false),
+            "toolbar surfaces never exceed the ordinary readability fill"
+        )
+        expect(
+            LifeRouteOrdinaryGlassPolicy.highlightOpacity > 0
+                && LifeRouteOrdinaryGlassPolicy.highlightOpacity <= 0.04,
+            "ordinary surfaces retain only a subtle neutral reflection highlight"
         )
     }
 

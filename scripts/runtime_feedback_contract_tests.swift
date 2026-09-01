@@ -8,6 +8,7 @@ struct RuntimeFeedbackContractTests {
         testNavigationChromePolicy()
         testRuntimeChromeTraversalPolicy()
         testHapticGeneratorPolicy()
+        testOrdinaryGlassTransparencyPolicy()
 
         print("Runtime feedback executable contract fixtures passed (\(assertionCount) assertions).")
     }
@@ -72,16 +73,38 @@ struct RuntimeFeedbackContractTests {
             "iOS 26 physical builds use view-associated feedback-generator delivery"
         )
         expect(
-            LifeRouteRuntimeFeedbackPolicy.rootNavigationIntensity >= 0.85,
-            "root navigation uses a deliberate tactile impact"
+            LifeRouteRuntimeFeedbackPolicy.rootNavigationIntensity == 1,
+            "root navigation uses the strongest retained medium impact"
         )
         expect(
-            LifeRouteRuntimeFeedbackPolicy.primaryActionIntensity >= LifeRouteRuntimeFeedbackPolicy.rootNavigationIntensity,
-            "primary actions remain at least as strong as root navigation"
+            LifeRouteRuntimeFeedbackPolicy.primaryActionIntensity == 1,
+            "primary actions use the strongest retained medium impact"
         )
         expect(
             LifeRouteRuntimeFeedbackPolicy.timerCompletionIntensity == 1,
             "timer completion uses the strongest retained completion impact"
+        )
+    }
+
+    private static func testOrdinaryGlassTransparencyPolicy() {
+        let roles = LifeRouteOrdinaryGlassRole.allCases
+        let opacities = roles.map(LifeRouteOrdinaryGlassPolicy.layerOpacity)
+        expect(roles == [.ambient, .card, .readability, .toolbar], "ordinary glass policy covers only the four non-emphasized roles")
+        expect(opacities.allSatisfy { $0 > 0 && $0 <= 0.50 }, "ordinary native glass is substantially attenuated while retaining depth")
+        expect(
+            LifeRouteOrdinaryGlassPolicy.layerOpacity(for: .ambient)
+                < LifeRouteOrdinaryGlassPolicy.layerOpacity(for: .card),
+            "ambient glass remains more transparent than a standard card"
+        )
+        expect(
+            LifeRouteOrdinaryGlassPolicy.layerOpacity(for: .card)
+                < LifeRouteOrdinaryGlassPolicy.layerOpacity(for: .readability),
+            "readability glass retains the strongest ordinary depth"
+        )
+        expect(
+            LifeRouteOrdinaryGlassPolicy.layerOpacity(for: .toolbar)
+                <= LifeRouteOrdinaryGlassPolicy.layerOpacity(for: .readability),
+            "toolbar glass never exceeds the ordinary readability floor"
         )
     }
 

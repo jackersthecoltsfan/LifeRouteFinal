@@ -4,8 +4,8 @@ import Foundation
 /// supported OS generations. Keeping these decisions pure lets validation
 /// prove the iOS 26 path without constructing UIKit objects.
 enum LifeRouteRuntimeFeedbackPolicy {
-    static let rootNavigationIntensity = 0.90
-    static let primaryActionIntensity = 0.94
+    static let rootNavigationIntensity = 1.0
+    static let primaryActionIntensity = 1.0
     static let timerCompletionIntensity = 1.0
 
     static func usesCustomNavigationBarAppearance(majorVersion: Int) -> Bool {
@@ -36,5 +36,26 @@ enum LifeRouteRuntimeFeedbackPolicy {
             majorVersion: version.majorVersion,
             minorVersion: version.minorVersion
         )
+    }
+}
+
+enum LifeRouteOrdinaryGlassRole: CaseIterable, Hashable, Sendable {
+    case ambient
+    case card
+    case readability
+    case toolbar
+}
+
+/// Ordinary content glass keeps native depth while allowing the persistent
+/// scenery to remain plainly visible. Emphasized controls intentionally stay
+/// outside this policy and retain full-strength Regular glass.
+enum LifeRouteOrdinaryGlassPolicy {
+    static func layerOpacity(for role: LifeRouteOrdinaryGlassRole) -> Double {
+        switch role {
+        case .ambient: return 0.34
+        case .card: return 0.40
+        case .readability: return 0.46
+        case .toolbar: return 0.42
+        }
     }
 }

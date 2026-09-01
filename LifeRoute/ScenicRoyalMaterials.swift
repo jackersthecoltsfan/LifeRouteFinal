@@ -71,14 +71,33 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
                 opaque: true
             )
         } else if #available(iOS 26.0, *) {
-            decorated(
-                content
-                    .glassEffect(
-                        nativeGlass,
-                        in: .rect(cornerRadius: cornerRadius)
-                    ),
-                opaque: false
-            )
+            if let ordinaryGlassRole = role.ordinaryGlassRole {
+                decorated(
+                    content.background {
+                        surfaceShape
+                            .fill(Color.clear)
+                            .glassEffect(
+                                nativeGlass,
+                                in: .rect(cornerRadius: cornerRadius)
+                            )
+                            .opacity(
+                                LifeRouteOrdinaryGlassPolicy.layerOpacity(
+                                    for: ordinaryGlassRole
+                                )
+                            )
+                    },
+                    opaque: false
+                )
+            } else {
+                decorated(
+                    content
+                        .glassEffect(
+                            nativeGlass,
+                            in: .rect(cornerRadius: cornerRadius)
+                        ),
+                    opaque: false
+                )
+            }
         } else {
             decorated(
                 content.background {
@@ -163,6 +182,18 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
                 radius: role == .toolbar ? ScenicRoyalDesignSystem.Shadow.toolbarRadius : ScenicRoyalDesignSystem.Shadow.cardRadius,
                 y: role == .toolbar ? ScenicRoyalDesignSystem.Shadow.toolbarY : ScenicRoyalDesignSystem.Shadow.cardY
             )
+    }
+}
+
+private extension ScenicRoyalSurfaceRole {
+    var ordinaryGlassRole: LifeRouteOrdinaryGlassRole? {
+        switch self {
+        case .ambient: return .ambient
+        case .card: return .card
+        case .readability: return .readability
+        case .toolbar: return .toolbar
+        case .selectedControl, .legibilityControl: return nil
+        }
     }
 }
 

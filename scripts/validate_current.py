@@ -642,6 +642,8 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
             ".ultraThinMaterial",
             "accessibilityReduceTransparency",
             "colorSchemeContrast",
+            "LifeRouteOrdinaryGlassPolicy.layerOpacity",
+            "ordinaryGlassRole",
         ],
         "native Liquid Glass and fallback material boundary",
     )

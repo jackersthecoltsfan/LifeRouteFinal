@@ -170,7 +170,8 @@ enum VisualTimerFeedbackCurve {
 
 /// A longer, peak-normalized completion cue raises useful speaker energy while
 /// keeping every generated sample finite and below digital full scale. The
-/// selected tone still owns the three fundamental completion pitches.
+/// selected tone still owns the three fundamental completion pitches, with
+/// related upper-mid partials that reproduce more effectively on phone speakers.
 enum VisualTimerCompletionCue {
     static let duration: TimeInterval = 1.20
     static let noteOffsets: [TimeInterval] = [0.00, 0.40, 0.80]
@@ -179,7 +180,8 @@ enum VisualTimerCompletionCue {
     static let releaseStart: TimeInterval = 0.29
     static let decayRate = 0.70
     static let presenceSecondHarmonicMix = 0.12
-    static let presenceThirdHarmonicMix = 0.04
+    static let presenceThirdHarmonicMix = 0.12
+    static let presenceFourthHarmonicMix = 0.12
     static let playbackTail: TimeInterval = 0.15
 
     static func samples(
@@ -218,8 +220,10 @@ enum VisualTimerCompletionCue {
                     * sin(2 * Double.pi * frequency * 2 * localTime)
                 let third = presenceThirdHarmonicMix
                     * sin(2 * Double.pi * frequency * 3 * localTime)
+                let fourth = presenceFourthHarmonicMix
+                    * sin(2 * Double.pi * frequency * 4 * localTime)
 
-                value += (fundamental + second + third) * attack * decay * release
+                value += (fundamental + second + third + fourth) * attack * decay * release
             }
 
             rawSamples[frame] = value

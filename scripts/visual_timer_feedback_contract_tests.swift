@@ -11,6 +11,7 @@ struct VisualTimerFeedbackContractTests {
         testVisualPulsePhase()
         testVisualRenderingBudget()
         testCompletionOutputBudget()
+        testSpeakerEffectiveCompletionSpectrum()
         testAccessibilityMilestones()
         testPreferenceDefaults()
         testAudioSessionPolicy()
@@ -177,6 +178,62 @@ struct VisualTimerFeedbackContractTests {
         expect(VisualTimerFeedbackCurve.maximumSynthesisSample < 1, "stronger completion output cannot reach digital full scale")
     }
 
+    // Build 122: broadband RMS alone did not predict physical iPhone output.
+    // Every repeated completion note must carry a musically related upper-mid
+    // partial while retaining the selected profile's fundamental identity.
+    private static func testSpeakerEffectiveCompletionSpectrum() {
+        let sampleRate = 44_100.0
+        expect(
+            zip(VisualTimerCompletionCue.noteOffsets, VisualTimerCompletionCue.noteOffsets.dropFirst())
+                .allSatisfy { $1 - $0 >= VisualTimerCompletionCue.noteDuration },
+            "completion notes never overlap into duplicate gain"
+        )
+        expect(
+            (VisualTimerCompletionCue.noteOffsets.last ?? 0) + VisualTimerCompletionCue.noteDuration
+                <= VisualTimerCompletionCue.duration,
+            "the full repeated completion envelope fits before playback ends"
+        )
+        expect(
+            VisualTimerCompletionCue.playbackTail >= 0.15,
+            "the audio engine retains a bounded tail after the final envelope"
+        )
+
+        var profileWaveforms: [[Float]] = []
+        for profile in VisualTimerToneProfile.allCases {
+            let samples = VisualTimerCompletionCue.samples(for: profile, sampleRate: sampleRate)
+            profileWaveforms.append(samples)
+            for (offset, frequency) in zip(
+                VisualTimerCompletionCue.noteOffsets,
+                profile.completionFrequencies
+            ) {
+                let fundamental = spectralProjection(
+                    samples,
+                    sampleRate: sampleRate,
+                    offset: offset,
+                    duration: VisualTimerCompletionCue.noteDuration,
+                    frequency: frequency
+                )
+                let fourthPartial = spectralProjection(
+                    samples,
+                    sampleRate: sampleRate,
+                    offset: offset,
+                    duration: VisualTimerCompletionCue.noteDuration,
+                    frequency: frequency * 4
+                )
+                expect(
+                    fundamental > 0 && fourthPartial / fundamental >= 0.09,
+                    "\(profile.title) repeats speaker-effective upper-mid energy on every completion note"
+                )
+                expect(
+                    frequency * 4 >= 1_100 && frequency * 4 <= 2_100,
+                    "\(profile.title) fourth partial remains in a bounded iPhone-speaker-effective range"
+                )
+            }
+        }
+        expect(profileWaveforms[0] != profileWaveforms[1], "Warm and Soft completion identities remain distinct")
+        expect(profileWaveforms[1] != profileWaveforms[2], "Soft and Clear completion identities remain distinct")
+    }
+
     private static func build120CompletionMetrics(
         profile: VisualTimerToneProfile,
         sampleRate: Double
@@ -236,6 +293,29 @@ struct VisualTimerFeedbackContractTests {
             }
         }
         return longest
+    }
+
+    private static func spectralProjection(
+        _ samples: [Float],
+        sampleRate: Double,
+        offset: TimeInterval,
+        duration: TimeInterval,
+        frequency: Double
+    ) -> Double {
+        let start = max(0, Int((offset * sampleRate).rounded(.down)))
+        let end = min(samples.count, Int(((offset + duration) * sampleRate).rounded(.down)))
+        guard start < end else { return 0 }
+
+        var real = 0.0
+        var imaginary = 0.0
+        for frame in start..<end {
+            let localTime = Double(frame - start) / sampleRate
+            let angle = 2 * Double.pi * frequency * localTime
+            let sample = Double(samples[frame])
+            real += sample * cos(angle)
+            imaginary -= sample * sin(angle)
+        }
+        return hypot(real, imaginary) / Double(end - start)
     }
 
     private static func testAccessibilityMilestones() {

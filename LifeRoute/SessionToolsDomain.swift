@@ -99,7 +99,11 @@ private final class VisualTimerToneEngine {
         completionStopTask?.cancel()
         completionStopTask = Task { [weak self] in
             do {
-                try await Task.sleep(nanoseconds: 650_000_000)
+                let stopDelay = VisualTimerCompletionCue.duration
+                    + VisualTimerCompletionCue.playbackTail
+                try await Task.sleep(
+                    nanoseconds: UInt64(stopDelay * 1_000_000_000)
+                )
             } catch {
                 return
             }
@@ -184,41 +188,22 @@ private final class VisualTimerToneEngine {
     }
 
     private func completionBuffer(profile: VisualTimerToneProfile) -> AVAudioPCMBuffer? {
-        let totalDuration = 0.52
-        let frameCount = AVAudioFrameCount(Self.sampleRate * totalDuration)
+        let generatedSamples = VisualTimerCompletionCue.samples(
+            for: profile,
+            sampleRate: Self.sampleRate
+        )
+        guard !generatedSamples.isEmpty,
+              generatedSamples.count <= Int(AVAudioFrameCount.max) else {
+            return nil
+        }
+
+        let frameCount = AVAudioFrameCount(generatedSamples.count)
         guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
               let samples = buffer.floatChannelData?[0] else { return nil }
         buffer.frameLength = frameCount
 
-        let notes = zip([0.00, 0.15, 0.30], profile.completionFrequencies).map {
-            (start: $0.0, frequency: $0.1)
-        }
-
-        for frame in 0..<Int(frameCount) {
-            let t = Double(frame) / Self.sampleRate
-            var value = 0.0
-            for note in notes {
-                let localTime = t - note.start
-                guard localTime >= 0, localTime <= 0.19 else { continue }
-                let attack = min(1, localTime / 0.012)
-                let decay = exp(-VisualTimerFeedbackCurve.completionDecayRate * localTime)
-                let releaseStart = 0.12
-                let releaseProgress = max(0, (localTime - releaseStart) / (0.19 - releaseStart))
-                let release = releaseProgress <= 0 ? 1 : 0.5 * (1 + cos(Double.pi * min(1, releaseProgress)))
-                let fundamental = sin(2 * Double.pi * note.frequency * localTime)
-                let softSecond = profile.secondHarmonicMix * sin(2 * Double.pi * note.frequency * 2.0 * localTime)
-                value += (fundamental + softSecond)
-                    * attack
-                    * decay
-                    * release
-                    * VisualTimerFeedbackCurve.completionSynthesisAmplitude
-            }
-            samples[frame] = Float(
-                max(
-                    -VisualTimerFeedbackCurve.maximumSynthesisSample,
-                    min(VisualTimerFeedbackCurve.maximumSynthesisSample, value)
-                )
-            )
+        for (frame, sample) in generatedSamples.enumerated() {
+            samples[frame] = sample
         }
         return buffer
     }

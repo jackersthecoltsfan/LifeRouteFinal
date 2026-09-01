@@ -62,10 +62,6 @@ struct VisualTimerFeedbackContractTests {
         expect(VisualTimerFeedbackCurve.signalGain(volume: -1, elapsedProgress: 0.5) == 0, "gain clamps negative volume")
         expect(VisualTimerFeedbackCurve.signalGain(volume: 2, elapsedProgress: 1) == 1, "gain clamps excess volume")
         expect(VisualTimerFeedbackCurve.pulseSynthesisAmplitude <= 0.5, "pulse synthesis remains pleasantly bounded")
-        expect(
-            VisualTimerFeedbackCurve.completionSynthesisAmplitude < VisualTimerFeedbackCurve.maximumSynthesisSample,
-            "completion synthesis remains bounded below the digital headroom limit"
-        )
         expect(VisualTimerFeedbackCurve.maximumSynthesisSample < 1, "synthesized completion retains clipping headroom")
     }
 
@@ -122,35 +118,69 @@ struct VisualTimerFeedbackContractTests {
     }
 
     private static func testCompletionOutputBudget() {
-        let newMetrics = VisualTimerToneProfile.allCases.map {
-            completionMetrics(
-                profile: $0,
-                amplitude: VisualTimerFeedbackCurve.completionSynthesisAmplitude,
-                decayRate: VisualTimerFeedbackCurve.completionDecayRate
-            )
+        let sampleRate = 44_100.0
+        let newSamples = VisualTimerToneProfile.allCases.map {
+            VisualTimerCompletionCue.samples(for: $0, sampleRate: sampleRate)
         }
-        let build119Metrics = VisualTimerToneProfile.allCases.map {
-            completionMetrics(profile: $0, amplitude: 0.68, decayRate: 16)
+        let newMetrics = newSamples.map(sampleMetrics)
+        let build120Metrics = VisualTimerToneProfile.allCases.map {
+            build120CompletionMetrics(profile: $0, sampleRate: sampleRate)
         }
 
         expect(
-            newMetrics.allSatisfy { $0.peak < VisualTimerFeedbackCurve.maximumSynthesisSample },
-            "stronger completion output retains deterministic peak headroom"
+            newSamples.allSatisfy {
+                $0.count == Int(sampleRate * VisualTimerCompletionCue.duration)
+            },
+            "completion cue duration remains deterministic and bounded"
         )
-        expect(newMetrics.allSatisfy { $0.rms > 0.24 }, "completion cue carries meaningfully stronger useful energy")
         expect(
-            zip(newMetrics, build119Metrics).allSatisfy { $0.rms / $1.rms > 1.35 },
-            "maximum completion output is at least thirty-five percent stronger than Build 119"
+            newSamples.allSatisfy { $0.allSatisfy(\.isFinite) },
+            "every completion sample remains finite"
+        )
+        expect(
+            newMetrics.allSatisfy {
+                abs($0.peak - VisualTimerFeedbackCurve.maximumSynthesisSample) < 0.000_01
+            },
+            "maximum completion output uses the retained digital headroom"
+        )
+        expect(
+            newMetrics.allSatisfy { $0.rms > 0.50 },
+            "completion cue carries substantially stronger sustained output"
+        )
+        expect(
+            zip(newMetrics, build120Metrics).allSatisfy { $0.rms / $1.rms > 1.90 },
+            "maximum completion RMS is at least ninety percent stronger than Build 120"
+        )
+        expect(
+            zip(newMetrics, build120Metrics).allSatisfy { $0.energy / $1.energy > 8.5 },
+            "maximum completion cue carries more than eight times Build 120 signal energy"
+        )
+        expect(
+            newSamples.allSatisfy {
+                longestNearPeakRun(in: $0) <= 2
+            },
+            "peak normalization does not introduce a clipped plateau"
+        )
+        expect(
+            VisualTimerCompletionCue.noteOffsets.count == VisualTimerToneProfile.soft.completionFrequencies.count,
+            "completion retains exactly one bounded note per selected-profile pitch"
+        )
+        expect(
+            VisualTimerCompletionCue.noteDuration < 0.40,
+            "completion notes remain separated instead of overlapping into excess gain"
+        )
+        expect(
+            VisualTimerCompletionCue.samples(for: .soft, sampleRate: 0).isEmpty
+                && VisualTimerCompletionCue.samples(for: .soft, sampleRate: .infinity).isEmpty,
+            "invalid sample rates fail silently and deterministically"
         )
         expect(VisualTimerFeedbackCurve.maximumSynthesisSample < 1, "stronger completion output cannot reach digital full scale")
     }
 
-    private static func completionMetrics(
+    private static func build120CompletionMetrics(
         profile: VisualTimerToneProfile,
-        amplitude: Double,
-        decayRate: Double
-    ) -> (peak: Double, rms: Double) {
-        let sampleRate = 44_100.0
+        sampleRate: Double
+    ) -> (peak: Double, rms: Double, energy: Double) {
         let sampleCount = Int(sampleRate * 0.52)
         let notes = zip([0.00, 0.15, 0.30], profile.completionFrequencies)
         var peak = 0.0
@@ -163,7 +193,7 @@ struct VisualTimerFeedbackContractTests {
                 let localTime = t - note.0
                 guard localTime >= 0, localTime <= 0.19 else { continue }
                 let attack = min(1, localTime / 0.012)
-                let decay = exp(-decayRate * localTime)
+                let decay = exp(-12 * localTime)
                 let releaseProgress = max(0, (localTime - 0.12) / 0.07)
                 let release = releaseProgress <= 0
                     ? 1
@@ -171,12 +201,41 @@ struct VisualTimerFeedbackContractTests {
                 let fundamental = sin(2 * Double.pi * note.1 * localTime)
                 let second = profile.secondHarmonicMix
                     * sin(2 * Double.pi * note.1 * 2 * localTime)
-                value += (fundamental + second) * attack * decay * release * amplitude
+                value += (fundamental + second) * attack * decay * release * 0.84
             }
+            value = max(
+                -VisualTimerFeedbackCurve.maximumSynthesisSample,
+                min(VisualTimerFeedbackCurve.maximumSynthesisSample, value)
+            )
             peak = max(peak, abs(value))
             energy += value * value
         }
-        return (peak, sqrt(energy / Double(sampleCount)))
+        return (peak, sqrt(energy / Double(sampleCount)), energy)
+    }
+
+    private static func sampleMetrics(_ samples: [Float]) -> (peak: Double, rms: Double, energy: Double) {
+        let values = samples.map(Double.init)
+        let energy = values.reduce(0) { $0 + $1 * $1 }
+        return (
+            values.map(abs).max() ?? 0,
+            values.isEmpty ? 0 : sqrt(energy / Double(values.count)),
+            energy
+        )
+    }
+
+    private static func longestNearPeakRun(in samples: [Float]) -> Int {
+        let threshold = Float(VisualTimerFeedbackCurve.maximumSynthesisSample * 0.999)
+        var longest = 0
+        var current = 0
+        for sample in samples {
+            if abs(sample) >= threshold {
+                current += 1
+                longest = max(longest, current)
+            } else {
+                current = 0
+            }
+        }
+        return longest
     }
 
     private static func testAccessibilityMilestones() {

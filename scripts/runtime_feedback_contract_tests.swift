@@ -10,6 +10,10 @@ struct RuntimeFeedbackContractTests {
         testHapticGeneratorPolicy()
         testOrdinaryGlassTransparencyPolicy()
 
+        precondition(
+            assertionCount >= 25,
+            "Runtime Feedback regression floor requires at least 25 assertions; found \(assertionCount)."
+        )
         print("Runtime feedback executable contract fixtures passed (\(assertionCount) assertions).")
     }
 

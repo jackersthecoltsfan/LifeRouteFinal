@@ -16,6 +16,10 @@ struct VisualTimerFeedbackContractTests {
         testPreferenceDefaults()
         testAudioSessionPolicy()
 
+        precondition(
+            assertionCount >= 119,
+            "Visual Timer regression floor requires at least 119 assertions; found \(assertionCount)."
+        )
         print("Visual Timer feedback executable contract fixtures passed (\(assertionCount) assertions).")
     }
 

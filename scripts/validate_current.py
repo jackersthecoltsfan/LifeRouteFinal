@@ -9,6 +9,7 @@ import re
 import struct
 import sys
 from pathlib import Path
+from typing import Optional
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -181,6 +182,7 @@ def validate_active_build_path() -> None:
             "timeout fixture reaches the safe terminal timeout",
             "failed request preserves the previous generated draft",
             "stale request output is rejected",
+            "Session Note regression floor requires at least 162 assertions",
         ],
         "Session Note executable fixtures",
     )
@@ -227,6 +229,7 @@ def validate_active_build_path() -> None:
             "a canonical generated itinerary starts an in-app Live Day",
             "ActivityKit projection remains independently unavailable without a timed departure",
             "ActivityKit denial has deterministic visible handling",
+            "Day Route regression floor requires at least 163 assertions",
         ],
         "Day Route executable fixtures",
     )
@@ -257,6 +260,7 @@ def validate_active_build_path() -> None:
             "maximum completion RMS is at least ninety percent stronger than Build 120",
             "maximum completion cue carries more than eight times Build 120 signal energy",
             "peak normalization does not introduce a clipped plateau",
+            "Visual Timer regression floor requires at least 119 assertions",
         ],
         "Visual Timer feedback executable fixtures",
     )
@@ -274,6 +278,7 @@ def validate_active_build_path() -> None:
             "later systems cannot restore runtime UIKit chrome mutation",
             "iOS 17.5 begins view-associated feedback-generator delivery",
             "iOS 26 physical builds use view-associated feedback-generator delivery",
+            "Runtime Feedback regression floor requires at least 25 assertions",
         ],
         "runtime feedback executable fixtures",
     )
@@ -293,6 +298,7 @@ def validate_active_build_path() -> None:
             "Rainforest Night waterfall limitation remains explicit",
             "every approved moving-water mask is selected by the scene matrix",
             "Rainforest Night moves its visible stream without inventing a waterfall absent from the artwork",
+            "Scenery Effects regression floor requires at least 54 assertions",
         ],
         "scene-specific environment executable fixtures",
     )
@@ -1256,12 +1262,21 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
 
 
 def validate_release_and_web_policy() -> None:
-    ios = read(WORKFLOWS / "ios-ci.yml")
-    policy = read(WORKFLOWS / "policy-check.yml")
-    pages = read(WORKFLOWS / "pages.yml")
-    bridge = read(WORKFLOWS / "chatgpt-testflight-request.yml")
-    testflight = read(WORKFLOWS / "testflight.yml")
     workflows = {path.name: read(path) for path in sorted(WORKFLOWS.glob("*.yml"))}
+    required_workflows = {
+        "ios-ci.yml",
+        "policy-check.yml",
+        "pages.yml",
+        "chatgpt-testflight-request.yml",
+        "testflight.yml",
+    }
+    missing_workflows = sorted(required_workflows.difference(workflows))
+    require(not missing_workflows, f"missing required workflow(s): {missing_workflows}")
+    ios = workflows["ios-ci.yml"]
+    policy = workflows["policy-check.yml"]
+    pages = workflows["pages.yml"]
+    bridge = workflows["chatgpt-testflight-request.yml"]
+    testflight = workflows["testflight.yml"]
     require_all(
         ios,
         [
@@ -1275,6 +1290,9 @@ def validate_release_and_web_policy() -> None:
         ],
         "current native CI",
     )
+    require_count(ios, "'scripts/run_swift_contract_test.sh'", 2, "native CI contract-helper path coverage")
+    require_count(ios, "'scripts/run_*_contract_tests.sh'", 2, "native CI contract-runner path coverage")
+    require_count(ios, "'scripts/*_contract_tests.swift'", 2, "native CI contract-fixture path coverage")
     require_all(policy, ["validate_fast.sh", "release policy"], "lightweight policy validation")
     require_all(pages, ["build_web_preview.py", "validate_fast.sh"], "decoupled web preview")
     require("scripts/**" not in pages, "Pages must not trigger for arbitrary scripts changes")
@@ -1289,8 +1307,9 @@ def validate_release_and_web_policy() -> None:
         require(not present, f"{name} violates sole TestFlight signing/upload ownership: {present}")
 
 
-def run_fast() -> None:
-    sources = swift_sources()
+def run_fast(sources: Optional[dict[str, str]] = None) -> None:
+    if sources is None:
+        sources = swift_sources()
     validate_plists()
     validate_app_icon()
     validate_project_and_version()
@@ -1303,14 +1322,14 @@ def run_fast() -> None:
     validate_resources(sources)
     validate_setup_and_address(sources)
     validate_clinical_and_aba(sources)
+    validate_release_and_web_policy()
 
 
 def run_full() -> None:
     sources = swift_sources()
-    run_fast()
+    run_fast(sources)
     validate_calendar_routing_and_persistence(sources)
     validate_timer_and_live_activity(sources)
-    validate_release_and_web_policy()
 
 
 def main() -> int:

@@ -107,6 +107,10 @@ struct DayRouteContractTests {
         testStableIdentityAndOrdering()
         testFullRouteHandoffs()
 
+        precondition(
+            assertionCount >= 163,
+            "Day Route regression floor requires at least 163 assertions; found \(assertionCount)."
+        )
         print("Day route executable contract fixtures passed (\(assertionCount) assertions).")
     }
 

@@ -26,6 +26,10 @@ private struct SessionNoteContractFixtureRunner {
         try await pipelineFixtures()
         try await fallbackAndDiagnosticFixtures()
         try await runtimeProtectionFixtures()
+        precondition(
+            assertionCount >= 162,
+            "Session Note regression floor requires at least 162 assertions; found \(assertionCount)."
+        )
         print("Session Note executable contract fixtures passed (\(assertionCount) assertions).")
     }
 

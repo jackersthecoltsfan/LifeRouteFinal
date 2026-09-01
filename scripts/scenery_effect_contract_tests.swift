@@ -11,6 +11,10 @@ struct SceneryEffectContractTests {
         testArcticNightBoundary()
         testOccasionalGustPolicy()
 
+        precondition(
+            assertionCount >= 54,
+            "Scenery Effects regression floor requires at least 54 assertions; found \(assertionCount)."
+        )
         print("Scenery effect executable contract fixtures passed (\(assertionCount) assertions).")
     }
 

@@ -116,6 +116,8 @@ def validate_project_and_version() -> None:
         "Xcode app/extension structure",
     )
     require("LifeRouteWebView.swift in Sources" not in project, "legacy LifeRouteWebView must remain outside shipping Sources")
+    require("/* ContentView.swift in Sources */" not in project, "historical ContentView must remain outside shipping Sources")
+    require("/* ClientViews.swift in Sources */" not in project, "historical client presentation must remain outside shipping Sources")
     require("Web in Resources" not in project, "legacy Web runtime must remain outside shipping Resources")
     require_count(project, 'SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";', 1, "app-target Debug fixture configuration")
     require_count(project, 'SWIFT_OPTIMIZATION_LEVEL = "-Onone";', 1, "project Debug no-optimization iteration configuration")

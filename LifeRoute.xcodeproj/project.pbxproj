@@ -6,13 +6,11 @@
 	objects = {
 /* Begin PBXBuildFile section */
 		A10000000000000000000001 /* LifeRouteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* LifeRouteApp.swift */; };
-		A10000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* ContentView.swift */; };
 		A10000000000000000000004 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* Assets.xcassets */; };
 		A10000000000000000000008 /* AppNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* AppNavigation.swift */; };
 		A10000000000000000000009 /* CalendarDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* CalendarDomain.swift */; };
 		A10000000000000000000010 /* RoutingLocationDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* RoutingLocationDomain.swift */; };
 		A10000000000000000000011 /* ClientProfileDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* ClientProfileDomain.swift */; };
-		A10000000000000000000012 /* ClientViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* ClientViews.swift */; };
 		A10000000000000000000013 /* SessionToolsDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* SessionToolsDomain.swift */; };
 		A10000000000000000000014 /* SessionToolsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* SessionToolsViews.swift */; };
 		A10000000000000000000015 /* CalendarProviderCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* CalendarProviderCore.swift */; };
@@ -243,7 +241,6 @@
 			A10000000000000000000022 /* DayRoutePlanningCore.swift in Sources */,
 			A10000000000000000000023 /* DayRoutePlanningView.swift in Sources */,
 			A10000000000000000000011 /* ClientProfileDomain.swift in Sources */,
-			A10000000000000000000012 /* ClientViews.swift in Sources */,
 			A10000000000000000000032 /* V054ClientViews.swift in Sources */,
 			A10000000000000000000013 /* SessionToolsDomain.swift in Sources */,
 			A10000000000000000000014 /* SessionToolsViews.swift in Sources */,

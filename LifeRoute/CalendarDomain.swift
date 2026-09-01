@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(Combine)
 import Combine
+#endif
 
 enum LifeRouteCalendarSource: String, Codable, CaseIterable, Hashable {
     case manual

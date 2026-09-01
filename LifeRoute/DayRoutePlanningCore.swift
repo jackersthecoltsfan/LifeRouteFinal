@@ -82,7 +82,7 @@ final class DayRoutePlanningCore: ObservableObject {
     @Published var returnHome = true
 
     private var calculationTask: Task<Void, Never>?
-    private var calculationID: UUID?
+    private var calculationToken: LifeRouteRouteGenerationToken?
     private var gapEvaluationTasks: [String: Task<Void, Never>] = [:]
     private var gapEvaluationIDs: [String: UUID] = [:]
 
@@ -101,8 +101,8 @@ final class DayRoutePlanningCore: ObservableObject {
         gapEvaluationIDs = [:]
         gapEvaluationInFlight = []
         gapRecommendationsByGapID = [:]
-        let token = UUID()
-        calculationID = token
+        let token = LifeRouteRouteGenerationToken(selectedDay: selectedDay)
+        calculationToken = token
         legs = []
         generatedItinerary = nil
         fullRoutePlan = nil
@@ -139,7 +139,7 @@ final class DayRoutePlanningCore: ObservableObject {
                     mode: mode
                 )
                 try Task.checkCancellation()
-                guard self.calculationID == token else { return }
+                guard token.accepts(activeToken: self.calculationToken) else { return }
                 self.legs = built.legs
                 self.generatedItinerary = LifeRouteGeneratedItinerary(
                     id: UUID().uuidString,
@@ -163,24 +163,32 @@ final class DayRoutePlanningCore: ObservableObject {
                 self.fullRoutePlan = self.makeFullRoutePlan(mode: mode)
                 self.message = built.legs.isEmpty ? "No route legs were created." : "Day route ready."
             } catch is CancellationError {
-                guard self.calculationID == token else { return }
+                guard token.accepts(activeToken: self.calculationToken) else { return }
                 self.message = nil
             } catch {
-                guard self.calculationID == token else { return }
+                guard token.accepts(activeToken: self.calculationToken) else { return }
                 self.message = error.localizedDescription
             }
-            guard self.calculationID == token else { return }
+            guard token.accepts(activeToken: self.calculationToken) else { return }
             self.isCalculating = false
             self.calculationTask = nil
-            self.calculationID = nil
+            self.calculationToken = nil
         }
     }
 
     func cancel() {
+        let wasCalculating = isCalculating
         calculationTask?.cancel()
         calculationTask = nil
-        calculationID = nil
+        calculationToken = nil
+        gapEvaluationTasks.values.forEach { $0.cancel() }
+        gapEvaluationTasks = [:]
+        gapEvaluationIDs = [:]
+        gapEvaluationInFlight = []
         isCalculating = false
+        if wasCalculating {
+            message = nil
+        }
     }
 
     func matchesGeneratedItinerary(
@@ -563,7 +571,7 @@ final class DayRoutePlanningCore: ObservableObject {
                 start: appointment.start,
                 end: appointment.end,
                 isAllDay: appointment.isAllDay,
-                isRoutable: !appointment.isAllDay && !appointment.address.isEmpty
+                isRoutable: appointment.isRoutable
             )
             let anchoredStops = cleanAfterStops
                 .filter { $0.afterAppointmentID == appointment.id }

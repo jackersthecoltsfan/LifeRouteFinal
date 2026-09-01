@@ -142,6 +142,95 @@ enum LifeRouteDayStopCollection {
     }
 }
 
+enum LifeRouteRouteLocationClassifier {
+    private static let virtualOnlyLabels: Set<String> = [
+        "conference call",
+        "facetime",
+        "google meet",
+        "gotomeeting",
+        "microsoft teams",
+        "microsoft teams meeting",
+        "online",
+        "online meeting",
+        "phone call",
+        "remote",
+        "remote meeting",
+        "teams meeting",
+        "telephone",
+        "video call",
+        "virtual",
+        "virtual meeting",
+        "webex",
+        "webex meeting",
+        "zoom",
+        "zoom meeting",
+    ]
+
+    private static let virtualURLMarkers = [
+        "meet.google.com/",
+        "msteams://",
+        "teams.live.com/",
+        "teams.microsoft.com/",
+        "webex.com/",
+        "zoom.us/",
+        "zoomgov.com/",
+    ]
+
+    static func isRoutable(address: String, isAllDay: Bool) -> Bool {
+        guard !isAllDay else { return false }
+        let clean = address.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return false }
+
+        let normalized = clean
+            .lowercased()
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !virtualOnlyLabels.contains(normalized) else { return false }
+        guard !virtualURLMarkers.contains(where: normalized.contains) else { return false }
+        return true
+    }
+}
+
+struct LifeRouteRouteOriginStatus: Hashable, Sendable {
+    enum Mode: String, Hashable, Sendable {
+        case liveCurrentLocation
+        case home
+        case unavailable
+    }
+
+    let mode: Mode
+    let isLocating: Bool
+
+    static func resolve(
+        liveLocationEnabled: Bool,
+        currentLocationAvailable: Bool,
+        homeAddress: String
+    ) -> Self {
+        if liveLocationEnabled && currentLocationAvailable {
+            return Self(mode: .liveCurrentLocation, isLocating: false)
+        }
+        let hasHome = !homeAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return Self(
+            mode: hasHome ? .home : .unavailable,
+            isLocating: liveLocationEnabled && !currentLocationAvailable
+        )
+    }
+}
+
+struct LifeRouteRouteGenerationToken: Hashable, Sendable {
+    let id: UUID
+    let selectedDay: Date
+
+    init(id: UUID = UUID(), selectedDay: Date, calendar: Calendar = .current) {
+        self.id = id
+        self.selectedDay = calendar.startOfDay(for: selectedDay)
+    }
+
+    func accepts(activeToken: Self?) -> Bool {
+        activeToken == self
+    }
+}
+
 struct LifeRouteRouteAppointment: Identifiable, Hashable {
     let id: String
     var title: String
@@ -164,6 +253,13 @@ struct LifeRouteRouteAppointment: Identifiable, Hashable {
         self.start = start
         self.end = max(start, end ?? start)
         self.isAllDay = isAllDay
+    }
+
+    var isRoutable: Bool {
+        LifeRouteRouteLocationClassifier.isRoutable(
+            address: address,
+            isAllDay: isAllDay
+        )
     }
 }
 

@@ -102,6 +102,8 @@ struct DayRouteContractTests {
         testUsableGapAndCandidateFit()
         testReturnHomeAndStopOnlyContracts()
         testUnsafeRouteBoundariesRemainVisible()
+        testVirtualLocationRoutingContracts()
+        testRouteOriginAndGenerationContracts()
         testStableIdentityAndOrdering()
         testFullRouteHandoffs()
 
@@ -521,6 +523,282 @@ struct DayRouteContractTests {
         } else {
             expect(false, "unsafe gap remains inspectable")
         }
+    }
+
+    // Build 122: a virtual commitment is a chronological boundary, never a
+    // MapKit destination. Physical route legs bridge around it while its exact
+    // start/end still constrain both usable gaps and truthful Leave By output.
+    private static func testVirtualLocationRoutingContracts() {
+        expect(
+            !LifeRouteRouteLocationClassifier.isRoutable(
+                address: "Microsoft Teams Meeting",
+                isAllDay: false
+            ),
+            "Microsoft Teams provider text is not treated as a physical address"
+        )
+        expect(
+            !LifeRouteRouteLocationClassifier.isRoutable(
+                address: "https://teams.microsoft.com/l/meetup-join/example",
+                isAllDay: false
+            ),
+            "a Teams meeting URL is not treated as a physical address"
+        )
+        expect(
+            !LifeRouteRouteLocationClassifier.isRoutable(
+                address: "https://meet.google.com/abc-defg-hij",
+                isAllDay: false
+            ),
+            "a Google Meet URL is not treated as a physical address"
+        )
+        expect(
+            LifeRouteRouteLocationClassifier.isRoutable(
+                address: "123 Microsoft Teams Way",
+                isAllDay: false
+            ),
+            "a real street containing provider words remains routable"
+        )
+        expect(
+            !LifeRouteRouteLocationClassifier.isRoutable(
+                address: "4 Context Street",
+                isAllDay: true
+            ),
+            "an all-day item never becomes a driving destination"
+        )
+
+        let firstAppointment = LifeRouteRouteAppointment(
+            id: "physical-first",
+            title: "Physical appointment",
+            address: "1 First Street",
+            start: date("2026-09-01T09:00:00Z"),
+            end: date("2026-09-01T10:00:00Z")
+        )
+        let virtualAppointment = LifeRouteRouteAppointment(
+            id: "virtual",
+            title: "Interview",
+            address: "Microsoft Teams Meeting",
+            start: date("2026-09-01T11:00:00Z"),
+            end: date("2026-09-01T12:00:00Z")
+        )
+        let finalAppointment = LifeRouteRouteAppointment(
+            id: "physical-final",
+            title: "Final appointment",
+            address: "3 Final Street",
+            start: date("2026-09-01T13:00:00Z"),
+            end: date("2026-09-01T14:00:00Z")
+        )
+        expect(firstAppointment.isRoutable, "a physical appointment remains routable")
+        expect(!virtualAppointment.isRoutable, "virtual provider text produces a temporal-only appointment")
+        expect(finalAppointment.isRoutable, "a later physical appointment remains routable")
+
+        let sequence = LifeRouteDaySequenceBuilder.waypoints(
+            appointments: [finalAppointment, virtualAppointment, firstAppointment],
+            beforeStops: [],
+            afterStops: []
+        )
+        expect(
+            sequence.map(\.id) == ["event:physical-first", "event:virtual", "event:physical-final"],
+            "mixed physical and virtual appointments retain chronological order"
+        )
+        expect(sequence[1].address == "Microsoft Teams Meeting", "virtual provider text remains visible in the timeline")
+
+        let origin = LifeRouteItineraryNode(
+            id: "origin:current",
+            kind: .origin,
+            title: "Current Location",
+            address: "Current Location"
+        )
+        let first = LifeRouteItineraryNode(
+            id: "event:physical-first",
+            kind: .appointment,
+            title: firstAppointment.title,
+            address: firstAppointment.address,
+            start: firstAppointment.start,
+            end: firstAppointment.end,
+            isRoutable: firstAppointment.isRoutable
+        )
+        let virtual = LifeRouteItineraryNode(
+            id: "event:virtual",
+            kind: .appointment,
+            title: virtualAppointment.title,
+            address: virtualAppointment.address,
+            start: virtualAppointment.start,
+            end: virtualAppointment.end,
+            isRoutable: virtualAppointment.isRoutable
+        )
+        let final = LifeRouteItineraryNode(
+            id: "event:physical-final",
+            kind: .appointment,
+            title: finalAppointment.title,
+            address: finalAppointment.address,
+            start: finalAppointment.start,
+            end: finalAppointment.end,
+            isRoutable: finalAppointment.isRoutable
+        )
+        let mixed = LifeRouteGeneratedItinerary(
+            id: "day:mixed-virtual",
+            selectedDay: date("2026-09-01T00:00:00Z"),
+            generatedAt: date("2026-09-01T08:00:00Z"),
+            returnHome: false,
+            routeBuffer: .tenMinutes,
+            inputFingerprint: "mixed-virtual",
+            nodes: [origin, first, virtual, final],
+            legs: [
+                .init(id: "leg:origin-first", sequence: 1, fromNodeID: origin.id, toNodeID: first.id, rawTravelSeconds: 20 * 60, rawDistanceMeters: 8_000),
+                .init(id: "leg:first-final", sequence: 2, fromNodeID: first.id, toNodeID: final.id, rawTravelSeconds: 30 * 60, rawDistanceMeters: 14_000),
+            ]
+        )
+        expect(mixed.nodes.map(\.id) == [origin.id, first.id, virtual.id, final.id], "virtual appointment remains in the canonical itinerary")
+        expect(mixed.nodes[2].start == virtualAppointment.start && mixed.nodes[2].end == virtualAppointment.end, "virtual appointment keeps its exact start and end")
+        expect(mixed.legs.count == 2, "only physical route legs are retained")
+        expect(
+            mixed.legs.allSatisfy { $0.fromNodeID != virtual.id && $0.toNodeID != virtual.id },
+            "no route leg targets or originates from a virtual event"
+        )
+        expect(mixed.totalRawTravelSeconds == 50 * 60, "total drive time excludes a virtual destination")
+
+        let gaps = mixed.usableGaps
+        expect(gaps.count == 2, "a virtual commitment remains a usable-gap boundary on both sides")
+        expect(gaps[0].previousAppointmentNodeID == first.id && gaps[0].nextAppointmentNodeID == virtual.id, "physical-to-virtual gap preserves temporal anchors")
+        expect(gaps[0].requiredTravelSeconds == 0, "physical-to-virtual gap requests no drive to the virtual event")
+        expect(gaps[0].bufferSeconds == 0, "physical-to-virtual gap applies no driving arrival buffer")
+        expect(gaps[0].usableSeconds == 60 * 60, "physical-to-virtual usable time preserves the full route-free gap")
+        expect(gaps[1].previousAppointmentNodeID == virtual.id && gaps[1].nextAppointmentNodeID == final.id, "virtual-to-physical gap preserves temporal anchors")
+        expect(gaps[1].requiredTravelSeconds == 30 * 60, "virtual-to-physical gap uses the bridged physical route leg")
+        expect(gaps[1].bufferSeconds == 10 * 60, "virtual-to-physical gap retains one arrival buffer")
+        expect(gaps[1].usableSeconds == 20 * 60, "virtual-to-physical usable time deducts travel and buffer")
+
+        let guidance = mixed.departureGuidance(at: date("2026-09-01T10:30:00Z"))
+        expect(guidance?.appointmentNodeID == final.id, "Leave By skips the virtual event and targets the next physical commitment")
+        expect(guidance?.routeOriginNodeID == first.id, "Leave By uses the nearest prior physical anchor")
+        expect(guidance?.leaveBy == date("2026-09-01T12:20:00Z"), "Leave By remains based on bridged physical travel and one buffer")
+
+        let firstVirtual = LifeRouteGeneratedItinerary(
+            id: "day:first-virtual",
+            selectedDay: mixed.selectedDay,
+            generatedAt: mixed.generatedAt,
+            returnHome: false,
+            routeBuffer: .tenMinutes,
+            inputFingerprint: "first-virtual",
+            nodes: [origin, virtual, final],
+            legs: [
+                .init(id: "leg:origin-final", sequence: 1, fromNodeID: origin.id, toNodeID: final.id, rawTravelSeconds: 25 * 60, rawDistanceMeters: 10_000),
+            ]
+        )
+        expect(firstVirtual.timeline.filter { $0.kind == .appointment }.count == 2, "a first virtual event remains visible before a physical event")
+        expect(firstVirtual.usableGaps.first?.requiredTravelSeconds == 25 * 60, "a first virtual event routes from the canonical origin to the later physical event")
+        expect(firstVirtual.departureGuidance(at: date("2026-09-01T10:05:00Z"))?.appointmentNodeID == final.id, "Leave By after a first virtual event targets the physical event")
+
+        let finalVirtual = LifeRouteGeneratedItinerary(
+            id: "day:final-virtual",
+            selectedDay: mixed.selectedDay,
+            generatedAt: mixed.generatedAt,
+            returnHome: false,
+            routeBuffer: .tenMinutes,
+            inputFingerprint: "final-virtual",
+            nodes: [origin, first, virtual],
+            legs: [
+                .init(id: "leg:origin-first", sequence: 1, fromNodeID: origin.id, toNodeID: first.id, rawTravelSeconds: 20 * 60, rawDistanceMeters: 8_000),
+            ]
+        )
+        expect(finalVirtual.timeline.last?.node?.id == virtual.id, "a final virtual event remains the final timeline commitment")
+        expect(finalVirtual.usableGaps.first?.requiredTravelSeconds == 0, "a final virtual event adds no drive leg")
+        expect(finalVirtual.departureGuidance(at: date("2026-09-01T10:30:00Z")) == nil, "a final virtual event fabricates no Leave By guidance")
+
+        let overlappingVirtual = LifeRouteItineraryNode(
+            id: "event:overlap",
+            kind: .appointment,
+            title: "Long virtual interview",
+            address: "Microsoft Teams Meeting",
+            start: virtual.start,
+            end: date("2026-09-01T12:30:00Z"),
+            isRoutable: false
+        )
+        let impossible = LifeRouteGeneratedItinerary(
+            id: "day:impossible-virtual",
+            selectedDay: mixed.selectedDay,
+            generatedAt: mixed.generatedAt,
+            returnHome: false,
+            routeBuffer: .tenMinutes,
+            inputFingerprint: "impossible-virtual",
+            nodes: [origin, first, overlappingVirtual, final],
+            legs: mixed.legs
+        )
+        expect(impossible.departureGuidance(at: date("2026-09-01T10:30:00Z")) == nil, "Leave By never asks the user to depart before an active virtual commitment ends")
+
+        let allDay = LifeRouteItineraryNode(
+            id: "event:all-day-locationless",
+            kind: .appointment,
+            title: "All-day context",
+            address: "",
+            start: mixed.selectedDay,
+            end: date("2026-09-02T00:00:00Z"),
+            isAllDay: true,
+            isRoutable: false
+        )
+        let withAllDay = LifeRouteGeneratedItinerary(
+            id: "day:all-day-locationless",
+            selectedDay: mixed.selectedDay,
+            generatedAt: mixed.generatedAt,
+            returnHome: false,
+            routeBuffer: .tenMinutes,
+            inputFingerprint: "all-day-locationless",
+            nodes: [origin, allDay, first, virtual, final],
+            legs: mixed.legs
+        )
+        expect(withAllDay.timeline.contains { $0.node?.id == allDay.id }, "an all-day locationless item remains visible")
+        expect(withAllDay.usableGaps.count == 2, "an all-day locationless item never becomes a timed gap anchor")
+    }
+
+    private static func testRouteOriginAndGenerationContracts() {
+        let live = LifeRouteRouteOriginStatus.resolve(
+            liveLocationEnabled: true,
+            currentLocationAvailable: true,
+            homeAddress: "1 Home Street"
+        )
+        expect(live.mode == .liveCurrentLocation && !live.isLocating, "an active coordinate resolves to Live Current Location")
+
+        let pendingWithHome = LifeRouteRouteOriginStatus.resolve(
+            liveLocationEnabled: true,
+            currentLocationAvailable: false,
+            homeAddress: "1 Home Street"
+        )
+        expect(pendingWithHome.mode == .home && pendingWithHome.isLocating, "Home remains the truthful fallback while Live Location is locating")
+
+        let stoppedWithStaleCoordinate = LifeRouteRouteOriginStatus.resolve(
+            liveLocationEnabled: false,
+            currentLocationAvailable: true,
+            homeAddress: "1 Home Street"
+        )
+        expect(stoppedWithStaleCoordinate.mode == .home, "a stopped stale coordinate never remains the route origin")
+
+        let stoppedWithoutHome = LifeRouteRouteOriginStatus.resolve(
+            liveLocationEnabled: false,
+            currentLocationAvailable: true,
+            homeAddress: ""
+        )
+        expect(stoppedWithoutHome.mode == .unavailable, "stopped Live Location without Home reports an unavailable origin")
+
+        let deniedWithoutHome = LifeRouteRouteOriginStatus.resolve(
+            liveLocationEnabled: false,
+            currentLocationAvailable: false,
+            homeAddress: ""
+        )
+        expect(deniedWithoutHome.mode == .unavailable && !deniedWithoutHome.isLocating, "denied or unavailable location without Home never fabricates an origin")
+
+        let firstDay = date("2026-09-01T12:00:00Z")
+        let secondDay = date("2026-09-02T12:00:00Z")
+        let firstToken = LifeRouteRouteGenerationToken(
+            id: UUID(uuidString: "10000000-0000-0000-0000-000000000001")!,
+            selectedDay: firstDay
+        )
+        let secondToken = LifeRouteRouteGenerationToken(
+            id: UUID(uuidString: "10000000-0000-0000-0000-000000000002")!,
+            selectedDay: secondDay
+        )
+        expect(firstToken.accepts(activeToken: firstToken), "the active route-generation token can publish")
+        expect(!firstToken.accepts(activeToken: secondToken), "a stale result cannot publish after the selected day starts a new generation")
+        expect(!firstToken.accepts(activeToken: nil), "a cancelled route-generation token cannot publish itinerary, legs, or message state")
+        expect(firstToken.selectedDay != secondToken.selectedDay, "route-generation identity includes the canonical selected day")
     }
 
     // Catches duplicate stable instances entering the canonical plan or a

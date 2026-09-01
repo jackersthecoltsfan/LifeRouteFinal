@@ -47,8 +47,10 @@ struct DayRoutePlanningView: View {
 
     private var routableDayEvents: [LifeRouteCalendarEvent] {
         dayEvents.filter {
-            !$0.isAllDay
-                && !$0.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            LifeRouteRouteLocationClassifier.isRoutable(
+                address: $0.location,
+                isAllDay: $0.isAllDay
+            )
         }
     }
 
@@ -276,9 +278,9 @@ struct DayRoutePlanningView: View {
             .disabled(routingState.homeAddress.isEmpty)
 
             HStack(spacing: 8) {
-                Image(systemName: routingState.currentLocation == nil ? "house.fill" : "location.fill")
+                Image(systemName: routeOriginIcon)
                     .foregroundStyle(scenicStyle.accent)
-                Text(routingState.currentLocation == nil ? "Route starts from Home fallback" : "Route starts from your live current location")
+                Text(routeOriginDescription)
                     .font(.caption)
                     .foregroundStyle(scenicStyle.secondaryText)
             }
@@ -444,8 +446,32 @@ struct DayRoutePlanningView: View {
             afterStops: afterStops,
             routeBufferMinutes: routingState.routeBufferMinutes,
             homeAddress: routingState.homeAddress,
-            currentLocation: routingState.currentLocation
+            currentLocation: routingState.routeOriginLocation
         )
+    }
+
+    private var routeOriginIcon: String {
+        switch routingState.routeOriginStatus.mode {
+        case .liveCurrentLocation: return "location.fill"
+        case .home: return "house.fill"
+        case .unavailable: return "location.slash.fill"
+        }
+    }
+
+    private var routeOriginDescription: String {
+        let status = routingState.routeOriginStatus
+        switch status.mode {
+        case .liveCurrentLocation:
+            return "Route starts from Live / Current Location"
+        case .home:
+            return status.isLocating
+                ? "Route starts from Home while Live Location updates"
+                : "Route starts from Home fallback"
+        case .unavailable:
+            return status.isLocating
+                ? "Live Location is updating; no route origin is ready"
+                : "Route origin unavailable; start Live Location or add Home"
+        }
     }
 
     private func fullRouteActionTitle(_ plan: LifeRouteFullRouteHandoffPlan) -> String {

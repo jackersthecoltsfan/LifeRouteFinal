@@ -365,6 +365,18 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
         updateLocationMessage(for: authorizationStatus)
     }
 
+    var routeOriginLocation: CLLocation? {
+        liveLocationEnabled ? currentLocation : nil
+    }
+
+    var routeOriginStatus: LifeRouteRouteOriginStatus {
+        LifeRouteRouteOriginStatus.resolve(
+            liveLocationEnabled: liveLocationEnabled,
+            currentLocationAvailable: currentLocation != nil,
+            homeAddress: homeAddress
+        )
+    }
+
     func requestCurrentLocation() {
         guard !locationRequestInFlight else { return }
         authorizationStatus = locationManager.authorizationStatus
@@ -408,6 +420,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
         locationRequestInFlight = false
         locationRequestPendingAuthorization = false
         locationManager.stopUpdatingLocation()
+        currentLocation = nil
         updateLocationMessage(for: locationManager.authorizationStatus)
     }
 
@@ -684,6 +697,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
             locationRequestInFlight = false
             if authorizationStatus == .denied || authorizationStatus == .restricted {
                 liveLocationEnabled = false
+                currentLocation = nil
             }
         }
     }
@@ -818,7 +832,7 @@ final class RoutingLocationCore: NSObject, ObservableObject, @preconcurrency CLL
     }
 
     private func originMapItem() async throws -> MKMapItem {
-        if let currentLocation {
+        if let currentLocation = routeOriginLocation {
             let item = MKMapItem(placemark: MKPlacemark(coordinate: currentLocation.coordinate))
             item.name = "Current Location"
             return item

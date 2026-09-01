@@ -71,7 +71,7 @@ struct V054TodayView: View {
             afterStops: afterStops,
             routeBufferMinutes: routingState.routeBufferMinutes,
             homeAddress: routingState.homeAddress,
-            currentLocation: routingState.currentLocation
+            currentLocation: routingState.routeOriginLocation
         )
     }
 
@@ -81,9 +81,9 @@ struct V054TodayView: View {
 
     private var canGenerate: Bool {
         let hasDestination = routeAppointments.contains {
-            !$0.isAllDay && !$0.address.isEmpty
+            $0.isRoutable
         } || !selectedDayStops.isEmpty
-        let hasOrigin = routingState.currentLocation != nil || !routingState.homeAddress.isEmpty
+        let hasOrigin = routingState.routeOriginStatus.mode != .unavailable
         let canReturnHome = !planState.returnHome || !routingState.homeAddress.isEmpty
         return hasDestination && hasOrigin && canReturnHome
     }
@@ -119,22 +119,25 @@ struct V054TodayView: View {
             }
         }
         .onChange(of: selectedDay) { _ in
-            endLiveDayForChangedInputs()
+            invalidateRouteForChangedInputs()
         }
         .onChange(of: selectedDayEvents) { _ in
-            endLiveDayForChangedInputs()
+            invalidateRouteForChangedInputs()
         }
         .onChange(of: selectedDayStops) { _ in
-            endLiveDayForChangedInputs()
+            invalidateRouteForChangedInputs()
         }
         .onChange(of: routingState.routeBufferMinutes) { _ in
-            endLiveDayForChangedInputs()
+            invalidateRouteForChangedInputs()
         }
         .onChange(of: planState.routeMode) { _ in
-            endLiveDayForChangedInputs()
+            invalidateRouteForChangedInputs()
         }
         .onChange(of: planState.returnHome) { _ in
-            endLiveDayForChangedInputs()
+            invalidateRouteForChangedInputs()
+        }
+        .onChange(of: routingState.routeOriginStatus.mode) { _ in
+            invalidateRouteForChangedInputs()
         }
     }
 
@@ -216,7 +219,7 @@ struct V054TodayView: View {
 
         return VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
             HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                Image(systemName: routingState.currentLocation == nil ? "house.fill" : "location.fill")
+                Image(systemName: startingPointIcon)
                     .foregroundStyle(scenicStyle.accent)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
@@ -228,7 +231,42 @@ struct V054TodayView: View {
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(scenicStyle.primaryText)
                 }
+
+                Spacer(minLength: ScenicRoyalDesignSystem.Spacing.compact)
+
+                Button {
+                    if routingState.liveLocationEnabled {
+                        routingState.stopLiveLocation()
+                    } else {
+                        routingState.requestCurrentLocation()
+                    }
+                    LifeRouteHaptics.selection()
+                } label: {
+                    Label(
+                        routingState.liveLocationEnabled ? "Stop Live" : "Use Live",
+                        systemImage: routingState.liveLocationEnabled ? "location.slash" : "location.fill"
+                    )
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.compact)
+                    .frame(minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .scenicRoyalInteractiveSurface(
+                    role: .selectedControl,
+                    cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
+                )
+                .accessibilityHint(
+                    routingState.liveLocationEnabled
+                        ? "Stops location updates and returns routing to Home when available"
+                        : "Uses this iPhone's current location as the route origin"
+                )
             }
+
+            Text(routingState.locationMessage)
+                .font(.caption2)
+                .foregroundStyle(scenicStyle.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
 
             Divider().overlay(scenicStyle.accent.opacity(0.18))
 
@@ -737,7 +775,7 @@ struct V054TodayView: View {
             afterStops: afterStops,
             routeBufferMinutes: routingState.routeBufferMinutes,
             homeAddress: routingState.homeAddress,
-            currentLocation: routingState.currentLocation
+            currentLocation: routingState.routeOriginLocation
         )
     }
 
@@ -765,6 +803,11 @@ struct V054TodayView: View {
         guard inserted else { return }
         LifeRouteHaptics.success()
         generateFullDay()
+    }
+
+    private func invalidateRouteForChangedInputs() {
+        planState.cancel()
+        endLiveDayForChangedInputs()
     }
 
     private func endLiveDayForChangedInputs() {
@@ -801,9 +844,23 @@ struct V054TodayView: View {
     }
 
     private var startingPointLabel: String {
-        if routingState.currentLocation != nil { return "Current Location" }
-        if !routingState.homeAddress.isEmpty { return "Home" }
-        return "Add Home in Setup"
+        let status = routingState.routeOriginStatus
+        switch status.mode {
+        case .liveCurrentLocation:
+            return "Live / Current Location"
+        case .home:
+            return status.isLocating ? "Home · locating" : "Home"
+        case .unavailable:
+            return status.isLocating ? "Current Location · locating" : "Unavailable"
+        }
+    }
+
+    private var startingPointIcon: String {
+        switch routingState.routeOriginStatus.mode {
+        case .liveCurrentLocation: return "location.fill"
+        case .home: return "house.fill"
+        case .unavailable: return "location.slash.fill"
+        }
     }
 
     private var emptyDayStatus: String {
@@ -812,12 +869,12 @@ struct V054TodayView: View {
 
     private var generationBlocker: String? {
         let hasDestination = routeAppointments.contains {
-            !$0.isAllDay && !$0.address.isEmpty
+            $0.isRoutable
         } || !selectedDayStops.isEmpty
         if !hasDestination {
             return "Add a located appointment in Calendar or a saved stop to generate this day."
         }
-        if routingState.currentLocation == nil && routingState.homeAddress.isEmpty {
+        if routingState.routeOriginStatus.mode == .unavailable {
             return "Start live location or add Home in Setup before generating."
         }
         if planState.returnHome && routingState.homeAddress.isEmpty {

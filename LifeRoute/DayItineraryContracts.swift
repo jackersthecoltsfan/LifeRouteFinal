@@ -389,16 +389,26 @@ struct LifeRouteGeneratedItinerary: Identifiable, Codable, Hashable, Sendable {
                 return nil
             }
 
-            let routeRange = previousIndex...nextIndex
-            let routeNodes = nodes[routeRange].filter { !$0.isAllDay }
-            let nodesAreSafe = routeNodes.allSatisfy { node in
-                guard node.isRoutable else {
-                    return false
+            let routeOriginIndex = nodes.indices[...previousIndex].last { index in
+                let node = nodes[index]
+                return node.isRoutable && !node.isAllDay
+            }
+            let routeDestinationIndex = nodes.indices[previousIndex...nextIndex].last { index in
+                let node = nodes[index]
+                return node.isRoutable && !node.isAllDay
+            } ?? routeOriginIndex
+            let routeNodes: [LifeRouteItineraryNode]
+            if let routeOriginIndex,
+               let routeDestinationIndex,
+               routeOriginIndex <= routeDestinationIndex {
+                routeNodes = nodes[routeOriginIndex...routeDestinationIndex].filter {
+                    $0.isRoutable && !$0.isAllDay
                 }
-                if node.kind == .appointment {
-                    return node.start != nil && node.end != nil
-                }
-                return true
+            } else {
+                routeNodes = []
+            }
+            let hasUnsafePlannedStop = nodes[previousIndex...nextIndex].contains { node in
+                node.kind == .stop && !node.isRoutable
             }
 
             var requiredTravel: TimeInterval = 0
@@ -412,14 +422,18 @@ struct LifeRouteGeneratedItinerary: Identifiable, Codable, Hashable, Sendable {
                 requiredTravel += leg.rawTravelSeconds
             }
 
-            let requiredStop = routeNodes.dropFirst().dropLast().reduce(0) {
+            let requiredStop = nodes[previousIndex...nextIndex].dropFirst().dropLast().reduce(0) {
                 result,
                 node in
                 result + (node.kind == .stop ? node.stopDurationSeconds : 0)
             }
-            let isRouteSafe = nodesAreSafe && allLegsPresent
+            let arrivalBuffer = next.isRoutable ? routeBuffer.seconds : 0
+            let isRouteSafe = routeOriginIndex != nil
+                && routeDestinationIndex != nil
+                && !hasUnsafePlannedStop
+                && allLegsPresent
             let usable = isRouteSafe
-                ? max(0, rawGap - requiredTravel - requiredStop - routeBuffer.seconds)
+                ? max(0, rawGap - requiredTravel - requiredStop - arrivalBuffer)
                 : nil
 
             return LifeRouteUsableGap(
@@ -429,7 +443,7 @@ struct LifeRouteGeneratedItinerary: Identifiable, Codable, Hashable, Sendable {
                 rawCalendarGapSeconds: rawGap,
                 requiredTravelSeconds: requiredTravel,
                 requiredStopSeconds: requiredStop,
-                bufferSeconds: routeBuffer.seconds,
+                bufferSeconds: arrivalBuffer,
                 usableSeconds: usable,
                 isRouteSafe: isRouteSafe
             )
@@ -471,13 +485,14 @@ struct LifeRouteGeneratedItinerary: Identifiable, Codable, Hashable, Sendable {
             let node = nodes[index]
             return node.kind == .appointment
                 && !node.isAllDay
+                && node.isRoutable
                 && node.start.map { $0 >= now } == true
         }) else {
             return nil
         }
 
         let target = nodes[targetIndex]
-        guard target.isRoutable, let appointmentStart = target.start else {
+        guard let appointmentStart = target.start else {
             return nil
         }
 
@@ -488,24 +503,16 @@ struct LifeRouteGeneratedItinerary: Identifiable, Codable, Hashable, Sendable {
                 && node.start != nil
                 && node.end != nil
         }
-        let routeOriginIndex = previousTimedAppointmentIndex ?? nodes.startIndex
-        guard routeOriginIndex < targetIndex else {
+        let routeSearchEnd = previousTimedAppointmentIndex ?? nodes.startIndex
+        guard let routeOriginIndex = nodes.indices[...routeSearchEnd].last(where: { index in
+            let node = nodes[index]
+            return node.isRoutable && !node.isAllDay
+        }), routeOriginIndex < targetIndex else {
             return nil
         }
 
         let routeRange = routeOriginIndex...targetIndex
-        let routeNodes = nodes[routeRange].filter { !$0.isAllDay }
-        guard routeNodes.allSatisfy({ node in
-            guard node.isRoutable else {
-                return false
-            }
-            if node.kind == .appointment && node.id != target.id && node.id != nodes[routeOriginIndex].id {
-                return false
-            }
-            return !node.isAllDay
-        }) else {
-            return nil
-        }
+        let routeNodes = nodes[routeRange].filter { $0.isRoutable && !$0.isAllDay }
 
         let legsByPair = canonicalLegsByPair
         var rawTravel: TimeInterval = 0
@@ -524,6 +531,13 @@ struct LifeRouteGeneratedItinerary: Identifiable, Codable, Hashable, Sendable {
         let leaveBy = appointmentStart.addingTimeInterval(
             -(rawTravel + stopSeconds + routeBuffer.seconds)
         )
+        let blockingVirtualCommitment = nodes[routeOriginIndex..<targetIndex].contains { node in
+            node.kind == .appointment
+                && !node.isAllDay
+                && !node.isRoutable
+                && node.end.map { $0 > leaveBy && $0 > now } == true
+        }
+        guard !blockingVirtualCommitment else { return nil }
         let delta = leaveBy.timeIntervalSince(now)
         let state: LifeRouteDepartureGuidance.State
         let secondsUntilDeparture: TimeInterval

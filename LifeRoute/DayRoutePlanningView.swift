@@ -320,18 +320,13 @@ struct DayRoutePlanningView: View {
             }
 
             if let plan = planState.fullRoutePlan {
-                Button {
-                    if planState.hasStartedSequentialHandoff,
-                       planState.nextSequentialLegIndex != nil {
-                        planState.continueFullRoute(mode: planState.routeMode)
-                    } else {
-                        planState.startFullRoute(mode: planState.routeMode)
-                    }
-                } label: {
-                    Label(fullRouteActionTitle(plan), systemImage: fullRouteActionIcon(plan))
-                }
-                .buttonStyle(ScenicRoyalPrimaryButtonStyle())
-                .accessibilityHint(fullRouteAccessibilityHint(plan))
+                ScenicRoyalFullRouteActionButton(
+                    planState: planState,
+                    plan: plan,
+                    triggersPrimaryHaptic: false,
+                    showsLaunchingState: false,
+                    disablesWhileLaunching: false
+                )
 
                 if let fallbackReason = plan.fallbackReason {
                     Label(fallbackReason, systemImage: "arrow.triangle.2.circlepath")
@@ -474,29 +469,4 @@ struct DayRoutePlanningView: View {
         }
     }
 
-    private func fullRouteActionTitle(_ plan: LifeRouteFullRouteHandoffPlan) -> String {
-        if plan.requiresSequentialContinuation,
-           planState.hasStartedSequentialHandoff,
-           let nextIndex = planState.nextSequentialLegIndex {
-            return "Continue with leg \(nextIndex + 1) of \(plan.orderedLegs.count) in \(plan.provider.title)"
-        }
-        if plan.requiresSequentialContinuation, planState.hasStartedSequentialHandoff {
-            return "Start full route again in \(plan.provider.title)"
-        }
-        return "Start full route in \(plan.provider.title)"
-    }
-
-    private func fullRouteActionIcon(_ plan: LifeRouteFullRouteHandoffPlan) -> String {
-        if plan.requiresSequentialContinuation, planState.hasStartedSequentialHandoff {
-            return "arrow.forward.circle.fill"
-        }
-        return "location.north.line.fill"
-    }
-
-    private func fullRouteAccessibilityHint(_ plan: LifeRouteFullRouteHandoffPlan) -> String {
-        if plan.requiresSequentialContinuation {
-            return "Opens each computed leg in order. Return to LifeRoute after each leg to continue."
-        }
-        return "Sends the complete ordered route to \(plan.provider.title)."
-    }
 }

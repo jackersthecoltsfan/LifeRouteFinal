@@ -93,7 +93,7 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
             // neutral legibility underlay and no theme decoration or shadow.
             content
                 .background {
-                    surfaceShape.fill(Color.black.opacity(0.035))
+                    surfaceShape.fill(Color.black.opacity(ScenicRoyalDesignSystem.Opacity.standardMajorGroupUnderlay))
                 }
                 .glassEffect(.clear, in: .rect(cornerRadius: cornerRadius))
         } else if role.usesNativeGlass, #available(iOS 26.0, *) {
@@ -236,7 +236,7 @@ enum LifeRouteGlassLabCandidate: String, CaseIterable, Identifiable {
     var dimmingOpacity: Double {
         switch self {
         case .l0: return 0
-        case .l1: return 0.035
+        case .l1: return ScenicRoyalDesignSystem.Opacity.standardMajorGroupUnderlay
         case .l2: return 0.07
         }
     }

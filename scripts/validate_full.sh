@@ -12,8 +12,7 @@ bash scripts/run_visual_timer_feedback_contract_tests.sh
 bash scripts/run_runtime_feedback_contract_tests.sh
 bash scripts/run_visual_activity_contract_tests.sh
 bash scripts/run_scenery_effect_contract_tests.sh
-bash scripts/run_root_swipe_contract_tests.sh
-bash scripts/run_root_navigation_lab_contract_tests.sh
+python3 scripts/root_paging_ambient_suspension_contract_test.py
 python3 scripts/today_full_route_action_contract_test.py
 python3 scripts/theme_thumbnail_contract_test.py
 

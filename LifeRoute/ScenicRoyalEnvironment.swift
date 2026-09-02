@@ -45,9 +45,6 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
         .environment(\.defaultMinListRowHeight, 52)
         .tint(palette.accent)
         .preferredColorScheme(theme == .light ? .light : .dark)
-        .onChange(of: visualActivityCoordinator.ambientSuspensionCount) { activeRequests in
-            LifeRouteVisualInstrumentation.ambientSuspensionChanged(activeRequests: activeRequests)
-        }
     }
 
     @ViewBuilder

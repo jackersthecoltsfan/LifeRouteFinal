@@ -1,10 +1,6 @@
 import Combine
 import Foundation
 
-#if DEBUG
-import os
-#endif
-
 /// The bounded rendering profiles used by the root ambient environment. They
 /// make same-device A/B captures distinguish the page shell, scenery effects,
 /// Dynamic effect, and their combined cost without changing the scenery camera.
@@ -113,32 +109,5 @@ enum LifeRouteDebugVisualActivityMode: String, CaseIterable {
     var ambientRenderMode: LifeRouteAmbientRenderMode {
         LifeRouteAmbientRenderMode(rawValue: rawValue) ?? .full
     }
-}
-
-enum LifeRouteVisualInstrumentation {
-    private static let log = OSLog(
-        subsystem: Bundle.main.bundleIdentifier ?? "com.brandongood.LifeRoute",
-        category: "VisualActivity"
-    )
-
-    static func rootSectionSelected(_ section: String) {
-        os_signpost(.event, log: log, name: "Root Section Selected", "%{public}s", section)
-    }
-
-    /// SwiftUI does not expose native tab-animation completion. This marks the
-    /// first main-actor turn after a selection has been applied.
-    static func rootSelectionSettled(_ section: String) {
-        os_signpost(.event, log: log, name: "Root Selection Settled", "%{public}s", section)
-    }
-
-    static func ambientSuspensionChanged(activeRequests: Int) {
-        os_signpost(.event, log: log, name: "Ambient Suspension Changed", "%{public}ld", activeRequests)
-    }
-}
-#else
-enum LifeRouteVisualInstrumentation {
-    static func rootSectionSelected(_ section: String) {}
-    static func rootSelectionSettled(_ section: String) {}
-    static func ambientSuspensionChanged(activeRequests: Int) {}
 }
 #endif

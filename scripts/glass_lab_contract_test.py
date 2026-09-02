@@ -40,7 +40,7 @@ require(".glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12))" in l
 require(".labGlassControl(selected: false)" in lab and ".labGlassControl(selected: true)" in lab, "focal and selected controls share one recipe")
 require(".scenicRoyalSurface" not in lab, "production surface modifier is absent")
 require("case .l0: return 0" in lab, "L0 has no neutral dimming")
-require("case .l1: return 0.035" in lab, "L1 has extremely light neutral dimming")
+require("case .l1: return ScenicRoyalDesignSystem.Opacity.standardMajorGroupUnderlay" in lab, "L1 uses the canonical neutral underlay token")
 require("case .l2: return 0.07" in lab, "L2 has slightly stronger neutral dimming")
 require("accessibilityStatus" in lab, "system adaptation flags are visible")
 require("Reduce Transparency:" in lab and "Increase Contrast:" in lab, "both accessibility flags are named")

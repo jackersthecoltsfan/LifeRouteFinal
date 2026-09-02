@@ -338,6 +338,68 @@ struct ScenicRoyalTravelPlanLabel: View {
     }
 }
 
+/// Shared full-route presentation for Today and the deeper Day Route screen.
+/// The planning core remains the single owner of handoff state and provider
+/// sequencing; callers only choose their existing local feedback differences.
+struct ScenicRoyalFullRouteActionButton: View {
+    @ObservedObject var planState: DayRoutePlanningCore
+
+    let plan: LifeRouteFullRouteHandoffPlan
+    let triggersPrimaryHaptic: Bool
+    let showsLaunchingState: Bool
+    let disablesWhileLaunching: Bool
+
+    var body: some View {
+        Button {
+            if triggersPrimaryHaptic {
+                LifeRouteHaptics.primaryAction()
+            }
+            if planState.hasStartedSequentialHandoff,
+               planState.nextSequentialLegIndex != nil {
+                planState.continueFullRoute(mode: planState.routeMode)
+            } else {
+                planState.startFullRoute(mode: planState.routeMode)
+            }
+        } label: {
+            Label(
+                showsLaunchingState && planState.isLaunchingNavigation
+                    ? "Opening \(plan.provider.title)…"
+                    : actionTitle,
+                systemImage: actionIcon
+            )
+        }
+        .buttonStyle(ScenicRoyalPrimaryButtonStyle())
+        .disabled(disablesWhileLaunching && planState.isLaunchingNavigation)
+        .accessibilityHint(accessibilityHint)
+    }
+
+    private var actionTitle: String {
+        if plan.requiresSequentialContinuation,
+           planState.hasStartedSequentialHandoff,
+           let nextIndex = planState.nextSequentialLegIndex {
+            return "Continue with leg \(nextIndex + 1) of \(plan.orderedLegs.count) in \(plan.provider.title)"
+        }
+        if plan.requiresSequentialContinuation, planState.hasStartedSequentialHandoff {
+            return "Start full route again in \(plan.provider.title)"
+        }
+        return "Start full route in \(plan.provider.title)"
+    }
+
+    private var actionIcon: String {
+        if plan.requiresSequentialContinuation, planState.hasStartedSequentialHandoff {
+            return "arrow.forward.circle.fill"
+        }
+        return "location.north.line.fill"
+    }
+
+    private var accessibilityHint: String {
+        if plan.requiresSequentialContinuation {
+            return "Opens each computed leg in order. Return to LifeRoute after each leg to continue."
+        }
+        return "Sends the complete ordered route to \(plan.provider.title)."
+    }
+}
+
 struct ScenicRoyalCalendarConnectionLabel: View {
     @Environment(\.scenicRoyalThemeStyle) private var style
 

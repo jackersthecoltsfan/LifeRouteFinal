@@ -1,9 +1,6 @@
 import SwiftUI
 import UIKit
 import AVFoundation
-#if DEBUG
-import Darwin
-#endif
 
 typealias ContentView = V054ContentView
 
@@ -24,12 +21,6 @@ private enum LifeRouteDebugLaunch {
         }
     }
 
-    /// Root-navigation lab values are deterministic: `native` is the shipping
-    /// iOS 26 TabView baseline, while `page` enables the DEBUG-only pager/dock.
-    static var rootNavigationLabPrototype: LifeRouteRootNavigationLabPrototype {
-        LifeRouteRootNavigationLabPrototype.resolve(arguments: ProcessInfo.processInfo.arguments)
-    }
-
     private static func section(for argument: String) -> AppSection? {
         let arguments = ProcessInfo.processInfo.arguments
         guard let keyIndex = arguments.firstIndex(of: argument) else { return nil }
@@ -39,22 +30,6 @@ private enum LifeRouteDebugLaunch {
     }
 }
 
-private final class LifeRouteDebugSectionSignal {
-    static let shared = LifeRouteDebugSectionSignal()
-
-    private var source: DispatchSourceSignal?
-
-    private init() {}
-
-    func install(_ handler: @escaping () -> Void) {
-        guard source == nil else { return }
-        Darwin.signal(SIGUSR1, SIG_IGN)
-        let source = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
-        source.setEventHandler(handler: handler)
-        source.resume()
-        self.source = source
-    }
-}
 #endif
 
 struct V054ContentView: View {
@@ -81,9 +56,6 @@ struct V054ContentView: View {
             if let section = LifeRouteDebugLaunch.sectionOverride {
                 router.select(section)
             }
-            LifeRouteDebugSectionSignal.shared.install {
-                router.select(.schedule)
-            }
 #endif
             // v0.7.1 physical-device root environment reveal: wait one run loop so TabView/UIKit children exist.
             DispatchQueue.main.async {
@@ -93,11 +65,6 @@ struct V054ContentView: View {
         .onChange(of: router.selectedSection) { section in
             router.setBottomToolbarSuppressed(false)
             LifeRouteHaptics.rootNavigation()
-            LifeRouteVisualInstrumentation.rootSectionSelected(section.rawValue)
-            Task { @MainActor in
-                await Task.yield()
-                LifeRouteVisualInstrumentation.rootSelectionSettled(section.rawValue)
-            }
         }
         .onChange(of: themeStore.selectedTheme) { theme in
             DispatchQueue.main.async {
@@ -135,47 +102,17 @@ struct V054ContentView: View {
     @ViewBuilder
     private var rootShell: some View {
         if #available(iOS 26.0, *) {
-#if DEBUG
-            if LifeRouteDebugLaunch.rootNavigationLabPrototype == .page {
-                interactivePageRootShell
-            } else {
-                nativeRootShell
-            }
-#else
-            nativeRootShell
-#endif
+            fingerTrackedRootShell
         } else {
             legacyRootShell
         }
     }
 
     @available(iOS 26.0, *)
-    private var nativeRootShell: some View {
-        TabView(selection: $router.selectedSection) {
-            Tab(AppSection.today.title, systemImage: AppSection.today.systemImage, value: AppSection.today) {
-                todayRoot
-            }
-            Tab(AppSection.schedule.title, systemImage: AppSection.schedule.systemImage, value: AppSection.schedule) {
-                calendarRoot
-            }
-            Tab(AppSection.tools.title, systemImage: AppSection.tools.systemImage, value: AppSection.tools) {
-                toolsRoot
-            }
-            Tab(AppSection.resources.title, systemImage: AppSection.resources.systemImage, value: AppSection.resources) {
-                resourcesRoot
-            }
-            Tab(AppSection.setup.title, systemImage: AppSection.setup.systemImage, value: AppSection.setup) {
-                setupRoot
-            }
-        }
-        .modifier(LifeRouteRootSwipeCoordinator(router: router))
-    }
-
-#if DEBUG
-    /// Experimental B: the page style owns only root-level horizontal movement.
-    /// The dock disappears for a deep path through the existing router policy.
-    @available(iOS 26.0, *)
-    private var interactivePageRootShell: some View {
+    /// Prototype B is the canonical iOS 26 root shell. TabView's page style
+    /// owns continuous finger tracking, while the shared router still owns
+    /// five root identities, nested paths, and bottom-toolbar visibility.
+    private var fingerTrackedRootShell: some View {
         TabView(selection: $router.selectedSection) {
             todayRoot
                 .tag(AppSection.today)
@@ -192,7 +129,7 @@ struct V054ContentView: View {
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if router.shouldShowBottomToolbar {
-                LifeRouteRootNavigationLabDock(selection: $router.selectedSection)
+                LifeRouteRootPagingToolbar(selection: $router.selectedSection)
                     .padding(.horizontal, 16)
                     .padding(.top, 8)
                     .padding(.bottom, ScenicRoyalDesignSystem.Layout.bottomToolbarClearance)
@@ -200,7 +137,6 @@ struct V054ContentView: View {
         }
         .modifier(LifeRouteRootPagingAmbientSuspensionModifier(router: router))
     }
-#endif
 
     private var legacyRootShell: some View {
             TabView(selection: $router.selectedSection) {
@@ -279,11 +215,10 @@ struct V054ContentView: View {
     }
 }
 
-#if DEBUG
-/// One material owner wraps all five fixed root destinations. Individual tabs
+/// One material owner wraps the five fixed root destinations. Individual tabs
 /// use tint and a compact indicator rather than layered material or capsules.
 @available(iOS 26.0, *)
-private struct LifeRouteRootNavigationLabDock: View {
+private struct LifeRouteRootPagingToolbar: View {
     @Environment(\.lifeRoutePalette) private var palette
 
     @Binding var selection: AppSection
@@ -410,31 +345,6 @@ private final class LifeRouteRootPagingAmbientSuspension: ObservableObject {
         coordinator.releaseAmbientSuspension(requestID)
     }
 }
-#endif
-
-/// Translates a completed, root-only horizontal drag into one native tab
-/// selection. It deliberately does not offset content or page the TabView, so
-/// vertical ScrollViews and deep NavigationStacks retain their own gestures.
-private struct LifeRouteRootSwipeCoordinator: ViewModifier {
-    @ObservedObject var router: AppRouter
-
-    func body(content: Content) -> some View {
-        content.simultaneousGesture(
-            DragGesture(minimumDistance: LifeRouteRootSwipePolicy.minimumHorizontalTranslation)
-                .onEnded { value in
-                    guard let destination = router.rootSwipeDestination(
-                        translation: value.translation,
-                        predictedEndTranslation: value.predictedEndTranslation,
-                        velocity: value.velocity
-                    ) else {
-                        return
-                    }
-                    router.select(destination)
-                }
-        )
-    }
-}
-
 /// Owns the transparent navigation-container surface once for every paged root.
 /// On iOS 26 this replaces the former live UIKit controller-tree mutation that
 /// could both expose black lazy-page backgrounds and assert inside navigation layout.
@@ -482,7 +392,7 @@ extension LifeRouteAppearance {
         let needsOpaqueChrome = UIAccessibility.isReduceTransparencyEnabled
             || UIAccessibility.isDarkerSystemColorsEnabled
 
-        // v0.7.0 Build A shell: premium native navigation and tab chrome; routing remains unchanged.
+        // Pre-iOS 26 UIKit appearance fallback; routing remains unchanged.
         let chromeBlurStyle: UIBlurEffect.Style = theme == .light ? .systemUltraThinMaterialLight : .systemUltraThinMaterialDark
 
         let navigationAppearance: UINavigationBarAppearance?

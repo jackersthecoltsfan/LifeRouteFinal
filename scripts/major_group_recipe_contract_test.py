@@ -21,7 +21,7 @@ standard_start = modifier.index("} else if role == .majorGroup, #available(iOS 2
 generic_start = modifier.index("} else if role.usesNativeGlass, #available(iOS 26.0, *)")
 standard = modifier[standard_start:generic_start]
 
-require("surfaceShape.fill(Color.black.opacity(0.035))" in standard, "majorGroup uses exact neutral 0.035 underlay")
+require("surfaceShape.fill(Color.black.opacity(ScenicRoyalDesignSystem.Opacity.standardMajorGroupUnderlay))" in standard, "majorGroup uses the canonical neutral underlay token")
 require(".glassEffect(.clear, in: .rect(cornerRadius: cornerRadius))" in standard, "majorGroup uses raw native Glass.clear")
 require("decorated(" not in standard, "majorGroup bypasses gradient/outline/shadow decoration")
 require("style." not in standard, "majorGroup standard recipe has no theme tint/fill")

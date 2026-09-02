@@ -32,11 +32,16 @@ shared_action_markers = (
     "planState.continueFullRoute(mode: planState.routeMode)",
     "planState.startFullRoute(mode: planState.routeMode)",
 )
-for marker in shared_action_markers:
-    require(marker in today_action, f"Today retains canonical full-route marker: {marker}")
-    require(marker in day_route_action, f"Day Route retains canonical full-route marker: {marker}")
+require("planState.fullRoutePlan" in TODAY, "Today retains the generated full-route state")
+require("planState.fullRoutePlan" in DAY_ROUTE, "Day Route retains the generated full-route state")
 
-require("planState.startRoute(" not in today_action, "Today never falls back to the single-leg launch API")
+require("ScenicRoyalFullRouteActionButton(" in today_action, "Today uses the shared complete-route action presentation")
+require("ScenicRoyalFullRouteActionButton(" in day_route_action, "Day Route uses the shared complete-route action presentation")
+shared_component = (ROOT / "LifeRoute" / "ScenicRoyalScheduleComponents.swift").read_text()
+for marker in shared_action_markers[1:]:
+    require(marker in shared_component, f"shared full-route component owns the handoff marker: {marker}")
+
+require("planState.startRoute(" not in TODAY, "Today never falls back to the single-leg launch API")
 require("startRouteDecision" in today_action, "Today retains stale, wrong-day, and no-destination gating")
 require("case .stale:" in today_action, "Today explicitly blocks stale generated itineraries")
 require("if let itinerary = selectedItinerary" in TODAY and "startRouteControl(itinerary" in TODAY, "Today exposes the full-route control after Generate Full Day produces an itinerary")

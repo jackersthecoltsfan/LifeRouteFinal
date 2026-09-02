@@ -145,7 +145,7 @@ def validate_active_build_path() -> None:
     require("run_runtime_feedback_contract_tests.sh" in full, "validate_full must run executable runtime feedback contracts")
     require("run_visual_activity_contract_tests.sh" in full, "validate_full must run executable visual-activity contracts")
     require("run_scenery_effect_contract_tests.sh" in full, "validate_full must run executable scenery-effect contracts")
-    require("run_root_swipe_contract_tests.sh" in full, "validate_full must run executable root-swipe contracts")
+    require("root_paging_ambient_suspension_contract_test.py" in full, "validate_full must run the Prototype B paging contract")
     require("theme_thumbnail_contract_test.py" in full, "validate_full must run Theme Center raster contracts")
     fixture_runner = read(ROOT / "scripts" / "run_session_note_contract_tests.sh")
     fixture_source = read(ROOT / "scripts" / "session_note_contract_tests.swift")
@@ -162,8 +162,7 @@ def validate_active_build_path() -> None:
     visual_activity_fixture_source = read(ROOT / "scripts" / "visual_activity_contract_tests.swift")
     scenery_fixture_runner = read(ROOT / "scripts" / "run_scenery_effect_contract_tests.sh")
     scenery_fixture_source = read(ROOT / "scripts" / "scenery_effect_contract_tests.swift")
-    root_swipe_fixture_runner = read(ROOT / "scripts" / "run_root_swipe_contract_tests.sh")
-    root_swipe_fixture_source = read(ROOT / "scripts" / "root_swipe_contract_tests.swift")
+    root_paging_fixture_source = read(ROOT / "scripts" / "root_paging_ambient_suspension_contract_test.py")
     thumbnail_fixture_source = read(ROOT / "scripts" / "theme_thumbnail_contract_test.py")
     require_all(
         swift_contract_runner,
@@ -205,22 +204,16 @@ def validate_active_build_path() -> None:
     require("run_visual_timer_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Visual Timer feedback contracts")
     require("run_runtime_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute runtime feedback contracts")
     require("run_scenery_effect_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute scenery-effect contracts")
-    require("run_root_swipe_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute root-swipe contracts")
+    require("root_paging_ambient_suspension_contract_test.py" in simulator_smoke, "native simulator smoke must execute the Prototype B paging contract")
     require("theme_thumbnail_contract_test.py" in simulator_smoke, "native simulator smoke must execute Theme Center raster contracts")
     require_all(
-        root_swipe_fixture_runner,
-        ["LIFEROUTE_ROOT_SWIPE_CONTRACT_TEST", "AppNavigation.swift", "root_swipe_contract_tests.swift"],
-        "root-swipe fixture runner",
-    )
-    require_all(
-        root_swipe_fixture_source,
+        root_paging_fixture_source,
         [
-            "testNeighborResolution()",
-            "testGestureDecisionPolicy()",
-            "deep navigation paths disable root swipe selection",
-            "Root swipe regression floor requires at least 24 assertions",
+            "finger-tracked page style",
+            "LifeRouteRootPagingAmbientSuspensionModifier(router: router)",
+            "the rejected Prototype A path is absent",
         ],
-        "root-swipe executable fixtures",
+        "Prototype B paging fixtures",
     )
     require_all(
         thumbnail_fixture_source,
@@ -425,10 +418,6 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
             "return toolsPath.isEmpty",
             "return resourcesPath.isEmpty",
             "return setupPath.isEmpty",
-            "enum LifeRouteRootSwipePolicy",
-            "minimumHorizontalDominance",
-            "committedHorizontalVelocity",
-            "selectedPathIsEmpty && !isBottomToolbarSuppressed",
         ],
         "five-section AppSection and deep-route toolbar policy",
     )
@@ -436,21 +425,19 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
     require_count(root, "@StateObject private var router = AppRouter()", 1, "root router ownership")
     require_count(root, "LifeRouteRootNavigationStack(path: $router.", 5, "five roots share one navigation-container owner")
     require_count(root, "NavigationStack(path: $path)", 1, "shared root navigation-stack implementation")
-    require_count(root, ".tag(AppSection.", 10, "legacy and DEBUG page-lab five section tags")
+    require_count(root, ".tag(AppSection.", 10, "legacy fallback and canonical Prototype B five-section tags")
     toolbar = sources["ScenicRoyalToolbar.swift"]
     require_count(toolbar, "struct ScenicRoyalToolbar: View", 1, "Scenic Royal toolbar ownership")
     require_all(
         root,
         [
             "selection: $router.selectedSection",
-            "Tab(AppSection.today.title, systemImage: AppSection.today.systemImage, value: AppSection.today)",
-            "Tab(AppSection.schedule.title, systemImage: AppSection.schedule.systemImage, value: AppSection.schedule)",
-            "Tab(AppSection.tools.title, systemImage: AppSection.tools.systemImage, value: AppSection.tools)",
-            "Tab(AppSection.resources.title, systemImage: AppSection.resources.systemImage, value: AppSection.resources)",
-            "Tab(AppSection.setup.title, systemImage: AppSection.setup.systemImage, value: AppSection.setup)",
             "if #available(iOS 26.0, *)",
-            "ScenicRoyalToolbar(selection: $router.selectedSection)",
+            "fingerTrackedRootShell",
             ".tabViewStyle(.page(indexDisplayMode: .never))",
+            "LifeRouteRootPagingToolbar(selection: $router.selectedSection)",
+            "LifeRouteRootPagingAmbientSuspensionModifier(router: router)",
+            "ScenicRoyalToolbar(selection: $router.selectedSection)",
             "if router.shouldShowBottomToolbar",
             ".environmentObject(router)",
             ".toolbar(.hidden, for: .tabBar)",
@@ -462,11 +449,10 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
             "private struct LifeRouteRootNavigationStack<Content: View>: View",
             "if #available(iOS 26.0, *)",
             "content.containerBackground(Color.clear, for: .navigation)",
-            "LifeRouteRootSwipeCoordinator(router: router)",
-            "content.simultaneousGesture(",
-            "router.select(destination)",
+            "DragGesture(minimumDistance: 8)",
+            "router.shouldShowBottomToolbar",
         ],
-        "native iOS 26 tabs, legacy paged-toolbar fallback, declarative transparent navigation ownership, and Debug deep-screen fixture",
+        "Prototype B finger-tracked iOS 26 paging, legacy fallback, declarative transparent navigation ownership, and Debug deep-screen fixture",
     )
     require_count(
         root,
@@ -551,7 +537,7 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
     visual_activity = sources["LifeRouteVisualActivityCoordinator.swift"]
     require_all(app, ["minimumInterval: 1.0 / 15.0", "paused: reduceMotion || !isActive", "renderMode: LifeRouteAmbientRenderMode", "liveEffects(at: Date(timeIntervalSinceReferenceDate: 0), plan: renderMode.plan)"], "lifecycle, suspension, and Reduce Motion clock pausing")
     require_all(environment, ["struct ScenicRoyalEnvironmentHost", "isActive: scenePhase == .active", "reduceMotion || reduceMotionOverride", "@EnvironmentObject private var visualActivityCoordinator", "return .frozen"], "persistent Scenic Royal environment and suspension host")
-    require_all(visual_activity, ["case full", "case frozen", "case sceneryOnly", "case dynamicOnly", "case noEffects", "final class LifeRouteVisualActivityCoordinator", "private var activeRequests = Set<UUID>()", "private var themeCenterRequestID: UUID?", "func acquireAmbientSuspension() -> UUID", "func releaseAmbientSuspension(_ requestID: UUID)", "func setThemeCenterVisible(_ isVisible: Bool)", "#if DEBUG", "-LifeRouteVisualActivityMode", "os_signpost"], "debug A/B modes, idempotent Theme Center suspension, and DEBUG-only visual instrumentation")
+    require_all(visual_activity, ["case full", "case frozen", "case sceneryOnly", "case dynamicOnly", "case noEffects", "final class LifeRouteVisualActivityCoordinator", "private var activeRequests = Set<UUID>()", "private var themeCenterRequestID: UUID?", "func acquireAmbientSuspension() -> UUID", "func releaseAmbientSuspension(_ requestID: UUID)", "func setThemeCenterVisible(_ isVisible: Bool)", "#if DEBUG", "-LifeRouteVisualActivityMode"], "debug A/B modes and idempotent Theme Center suspension")
     require("Timer.scheduledTimer" not in app, "theme architecture must not introduce a competing Timer owner")
     core = extract_catalog(app, "static let phaseOneCoreGlassCatalog")
     dynamic = extract_catalog(app, "static let v071RetainedDynamicCatalog")
@@ -1275,7 +1261,7 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
         "canonical itinerary, usable-gap, Route Buffer, and Live Day projection contracts",
     )
     require_all(full_route_contracts, ["completeGoogleMaps", "completeAppleMaps", "maximumGoogleMobileWaypoints = 3", "maximumURLLength = 2_048", "hasVerifiedSequence", "sequentialPlan"], "bounded provider full-route contract")
-    require_all(day_route_view, ["routingState.dayStops(on: day)", "routingState.addDayStop", "routingState.removeDayStop", '"Generate full day route"', '"Start full route in \\(plan.provider.title)"', "ScenicRoyalRouteLegRow", "scenicRoyalField()"], "Day Route persisted-stop, Scenic Royal presentation, and one-action handoff")
+    require_all(day_route_view, ["routingState.dayStops(on: day)", "routingState.addDayStop", "routingState.removeDayStop", '"Generate full day route"', "ScenicRoyalFullRouteActionButton(", "ScenicRoyalRouteLegRow", "scenicRoyalField()"], "Day Route persisted-stop, Scenic Royal presentation, and one-action handoff")
     require("Open this leg" not in day_route_view, "Day Route must not expose separate normal-flow launch actions for each leg")
     require_all(setup + today, ["Weekly To-Dos", "gap suggestions"], "weekly To-Dos and gap suggestions")
     require_all(persistence, ["schemaVersion", "PersistedVisualIcon", "PersistedChoiceBoard", "PersistedVisualSchedule", "dayStops", "manualCalendarEvents", "providerCalendarEvents", "FileProtectionType.completeUntilFirstUserAuthentication", "options: [.atomic]", "private actor SnapshotWriter"], "native persistence and protected visual storage")
@@ -1290,11 +1276,7 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
             "liveActivity.start(itinerary: itinerary)",
             "startRouteDecision",
             "planState.fullRoutePlan",
-            "planState.hasStartedSequentialHandoff",
-            "planState.nextSequentialLegIndex",
-            "Start full route in",
-            "planState.startFullRoute(",
-            "planState.continueFullRoute(",
+            "ScenicRoyalFullRouteActionButton(",
         ],
         "Today, Gap Fillers, total driving, Live Day, and full-route action share the generated itinerary",
     )

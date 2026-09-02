@@ -1288,11 +1288,17 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
             "planState.evaluateGapFillers",
             "LifeRouteLiveDayProjection.make(from: itinerary",
             "liveActivity.start(itinerary: itinerary)",
-            "Start Route:",
-            "planState.startRoute(",
+            "startRouteDecision",
+            "planState.fullRoutePlan",
+            "planState.hasStartedSequentialHandoff",
+            "planState.nextSequentialLegIndex",
+            "Start full route in",
+            "planState.startFullRoute(",
+            "planState.continueFullRoute(",
         ],
-        "Today, Gap Fillers, total driving, and Live Day share the generated itinerary",
+        "Today, Gap Fillers, total driving, Live Day, and full-route action share the generated itinerary",
     )
+    require("planState.startRoute(" not in today, "Today primary navigation must never call the single-leg route API")
     require_all(migration, ["LegacyMigrationPayload", "clients", "manualCalendarEvents", "places", "homeAddress"], "installed-version migration boundary")
 
 

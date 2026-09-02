@@ -3649,7 +3649,6 @@ struct LifeRouteApp: App {
 #if DEBUG
             if let glassLab = LifeRouteGlassLabLaunch.current {
                 LifeRouteGlassLabView(
-                    initialCandidate: glassLab.candidate,
                     initialScene: glassLab.scene
                 )
             } else if let fixture = LifeRouteVisualFixture.current {

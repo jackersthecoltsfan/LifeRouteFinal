@@ -197,29 +197,36 @@ extension View {
 }
 
 #if DEBUG
-/// A deliberately isolated, non-persistent Liquid Glass comparison surface.
+/// A deliberately isolated, non-persistent raw-material comparison surface.
 /// It is reachable only from `-LifeRouteGlassLab` and never participates in
-/// the production surface-role migration.
+/// the production surface-role migration. V2 displays every recipe together
+/// and keeps legibility treatments out of the raw comparison.
 enum LifeRouteGlassLabCandidate: String, CaseIterable, Identifiable {
+    case baseline = "baseline"
     case clear = "clear"
     case regular = "regular"
     case material = "material"
+    case production = "production"
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .clear: return "A · Clear"
-        case .regular: return "B · Regular"
-        case .material: return "C · Material"
+        case .baseline: return "0 — No material"
+        case .clear: return "A — Raw native clear"
+        case .regular: return "B — Raw native regular"
+        case .material: return "C — Raw ultra thin material"
+        case .production: return "D — Current production"
         }
     }
 
     var summary: String {
         switch self {
-        case .clear: return "Glass.clear + one bounded legibility underlay"
-        case .regular: return "Glass.regular + restrained theme tint"
-        case .material: return "ultraThinMaterial fallback"
+        case .baseline: return "Transparent · hairline bounds only"
+        case .clear: return "Glass.clear only"
+        case .regular: return "Glass.regular only"
+        case .material: return "ultraThinMaterial only"
+        case .production: return "Exact shared major-group surface"
         }
     }
 }
@@ -237,17 +244,30 @@ enum LifeRouteGlassLabScene: String, CaseIterable, Identifiable {
         }
     }
 
+    var pickerTitle: String {
+        switch self {
+        case .bright: return "Bright"
+        case .dark: return "Dark"
+        }
+    }
+
     var assetName: String {
         switch self {
         case .bright: return "SceneryCanyonDay"
         case .dark: return "SceneryCanyonNight"
         }
     }
+
+    var theme: LifeRouteTheme {
+        switch self {
+        case .bright: return .sceneryCanyonDay
+        case .dark: return .sceneryCanyonNight
+        }
+    }
 }
 
 enum LifeRouteGlassLabLaunch {
     struct Selection {
-        let candidate: LifeRouteGlassLabCandidate
         let scene: LifeRouteGlassLabScene
     }
 
@@ -256,8 +276,6 @@ enum LifeRouteGlassLabLaunch {
         guard arguments.contains("-LifeRouteGlassLab") else { return nil }
 
         return Selection(
-            candidate: value(after: "-LifeRouteGlassLabCandidate", in: arguments)
-                .flatMap(LifeRouteGlassLabCandidate.init(rawValue:)) ?? .clear,
             scene: value(after: "-LifeRouteGlassLabScene", in: arguments)
                 .flatMap(LifeRouteGlassLabScene.init(rawValue:)) ?? .bright
         )
@@ -275,39 +293,34 @@ struct LifeRouteGlassLabView: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
 
-    @State private var candidate: LifeRouteGlassLabCandidate
     @State private var scene: LifeRouteGlassLabScene
-    @State private var actionMessage = "No selection is persisted."
 
-    init(
-        initialCandidate: LifeRouteGlassLabCandidate = .clear,
-        initialScene: LifeRouteGlassLabScene = .bright
-    ) {
-        _candidate = State(initialValue: initialCandidate)
+    init(initialScene: LifeRouteGlassLabScene = .bright) {
         _scene = State(initialValue: initialScene)
     }
 
     var body: some View {
         ZStack {
-            Image(scene.assetName)
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
-                .accessibilityHidden(true)
+            GeometryReader { proxy in
+                Image(scene.assetName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
+            }
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     titleBlock
-                    switchingControls
-                    sample
-                    Text(actionMessage)
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.82))
-                        .frame(maxWidth: .infinity, alignment: .center)
+                    accessibilityStatus
+                    sceneControl
+                    primaryComparison
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 18)
-                .padding(.bottom, 28)
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 24)
             }
             .scrollIndicators(.hidden)
         }
@@ -317,236 +330,145 @@ struct LifeRouteGlassLabView: View {
     }
 
     private var titleBlock: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text("Liquid Glass Lab")
-                .font(.largeTitle.weight(.bold))
+        VStack(alignment: .leading, spacing: 3) {
+            Text("Glass Lab V2")
+                .font(.title.weight(.bold))
                 .foregroundStyle(.white)
-            Text("DEBUG ONLY · compare one material recipe over real scenery")
-                .font(.subheadline.weight(.medium))
+            Text("DEBUG ONLY · raw material isolation")
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.82))
         }
+        .shadow(color: .black.opacity(0.55), radius: 3, y: 1)
         .accessibilityElement(children: .combine)
     }
 
-    private var switchingControls: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Picker("Candidate", selection: $candidate) {
-                ForEach(LifeRouteGlassLabCandidate.allCases) { option in
-                    Text(option.title).tag(option)
-                }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("lifeRoute.glassLab.candidatePicker")
-
-            Picker("Scenery", selection: $scene) {
-                ForEach(LifeRouteGlassLabScene.allCases) { option in
-                    Text(option.title).tag(option)
-                }
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("lifeRoute.glassLab.scenePicker")
-
-            Text(candidate.summary)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.86))
+    private var accessibilityStatus: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text("System adaptation")
+            Text(
+                "Reduce Transparency: \(reduceTransparency ? "ON" : "OFF") · "
+                    + "Increase Contrast: \(contrast == .increased ? "ON" : "OFF")"
+            )
         }
+        .font(.caption2.weight(.bold))
+        .foregroundStyle(.white)
+        .shadow(color: .black.opacity(0.75), radius: 2, y: 1)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("lifeRoute.glassLab.accessibilityStatus")
     }
 
-    private var sample: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            majorGroup
-
-            ScenicRoyalGlassEffectContainer(spacing: 12) {
-                HStack(spacing: 12) {
-                    focalButton
-                    selectedControl
-                }
+    private var sceneControl: some View {
+        Picker("Scenery", selection: $scene) {
+            ForEach(LifeRouteGlassLabScene.allCases) { option in
+                Text(option.pickerTitle).tag(option)
             }
         }
+        .pickerStyle(.segmented)
+        .accessibilityIdentifier("lifeRoute.glassLab.scenePicker")
     }
 
-    private var majorGroup: some View {
-        majorGroupSurface {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "sparkles")
-                        .font(.title2.weight(.semibold))
-                        .foregroundStyle(labAccent)
-                        .frame(width: 32, height: 32)
-                        .accessibilityHidden(true)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Major group")
-                            .font(.headline.weight(.bold))
-                        Text("Header · one bounded material owner")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(labSecondaryText)
-                    }
-                }
-
-                Divider()
-                    .overlay(labAccent.opacity(0.32))
-
-                passiveRow(title: "Passive row", detail: "Transparent content inside the group")
-                passiveRow(title: "Passive row", detail: "No independent glass, material, or shadow")
+    private var primaryComparison: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(LifeRouteGlassLabCandidate.allCases) { candidate in
+                candidateSample(candidate)
             }
-            .foregroundStyle(labPrimaryText)
+        }
+        .accessibilityIdentifier("lifeRoute.glassLab.primaryComparison")
+    }
+
+    private func candidateSample(_ candidate: LifeRouteGlassLabCandidate) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(candidate.title)
+                    .font(.caption.weight(.heavy))
+                Text(candidate.summary)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.80))
+            }
+            .foregroundStyle(.white)
+            .shadow(color: .black.opacity(0.72), radius: 2, y: 1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            candidateSurface(candidate) {
+                identicalContent
+                    .padding(.horizontal, 12)
+                    .frame(maxWidth: .infinity, minHeight: 74, alignment: .leading)
+            }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("lifeRoute.glassLab.majorGroup")
+        .accessibilityIdentifier("lifeRoute.glassLab.candidate.\(candidate.rawValue)")
     }
 
-    private func passiveRow(title: String, detail: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Circle()
-                .fill(labAccent.opacity(0.75))
-                .frame(width: 7, height: 7)
+    private var identicalContent: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "sparkles")
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Text(detail)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Major group")
+                    .font(.subheadline.weight(.bold))
+                Text("Passive row · identical content")
                     .font(.caption)
-                    .foregroundStyle(labSecondaryText)
+                Text("Passive row · no nested material")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.78))
             }
-            Spacer(minLength: 0)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("lifeRoute.glassLab.passiveRow")
-    }
 
-    private var focalButton: some View {
-        Button {
-            actionMessage = "Focal action stays local to this DEBUG lab."
-        } label: {
-            Label("Focal action", systemImage: "arrow.up.right")
-                .font(.subheadline.weight(.bold))
-                .frame(maxWidth: .infinity, minHeight: 50)
-        }
-        .buttonStyle(.plain)
-        .controlSurface(
-            candidate: candidate,
-            accent: labAccent,
-            selected: false,
-            reduceTransparency: reduceTransparency,
-            increasedContrast: contrast == .increased
-        )
-        .accessibilityIdentifier("lifeRoute.glassLab.focalButton")
-    }
+            Spacer(minLength: 4)
 
-    private var selectedControl: some View {
-        Button {
-            actionMessage = "Selected control treatment is intentionally stronger."
-        } label: {
-            Label("Selected", systemImage: "checkmark")
-                .font(.subheadline.weight(.semibold))
-                .frame(maxWidth: .infinity, minHeight: 50)
-        }
-        .buttonStyle(.plain)
-        .controlSurface(
-            candidate: candidate,
-            accent: labAccent,
-            selected: true,
-            reduceTransparency: reduceTransparency,
-            increasedContrast: contrast == .increased
-        )
-        .accessibilityAddTraits(.isSelected)
-        .accessibilityIdentifier("lifeRoute.glassLab.selectedControl")
-    }
-
-    private var labAccent: Color {
-        scene == .bright ? Color(red: 0.06, green: 0.34, blue: 0.48) : Color(red: 0.42, green: 0.72, blue: 0.92)
-    }
-
-    private var labPrimaryText: Color { .white }
-    private var labSecondaryText: Color { .white.opacity(0.78) }
-
-    @ViewBuilder
-    private func majorGroupSurface<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 26, style: .continuous)
-        if reduceTransparency || contrast == .increased {
-            content()
-                .padding(20)
-                .background(Color.black.opacity(0.76), in: shape)
-                .overlay(shape.stroke(Color.white.opacity(0.30), lineWidth: 1))
-        } else if #available(iOS 26.0, *) {
-            switch candidate {
-            case .clear:
-                content()
-                    .padding(20)
-                    .background {
-                        shape.fill(Color.black.opacity(0.10))
-                    }
-                    .glassEffect(.clear, in: .rect(cornerRadius: 26))
-            case .regular:
-                content()
-                    .padding(20)
-                    .glassEffect(.regular.tint(labAccent.opacity(0.16)), in: .rect(cornerRadius: 26))
-            case .material:
-                content()
-                    .padding(20)
-                    .background(.ultraThinMaterial, in: shape)
-            }
-        } else {
-            content()
-                .padding(20)
-                .background(.ultraThinMaterial, in: shape)
-        }
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func controlSurface(
-        candidate: LifeRouteGlassLabCandidate,
-        accent: Color,
-        selected: Bool,
-        reduceTransparency: Bool,
-        increasedContrast: Bool
-    ) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 18, style: .continuous)
-        if reduceTransparency || increasedContrast {
-            self
-                .foregroundStyle(.white)
-                .background(Color.black.opacity(0.76), in: shape)
-                .overlay {
-                    shape.stroke(Color.white.opacity(0.30), lineWidth: 1)
-                }
-        } else if #available(iOS 26.0, *) {
-            switch candidate {
-            case .clear:
-                let base: Glass = selected ? .regular : .clear
-                self
-                    .foregroundStyle(.white)
-                    .glassEffect(
-                        base
-                            .tint(accent.opacity(selected ? 0.18 : 0.02))
-                            .interactive(),
-                        in: .rect(cornerRadius: 18)
-                    )
-            case .regular:
-                self
-                    .foregroundStyle(.white)
-                    .glassEffect(
-                        .regular.tint(accent.opacity(selected ? 0.26 : 0.16)).interactive(),
-                        in: .rect(cornerRadius: 18)
-                    )
-            case .material:
-                self
-                    .foregroundStyle(.white)
-                    .background(.ultraThinMaterial, in: shape)
+            Button {} label: {
+                Label("Focal", systemImage: "arrow.up.right")
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 8)
+                    .frame(minHeight: 44)
                     .overlay {
-                        shape.stroke(accent.opacity(selected ? 0.34 : 0.18), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.white.opacity(0.24), lineWidth: 0.8)
                     }
             }
-        } else {
-            self
-                .foregroundStyle(.white)
+            .buttonStyle(.plain)
+        }
+        .foregroundStyle(.white)
+    }
+
+    @ViewBuilder
+    private func candidateSurface<Content: View>(
+        _ candidate: LifeRouteGlassLabCandidate,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+
+        switch candidate {
+        case .baseline:
+            content()
+                .overlay(shape.stroke(Color.white.opacity(0.34), lineWidth: 0.8))
+        case .clear:
+            if #available(iOS 26.0, *) {
+                content()
+                    .glassEffect(.clear, in: .rect(cornerRadius: 22))
+            } else {
+                content()
+                    .overlay(shape.stroke(Color.white.opacity(0.34), lineWidth: 0.8))
+            }
+        case .regular:
+            if #available(iOS 26.0, *) {
+                content()
+                    .glassEffect(.regular, in: .rect(cornerRadius: 22))
+            } else {
+                content()
+                    .overlay(shape.stroke(Color.white.opacity(0.34), lineWidth: 0.8))
+            }
+        case .material:
+            content()
                 .background(.ultraThinMaterial, in: shape)
-                .overlay {
-                    shape.stroke(accent.opacity(selected ? 0.34 : 0.18), lineWidth: 1)
-                }
+        case .production:
+            content()
+                .scenicRoyalSurface(role: .majorGroup, cornerRadius: 22)
+                .environment(\.scenicRoyalThemeStyle, scene.theme.scenicRoyalStyle)
         }
     }
 }

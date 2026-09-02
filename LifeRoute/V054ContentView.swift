@@ -198,6 +198,7 @@ struct V054ContentView: View {
                     .padding(.bottom, ScenicRoyalDesignSystem.Layout.bottomToolbarClearance)
             }
         }
+        .modifier(LifeRouteRootPagingAmbientSuspensionModifier(router: router))
     }
 #endif
 
@@ -322,6 +323,91 @@ private struct LifeRouteRootNavigationLabDock: View {
         }
         .glassEffect(.clear.tint(palette.accent.opacity(0.12)), in: .capsule)
         .accessibilityElement(children: .contain)
+    }
+}
+
+/// Prototype B keeps its native finger-tracked page gesture. This observer
+/// pauses only the shared ambient clock while that gesture and its settling
+/// animation are active, avoiding competing per-frame scenery redraws.
+@MainActor
+@available(iOS 26.0, *)
+private struct LifeRouteRootPagingAmbientSuspensionModifier: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var visualActivityCoordinator: LifeRouteVisualActivityCoordinator
+    @StateObject private var suspension = LifeRouteRootPagingAmbientSuspension()
+    @ObservedObject var router: AppRouter
+
+    func body(content: Content) -> some View {
+        content
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 8)
+                    .onChanged { value in
+                        guard router.shouldShowBottomToolbar,
+                              abs(value.translation.width) >= abs(value.translation.height) * 1.2
+                        else {
+                            return
+                        }
+                        suspension.begin(using: visualActivityCoordinator)
+                    }
+                    .onEnded { _ in
+                        suspension.finish(using: visualActivityCoordinator)
+                    }
+            )
+            .onDisappear {
+                suspension.releaseImmediately(using: visualActivityCoordinator)
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase != .active {
+                    suspension.releaseImmediately(using: visualActivityCoordinator)
+                }
+            }
+            .onChange(of: router.shouldShowBottomToolbar) { _, shouldShow in
+                if !shouldShow {
+                    suspension.releaseImmediately(using: visualActivityCoordinator)
+                }
+            }
+    }
+}
+
+@MainActor
+private final class LifeRouteRootPagingAmbientSuspension: ObservableObject {
+    private static let settleDelayNanoseconds: UInt64 = 320_000_000
+
+    private var requestID: UUID?
+    private var releaseTask: Task<Void, Never>?
+
+    func begin(using coordinator: LifeRouteVisualActivityCoordinator) {
+        releaseTask?.cancel()
+        releaseTask = nil
+        guard requestID == nil else { return }
+        requestID = coordinator.acquireAmbientSuspension()
+    }
+
+    func finish(using coordinator: LifeRouteVisualActivityCoordinator) {
+        releaseTask?.cancel()
+        guard let requestID else { return }
+
+        releaseTask = Task { @MainActor [weak self, weak coordinator] in
+            try? await Task.sleep(nanoseconds: Self.settleDelayNanoseconds)
+            guard !Task.isCancelled,
+                  let self,
+                  let coordinator,
+                  self.requestID == requestID
+            else {
+                return
+            }
+            self.requestID = nil
+            self.releaseTask = nil
+            coordinator.releaseAmbientSuspension(requestID)
+        }
+    }
+
+    func releaseImmediately(using coordinator: LifeRouteVisualActivityCoordinator) {
+        releaseTask?.cancel()
+        releaseTask = nil
+        guard let requestID else { return }
+        self.requestID = nil
+        coordinator.releaseAmbientSuspension(requestID)
     }
 }
 #endif

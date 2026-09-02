@@ -44,7 +44,7 @@ enum ScenicRoyalDesignSystem {
         static let standardMajorGroupUnderlay: Double = 0.035
         /// Bright/day scenery needs a bounded contrast floor while retaining
         /// the accepted thin-glass treatment.
-        static let brightMajorGroupUnderlay: Double = 0.07
+        static let brightMajorGroupUnderlay: Double = 0.12
         static let passiveRowSeparator: Double = 0.28
     }
 

@@ -781,6 +781,8 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
             "colorSchemeContrast",
             "role == .passiveRow",
             "role.drawsSurfaceShadow",
+            "case .selectedControl, .focalControl:",
+            "case .majorGroup, .control, .passiveRow:",
         ],
         "native Liquid Glass and fallback material boundary",
     )

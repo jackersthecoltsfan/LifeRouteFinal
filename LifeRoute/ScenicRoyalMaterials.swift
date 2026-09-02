@@ -91,7 +91,7 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
             decorated(
                 content
                     .background {
-                        if role == .majorGroup {
+                        if role == .majorGroup || role == .control {
                             surfaceShape.fill(style.readabilityBase.opacity(fallbackUnderlayOpacity))
                         }
                     }
@@ -131,7 +131,13 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
 
     @available(iOS 26.0, *)
     private var emphasizedNativeGlass: Glass {
-        let base: Glass = role == .majorGroup ? .clear : .regular
+        let base: Glass
+        switch role {
+        case .selectedControl, .focalControl:
+            base = .regular
+        case .majorGroup, .control, .passiveRow:
+            base = .clear
+        }
         let styled = base.tint(style.glassTint.opacity(glassTintOpacity))
         return interactive ? styled.interactive() : styled
     }

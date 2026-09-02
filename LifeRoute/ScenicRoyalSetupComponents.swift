@@ -140,7 +140,7 @@ struct ScenicRoyalSetupDisclosureGroup<Content: View>: View {
                 .transition(reduceMotion ? .identity : .opacity.combined(with: .move(edge: .top)))
             }
         }
-        .scenicRoyalSurface(role: isExpanded ? .majorGroup : .passiveRow)
+        .scenicRoyalSurface(role: isExpanded ? .majorGroup : .control)
     }
 
     private func toggle() {

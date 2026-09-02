@@ -46,7 +46,8 @@ present_renderers = [token for token in forbidden_renderers if token in source]
 require(not present_renderers, f"catalog contains a live renderer path: {present_renderers}")
 require("case .majorGroup, .control, .selectedControl, .focalControl: return true" in roles, "major groups do not own native glass")
 require("self == .focalControl" in roles, "major groups still draw independent shadows")
-require("let base: Glass = role == .majorGroup ? .clear : .regular" in materials, "major groups are not clear glass")
+require("case .selectedControl, .focalControl:" in materials and "base = .regular" in materials, "selected and focal controls are not regular glass")
+require("case .majorGroup, .control, .passiveRow:" in materials and "base = .clear" in materials, "major groups and ordinary controls are not clear glass")
 require("surfaceShape.fill(style.readabilityBase.opacity(fallbackUnderlayOpacity))" in materials, "major group legibility underlay is unbounded or missing")
 
 for name in names:

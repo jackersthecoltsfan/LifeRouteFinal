@@ -74,22 +74,22 @@ struct ScenicRoyalResourceCategorySection: View {
     let onDelete: (LifeRoutePortalLink) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-            ScenicRoyalInsetRow(role: .majorGroup) {
+        ScenicRoyalCard(role: .majorGroup) {
+            VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
                 ScenicRoyalSectionHeader(
                     category.rawValue,
                     subtitle: "\(portals.count) portal\(portals.count == 1 ? "" : "s")",
                     systemImage: category.systemImage
                 )
-            }
 
-            LazyVStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                ForEach(portals) { portal in
-                    ScenicRoyalResourceRow(
-                        portal: portal,
-                        onOpen: { onOpen(portal) },
-                        onDelete: { onDelete(portal) }
-                    )
+                LazyVStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                    ForEach(portals) { portal in
+                        ScenicRoyalResourceRow(
+                            portal: portal,
+                            onOpen: { onOpen(portal) },
+                            onDelete: { onDelete(portal) }
+                        )
+                    }
                 }
             }
         }

@@ -476,6 +476,7 @@ struct V054TodayView: View {
 
     @ViewBuilder
     private func timeline(_ itinerary: LifeRouteGeneratedItinerary) -> some View {
+        let timelineItems = itinerary.timeline
         let nodes = itinerary.nodes.reduce(into: [String: LifeRouteItineraryNode]()) {
             result,
             node in
@@ -484,9 +485,13 @@ struct V054TodayView: View {
             }
         }
         ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-            VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                ForEach(itinerary.timeline) { item in
+            VStack(spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
+                ForEach(timelineItems.dropLast()) { item in
                     timelineRow(item, nodes: nodes)
+                    ScenicRoyalPassiveRowSeparator()
+                }
+                if let finalItem = timelineItems.last {
+                    timelineRow(finalItem, nodes: nodes)
                 }
             }
         }
@@ -571,9 +576,13 @@ struct V054TodayView: View {
                 .padding(.vertical, ScenicRoyalDesignSystem.Spacing.comfortable)
             } else {
                 ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                    VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                        ForEach(waypoints) { waypoint in
+                    VStack(spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
+                        ForEach(waypoints.dropLast()) { waypoint in
                             previewRow(waypoint)
+                            ScenicRoyalPassiveRowSeparator()
+                        }
+                        if let finalWaypoint = waypoints.last {
+                            previewRow(finalWaypoint)
                         }
                     }
                 }

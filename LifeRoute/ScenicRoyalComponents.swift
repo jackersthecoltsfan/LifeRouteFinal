@@ -186,6 +186,20 @@ struct ScenicRoyalInsetRow<Content: View>: View {
     }
 }
 
+/// A single hairline between transparent rows owned by one major group.
+/// This preserves scanability without turning each row into another surface.
+struct ScenicRoyalPassiveRowSeparator: View {
+    @Environment(\.scenicRoyalThemeStyle) private var style
+
+    var body: some View {
+        Rectangle()
+            .fill(style.accent.opacity(ScenicRoyalDesignSystem.Opacity.passiveRowSeparator))
+            .frame(height: ScenicRoyalDesignSystem.Stroke.subtle)
+            .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
+            .accessibilityHidden(true)
+    }
+}
+
 struct ScenicRoyalPrimaryButtonStyle: ButtonStyle {
     @Environment(\.scenicRoyalThemeStyle) private var style
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

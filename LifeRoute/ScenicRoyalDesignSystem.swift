@@ -39,6 +39,10 @@ enum ScenicRoyalDesignSystem {
         static let selected: CGFloat = 1.0
     }
 
+    enum Opacity {
+        static let passiveRowSeparator: Double = 0.28
+    }
+
     enum Shadow {
         static let cardRadius: CGFloat = 14
         static let cardY: CGFloat = 5

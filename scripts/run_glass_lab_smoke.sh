@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Capture the simultaneous DEBUG Glass Lab V2 legibility comparison over both Canyon states.
+# Capture the simultaneous DEBUG Glass Lab V2.1 legibility comparison over both Canyon states.
 # Usage: run_glass_lab_smoke.sh APP_PATH DEVICE_UDID OUTPUT_DIRECTORY
 APP_PATH="${1:?usage: run_glass_lab_smoke.sh APP_PATH DEVICE_UDID OUTPUT_DIRECTORY}"
 DEVICE_ID="${2:?usage: run_glass_lab_smoke.sh APP_PATH DEVICE_UDID OUTPUT_DIRECTORY}"
@@ -26,4 +26,4 @@ done
 
 count=$(find "$OUTPUT_DIRECTORY" -maxdepth 1 -type f -name '*.png' | wc -l | tr -d ' ')
 test "$count" -eq 2
-echo "LifeRoute DEBUG Glass Lab V2 legibility smoke passed: $count scene-policy screenshots in $OUTPUT_DIRECTORY"
+echo "LifeRoute DEBUG Glass Lab V2.1 legibility smoke passed: $count scene-policy screenshots in $OUTPUT_DIRECTORY"

@@ -268,10 +268,7 @@ enum LifeRouteGlassLabScene: String, CaseIterable, Identifiable {
     }
 
     var selectedMaterialTitle: String {
-        switch self {
-        case .bright: return "A — Glass.clear"
-        case .dark: return "0 — No material"
-        }
+        "A — Glass.clear"
     }
 }
 
@@ -347,7 +344,6 @@ struct LifeRouteGlassLabView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.82))
         }
-        .shadow(color: .black.opacity(0.55), radius: 3, y: 1)
         .accessibilityElement(children: .combine)
     }
 
@@ -361,7 +357,6 @@ struct LifeRouteGlassLabView: View {
         }
         .font(.caption2.weight(.bold))
         .foregroundStyle(.white)
-        .shadow(color: .black.opacity(0.75), radius: 2, y: 1)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("lifeRoute.glassLab.accessibilityStatus")
     }
@@ -395,7 +390,6 @@ struct LifeRouteGlassLabView: View {
                     .foregroundStyle(.white.opacity(0.80))
             }
             .foregroundStyle(.white)
-            .shadow(color: .black.opacity(0.72), radius: 2, y: 1)
             .frame(maxWidth: .infinity, alignment: .leading)
 
             candidateSurface(candidate) {
@@ -428,18 +422,27 @@ struct LifeRouteGlassLabView: View {
 
             Spacer(minLength: 4)
 
-            Button {} label: {
-                Label("Focal", systemImage: "arrow.up.right")
-                    .labelStyle(.titleAndIcon)
-                    .font(.caption.weight(.bold))
-                    .padding(.horizontal, 8)
-                    .frame(minHeight: 44)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(Color.white.opacity(0.24), lineWidth: 0.8)
-                    }
+            HStack(spacing: 6) {
+                Button {} label: {
+                    Label("Focal", systemImage: "arrow.up.right")
+                        .labelStyle(.titleAndIcon)
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, 8)
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .labGlassControl(selected: false)
+
+                Button {} label: {
+                    Label("Selected", systemImage: "checkmark")
+                        .labelStyle(.titleAndIcon)
+                        .font(.caption.weight(.bold))
+                        .padding(.horizontal, 8)
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .labGlassControl(selected: true)
             }
-            .buttonStyle(.plain)
         }
         .foregroundStyle(.white)
     }
@@ -451,14 +454,9 @@ struct LifeRouteGlassLabView: View {
     ) -> some View {
         let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
 
-        if scene == .bright {
-            if #available(iOS 26.0, *) {
-                legibilityUnderlay(candidate, shape: shape, content: content)
-                    .glassEffect(.clear, in: .rect(cornerRadius: 22))
-            } else {
-                legibilityUnderlay(candidate, shape: shape, content: content)
-                    .overlay(shape.stroke(Color.white.opacity(0.34), lineWidth: 0.8))
-            }
+        if #available(iOS 26.0, *) {
+            legibilityUnderlay(candidate, shape: shape, content: content)
+                .glassEffect(.clear, in: .rect(cornerRadius: 22))
         } else {
             legibilityUnderlay(candidate, shape: shape, content: content)
                 .overlay(shape.stroke(Color.white.opacity(0.34), lineWidth: 0.8))
@@ -476,6 +474,29 @@ struct LifeRouteGlassLabView: View {
         } else {
             content()
                 .background(Color.black.opacity(candidate.dimmingOpacity), in: shape)
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func labGlassControl(selected: Bool) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        if #available(iOS 26.0, *) {
+            self
+                .foregroundStyle(.white)
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12))
+                .overlay {
+                    if selected {
+                        shape.stroke(Color.white.opacity(0.28), lineWidth: 0.8)
+                    }
+                }
+        } else {
+            self
+                .foregroundStyle(.white)
+                .overlay {
+                    shape.stroke(Color.white.opacity(selected ? 0.28 : 0.18), lineWidth: 0.8)
+                }
         }
     }
 }

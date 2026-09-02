@@ -32,11 +32,12 @@ for asset in ("SceneryCanyonDay", "SceneryCanyonNight"):
 
 require("ForEach(LifeRouteGlassLabCandidate.allCases)" in lab, "all three legibility candidates render together")
 require("candidatePicker" not in lab, "candidate memory-switching picker is absent")
-require("A — Glass.clear" in lab, "bright-scene material winner is explicit")
-require("0 — No material" in lab, "dark-scene material winner is explicit")
-require("scene == .bright" in lab, "selected material policy is scene-dependent")
-require(".glassEffect(.clear, in: .rect(cornerRadius: 22))" in lab, "bright comparison keeps native Glass.clear fixed")
-require(".regular" not in lab and ".ultraThinMaterial" not in lab, "unselected raw materials are absent")
+require("A — Glass.clear" in lab, "raw Glass.clear material winner is explicit")
+require("0 — No material" not in lab, "prior dark-scene no-material policy is removed")
+require("if scene == .bright" not in lab, "material policy is not scene-dependent")
+require(".glassEffect(.clear, in: .rect(cornerRadius: 22))" in lab, "all scenes keep raw native Glass.clear fixed")
+require(".glassEffect(.regular.interactive(), in: .rect(cornerRadius: 12))" in lab, "controls use identical regular emphasis")
+require(".labGlassControl(selected: false)" in lab and ".labGlassControl(selected: true)" in lab, "focal and selected controls share one recipe")
 require(".scenicRoyalSurface" not in lab, "production surface modifier is absent")
 require("case .l0: return 0" in lab, "L0 has no neutral dimming")
 require("case .l1: return 0.035" in lab, "L1 has extremely light neutral dimming")
@@ -64,4 +65,4 @@ require("LifeRouteGlassLabLaunch.current" in hook, "release-guarded app hook exi
 require("LifeRouteGlassLabView" in hook, "lab route renders the comparison view")
 require("LifeRouteGlassLabLaunch.current" not in APP[release_hook_start:], "release branch does not reference lab")
 
-print("LifeRoute DEBUG Glass Lab V2 legibility contract passed: A-bright/0-dark with L0/L1/L2 neutral dimming")
+print("LifeRoute DEBUG Glass Lab V2.1 legibility contract passed: raw Glass.clear in both scenes with L0/L1/L2 neutral dimming")

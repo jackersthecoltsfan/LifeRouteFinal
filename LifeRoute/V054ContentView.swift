@@ -146,6 +146,7 @@ struct V054ContentView: View {
                     setupRoot
                 }
             }
+            .modifier(LifeRouteRootSwipeCoordinator(router: router))
         } else {
             TabView(selection: $router.selectedSection) {
                 todayRoot
@@ -221,6 +222,29 @@ struct V054ContentView: View {
         LifeRouteRootNavigationStack(path: $router.setupPath) {
             V054SetupView(routingState: routingState, clientState: clientState)
         }
+    }
+}
+
+/// Translates a completed, root-only horizontal drag into one native tab
+/// selection. It deliberately does not offset content or page the TabView, so
+/// vertical ScrollViews and deep NavigationStacks retain their own gestures.
+private struct LifeRouteRootSwipeCoordinator: ViewModifier {
+    @ObservedObject var router: AppRouter
+
+    func body(content: Content) -> some View {
+        content.simultaneousGesture(
+            DragGesture(minimumDistance: LifeRouteRootSwipePolicy.minimumHorizontalTranslation)
+                .onEnded { value in
+                    guard let destination = router.rootSwipeDestination(
+                        translation: value.translation,
+                        predictedEndTranslation: value.predictedEndTranslation,
+                        velocity: value.velocity
+                    ) else {
+                        return
+                    }
+                    router.select(destination)
+                }
+        )
     }
 }
 

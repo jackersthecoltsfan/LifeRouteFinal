@@ -1,4 +1,8 @@
+import Foundation
+
+#if !LIFEROUTE_ROOT_SWIPE_CONTRACT_TEST
 import SwiftUI
+#endif
 
 // Checkpoint 02: one explicit owner for all top-level and stack navigation.
 // No feature or cosmetic module should create a competing navigation state.
@@ -30,7 +34,76 @@ enum AppSection: String, CaseIterable, Hashable, Identifiable {
         case .setup: return "gearshape"
         }
     }
+
+    func neighboringSection(for direction: LifeRouteRootSwipeDirection) -> Self? {
+        let sections = Self.allCases
+        guard let currentIndex = sections.firstIndex(of: self) else { return nil }
+
+        let neighborIndex = currentIndex + direction.indexOffset
+        guard sections.indices.contains(neighborIndex) else { return nil }
+        return sections[neighborIndex]
+    }
 }
+
+/// Represents the user-intended direction of a completed root-level drag.
+/// A left drag advances through the native tab order; a right drag goes back.
+enum LifeRouteRootSwipeDirection {
+    case backward
+    case forward
+
+    fileprivate var indexOffset: Int {
+        switch self {
+        case .backward: return -1
+        case .forward: return 1
+        }
+    }
+}
+
+/// Keeps root-tab swipe recognition explicit and testable without turning the
+/// native iOS 26 TabView into an interactively paged hierarchy.
+enum LifeRouteRootSwipePolicy {
+    static let minimumHorizontalTranslation: CGFloat = 56
+    static let committedHorizontalTranslation: CGFloat = 88
+    static let minimumHorizontalDominance: CGFloat = 1.5
+    static let committedPredictedTranslation: CGFloat = 112
+    static let committedHorizontalVelocity: CGFloat = 600
+
+    static func destination(
+        from currentSection: AppSection,
+        isAtRoot: Bool,
+        translation: CGSize,
+        predictedEndTranslation: CGSize,
+        velocity: CGSize
+    ) -> AppSection? {
+        guard isAtRoot else { return nil }
+
+        let horizontalTranslation = translation.width
+        let verticalTranslation = translation.height
+        let horizontalMagnitude = abs(horizontalTranslation)
+
+        guard horizontalMagnitude >= minimumHorizontalTranslation,
+              horizontalMagnitude >= abs(verticalTranslation) * minimumHorizontalDominance
+        else {
+            return nil
+        }
+
+        let predictedHorizontalTranslation = predictedEndTranslation.width
+        let hasCommittedTranslation = horizontalMagnitude >= committedHorizontalTranslation
+        let hasCommittedProjection = abs(predictedHorizontalTranslation) >= committedPredictedTranslation
+            && horizontalTranslation.sign == predictedHorizontalTranslation.sign
+        let hasCommittedVelocity = abs(velocity.width) >= committedHorizontalVelocity
+            && horizontalTranslation.sign == velocity.width.sign
+
+        guard hasCommittedTranslation || hasCommittedProjection || hasCommittedVelocity else {
+            return nil
+        }
+
+        let direction: LifeRouteRootSwipeDirection = horizontalTranslation < 0 ? .forward : .backward
+        return currentSection.neighboringSection(for: direction)
+    }
+}
+
+#if !LIFEROUTE_ROOT_SWIPE_CONTRACT_TEST
 
 enum AppRoute: Hashable {
     case todayDetails
@@ -128,8 +201,37 @@ final class AppRouter: ObservableObject {
         isBottomToolbarSuppressed = suppressed
     }
 
+    func rootSwipeDestination(
+        translation: CGSize,
+        predictedEndTranslation: CGSize,
+        velocity: CGSize
+    ) -> AppSection? {
+        LifeRouteRootSwipePolicy.destination(
+            from: selectedSection,
+            isAtRoot: selectedPathIsEmpty && !isBottomToolbarSuppressed,
+            translation: translation,
+            predictedEndTranslation: predictedEndTranslation,
+            velocity: velocity
+        )
+    }
+
     var shouldShowBottomToolbar: Bool {
         guard !isBottomToolbarSuppressed else { return false }
+        switch selectedSection {
+        case .today:
+            return todayPath.isEmpty
+        case .schedule:
+            return schedulePath.isEmpty
+        case .tools:
+            return toolsPath.isEmpty
+        case .resources:
+            return resourcesPath.isEmpty
+        case .setup:
+            return setupPath.isEmpty
+        }
+    }
+
+    private var selectedPathIsEmpty: Bool {
         switch selectedSection {
         case .today:
             return todayPath.isEmpty
@@ -234,3 +336,4 @@ struct ContentUnavailableView: View {
         }
     }
 }
+#endif

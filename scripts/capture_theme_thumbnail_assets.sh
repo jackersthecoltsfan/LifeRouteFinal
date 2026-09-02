@@ -39,8 +39,8 @@ capture() {
   sips --resampleWidth 540 "$cropped_path" >/dev/null
 }
 
-xcrun simctl install "$DEVICE_ID" "$APP_PATH"
 xcrun simctl bootstatus "$DEVICE_ID" -b >/dev/null
+xcrun simctl install "$DEVICE_ID" "$APP_PATH"
 
 capture royal core-royal 976
 capture obsidian core-obsidian 976

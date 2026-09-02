@@ -14,6 +14,8 @@ bash "$(cd "$(dirname "$0")" && pwd)/run_calendar_edit_contract_tests.sh"
 bash "$(cd "$(dirname "$0")" && pwd)/run_visual_timer_feedback_contract_tests.sh"
 bash "$(cd "$(dirname "$0")" && pwd)/run_runtime_feedback_contract_tests.sh"
 bash "$(cd "$(dirname "$0")" && pwd)/run_scenery_effect_contract_tests.sh"
+bash "$(cd "$(dirname "$0")" && pwd)/run_root_swipe_contract_tests.sh"
+python3 "$(cd "$(dirname "$0")" && pwd)/theme_thumbnail_contract_test.py"
 
 DEVICE_ID="$(xcrun simctl list --json devices available | python3 -c '
 import json, sys

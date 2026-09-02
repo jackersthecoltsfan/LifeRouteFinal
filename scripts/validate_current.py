@@ -145,6 +145,8 @@ def validate_active_build_path() -> None:
     require("run_runtime_feedback_contract_tests.sh" in full, "validate_full must run executable runtime feedback contracts")
     require("run_visual_activity_contract_tests.sh" in full, "validate_full must run executable visual-activity contracts")
     require("run_scenery_effect_contract_tests.sh" in full, "validate_full must run executable scenery-effect contracts")
+    require("run_root_swipe_contract_tests.sh" in full, "validate_full must run executable root-swipe contracts")
+    require("theme_thumbnail_contract_test.py" in full, "validate_full must run Theme Center raster contracts")
     fixture_runner = read(ROOT / "scripts" / "run_session_note_contract_tests.sh")
     fixture_source = read(ROOT / "scripts" / "session_note_contract_tests.swift")
     simulator_smoke = read(ROOT / "scripts" / "run_simulator_smoke.sh")
@@ -160,6 +162,9 @@ def validate_active_build_path() -> None:
     visual_activity_fixture_source = read(ROOT / "scripts" / "visual_activity_contract_tests.swift")
     scenery_fixture_runner = read(ROOT / "scripts" / "run_scenery_effect_contract_tests.sh")
     scenery_fixture_source = read(ROOT / "scripts" / "scenery_effect_contract_tests.swift")
+    root_swipe_fixture_runner = read(ROOT / "scripts" / "run_root_swipe_contract_tests.sh")
+    root_swipe_fixture_source = read(ROOT / "scripts" / "root_swipe_contract_tests.swift")
+    thumbnail_fixture_source = read(ROOT / "scripts" / "theme_thumbnail_contract_test.py")
     require_all(
         swift_contract_runner,
         [
@@ -200,6 +205,33 @@ def validate_active_build_path() -> None:
     require("run_visual_timer_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Visual Timer feedback contracts")
     require("run_runtime_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute runtime feedback contracts")
     require("run_scenery_effect_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute scenery-effect contracts")
+    require("run_root_swipe_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute root-swipe contracts")
+    require("theme_thumbnail_contract_test.py" in simulator_smoke, "native simulator smoke must execute Theme Center raster contracts")
+    require_all(
+        root_swipe_fixture_runner,
+        ["LIFEROUTE_ROOT_SWIPE_CONTRACT_TEST", "AppNavigation.swift", "root_swipe_contract_tests.swift"],
+        "root-swipe fixture runner",
+    )
+    require_all(
+        root_swipe_fixture_source,
+        [
+            "testNeighborResolution()",
+            "testGestureDecisionPolicy()",
+            "deep navigation paths disable root swipe selection",
+            "Root swipe regression floor requires at least 24 assertions",
+        ],
+        "root-swipe executable fixtures",
+    )
+    require_all(
+        thumbnail_fixture_source,
+        [
+            "expected 20 core/dynamic mappings",
+            "expected 12 scenery mappings",
+            "expected 32 production thumbnail identities",
+            "catalog contains a live renderer path",
+        ],
+        "Theme Center production-thumbnail fixtures",
+    )
     require_all(
         simulator_smoke,
         [
@@ -393,6 +425,10 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
             "return toolsPath.isEmpty",
             "return resourcesPath.isEmpty",
             "return setupPath.isEmpty",
+            "enum LifeRouteRootSwipePolicy",
+            "minimumHorizontalDominance",
+            "committedHorizontalVelocity",
+            "selectedPathIsEmpty && !isBottomToolbarSuppressed",
         ],
         "five-section AppSection and deep-route toolbar policy",
     )
@@ -426,6 +462,9 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
             "private struct LifeRouteRootNavigationStack<Content: View>: View",
             "if #available(iOS 26.0, *)",
             "content.containerBackground(Color.clear, for: .navigation)",
+            "LifeRouteRootSwipeCoordinator(router: router)",
+            "content.simultaneousGesture(",
+            "router.select(destination)",
         ],
         "native iOS 26 tabs, legacy paged-toolbar fallback, declarative transparent navigation ownership, and Debug deep-screen fixture",
     )

@@ -24,6 +24,12 @@ private enum LifeRouteDebugLaunch {
         }
     }
 
+    /// Root-navigation lab values are deterministic: `native` is the shipping
+    /// iOS 26 TabView baseline, while `page` enables the DEBUG-only pager/dock.
+    static var rootNavigationLabPrototype: LifeRouteRootNavigationLabPrototype {
+        LifeRouteRootNavigationLabPrototype.resolve(arguments: ProcessInfo.processInfo.arguments)
+    }
+
     private static func section(for argument: String) -> AppSection? {
         let arguments = ProcessInfo.processInfo.arguments
         guard let keyIndex = arguments.firstIndex(of: argument) else { return nil }
@@ -129,25 +135,73 @@ struct V054ContentView: View {
     @ViewBuilder
     private var rootShell: some View {
         if #available(iOS 26.0, *) {
-            TabView(selection: $router.selectedSection) {
-                Tab(AppSection.today.title, systemImage: AppSection.today.systemImage, value: AppSection.today) {
-                    todayRoot
-                }
-                Tab(AppSection.schedule.title, systemImage: AppSection.schedule.systemImage, value: AppSection.schedule) {
-                    calendarRoot
-                }
-                Tab(AppSection.tools.title, systemImage: AppSection.tools.systemImage, value: AppSection.tools) {
-                    toolsRoot
-                }
-                Tab(AppSection.resources.title, systemImage: AppSection.resources.systemImage, value: AppSection.resources) {
-                    resourcesRoot
-                }
-                Tab(AppSection.setup.title, systemImage: AppSection.setup.systemImage, value: AppSection.setup) {
-                    setupRoot
-                }
+#if DEBUG
+            if LifeRouteDebugLaunch.rootNavigationLabPrototype == .page {
+                interactivePageRootShell
+            } else {
+                nativeRootShell
             }
-            .modifier(LifeRouteRootSwipeCoordinator(router: router))
+#else
+            nativeRootShell
+#endif
         } else {
+            legacyRootShell
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private var nativeRootShell: some View {
+        TabView(selection: $router.selectedSection) {
+            Tab(AppSection.today.title, systemImage: AppSection.today.systemImage, value: AppSection.today) {
+                todayRoot
+            }
+            Tab(AppSection.schedule.title, systemImage: AppSection.schedule.systemImage, value: AppSection.schedule) {
+                calendarRoot
+            }
+            Tab(AppSection.tools.title, systemImage: AppSection.tools.systemImage, value: AppSection.tools) {
+                toolsRoot
+            }
+            Tab(AppSection.resources.title, systemImage: AppSection.resources.systemImage, value: AppSection.resources) {
+                resourcesRoot
+            }
+            Tab(AppSection.setup.title, systemImage: AppSection.setup.systemImage, value: AppSection.setup) {
+                setupRoot
+            }
+        }
+        .modifier(LifeRouteRootSwipeCoordinator(router: router))
+    }
+
+#if DEBUG
+    /// Experimental B: the page style owns only root-level horizontal movement.
+    /// The dock disappears for a deep path through the existing router policy.
+    @available(iOS 26.0, *)
+    private var interactivePageRootShell: some View {
+        TabView(selection: $router.selectedSection) {
+            todayRoot
+                .tag(AppSection.today)
+            calendarRoot
+                .tag(AppSection.schedule)
+            toolsRoot
+                .tag(AppSection.tools)
+            resourcesRoot
+                .tag(AppSection.resources)
+            setupRoot
+                .tag(AppSection.setup)
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .toolbar(.hidden, for: .tabBar)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if router.shouldShowBottomToolbar {
+                LifeRouteRootNavigationLabDock(selection: $router.selectedSection)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, ScenicRoyalDesignSystem.Layout.bottomToolbarClearance)
+            }
+        }
+    }
+#endif
+
+    private var legacyRootShell: some View {
             TabView(selection: $router.selectedSection) {
                 todayRoot
                     .tabItem { Label(AppSection.today.title, systemImage: AppSection.today.systemImage) }
@@ -177,7 +231,6 @@ struct V054ContentView: View {
                 }
             }
         }
-    }
 
     private var todayRoot: some View {
         LifeRouteRootNavigationStack(path: $router.todayPath) {
@@ -224,6 +277,54 @@ struct V054ContentView: View {
         }
     }
 }
+
+#if DEBUG
+/// One material owner wraps all five fixed root destinations. Individual tabs
+/// use tint and a compact indicator rather than layered material or capsules.
+@available(iOS 26.0, *)
+private struct LifeRouteRootNavigationLabDock: View {
+    @Environment(\.lifeRoutePalette) private var palette
+
+    @Binding var selection: AppSection
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(AppSection.allCases) { section in
+                Button {
+                    selection = section
+                } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: section.systemImage)
+                            .font(.system(size: 16, weight: .semibold))
+                        Text(section.title)
+                            .font(.caption2.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.76)
+                        Capsule()
+                            .fill(section == selection ? palette.accent : .clear)
+                            .frame(width: 14, height: 3)
+                    }
+                    .foregroundStyle(section == selection ? palette.accent : palette.textSecondary)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(section.title)
+                .accessibilityValue(section == selection ? "Selected" : "")
+                .accessibilityHint("Switches root destination")
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .overlay {
+            Capsule()
+                .stroke(palette.accent.opacity(0.16), lineWidth: 0.8)
+        }
+        .glassEffect(.clear.tint(palette.accent.opacity(0.12)), in: .capsule)
+        .accessibilityElement(children: .contain)
+    }
+}
+#endif
 
 /// Translates a completed, root-only horizontal drag into one native tab
 /// selection. It deliberately does not offset content or page the TabView, so

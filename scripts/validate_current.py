@@ -436,7 +436,7 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
     require_count(root, "@StateObject private var router = AppRouter()", 1, "root router ownership")
     require_count(root, "LifeRouteRootNavigationStack(path: $router.", 5, "five roots share one navigation-container owner")
     require_count(root, "NavigationStack(path: $path)", 1, "shared root navigation-stack implementation")
-    require_count(root, ".tag(AppSection.", 5, "legacy five section tags")
+    require_count(root, ".tag(AppSection.", 10, "legacy and DEBUG page-lab five section tags")
     toolbar = sources["ScenicRoyalToolbar.swift"]
     require_count(toolbar, "struct ScenicRoyalToolbar: View", 1, "Scenic Royal toolbar ownership")
     require_all(

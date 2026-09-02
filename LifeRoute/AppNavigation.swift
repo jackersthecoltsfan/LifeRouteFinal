@@ -103,6 +103,25 @@ enum LifeRouteRootSwipePolicy {
     }
 }
 
+#if DEBUG
+/// DEBUG-only root-shell selector. It reads an explicit launch argument and
+/// intentionally has no persistence, so release behavior remains unchanged.
+enum LifeRouteRootNavigationLabPrototype: String {
+    case native
+    case page
+
+    static func resolve(arguments: [String]) -> Self {
+        guard let argumentIndex = arguments.firstIndex(of: "-LifeRouteRootNavigationLab") else {
+            return .native
+        }
+
+        let valueIndex = arguments.index(after: argumentIndex)
+        guard arguments.indices.contains(valueIndex) else { return .native }
+        return Self(rawValue: arguments[valueIndex]) ?? .native
+    }
+}
+#endif
+
 #if !LIFEROUTE_ROOT_SWIPE_CONTRACT_TEST
 
 enum AppRoute: Hashable {

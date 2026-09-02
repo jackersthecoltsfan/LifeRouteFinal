@@ -87,6 +87,15 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
                 },
                 opaque: true
             )
+        } else if role == .majorGroup, #available(iOS 26.0, *) {
+            // The physical OFF/OFF verdict selected raw Clear glass for
+            // ordinary groups in both scenery states. Keep exactly one tiny,
+            // neutral legibility underlay and no theme decoration or shadow.
+            content
+                .background {
+                    surfaceShape.fill(Color.black.opacity(0.035))
+                }
+                .glassEffect(.clear, in: .rect(cornerRadius: cornerRadius))
         } else if role.usesNativeGlass, #available(iOS 26.0, *) {
             decorated(
                 content

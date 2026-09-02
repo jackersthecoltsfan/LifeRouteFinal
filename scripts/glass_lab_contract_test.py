@@ -14,7 +14,7 @@ def require(condition: bool, message: str) -> None:
         raise SystemExit(f"Glass Lab contract failed: {message}")
 
 
-marker = "/// A deliberately isolated, non-persistent raw-material comparison surface."
+marker = "/// A deliberately isolated, non-persistent legibility comparison surface."
 require(marker in MATERIALS, "isolated lab marker is present")
 lab_start = MATERIALS.rfind("#if DEBUG", 0, MATERIALS.index(marker))
 require(lab_start >= 0, "lab has a DEBUG guard")
@@ -25,29 +25,30 @@ require("-LifeRouteGlassLab" in lab, "launch argument is explicit")
 require("-LifeRouteGlassLabScene" in lab, "scene launch override is explicit")
 require("-LifeRouteGlassLabCandidate" not in lab, "V1 one-at-a-time candidate override is removed")
 
-for candidate in ("case .baseline", "case .clear", "case .regular", "case .material", "case .production"):
+for candidate in ("case .l0", "case .l1", "case .l2"):
     require(candidate in lab, f"candidate {candidate} exists")
 for asset in ("SceneryCanyonDay", "SceneryCanyonNight"):
     require(asset in lab, f"real scenery asset {asset} is used")
 
-require("ForEach(LifeRouteGlassLabCandidate.allCases)" in lab, "all five candidates render together")
+require("ForEach(LifeRouteGlassLabCandidate.allCases)" in lab, "all three legibility candidates render together")
 require("candidatePicker" not in lab, "candidate memory-switching picker is absent")
-require(".glassEffect(.clear, in: .rect(cornerRadius: 22))" in lab, "A uses raw native Glass.clear")
-require(".glassEffect(.regular, in: .rect(cornerRadius: 22))" in lab, "B uses raw native Glass.regular")
-require(".background(.ultraThinMaterial, in: shape)" in lab, "C uses the material fallback")
-require(".scenicRoyalSurface(role: .majorGroup, cornerRadius: 22)" in lab, "D uses exact production major-group surface")
+require("A — Glass.clear" in lab, "bright-scene material winner is explicit")
+require("0 — No material" in lab, "dark-scene material winner is explicit")
+require("scene == .bright" in lab, "selected material policy is scene-dependent")
+require(".glassEffect(.clear, in: .rect(cornerRadius: 22))" in lab, "bright comparison keeps native Glass.clear fixed")
+require(".regular" not in lab and ".ultraThinMaterial" not in lab, "unselected raw materials are absent")
+require(".scenicRoyalSurface" not in lab, "production surface modifier is absent")
+require("case .l0: return 0" in lab, "L0 has no neutral dimming")
+require("case .l1: return 0.035" in lab, "L1 has extremely light neutral dimming")
+require("case .l2: return 0.07" in lab, "L2 has slightly stronger neutral dimming")
 require("accessibilityStatus" in lab, "system adaptation flags are visible")
 require("Reduce Transparency:" in lab and "Increase Contrast:" in lab, "both accessibility flags are named")
 require("reduceTransparency ||" not in lab, "raw candidates do not collapse into a custom accessibility fallback")
 
 surface_start = lab.index("private func candidateSurface")
 surface = lab[surface_start:]
-clear = surface[surface.index("case .clear:"):surface.index("case .regular:")]
-regular = surface[surface.index("case .regular:"):surface.index("case .material:")]
-material = surface[surface.index("case .material:"):surface.index("case .production:")]
-require(".background" not in clear and ".tint" not in clear and ".shadow" not in clear, "A has no custom underlay, tint, or shadow")
-require(".background" not in regular and ".tint" not in regular and ".shadow" not in regular, "B has no custom underlay, tint, or shadow")
-require(".tint" not in material and ".shadow" not in material, "C has no custom tint or shadow")
+require("Color.black.opacity(candidate.dimmingOpacity)" in surface, "one neutral underlay variable drives L1/L2")
+require(".tint" not in surface and ".shadow" not in surface, "legibility samples add no tint or shadow")
 
 content_start = lab.index("private var identicalContent")
 content_end = lab.index("private func candidateSurface")
@@ -63,4 +64,4 @@ require("LifeRouteGlassLabLaunch.current" in hook, "release-guarded app hook exi
 require("LifeRouteGlassLabView" in hook, "lab route renders the comparison view")
 require("LifeRouteGlassLabLaunch.current" not in APP[release_hook_start:], "release branch does not reference lab")
 
-print("LifeRoute DEBUG Glass Lab V2 contract passed: 5 simultaneous raw/production candidates, 2 real scenery states")
+print("LifeRoute DEBUG Glass Lab V2 legibility contract passed: A-bright/0-dark with L0/L1/L2 neutral dimming")

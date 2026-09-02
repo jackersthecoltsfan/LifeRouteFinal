@@ -197,36 +197,38 @@ extension View {
 }
 
 #if DEBUG
-/// A deliberately isolated, non-persistent raw-material comparison surface.
+/// A deliberately isolated, non-persistent legibility comparison surface.
 /// It is reachable only from `-LifeRouteGlassLab` and never participates in
-/// the production surface-role migration. V2 displays every recipe together
-/// and keeps legibility treatments out of the raw comparison.
+/// the production surface-role migration. The physically selected material
+/// policy is fixed while V2 varies only a neutral dimming underlay.
 enum LifeRouteGlassLabCandidate: String, CaseIterable, Identifiable {
-    case baseline = "baseline"
-    case clear = "clear"
-    case regular = "regular"
-    case material = "material"
-    case production = "production"
+    case l0
+    case l1
+    case l2
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .baseline: return "0 — No material"
-        case .clear: return "A — Raw native clear"
-        case .regular: return "B — Raw native regular"
-        case .material: return "C — Raw ultra thin material"
-        case .production: return "D — Current production"
+        case .l0: return "L0 — No underlay"
+        case .l1: return "L1 — Extremely light"
+        case .l2: return "L2 — Slightly stronger"
         }
     }
 
     var summary: String {
         switch self {
-        case .baseline: return "Transparent · hairline bounds only"
-        case .clear: return "Glass.clear only"
-        case .regular: return "Glass.regular only"
-        case .material: return "ultraThinMaterial only"
-        case .production: return "Exact shared major-group surface"
+        case .l0: return "0% neutral dimming"
+        case .l1: return "3.5% neutral dimming"
+        case .l2: return "7% neutral dimming"
+        }
+    }
+
+    var dimmingOpacity: Double {
+        switch self {
+        case .l0: return 0
+        case .l1: return 0.035
+        case .l2: return 0.07
         }
     }
 }
@@ -262,6 +264,13 @@ enum LifeRouteGlassLabScene: String, CaseIterable, Identifiable {
         switch self {
         case .bright: return .sceneryCanyonDay
         case .dark: return .sceneryCanyonNight
+        }
+    }
+
+    var selectedMaterialTitle: String {
+        switch self {
+        case .bright: return "A — Glass.clear"
+        case .dark: return "0 — No material"
         }
     }
 }
@@ -331,10 +340,10 @@ struct LifeRouteGlassLabView: View {
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text("Glass Lab V2")
+            Text("Glass Lab V2 · Legibility")
                 .font(.title.weight(.bold))
                 .foregroundStyle(.white)
-            Text("DEBUG ONLY · raw material isolation")
+            Text("LOCKED MATERIAL · \(scene.selectedMaterialTitle)")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.82))
         }
@@ -392,7 +401,7 @@ struct LifeRouteGlassLabView: View {
             candidateSurface(candidate) {
                 identicalContent
                     .padding(.horizontal, 12)
-                    .frame(maxWidth: .infinity, minHeight: 74, alignment: .leading)
+                    .frame(maxWidth: .infinity, minHeight: 104, alignment: .leading)
             }
         }
         .accessibilityElement(children: .contain)
@@ -442,33 +451,31 @@ struct LifeRouteGlassLabView: View {
     ) -> some View {
         let shape = RoundedRectangle(cornerRadius: 22, style: .continuous)
 
-        switch candidate {
-        case .baseline:
-            content()
-                .overlay(shape.stroke(Color.white.opacity(0.34), lineWidth: 0.8))
-        case .clear:
+        if scene == .bright {
             if #available(iOS 26.0, *) {
-                content()
+                legibilityUnderlay(candidate, shape: shape, content: content)
                     .glassEffect(.clear, in: .rect(cornerRadius: 22))
             } else {
-                content()
+                legibilityUnderlay(candidate, shape: shape, content: content)
                     .overlay(shape.stroke(Color.white.opacity(0.34), lineWidth: 0.8))
             }
-        case .regular:
-            if #available(iOS 26.0, *) {
-                content()
-                    .glassEffect(.regular, in: .rect(cornerRadius: 22))
-            } else {
-                content()
-                    .overlay(shape.stroke(Color.white.opacity(0.34), lineWidth: 0.8))
-            }
-        case .material:
+        } else {
+            legibilityUnderlay(candidate, shape: shape, content: content)
+                .overlay(shape.stroke(Color.white.opacity(0.34), lineWidth: 0.8))
+        }
+    }
+
+    @ViewBuilder
+    private func legibilityUnderlay<Content: View>(
+        _ candidate: LifeRouteGlassLabCandidate,
+        shape: RoundedRectangle,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        if candidate.dimmingOpacity == 0 {
             content()
-                .background(.ultraThinMaterial, in: shape)
-        case .production:
+        } else {
             content()
-                .scenicRoyalSurface(role: .majorGroup, cornerRadius: 22)
-                .environment(\.scenicRoyalThemeStyle, scene.theme.scenicRoyalStyle)
+                .background(Color.black.opacity(candidate.dimmingOpacity), in: shape)
         }
     }
 }

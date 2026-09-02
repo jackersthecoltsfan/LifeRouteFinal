@@ -5,6 +5,14 @@ struct V054ThemeCenterView: View {
     @EnvironmentObject private var themeStore: LifeRouteThemeStore
 
     @State private var selectedCategory: ScenicRoyalThemeCategory = .core
+    /// Sol/Terra can observe Theme Center visibility without a second global
+    /// coordinator. `true` is emitted when the catalog becomes visible and
+    /// `false` when navigation removes it, including back-navigation.
+    private let onVisibilityChanged: ((Bool) -> Void)?
+
+    init(onVisibilityChanged: ((Bool) -> Void)? = nil) {
+        self.onVisibilityChanged = onVisibilityChanged
+    }
 
     var body: some View {
         ScrollView {
@@ -45,7 +53,13 @@ struct V054ThemeCenterView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             selectedCategory = category(for: themeStore.selectedTheme)
+            onVisibilityChanged?(true)
         }
+        .onDisappear {
+            onVisibilityChanged?(false)
+        }
+        // Keep the iOS 16 deployment path; this single-value overload is
+        // availability-safe until the app's minimum OS moves to iOS 17.
         .onChange(of: themeStore.selectedTheme) { theme in
             selectedCategory = category(for: theme)
         }

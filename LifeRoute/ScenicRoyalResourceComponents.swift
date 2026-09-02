@@ -8,7 +8,7 @@ struct ScenicRoyalResourceHeader: View {
     let customCount: Int
 
     var body: some View {
-        ScenicRoyalCard(role: .card) {
+        ScenicRoyalCard(role: .majorGroup) {
             Group {
                 if dynamicTypeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
@@ -75,7 +75,7 @@ struct ScenicRoyalResourceCategorySection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-            ScenicRoyalInsetRow(role: .readability) {
+            ScenicRoyalInsetRow(role: .majorGroup) {
                 ScenicRoyalSectionHeader(
                     category.rawValue,
                     subtitle: "\(portals.count) portal\(portals.count == 1 ? "" : "s")",
@@ -105,7 +105,7 @@ struct ScenicRoyalResourceRow: View {
     let onDelete: () -> Void
 
     var body: some View {
-        ScenicRoyalInsetRow(role: .readability) {
+        ScenicRoyalInsetRow(role: .passiveRow) {
             Group {
                 if dynamicTypeSize.isAccessibilitySize, portal.isCustom {
                     VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
@@ -135,7 +135,7 @@ struct ScenicRoyalResourceRow: View {
                         height: ScenicRoyalDesignSystem.Layout.minimumTouchTarget
                     )
                     .scenicRoyalSurface(
-                        role: .ambient,
+                        role: .passiveRow,
                         cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
                     )
                     .accessibilityHidden(true)

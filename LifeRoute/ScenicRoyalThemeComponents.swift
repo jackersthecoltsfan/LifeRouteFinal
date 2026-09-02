@@ -247,8 +247,8 @@ struct ScenicRoyalThemeCard: View {
                     style: .continuous
                 )
             )
-            .scenicRoyalInteractiveSurface(
-                role: isSelected ? .selectedControl : .card,
+            .scenicRoyalSurface(
+                role: .passiveRow,
                 cornerRadius: ScenicRoyalDesignSystem.Radius.control
             )
             .overlay {
@@ -284,23 +284,12 @@ struct ScenicRoyalThemeCard: View {
                     )
                 )
 
-            if isSelected {
-                Label("Selected", systemImage: "checkmark.circle.fill")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.compact)
-                    .frame(minHeight: 28)
-                    .background(Color.black.opacity(0.58), in: Capsule())
-                    .padding(ScenicRoyalDesignSystem.Spacing.compact)
-            }
-
             Text(theme.scenicRoyalMotionCharacter.uppercased())
                 .font(.caption2.weight(.bold))
                 .tracking(0.5)
                 .foregroundStyle(.white)
-                .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.compact)
-                .frame(minHeight: 24)
-                .background(Color.black.opacity(0.52), in: Capsule())
+                .padding(6)
+                .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                 .padding(ScenicRoyalDesignSystem.Spacing.compact)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }
@@ -335,32 +324,103 @@ struct ScenicRoyalThemeCard: View {
 struct ScenicRoyalThemePreview: View {
     let theme: LifeRouteTheme
 
-    @ViewBuilder
     var body: some View {
-        if theme.isPhaseOneCoreGlass {
-            LifeRouteCoreGlassEnvironment(theme: theme, palette: theme.palette)
-        } else if theme.isPhaseTwoDynamic {
-            LifeRouteDynamicGlassFrame(
-                theme: theme,
-                palette: theme.palette,
-                phase: theme.scenicRoyalStaticDynamicPhase
-            )
-        } else if theme.isPhaseThreeScenery {
-            LifeRouteSceneryFrame(
-                theme: theme,
-                palette: theme.palette,
-                phase: theme.sceneryPreviewPhase
-            )
-        } else {
-            ZStack {
-                theme.palette.backgroundGradient
-                LifeRouteThemeArtwork(theme: theme, palette: theme.palette, compact: true)
+        ScenicRoyalStaticThemeThumbnail(theme: theme)
+    }
+}
+
+/// Lightweight catalog artwork. This view is deliberately static: Theme
+/// Center must not instantiate the live environment or any renderer tree for
+/// each cell in its LazyVGrid.
+private struct ScenicRoyalStaticThemeThumbnail: View {
+    let theme: LifeRouteTheme
+
+    var body: some View {
+        ZStack {
+            theme.palette.backgroundGradient
+
+            if let assetName = theme.sceneryThumbnailAssetName {
+                Image(assetName)
+                    .resizable()
+                    .scaledToFill()
+                    .overlay(Color.black.opacity(theme.isNightScenery ? 0.12 : 0.02))
+            } else if theme.isPhaseTwoDynamic {
+                dynamicArtwork
+            } else {
+                coreArtwork
             }
+        }
+        .clipped()
+        .accessibilityHidden(true)
+    }
+
+    private var coreArtwork: some View {
+        ZStack {
+            Circle()
+                .fill(theme.palette.accent.opacity(0.30))
+                .frame(width: 120, height: 120)
+                .blur(radius: 12)
+                .offset(x: 34, y: -18)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.20),
+                            theme.palette.accentSecondary.opacity(0.18),
+                            .clear,
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .rotationEffect(.degrees(-14))
+                .scaleEffect(1.2)
+        }
+    }
+
+    private var dynamicArtwork: some View {
+        ZStack {
+            Capsule()
+                .fill(theme.palette.accent.opacity(0.40))
+                .frame(width: 180, height: 34)
+                .rotationEffect(.degrees(-18))
+                .offset(x: -16, y: -18)
+            Capsule()
+                .fill(theme.palette.accentSecondary.opacity(0.34))
+                .frame(width: 170, height: 28)
+                .rotationEffect(.degrees(16))
+                .offset(x: 22, y: 20)
+            Circle()
+                .stroke(Color.white.opacity(0.30), lineWidth: 2)
+                .frame(width: 48, height: 48)
         }
     }
 }
 
 private extension LifeRouteTheme {
+    var sceneryThumbnailAssetName: String? {
+        switch self {
+        case .sceneryMountainsDay: return "SceneryMountainsDay"
+        case .sceneryMountainsNight: return "SceneryMountainsNight"
+        case .sceneryOceanDay: return "SceneryOceanDay"
+        case .sceneryOceanNight: return "SceneryOceanNight"
+        case .sceneryDesertDay: return "SceneryDesertDay"
+        case .sceneryDesertNight: return "SceneryDesertNight"
+        case .sceneryRainforestDay: return "SceneryRainforestDay"
+        case .sceneryRainforestNight: return "SceneryRainforestNight"
+        case .sceneryCanyonDay: return "SceneryCanyonDay"
+        case .sceneryCanyonNight: return "SceneryCanyonNight"
+        case .sceneryArcticDay: return "SceneryArcticDay"
+        case .sceneryArcticNight: return "SceneryArcticNight"
+        default: return nil
+        }
+    }
+
+    var isNightScenery: Bool {
+        guard isPhaseThreeScenery else { return false }
+        return rawValue.hasSuffix(".night")
+    }
+
     var scenicRoyalMotionCharacter: String {
         isPhaseOneCoreGlass ? "Still" : "Live"
     }
@@ -369,21 +429,4 @@ private extension LifeRouteTheme {
         isPhaseOneCoreGlass ? "photo" : "waveform.path"
     }
 
-    var scenicRoyalStaticDynamicPhase: Double {
-        switch self {
-        case .royalCurrent: return 0.7
-        case .midnightPrism: return 1.4
-        case .auroraBloom: return 2.1
-        case .solarPulse: return 0.2
-        case .emeraldFlow: return 1.8
-        case .arcticHalo: return 2.7
-        case .oceanGlass: return 1.1
-        case .roseEmber: return 2.4
-        case .obsidianSpectra: return 0.9
-        case .plasmaOrchid: return 1.6
-        case .verdantMist: return 2.9
-        case .titaniumGlow: return 0.4
-        default: return 0.8
-        }
-    }
 }

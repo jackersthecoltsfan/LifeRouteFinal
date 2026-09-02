@@ -3179,20 +3179,27 @@ struct LifeRouteLiveThemeEnvironment: View {
     let palette: LifeRouteThemePalette
     let reduceMotion: Bool
     let isActive: Bool
+    let renderMode: LifeRouteAmbientRenderMode
 
     var body: some View {
         ZStack {
             fixedFrame
 
-            // v0.7.0 Theme Phase 3 single shared root environment clock. Only
-            // localized effects and restrained Dynamic light are invalidated.
-            TimelineView(
-                .animation(
-                    minimumInterval: 1.0 / 15.0,
-                    paused: reduceMotion || !isActive
-                )
-            ) { context in
-                liveEffects(at: context.date)
+            if renderMode.plan.usesLiveClock {
+                // v0.7.0 Theme Phase 3 single shared root environment clock.
+                // Only localized effects and restrained Dynamic light invalidate.
+                TimelineView(
+                    .animation(
+                        minimumInterval: 1.0 / 15.0,
+                        paused: reduceMotion || !isActive
+                    )
+                ) { context in
+                    liveEffects(at: context.date, plan: renderMode.plan)
+                }
+            } else if renderMode.plan.showsStaticEffects {
+                // Suspension intentionally retains the environment's current
+                // composition while removing timeline-driven invalidation.
+                liveEffects(at: Date(timeIntervalSinceReferenceDate: 0), plan: renderMode.plan)
             }
 
             fixedGrade
@@ -3235,11 +3242,11 @@ struct LifeRouteLiveThemeEnvironment: View {
     }
 
     @ViewBuilder
-    private func liveEffects(at date: Date) -> some View {
+    private func liveEffects(at date: Date, plan: LifeRouteAmbientRenderPlan) -> some View {
         let time = reduceMotion ? 0 : date.timeIntervalSinceReferenceDate
 
         ZStack {
-            if let profile = selectedSceneryProfile {
+            if plan.showsSceneryEffects, let profile = selectedSceneryProfile {
                 LifeRouteSceneryEffectLayer(
                     profile: profile,
                     palette: selectedSceneryPalette,
@@ -3248,7 +3255,7 @@ struct LifeRouteLiveThemeEnvironment: View {
                 )
             }
 
-            if theme.isPhaseTwoDynamic {
+            if plan.showsDynamicEffect, theme.isPhaseTwoDynamic {
                 let signature = theme.dynamicMotionSignature
                 LifeRouteDynamicGlassEnvironment(
                     theme: theme,
@@ -3338,7 +3345,8 @@ private struct LifeRouteVisualFixtureView: View {
             theme: fixture.theme,
             palette: fixture.theme.palette,
             reduceMotion: fixture.reduceMotion,
-            isActive: true
+            isActive: true,
+            renderMode: .full
         )
         .ignoresSafeArea()
         .statusBarHidden(true)
@@ -3505,9 +3513,10 @@ enum LifeRouteAppearance {
         // UIKit owns the iOS 26 Liquid Glass navigation-bar material. Build 117
         // combined a global appearance proxy with repeated live-bar mutation,
         // which can leave UIKit's private navigation layout state inconsistent.
-        if LifeRouteRuntimeFeedbackPolicy.usesCustomNavigationBarAppearance(
+        let usesLegacyChrome = LifeRouteRuntimeFeedbackPolicy.usesCustomNavigationBarAppearance(
             ProcessInfo.processInfo.operatingSystemVersion
-        ) {
+        )
+        if usesLegacyChrome {
             let nav = UINavigationBarAppearance()
             nav.configureWithTransparentBackground()
             nav.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
@@ -3542,21 +3551,26 @@ enum LifeRouteAppearance {
             UIBarButtonItem.appearance().tintColor = accent
         }
 
-        let tab = UITabBarAppearance()
-        tab.configureWithTransparentBackground()
-        tab.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-        tab.backgroundColor = background.withAlphaComponent(0.66)
-        tab.shadowColor = accent.withAlphaComponent(0.09)
-        configure(tab.stackedLayoutAppearance, accent: accent, secondary: secondary)
-        configure(tab.inlineLayoutAppearance, accent: accent, secondary: secondary)
-        configure(tab.compactInlineLayoutAppearance, accent: accent, secondary: secondary)
-        let tabBar = UITabBar.appearance()
-        tabBar.standardAppearance = tab
-        tabBar.scrollEdgeAppearance = tab
-        tabBar.tintColor = accent
-        tabBar.unselectedItemTintColor = secondary
-        tabBar.itemPositioning = .fill
-        tabBar.selectionIndicatorImage = makeTabSelectionIndicator(accent: accent)
+        // Native iOS 26 TabView owns its Liquid Glass tab bar. The legacy page
+        // shell keeps this appearance proxy because it intentionally replaces
+        // stock presentation with ScenicRoyalToolbar below iOS 26.
+        if usesLegacyChrome {
+            let tab = UITabBarAppearance()
+            tab.configureWithTransparentBackground()
+            tab.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
+            tab.backgroundColor = background.withAlphaComponent(0.66)
+            tab.shadowColor = accent.withAlphaComponent(0.09)
+            configure(tab.stackedLayoutAppearance, accent: accent, secondary: secondary)
+            configure(tab.inlineLayoutAppearance, accent: accent, secondary: secondary)
+            configure(tab.compactInlineLayoutAppearance, accent: accent, secondary: secondary)
+            let tabBar = UITabBar.appearance()
+            tabBar.standardAppearance = tab
+            tabBar.scrollEdgeAppearance = tab
+            tabBar.tintColor = accent
+            tabBar.unselectedItemTintColor = secondary
+            tabBar.itemPositioning = .fill
+            tabBar.selectionIndicatorImage = makeTabSelectionIndicator(accent: accent)
+        }
 
         let segmented = UISegmentedControl.appearance()
         segmented.backgroundColor = panel.withAlphaComponent(0.72)
@@ -3628,6 +3642,7 @@ enum LifeRouteAppearance {
 @main
 struct LifeRouteApp: App {
     @StateObject private var themeStore = LifeRouteThemeStore()
+    @StateObject private var visualActivityCoordinator = LifeRouteVisualActivityCoordinator()
 
     var body: some Scene {
         WindowGroup {
@@ -3638,6 +3653,7 @@ struct LifeRouteApp: App {
                 SessionNoteReadabilityFixtureView()
                     .lifeRouteChrome()
                     .environmentObject(themeStore)
+                    .environmentObject(visualActivityCoordinator)
                     .environment(\.lifeRoutePalette, themeStore.palette)
                     .environment(\.lifeRouteTheme, themeStore.selectedTheme)
             } else {
@@ -3653,6 +3669,7 @@ struct LifeRouteApp: App {
         ContentView()
             .lifeRouteChrome()
             .environmentObject(themeStore)
+            .environmentObject(visualActivityCoordinator)
             .environment(\.lifeRoutePalette, themeStore.palette)
             .environment(\.lifeRouteTheme, themeStore.selectedTheme)
     }

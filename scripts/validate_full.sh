@@ -10,6 +10,7 @@ bash scripts/run_calendar_edit_contract_tests.sh
 bash scripts/run_session_note_contract_tests.sh
 bash scripts/run_visual_timer_feedback_contract_tests.sh
 bash scripts/run_runtime_feedback_contract_tests.sh
+bash scripts/run_visual_activity_contract_tests.sh
 bash scripts/run_scenery_effect_contract_tests.sh
 
 echo "LifeRoute full validation complete."

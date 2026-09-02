@@ -6,6 +6,7 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var visualActivityCoordinator: LifeRouteVisualActivityCoordinator
 
     let theme: LifeRouteTheme
     let palette: LifeRouteThemePalette
@@ -44,6 +45,9 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
         .environment(\.defaultMinListRowHeight, 52)
         .tint(palette.accent)
         .preferredColorScheme(theme == .light ? .light : .dark)
+        .onChange(of: visualActivityCoordinator.ambientSuspensionCount) { activeRequests in
+            LifeRouteVisualInstrumentation.ambientSuspensionChanged(activeRequests: activeRequests)
+        }
     }
 
     @ViewBuilder
@@ -57,7 +61,8 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
                 theme: theme,
                 palette: palette,
                 reduceMotion: reduceMotion,
-                isActive: scenePhase == .active
+                isActive: scenePhase == .active,
+                renderMode: effectiveRenderMode
             )
             .ignoresSafeArea()
             .allowsHitTesting(false)
@@ -66,6 +71,18 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
         }
+    }
+
+    private var effectiveRenderMode: LifeRouteAmbientRenderMode {
+        guard visualActivityCoordinator.ambientRenderingIsActive else {
+            return .frozen
+        }
+
+#if DEBUG
+        return LifeRouteDebugVisualActivityMode.current.ambientRenderMode
+#else
+        return .full
+#endif
     }
 }
 

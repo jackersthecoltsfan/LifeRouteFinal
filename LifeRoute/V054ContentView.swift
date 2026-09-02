@@ -66,73 +66,9 @@ struct V054ContentView: View {
     @StateObject private var toolsState = SessionToolsCore()
 
     var body: some View {
-        // v0.7.0 Theme Phase 1 single environment shell: background is mounted once by LifeRouteApp chrome.
-        TabView(selection: $router.selectedSection) {
-                LifeRouteRootNavigationStack(path: $router.todayPath) {
-                    V054TodayView(
-                        router: router,
-                        calendarState: calendarState,
-                        routingState: routingState,
-                        planState: dayPlanState,
-                        liveActivity: liveDayActivity
-                    )
-                }
-                .tabItem { Label(AppSection.today.title, systemImage: AppSection.today.systemImage) }
-                .tag(AppSection.today)
-
-                LifeRouteRootNavigationStack(path: $router.schedulePath) {
-                    V054ScheduleView(
-                        calendarState: calendarState,
-                        providerState: providerState
-                    )
-                }
-                .tabItem { Label(AppSection.schedule.title, systemImage: AppSection.schedule.systemImage) }
-                .tag(AppSection.schedule)
-
-                LifeRouteRootNavigationStack(path: $router.toolsPath) {
-#if DEBUG
-                    if LifeRouteDebugLaunch.toolsDestinationOverride == .visualTimer {
-                        VisualTimerView(timer: toolsState.timer)
-                            .lifeRouteDeepDestination()
-                    } else {
-                        toolsDashboard
-                    }
-#else
-                    toolsDashboard
-#endif
-                }
-                .tabItem { Label(AppSection.tools.title, systemImage: AppSection.tools.systemImage) }
-                .tag(AppSection.tools)
-
-                LifeRouteRootNavigationStack(path: $router.resourcesPath) {
-                    ResourcePortalHubView()
-                }
-                .tabItem { Label(AppSection.resources.title, systemImage: AppSection.resources.systemImage) }
-                .tag(AppSection.resources)
-
-                LifeRouteRootNavigationStack(path: $router.setupPath) {
-                    V054SetupView(
-                        routingState: routingState,
-                        clientState: clientState
-                    )
-                }
-                .tabItem { Label(AppSection.setup.title, systemImage: AppSection.setup.systemImage) }
-                .tag(AppSection.setup)
-            }
+        rootShell
             .environmentObject(router)
             .tint(themeStore.palette.accent)
-            // v0.8.1 paged root navigation: the five root stacks and toolbar share one router selection.
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .toolbar(.hidden, for: .tabBar)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if router.shouldShowBottomToolbar {
-                    ScenicRoyalToolbar(selection: $router.selectedSection)
-                    .padding(.horizontal, 10)
-                    .padding(.top, 4)
-                    .padding(.bottom, ScenicRoyalDesignSystem.Layout.bottomToolbarClearance)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-        }
         .background(Color.clear) // v0.7.0 Theme Phase 1 reveal the single root environment
         .onAppear {
 #if DEBUG
@@ -148,9 +84,14 @@ struct V054ContentView: View {
                 LifeRouteAppearance.refreshVisibleChrome(theme: themeStore.selectedTheme)
             }
         }
-        .onChange(of: router.selectedSection) { _ in
+        .onChange(of: router.selectedSection) { section in
             router.setBottomToolbarSuppressed(false)
             LifeRouteHaptics.rootNavigation()
+            LifeRouteVisualInstrumentation.rootSectionSelected(section.rawValue)
+            Task { @MainActor in
+                await Task.yield()
+                LifeRouteVisualInstrumentation.rootSelectionSettled(section.rawValue)
+            }
         }
         .onChange(of: themeStore.selectedTheme) { theme in
             DispatchQueue.main.async {
@@ -178,11 +119,108 @@ struct V054ContentView: View {
     }
 
     private var toolsDashboard: some View {
-                    V054ToolsDashboard(
-                        router: router,
-                        toolsState: toolsState,
-                        clientState: clientState
-                    )
+        V054ToolsDashboard(
+            router: router,
+            toolsState: toolsState,
+            clientState: clientState
+        )
+    }
+
+    @ViewBuilder
+    private var rootShell: some View {
+        if #available(iOS 26.0, *) {
+            TabView(selection: $router.selectedSection) {
+                Tab(AppSection.today.title, systemImage: AppSection.today.systemImage, value: AppSection.today) {
+                    todayRoot
+                }
+                Tab(AppSection.schedule.title, systemImage: AppSection.schedule.systemImage, value: AppSection.schedule) {
+                    calendarRoot
+                }
+                Tab(AppSection.tools.title, systemImage: AppSection.tools.systemImage, value: AppSection.tools) {
+                    toolsRoot
+                }
+                Tab(AppSection.resources.title, systemImage: AppSection.resources.systemImage, value: AppSection.resources) {
+                    resourcesRoot
+                }
+                Tab(AppSection.setup.title, systemImage: AppSection.setup.systemImage, value: AppSection.setup) {
+                    setupRoot
+                }
+            }
+        } else {
+            TabView(selection: $router.selectedSection) {
+                todayRoot
+                    .tabItem { Label(AppSection.today.title, systemImage: AppSection.today.systemImage) }
+                    .tag(AppSection.today)
+                calendarRoot
+                    .tabItem { Label(AppSection.schedule.title, systemImage: AppSection.schedule.systemImage) }
+                    .tag(AppSection.schedule)
+                toolsRoot
+                    .tabItem { Label(AppSection.tools.title, systemImage: AppSection.tools.systemImage) }
+                    .tag(AppSection.tools)
+                resourcesRoot
+                    .tabItem { Label(AppSection.resources.title, systemImage: AppSection.resources.systemImage) }
+                    .tag(AppSection.resources)
+                setupRoot
+                    .tabItem { Label(AppSection.setup.title, systemImage: AppSection.setup.systemImage) }
+                    .tag(AppSection.setup)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .toolbar(.hidden, for: .tabBar)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if router.shouldShowBottomToolbar {
+                    ScenicRoyalToolbar(selection: $router.selectedSection)
+                        .padding(.horizontal, 10)
+                        .padding(.top, 4)
+                        .padding(.bottom, ScenicRoyalDesignSystem.Layout.bottomToolbarClearance)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+        }
+    }
+
+    private var todayRoot: some View {
+        LifeRouteRootNavigationStack(path: $router.todayPath) {
+            V054TodayView(
+                router: router,
+                calendarState: calendarState,
+                routingState: routingState,
+                planState: dayPlanState,
+                liveActivity: liveDayActivity
+            )
+        }
+    }
+
+    private var calendarRoot: some View {
+        LifeRouteRootNavigationStack(path: $router.schedulePath) {
+            V054ScheduleView(calendarState: calendarState, providerState: providerState)
+        }
+    }
+
+    private var toolsRoot: some View {
+        LifeRouteRootNavigationStack(path: $router.toolsPath) {
+#if DEBUG
+            if LifeRouteDebugLaunch.toolsDestinationOverride == .visualTimer {
+                VisualTimerView(timer: toolsState.timer)
+                    .lifeRouteDeepDestination()
+            } else {
+                toolsDashboard
+            }
+#else
+            toolsDashboard
+#endif
+        }
+    }
+
+    private var resourcesRoot: some View {
+        LifeRouteRootNavigationStack(path: $router.resourcesPath) {
+            ResourcePortalHubView()
+        }
+    }
+
+    private var setupRoot: some View {
+        LifeRouteRootNavigationStack(path: $router.setupPath) {
+            V054SetupView(routingState: routingState, clientState: clientState)
+        }
     }
 }
 
@@ -221,6 +259,7 @@ extension LifeRouteAppearance {
         guard LifeRouteRuntimeFeedbackPolicy.allowsRuntimeUIKitChromeRefresh(
             ProcessInfo.processInfo.operatingSystemVersion
         ) else {
+            clearNativeContainerBackgrounds()
             return
         }
 
@@ -295,6 +334,34 @@ extension LifeRouteAppearance {
                     secondary: secondary
                 )
             }
+        }
+    }
+
+    /// Native iOS 26 TabView provides the system tab bar, but its UIKit host
+    /// views otherwise default to opaque black and cover the single Scenic
+    /// Royal environment behind the five roots. This intentionally clears only
+    /// host fills after creation; it never rewrites navigation/tab-bar layout
+    /// or appearance during a transition.
+    @MainActor
+    private static func clearNativeContainerBackgrounds() {
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+            for window in scene.windows where !window.isHidden {
+                clearContainerBackgrounds(in: window.rootViewController)
+            }
+        }
+    }
+
+    @MainActor
+    private static func clearContainerBackgrounds(in viewController: UIViewController?) {
+        guard let viewController else { return }
+        viewController.view.backgroundColor = .clear
+
+        if let presented = viewController.presentedViewController {
+            clearContainerBackgrounds(in: presented)
+        }
+
+        for child in viewController.children {
+            clearContainerBackgrounds(in: child)
         }
     }
 

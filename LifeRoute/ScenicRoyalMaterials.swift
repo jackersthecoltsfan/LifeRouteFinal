@@ -1,44 +1,40 @@
 import SwiftUI
 
-private struct ScenicRoyalOrdinarySurfaceDepthKey: EnvironmentKey {
-    static let defaultValue = 0
-}
+/// The executable Foundation contract is also the production role vocabulary,
+/// so tests and SwiftUI rendering cannot drift into parallel definitions.
+typealias ScenicRoyalSurfaceRole = LifeRouteSurfaceRoleContract
 
-private extension EnvironmentValues {
-    var scenicRoyalOrdinarySurfaceDepth: Int {
-        get { self[ScenicRoyalOrdinarySurfaceDepthKey.self] }
-        set { self[ScenicRoyalOrdinarySurfaceDepthKey.self] = newValue }
-    }
-}
-
-enum ScenicRoyalSurfaceRole {
-    case ambient
-    case card
-    case readability
-    case toolbar
-    case selectedControl
-    case legibilityControl
+extension LifeRouteSurfaceRoleContract {
+    // Compatibility aliases let existing feature screens migrate without a
+    // second styling system. They resolve to the semantic roles above.
+    static let ambient = Self.passiveRow
+    static let card = Self.majorGroup
+    static let readability = Self.majorGroup
+    static let toolbar = Self.majorGroup
+    static let legibilityControl = Self.control
 
     var fallbackUnderlayOpacity: Double {
         switch self {
-        case .ambient: return 0.03
-        case .card: return 0.05
-        case .readability: return 0.10
-        case .toolbar: return 0.07
+        case .majorGroup: return 0.055
+        case .passiveRow: return 0
+        case .control: return 0.045
         case .selectedControl: return 0.06
-        case .legibilityControl: return 0.08
+        case .focalControl: return 0.07
         }
     }
 
     var tintMultiplier: Double {
         switch self {
-        case .ambient: return 0.62
-        case .card: return 0.86
-        case .readability: return 0.68
-        case .toolbar: return 0.78
+        case .majorGroup: return 0.72
+        case .passiveRow: return 0
+        case .control: return 0.78
         case .selectedControl: return 0.92
-        case .legibilityControl: return 0.76
+        case .focalControl: return 1.0
         }
+    }
+
+    var drawsSurfaceShadow: Bool {
+        drawsIndependentShadow
     }
 }
 
@@ -66,7 +62,6 @@ struct ScenicRoyalGlassEffectContainer<Content: View>: View {
 private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.scenicRoyalOrdinarySurfaceDepth) private var ordinarySurfaceDepth
     @Environment(\.scenicRoyalThemeStyle) private var style
 
     let role: ScenicRoyalSurfaceRole
@@ -75,70 +70,35 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        let ordinaryGlassRole = role.ordinaryGlassRole
-        let participation = LifeRouteOrdinaryGlassPolicy.participation(
-            atNestingDepth: ordinarySurfaceDepth
-        )
-        let nestedContent = content.environment(
-            \.scenicRoyalOrdinarySurfaceDepth,
-            ordinaryGlassRole == nil ? ordinarySurfaceDepth : ordinarySurfaceDepth + 1
-        )
-
-        if reduceTransparency || contrast == .increased {
+        if role == .passiveRow {
+            // Passive rows are content inside their owning group. A faint
+            // outline preserves grouping without another slab, blur, or shadow.
+            content
+                .overlay {
+                    surfaceShape.stroke(
+                        Color.white.opacity(contrast == .increased ? 0.16 : 0.045),
+                        lineWidth: ScenicRoyalDesignSystem.Stroke.subtle
+                    )
+                }
+        } else if reduceTransparency || contrast == .increased {
             decorated(
-                nestedContent.background {
+                content.background {
                     surfaceShape.fill(style.readabilityBase.opacity(accessibleSurfaceOpacity))
                 },
                 opaque: true
             )
-        } else if ordinaryGlassRole != nil
-                    && !LifeRouteOrdinaryGlassPolicy.drawsIndependentFill(for: participation)
-                    && !LifeRouteOrdinaryGlassPolicy.drawsIndependentShadow(for: participation) {
-            nestedOrdinarySurface(nestedContent)
-        } else if #available(iOS 26.0, *) {
-            if let ordinaryGlassRole {
-                decorated(
-                    nestedContent.background {
-                        ZStack {
-                            surfaceShape.fill(
-                                style.readabilityBase.opacity(
-                                    LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(
-                                        for: ordinaryGlassRole,
-                                        isBrightEnvironment: style.isBrightEnvironment
-                                    )
-                                )
-                            )
-                            surfaceShape.fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(LifeRouteOrdinaryGlassPolicy.highlightOpacity),
-                                        Color.white.opacity(0),
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                        }
-                    },
-                    opaque: false
-                )
-            } else {
-                decorated(
-                    nestedContent
-                        .glassEffect(
-                            emphasizedNativeGlass,
-                            in: .rect(cornerRadius: cornerRadius)
-                        ),
-                    opaque: false
-                )
-            }
+        } else if role.usesNativeGlass, #available(iOS 26.0, *) {
+            decorated(
+                content.glassEffect(emphasizedNativeGlass, in: .rect(cornerRadius: cornerRadius)),
+                opaque: false
+            )
         } else {
             decorated(
-                nestedContent.background {
+                content.background {
                     ZStack {
                         surfaceShape.fill(.ultraThinMaterial)
                         surfaceShape.fill(style.readabilityBase.opacity(fallbackUnderlayOpacity))
-                        surfaceShape.fill(style.glassTint.opacity(glassTintOpacity * 0.42))
+                        surfaceShape.fill(style.glassTint.opacity(glassTintOpacity * 0.30))
                     }
                 },
                 opaque: false
@@ -155,14 +115,8 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
     }
 
     private var fallbackUnderlayOpacity: Double {
-        guard style.isBrightEnvironment else { return role.fallbackUnderlayOpacity }
-
-        switch role {
-        case .ambient: return role.fallbackUnderlayOpacity + 0.01
-        case .card, .toolbar, .selectedControl, .legibilityControl:
-            return role.fallbackUnderlayOpacity + 0.02
-        case .readability: return role.fallbackUnderlayOpacity + 0.04
-        }
+        guard role.fallbackUnderlayOpacity > 0 else { return 0 }
+        return role.fallbackUnderlayOpacity + (style.isBrightEnvironment ? 0.02 : 0)
     }
 
     private var glassTintOpacity: Double {
@@ -184,7 +138,7 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
                             Color.white.opacity(opaque ? 0.18 : (contrast == .increased ? 0.32 : 0.11)),
                             style.accentReflection.opacity(opaque ? (contrast == .increased ? 0.30 : 0.18) : 0.08),
                             ScenicRoyalDesignSystem.ColorToken.brandGold.opacity(
-                                opaque ? (role == .toolbar ? 0.34 : 0.12) : (role == .toolbar ? 0.10 : 0.05)
+                                opaque ? (role == .focalControl ? 0.34 : 0.12) : (role == .focalControl ? 0.10 : 0.05)
                             ),
                         ],
                         startPoint: .topLeading,
@@ -194,37 +148,16 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
                 )
             }
             .shadow(
-                color: Color.black.opacity(opaque ? 0.20 : 0.055),
-                radius: role == .toolbar ? ScenicRoyalDesignSystem.Shadow.toolbarRadius : ScenicRoyalDesignSystem.Shadow.cardRadius,
-                y: role == .toolbar ? ScenicRoyalDesignSystem.Shadow.toolbarY : ScenicRoyalDesignSystem.Shadow.cardY
+                color: role.drawsSurfaceShadow ? Color.black.opacity(opaque ? 0.16 : 0.045) : .clear,
+                radius: role == .focalControl ? ScenicRoyalDesignSystem.Shadow.toolbarRadius : ScenicRoyalDesignSystem.Shadow.cardRadius,
+                y: role == .focalControl ? ScenicRoyalDesignSystem.Shadow.toolbarY : ScenicRoyalDesignSystem.Shadow.cardY
             )
-    }
-
-    private func nestedOrdinarySurface<Surface: View>(_ surface: Surface) -> some View {
-        surface.overlay {
-            surfaceShape.stroke(
-                Color.white.opacity(LifeRouteOrdinaryGlassPolicy.nestedOutlineOpacity),
-                lineWidth: ScenicRoyalDesignSystem.Stroke.subtle
-            )
-        }
-    }
-}
-
-private extension ScenicRoyalSurfaceRole {
-    var ordinaryGlassRole: LifeRouteOrdinaryGlassRole? {
-        switch self {
-        case .ambient: return .ambient
-        case .card: return .card
-        case .readability: return .readability
-        case .toolbar: return .toolbar
-        case .selectedControl, .legibilityControl: return nil
-        }
     }
 }
 
 extension View {
     func scenicRoyalSurface(
-        role: ScenicRoyalSurfaceRole = .card,
+        role: ScenicRoyalSurfaceRole = .majorGroup,
         cornerRadius: CGFloat = ScenicRoyalDesignSystem.Radius.card
     ) -> some View {
         modifier(

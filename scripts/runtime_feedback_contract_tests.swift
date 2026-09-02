@@ -8,7 +8,7 @@ struct RuntimeFeedbackContractTests {
         testNavigationChromePolicy()
         testRuntimeChromeTraversalPolicy()
         testHapticGeneratorPolicy()
-        testOrdinaryGlassTransparencyPolicy()
+        testSemanticSurfaceRolePolicy()
 
         precondition(
             assertionCount >= 25,
@@ -90,85 +90,41 @@ struct RuntimeFeedbackContractTests {
         )
     }
 
-    private static func testOrdinaryGlassTransparencyPolicy() {
-        let roles = LifeRouteOrdinaryGlassRole.allCases
-        let darkSceneOpacities = roles.map {
-            LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(
-                for: $0,
-                isBrightEnvironment: false
-            )
-        }
-        let brightSceneOpacities = roles.map {
-            LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(
-                for: $0,
-                isBrightEnvironment: true
-            )
-        }
-        expect(roles == [.ambient, .card, .readability, .toolbar], "ordinary glass policy covers only the four non-emphasized roles")
+    private static func testSemanticSurfaceRolePolicy() {
+        let roles = LifeRouteSurfaceRoleContract.allCases
         expect(
-            roles.allSatisfy { !LifeRouteOrdinaryGlassPolicy.usesNativeAdaptiveGlass(for: $0) },
-            "ordinary surfaces do not compound native adaptive glass inside shared containers"
+            roles == [.majorGroup, .passiveRow, .control, .selectedControl, .focalControl],
+            "semantic surface policy has one explicit role for each hierarchy level"
+        )
+        expect(!LifeRouteSurfaceRoleContract.passiveRow.usesNativeGlass, "passive rows never create adaptive glass")
+        expect(!LifeRouteSurfaceRoleContract.majorGroup.usesNativeGlass, "major groups use one bounded content treatment")
+        expect(LifeRouteSurfaceRoleContract.control.usesNativeGlass, "meaningful controls retain native glass")
+        expect(LifeRouteSurfaceRoleContract.selectedControl.usesNativeGlass, "selected controls retain native glass")
+        expect(LifeRouteSurfaceRoleContract.focalControl.usesNativeGlass, "focal controls retain native glass")
+        expect(LifeRouteSurfaceRoleContract.majorGroup.drawsIndependentShadow, "major groups own the section shadow")
+        expect(!LifeRouteSurfaceRoleContract.passiveRow.drawsIndependentShadow, "passive rows do not cast independent shadows")
+        expect(!LifeRouteSurfaceRoleContract.control.drawsIndependentShadow, "ordinary controls avoid unnecessary shadows")
+        expect(!LifeRouteSurfaceRoleContract.selectedControl.drawsIndependentShadow, "selected controls use emphasis instead of a shadow")
+        expect(LifeRouteSurfaceRoleContract.focalControl.drawsIndependentShadow, "focal controls may own a bounded shadow")
+        expect(
+            roles.filter(\.usesNativeGlass).count == 3,
+            "native glass is reserved for controls and focal interaction"
         )
         expect(
-            darkSceneOpacities.allSatisfy { $0 > 0 && $0 <= 0.08 },
-            "ordinary dark-scene surfaces use only a very light custom readability fill"
+            roles.filter(\.drawsIndependentShadow).count == 2,
+            "only groups and focal interaction own shadows"
         )
         expect(
-            brightSceneOpacities.allSatisfy { $0 > 0 && $0 <= 0.11 },
-            "ordinary bright-scene surfaces remain transparent while retaining readability"
+            !roles.contains { $0 == .passiveRow && $0.drawsIndependentShadow },
+            "repeating content rows remain lightweight"
         )
         expect(
-            zip(darkSceneOpacities, brightSceneOpacities).allSatisfy { $0 <= $1 },
-            "bright scenery receives only the bounded additional readability fill"
+            roles.contains(.majorGroup) && roles.contains(.passiveRow),
+            "content hierarchy distinguishes owner from repeating row"
         )
         expect(
-            LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(for: .ambient, isBrightEnvironment: false)
-                < LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(for: .card, isBrightEnvironment: false),
-            "ambient boundaries remain more transparent than a standard card"
-        )
-        expect(
-            LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(for: .card, isBrightEnvironment: false)
-                < LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(for: .readability, isBrightEnvironment: false),
-            "readability surfaces retain the strongest ordinary custom fill"
-        )
-        expect(
-            LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(for: .toolbar, isBrightEnvironment: false)
-                < LifeRouteOrdinaryGlassPolicy.surfaceFillOpacity(for: .readability, isBrightEnvironment: false),
-            "toolbar surfaces never exceed the ordinary readability fill"
-        )
-        expect(
-            LifeRouteOrdinaryGlassPolicy.highlightOpacity > 0
-                && LifeRouteOrdinaryGlassPolicy.highlightOpacity <= 0.04,
-            "ordinary surfaces retain only a subtle neutral reflection highlight"
-        )
-        expect(
-            LifeRouteOrdinaryGlassPolicy.participation(atNestingDepth: 0) == .container,
-            "a root ordinary surface owns the shared container recipe"
-        )
-        expect(
-            LifeRouteOrdinaryGlassPolicy.participation(atNestingDepth: 1) == .nestedContent,
-            "a child ordinary surface participates as content instead of stacking another recipe"
-        )
-        expect(
-            LifeRouteOrdinaryGlassPolicy.participation(atNestingDepth: 4) == .nestedContent,
-            "all deeper ordinary descendants remain content participants"
-        )
-        expect(
-            LifeRouteOrdinaryGlassPolicy.drawsIndependentFill(for: .container),
-            "the root ordinary container retains one bounded readability fill"
-        )
-        expect(
-            !LifeRouteOrdinaryGlassPolicy.drawsIndependentFill(for: .nestedContent),
-            "nested ordinary content does not compound fills"
-        )
-        expect(
-            !LifeRouteOrdinaryGlassPolicy.drawsIndependentShadow(for: .nestedContent),
-            "nested ordinary content does not compound shadows"
-        )
-        expect(
-            LifeRouteOrdinaryGlassPolicy.nestedOutlineOpacity > 0
-                && LifeRouteOrdinaryGlassPolicy.nestedOutlineOpacity <= 0.08,
-            "nested content retains only a subtle boundary cue"
+            roles.contains(.control) && roles.contains(.selectedControl) && roles.contains(.focalControl),
+            "interaction hierarchy distinguishes control emphasis levels"
         )
     }
 

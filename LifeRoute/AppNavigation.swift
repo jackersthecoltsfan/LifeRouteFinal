@@ -163,6 +163,7 @@ private struct LifeRouteDeepDestinationModifier: ViewModifier {
         if #available(iOS 26.0, *) {
             content
                 .containerBackground(Color.clear, for: .navigation)
+                .toolbar(.hidden, for: .tabBar)
         } else {
             content
         }

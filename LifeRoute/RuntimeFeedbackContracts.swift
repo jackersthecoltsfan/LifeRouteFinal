@@ -39,61 +39,24 @@ enum LifeRouteRuntimeFeedbackPolicy {
     }
 }
 
-enum LifeRouteOrdinaryGlassRole: CaseIterable, Hashable, Sendable {
-    case ambient
-    case card
-    case readability
-    case toolbar
-}
+/// Pure contract for the semantic surface vocabulary used by the SwiftUI
+/// material implementation. Keeping this boundary Foundation-only makes the
+/// role hierarchy executable in the fast contract runner.
+enum LifeRouteSurfaceRoleContract: CaseIterable, Hashable, Sendable {
+    case majorGroup
+    case passiveRow
+    case control
+    case selectedControl
+    case focalControl
 
-enum LifeRouteOrdinarySurfaceParticipation: Equatable, Sendable {
-    case container
-    case nestedContent
-}
-
-/// Large ordinary surfaces are intentionally not native adaptive glass. They
-/// frequently contain more ordinary rows and sit inside GlassEffectContainer;
-/// making every level native glass compounds blur and adaptive darkening on a
-/// physical display. Emphasized controls stay outside this policy and retain
-/// native Regular glass where its depth communicates interaction or selection.
-enum LifeRouteOrdinaryGlassPolicy {
-    static let highlightOpacity = 0.028
-    static let nestedOutlineOpacity = 0.055
-
-    static func participation(atNestingDepth nestingDepth: Int) -> LifeRouteOrdinarySurfaceParticipation {
-        nestingDepth > 0 ? .nestedContent : .container
-    }
-
-    static func drawsIndependentFill(for participation: LifeRouteOrdinarySurfaceParticipation) -> Bool {
-        participation == .container
-    }
-
-    static func drawsIndependentShadow(for participation: LifeRouteOrdinarySurfaceParticipation) -> Bool {
-        participation == .container
-    }
-
-    static func usesNativeAdaptiveGlass(for role: LifeRouteOrdinaryGlassRole) -> Bool {
-        false
-    }
-
-    static func surfaceFillOpacity(
-        for role: LifeRouteOrdinaryGlassRole,
-        isBrightEnvironment: Bool
-    ) -> Double {
-        let base: Double
-        switch role {
-        case .ambient: base = 0.025
-        case .card: base = 0.040
-        case .readability: base = 0.075
-        case .toolbar: base = 0.055
+    var usesNativeGlass: Bool {
+        switch self {
+        case .control, .selectedControl, .focalControl: return true
+        case .majorGroup, .passiveRow: return false
         }
+    }
 
-        guard isBrightEnvironment else { return base }
-        switch role {
-        case .ambient: return base + 0.015
-        case .card: return base + 0.020
-        case .readability: return base + 0.030
-        case .toolbar: return base + 0.025
-        }
+    var drawsIndependentShadow: Bool {
+        self == .majorGroup || self == .focalControl
     }
 }

@@ -6,7 +6,7 @@ struct ScenicRoyalCard<Content: View>: View {
     let content: Content
 
     init(
-        role: ScenicRoyalSurfaceRole = .card,
+        role: ScenicRoyalSurfaceRole = .majorGroup,
         cornerRadius: CGFloat = ScenicRoyalDesignSystem.Radius.card,
         @ViewBuilder content: () -> Content
     ) {
@@ -169,7 +169,7 @@ struct ScenicRoyalInsetRow<Content: View>: View {
     private let content: Content
 
     init(
-        role: ScenicRoyalSurfaceRole = .ambient,
+        role: ScenicRoyalSurfaceRole = .passiveRow,
         @ViewBuilder content: () -> Content
     ) {
         self.role = role
@@ -241,7 +241,7 @@ struct ScenicRoyalSecondaryButtonStyle: ButtonStyle {
 
 extension View {
     func scenicRoyalCard(
-        role: ScenicRoyalSurfaceRole = .card,
+        role: ScenicRoyalSurfaceRole = .majorGroup,
         cornerRadius: CGFloat = ScenicRoyalDesignSystem.Radius.card,
         padding: CGFloat = ScenicRoyalDesignSystem.Spacing.comfortable
     ) -> some View {

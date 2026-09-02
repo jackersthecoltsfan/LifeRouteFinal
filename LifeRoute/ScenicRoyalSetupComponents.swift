@@ -230,7 +230,7 @@ struct ScenicRoyalSavedPlaceRow: View {
     let onRemove: () -> Void
 
     var body: some View {
-        ScenicRoyalInsetRow(role: .readability) {
+        ScenicRoyalInsetRow(role: .passiveRow) {
             Group {
                 if dynamicTypeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
@@ -310,7 +310,7 @@ struct ScenicRoyalTodoRow: View {
     let onDelete: () -> Void
 
     var body: some View {
-        ScenicRoyalInsetRow(role: .readability) {
+        ScenicRoyalInsetRow(role: .passiveRow) {
             Group {
                 if dynamicTypeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
@@ -412,7 +412,7 @@ struct ScenicRoyalCompletedTodoRow: View {
     let onUndo: () -> Void
 
     var body: some View {
-        ScenicRoyalInsetRow(role: .ambient) {
+        ScenicRoyalInsetRow(role: .passiveRow) {
             HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(style.accentReflection)

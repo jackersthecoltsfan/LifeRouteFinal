@@ -34,7 +34,7 @@ struct ScenicRoyalToolTile: View {
         .padding(ScenicRoyalDesignSystem.Spacing.comfortable)
         .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.card, style: .continuous))
         .scenicRoyalInteractiveSurface(
-            role: .card,
+            role: .control,
             cornerRadius: ScenicRoyalDesignSystem.Radius.card
         )
         .accessibilityElement(children: .combine)

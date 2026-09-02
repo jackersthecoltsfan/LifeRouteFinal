@@ -55,6 +55,7 @@
 		A10000000000000000000054 /* LiveDayRunContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000054 /* LiveDayRunContracts.swift */; };
 		A10000000000000000000055 /* SceneryEffectContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000055 /* SceneryEffectContracts.swift */; };
 		A10000000000000000000056 /* ScenicRoyalEnvironmentalEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000056 /* ScenicRoyalEnvironmentalEffects.swift */; };
+		A10000000000000000000057 /* LifeRouteVisualActivityCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000057 /* LifeRouteVisualActivityCoordinator.swift */; };
 		W10000000000000000000001 /* LiveDayLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */; };
 		W10000000000000000000002 /* LiveDayActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* LiveDayActivityAttributes.swift */; };
 		W10000000000000000000003 /* LifeRouteLiveActivityWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -122,6 +123,7 @@
 		A20000000000000000000054 /* LiveDayRunContracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDayRunContracts.swift; sourceTree = "<group>"; };
 		A20000000000000000000055 /* SceneryEffectContracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneryEffectContracts.swift; sourceTree = "<group>"; };
 		A20000000000000000000056 /* ScenicRoyalEnvironmentalEffects.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalEnvironmentalEffects.swift; sourceTree = "<group>"; };
+		A20000000000000000000057 /* LifeRouteVisualActivityCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeRouteVisualActivityCoordinator.swift; sourceTree = "<group>"; };
 		W20000000000000000000001 /* LiveDayLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDayLiveActivityWidget.swift; sourceTree = "<group>"; };
 		W20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LifeRouteLiveActivityWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -152,6 +154,7 @@
 			A20000000000000000000050 /* ScenicRoyalClientComponents.swift */,
 			A20000000000000000000051 /* ScenicRoyalThemeComponents.swift */,
 			A20000000000000000000052 /* RuntimeFeedbackContracts.swift */,
+			A20000000000000000000057 /* LifeRouteVisualActivityCoordinator.swift */,
 			A20000000000000000000028 /* V054ContentView.swift */,
 			A20000000000000000000029 /* V054TodayView.swift */,
 			A20000000000000000000031 /* V054ScheduleView.swift */,
@@ -224,6 +227,7 @@
 			A10000000000000000000050 /* ScenicRoyalClientComponents.swift in Sources */,
 			A10000000000000000000051 /* ScenicRoyalThemeComponents.swift in Sources */,
 			A10000000000000000000052 /* RuntimeFeedbackContracts.swift in Sources */,
+			A10000000000000000000057 /* LifeRouteVisualActivityCoordinator.swift in Sources */,
 			A10000000000000000000028 /* V054ContentView.swift in Sources */,
 			A10000000000000000000029 /* V054TodayView.swift in Sources */,
 			A10000000000000000000031 /* V054ScheduleView.swift in Sources */,

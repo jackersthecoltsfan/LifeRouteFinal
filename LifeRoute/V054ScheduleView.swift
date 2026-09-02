@@ -320,13 +320,13 @@ struct V054ScheduleView: View {
         if selectedDayEvents.isEmpty {
             emptyAgendaCard
         } else {
-            ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                    ForEach(selectedDayEvents) { event in
-                        timelineEventRow(event)
-                    }
+            VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                ForEach(selectedDayEvents) { event in
+                    timelineEventRow(event)
                 }
             }
+            .padding(ScenicRoyalDesignSystem.Spacing.standard)
+            .scenicRoyalSurface(role: .majorGroup)
         }
     }
 
@@ -336,25 +336,25 @@ struct V054ScheduleView: View {
         if days.isEmpty {
             emptyAgendaCard
         } else {
-            ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                VStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
-                    ForEach(days) { day in
-                        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                            Text(day.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(
-                                    Calendar.current.isDateInToday(day.date)
-                                        ? scenicStyle.accent
-                                        : scenicStyle.secondaryText
-                                )
+            VStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
+                ForEach(days) { day in
+                    VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                        Text(day.date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(
+                                Calendar.current.isDateInToday(day.date)
+                                    ? scenicStyle.accent
+                                    : scenicStyle.secondaryText
+                            )
 
-                            ForEach(day.events) { event in
-                                timelineEventRow(event)
-                            }
+                        ForEach(day.events) { event in
+                            timelineEventRow(event)
                         }
                     }
                 }
             }
+            .padding(ScenicRoyalDesignSystem.Spacing.standard)
+            .scenicRoyalSurface(role: .majorGroup)
         }
     }
 

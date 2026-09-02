@@ -129,7 +129,7 @@ struct ScenicRoyalScheduleEventRow: View {
             }
         }
         .scenicRoyalCard(
-            role: .readability,
+            role: .passiveRow,
             cornerRadius: ScenicRoyalDesignSystem.Radius.control,
             padding: ScenicRoyalDesignSystem.Spacing.standard
         )

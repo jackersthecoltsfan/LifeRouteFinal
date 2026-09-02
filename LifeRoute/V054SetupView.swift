@@ -6,6 +6,7 @@ struct V054SetupView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @EnvironmentObject private var themeStore: LifeRouteThemeStore
     @EnvironmentObject private var router: AppRouter
+    @EnvironmentObject private var suspensionCoordinator: LifeRouteVisualActivityCoordinator
     @ObservedObject var routingState: RoutingLocationCore
     @ObservedObject var clientState: ClientProfileCore
 
@@ -249,10 +250,12 @@ struct V054SetupView: View {
 
     private var themeCard: some View {
         NavigationLink {
-            V054ThemeCenterView()
+            V054ThemeCenterView { isVisible in
+                suspensionCoordinator.setThemeCenterVisible(isVisible)
+            }
                 .lifeRouteDeepDestination()
         } label: {
-            ScenicRoyalInsetRow(role: .readability) {
+            ScenicRoyalInsetRow(role: .passiveRow) {
                 ScenicRoyalSetupNavigationRow(
                     title: "Theme Center",
                     subtitle: themeStore.selectedTheme.name,
@@ -270,7 +273,7 @@ struct V054SetupView: View {
             V054ClientProfilesView(clientState: clientState)
                 .lifeRouteDeepDestination()
         } label: {
-            ScenicRoyalInsetRow(role: .readability) {
+            ScenicRoyalInsetRow(role: .passiveRow) {
                 ScenicRoyalSetupNavigationRow(
                     title: "Clients",
                     subtitle: clientState.clients.isEmpty ? "No client profiles yet" : "\(clientState.clients.count) saved client profiles",

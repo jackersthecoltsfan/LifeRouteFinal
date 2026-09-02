@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prove the standard-mode majorGroup recipe without changing runtime behavior."""
+"""Prove the standard-mode majorGroup recipe and day readability floor."""
 
 from pathlib import Path
 
@@ -21,11 +21,19 @@ standard_start = modifier.index("} else if role == .majorGroup, #available(iOS 2
 generic_start = modifier.index("} else if role.usesNativeGlass, #available(iOS 26.0, *)")
 standard = modifier[standard_start:generic_start]
 
-require("surfaceShape.fill(Color.black.opacity(ScenicRoyalDesignSystem.Opacity.standardMajorGroupUnderlay))" in standard, "majorGroup uses the canonical neutral underlay token")
+require("surfaceShape.fill(Color.black.opacity(majorGroupUnderlayOpacity))" in standard, "majorGroup uses the shared readability underlay")
 require(".glassEffect(.clear, in: .rect(cornerRadius: cornerRadius))" in standard, "majorGroup uses raw native Glass.clear")
 require("decorated(" not in standard, "majorGroup bypasses gradient/outline/shadow decoration")
-require("style." not in standard, "majorGroup standard recipe has no theme tint/fill")
 require(standard_start < generic_start, "majorGroup recipe precedes generic native-glass controls")
+
+require("private var majorGroupUnderlayOpacity" in modifier, "majorGroup readability has one shared opacity helper")
+require(
+    "style.isBrightEnvironment" in modifier
+    and "ScenicRoyalDesignSystem.Opacity.brightMajorGroupUnderlay" in modifier
+    and "ScenicRoyalDesignSystem.Opacity.standardMajorGroupUnderlay" in modifier,
+    "majorGroup underlay selects explicit day/night tokens from the existing theme classification",
+)
+require("static let brightMajorGroupUnderlay: Double = 0.07" in (ROOT / "LifeRoute/ScenicRoyalDesignSystem.swift").read_text(), "bright/day readability token is bounded at 0.07")
 
 accessibility_start = modifier.index("} else if reduceTransparency || contrast == .increased")
 native_start = modifier.index("} else if role == .majorGroup, #available")
@@ -45,4 +53,4 @@ fallback_start = modifier.index("} else {", native_start)
 fallback = modifier[fallback_start:]
 require("surfaceShape.fill(.ultraThinMaterial)" in fallback, "pre-iOS26 fallback remains material-based")
 
-print("LifeRoute standard majorGroup recipe contract passed: Glass.clear + neutral 0.035, accessibility/fallback branches preserved")
+print("LifeRoute standard majorGroup recipe contract passed: Glass.clear + 0.035 night / 0.07 day neutral underlay, accessibility/fallback branches preserved")

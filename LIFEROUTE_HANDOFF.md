@@ -11,6 +11,17 @@
 Do not merge this branch, dispatch TestFlight, change signing/version/build
 numbers, or create a shipping archive without separate owner authorization.
 
+## Build 126 day-glass readability repair
+
+- Isolated repair branch: `fix/build126-day-glass-readability`.
+- Exact baseline: `c5d676c85058396cdf674f0cced2109e19b3ec8d`.
+- Shared major-group glass remains `Glass.clear`; dark/night scenery keeps the
+  locked `0.035` neutral underlay, while classified bright/day scenery uses a
+  bounded `0.07` readability underlay.
+- Focused contracts, preparation, fast/full validation, Debug/Release
+  Simulator builds, canonical Simulator smoke, and Glass Lab bright/dark
+  capture passed. Physical iPhone A/B readability acceptance remains open.
+
 ## Build 126 Terra candidate
 
 - Branch: `exp/build126-terra-shell-performance`, based on

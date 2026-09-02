@@ -143,7 +143,7 @@ struct V054TodayView: View {
 
     private var commandHeader: some View {
         ScenicRoyalCard(
-            role: .card,
+            role: .majorGroup,
             cornerRadius: ScenicRoyalDesignSystem.Radius.control
         ) {
             HStack(alignment: .center, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
@@ -199,7 +199,7 @@ struct V054TodayView: View {
         }
         .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.compact)
         .scenicRoyalInteractiveSurface(
-            role: .ambient,
+            role: .control,
             cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
         )
     }
@@ -319,7 +319,7 @@ struct V054TodayView: View {
                 .foregroundStyle(scenicStyle.secondaryText)
             }
         }
-        .scenicRoyalCard(role: .readability)
+        .scenicRoyalCard(role: .majorGroup)
     }
 
     private var itineraryCard: some View {
@@ -426,7 +426,7 @@ struct V054TodayView: View {
                     .foregroundStyle(scenicStyle.secondaryText)
             }
         }
-        .scenicRoyalCard(role: .readability)
+        .scenicRoyalCard(role: .majorGroup)
     }
 
     @ViewBuilder
@@ -496,7 +496,7 @@ struct V054TodayView: View {
         _ item: LifeRouteItineraryTimelineItem,
         nodes: [String: LifeRouteItineraryNode]
     ) -> some View {
-        ScenicRoyalInsetRow(role: item.kind == .usableGap ? .selectedControl : .ambient) {
+        ScenicRoyalInsetRow(role: item.kind == .usableGap ? .selectedControl : .passiveRow) {
             HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
                 Image(systemName: timelineIcon(item.kind))
                     .font(.subheadline.weight(.bold))
@@ -582,7 +582,7 @@ struct V054TodayView: View {
     }
 
     private func previewRow(_ waypoint: LifeRouteDayWaypoint) -> some View {
-        ScenicRoyalInsetRow(role: .ambient) {
+        ScenicRoyalInsetRow(role: .passiveRow) {
             HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
                 Image(systemName: waypoint.kind == .stop ? "mappin.and.ellipse" : "calendar")
                     .foregroundStyle(scenicStyle.accent)
@@ -623,7 +623,7 @@ struct V054TodayView: View {
                     .foregroundStyle(scenicStyle.secondaryText)
             }
         }
-        .scenicRoyalCard(role: .readability)
+        .scenicRoyalCard(role: .majorGroup)
     }
 
     private func gapBlock(
@@ -672,7 +672,7 @@ struct V054TodayView: View {
         }
         .padding(ScenicRoyalDesignSystem.Spacing.compact)
         .scenicRoyalInteractiveSurface(
-            role: .ambient,
+            role: .control,
             cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
         )
     }
@@ -784,7 +784,7 @@ struct V054TodayView: View {
                     .foregroundStyle(scenicStyle.secondaryText)
             }
         }
-        .scenicRoyalCard(role: .readability)
+        .scenicRoyalCard(role: .majorGroup)
     }
 
     private var dayPickerSheet: some View {

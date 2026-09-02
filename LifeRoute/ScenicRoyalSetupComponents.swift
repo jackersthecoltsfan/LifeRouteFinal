@@ -7,7 +7,7 @@ struct ScenicRoyalSetupHeader: View {
     let savedPlaceCount: Int
 
     var body: some View {
-        ScenicRoyalCard(role: .card) {
+        ScenicRoyalCard(role: .majorGroup) {
             Group {
                 if dynamicTypeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
@@ -97,7 +97,7 @@ struct ScenicRoyalSetupDisclosureGroup<Content: View>: View {
                             height: ScenicRoyalDesignSystem.Layout.minimumTouchTarget
                         )
                         .scenicRoyalSurface(
-                            role: isExpanded ? .selectedControl : .ambient,
+                            role: isExpanded ? .selectedControl : .passiveRow,
                             cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
                         )
                         .accessibilityHidden(true)
@@ -140,7 +140,7 @@ struct ScenicRoyalSetupDisclosureGroup<Content: View>: View {
                 .transition(reduceMotion ? .identity : .opacity.combined(with: .move(edge: .top)))
             }
         }
-        .scenicRoyalSurface(role: isExpanded ? .card : .ambient)
+        .scenicRoyalSurface(role: isExpanded ? .majorGroup : .passiveRow)
     }
 
     private func toggle() {
@@ -170,7 +170,7 @@ struct ScenicRoyalSetupCard<Content: View>: View {
     }
 
     var body: some View {
-        ScenicRoyalCard(role: .readability) {
+        ScenicRoyalCard(role: .majorGroup) {
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                 ScenicRoyalSectionHeader(title, subtitle: subtitle, systemImage: systemImage)
                 content
@@ -391,7 +391,7 @@ struct ScenicRoyalTodoRow: View {
                 Label(title, systemImage: systemImage)
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.compact)
-                    .scenicRoyalInteractiveSurface(role: .ambient)
+                    .scenicRoyalInteractiveSurface(role: .control)
             } else {
                 Image(systemName: systemImage)
                     .frame(

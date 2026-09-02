@@ -89,7 +89,13 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
             )
         } else if role.usesNativeGlass, #available(iOS 26.0, *) {
             decorated(
-                content.glassEffect(emphasizedNativeGlass, in: .rect(cornerRadius: cornerRadius)),
+                content
+                    .background {
+                        if role == .majorGroup {
+                            surfaceShape.fill(style.readabilityBase.opacity(fallbackUnderlayOpacity))
+                        }
+                    }
+                    .glassEffect(emphasizedNativeGlass, in: .rect(cornerRadius: cornerRadius)),
                 opaque: false
             )
         } else {
@@ -125,7 +131,8 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
 
     @available(iOS 26.0, *)
     private var emphasizedNativeGlass: Glass {
-        let styled = Glass.regular.tint(style.glassTint.opacity(glassTintOpacity))
+        let base: Glass = role == .majorGroup ? .clear : .regular
+        let styled = base.tint(style.glassTint.opacity(glassTintOpacity))
         return interactive ? styled.interactive() : styled
     }
 

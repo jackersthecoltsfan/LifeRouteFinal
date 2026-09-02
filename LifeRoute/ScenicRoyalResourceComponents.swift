@@ -211,7 +211,7 @@ struct ScenicRoyalCustomPortalForm: View {
     let onSave: () -> Void
 
     var body: some View {
-        ScenicRoyalCard(role: .readability) {
+        ScenicRoyalCard(role: .majorGroup) {
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                 ScenicRoyalSectionHeader(
                     "Add company portal",

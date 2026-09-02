@@ -226,7 +226,7 @@ struct V054SetupView: View {
                 LifeRouteHaptics.selection()
             }
 
-            ScenicRoyalInsetRow(role: .ambient) {
+            ScenicRoyalInsetRow(role: .passiveRow) {
                 HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                     Image(systemName: preferredNavigationApp.systemImage)
                         .font(.title3.weight(.semibold))

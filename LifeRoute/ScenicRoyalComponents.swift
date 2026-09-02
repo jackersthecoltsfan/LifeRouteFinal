@@ -73,7 +73,7 @@ struct ScenicRoyalIconBadge: View {
             .foregroundStyle(style.accent)
             .frame(width: 48, height: 48)
             .scenicRoyalSurface(
-                role: .ambient,
+                role: .passiveRow,
                 cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
             )
             .accessibilityHidden(true)
@@ -254,7 +254,7 @@ extension View {
         self
             .padding(ScenicRoyalDesignSystem.Spacing.standard)
             .scenicRoyalInteractiveSurface(
-                role: .ambient,
+                role: .control,
                 cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
             )
     }

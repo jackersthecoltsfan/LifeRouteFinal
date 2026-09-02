@@ -97,22 +97,22 @@ struct RuntimeFeedbackContractTests {
             "semantic surface policy has one explicit role for each hierarchy level"
         )
         expect(!LifeRouteSurfaceRoleContract.passiveRow.usesNativeGlass, "passive rows never create adaptive glass")
-        expect(!LifeRouteSurfaceRoleContract.majorGroup.usesNativeGlass, "major groups use one bounded content treatment")
+        expect(LifeRouteSurfaceRoleContract.majorGroup.usesNativeGlass, "major groups use native clear glass")
         expect(LifeRouteSurfaceRoleContract.control.usesNativeGlass, "meaningful controls retain native glass")
         expect(LifeRouteSurfaceRoleContract.selectedControl.usesNativeGlass, "selected controls retain native glass")
         expect(LifeRouteSurfaceRoleContract.focalControl.usesNativeGlass, "focal controls retain native glass")
-        expect(LifeRouteSurfaceRoleContract.majorGroup.drawsIndependentShadow, "major groups own the section shadow")
+        expect(!LifeRouteSurfaceRoleContract.majorGroup.drawsIndependentShadow, "major groups avoid independent shadows")
         expect(!LifeRouteSurfaceRoleContract.passiveRow.drawsIndependentShadow, "passive rows do not cast independent shadows")
         expect(!LifeRouteSurfaceRoleContract.control.drawsIndependentShadow, "ordinary controls avoid unnecessary shadows")
         expect(!LifeRouteSurfaceRoleContract.selectedControl.drawsIndependentShadow, "selected controls use emphasis instead of a shadow")
         expect(LifeRouteSurfaceRoleContract.focalControl.drawsIndependentShadow, "focal controls may own a bounded shadow")
         expect(
-            roles.filter(\.usesNativeGlass).count == 3,
-            "native glass is reserved for controls and focal interaction"
+            roles.filter(\.usesNativeGlass).count == 4,
+            "native glass includes the clear major-group owner and controls"
         )
         expect(
-            roles.filter(\.drawsIndependentShadow).count == 2,
-            "only groups and focal interaction own shadows"
+            roles.filter(\.drawsIndependentShadow).count == 1,
+            "only focal interaction owns a shadow"
         )
         expect(
             !roles.contains { $0 == .passiveRow && $0.drawsIndependentShadow },

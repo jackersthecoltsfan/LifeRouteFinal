@@ -142,7 +142,7 @@ struct V054ToolsDashboard: View {
     }
 
     private var readinessCard: some View {
-        ScenicRoyalInsetRow(role: .readability) {
+        ScenicRoyalInsetRow(role: .majorGroup) {
             Group {
                 if dynamicTypeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
@@ -195,12 +195,12 @@ struct V054ToolsDashboard: View {
     }
 
     private var clientContextCard: some View {
-        ScenicRoyalCard(role: .card) {
+        ScenicRoyalCard(role: .majorGroup) {
             HStack(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                 Image(systemName: "person.2")
                     .foregroundStyle(scenicStyle.accent)
                     .frame(width: 34, height: 34)
-                    .scenicRoyalSurface(role: .ambient, cornerRadius: 17)
+                    .scenicRoyalSurface(role: .passiveRow, cornerRadius: 17)
                     .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {

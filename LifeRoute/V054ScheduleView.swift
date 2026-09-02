@@ -175,7 +175,7 @@ struct V054ScheduleView: View {
                         .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
                         .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous))
                         .scenicRoyalInteractiveSurface(
-                            role: .ambient,
+                            role: .control,
                             cornerRadius: ScenicRoyalDesignSystem.Radius.control
                         )
                     }
@@ -190,7 +190,7 @@ struct V054ScheduleView: View {
                     .pickerStyle(.segmented)
                     .padding(3)
                     .scenicRoyalSurface(
-                        role: .ambient,
+                        role: .passiveRow,
                         cornerRadius: ScenicRoyalDesignSystem.Radius.control
                     )
                 }
@@ -265,7 +265,7 @@ struct V054ScheduleView: View {
                 }
             }
         }
-        .scenicRoyalCard(role: .readability, padding: ScenicRoyalDesignSystem.Spacing.standard)
+        .scenicRoyalCard(role: .majorGroup, padding: ScenicRoyalDesignSystem.Spacing.standard)
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
@@ -373,7 +373,7 @@ struct V054ScheduleView: View {
             }
             Spacer(minLength: 0)
         }
-        .scenicRoyalCard(role: .readability)
+        .scenicRoyalCard(role: .majorGroup)
         .accessibilityElement(children: .combine)
     }
 
@@ -478,7 +478,7 @@ struct V054ScheduleView: View {
                     Text("Your connected calendars stay read-only in LifeRoute. Manual LifeRoute appointments can be added or removed here.")
                         .font(.subheadline)
                         .foregroundStyle(scenicStyle.secondaryText)
-                        .scenicRoyalCard(role: .readability)
+                        .scenicRoyalCard(role: .majorGroup)
 
                     providerRow(
                         title: "Apple Calendar",
@@ -539,7 +539,7 @@ struct V054ScheduleView: View {
         systemImage: String,
         action: @escaping () -> Void
     ) -> some View {
-        ScenicRoyalInsetRow(role: .readability) {
+        ScenicRoyalInsetRow(role: .majorGroup) {
             HStack(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                 Image(systemName: systemImage)
                     .font(.title3)
@@ -595,7 +595,7 @@ struct V054ScheduleView: View {
                             DatePicker("End", selection: $endTime, displayedComponents: .hourAndMinute)
                         }
                     }
-                    .scenicRoyalCard(role: .readability)
+                .scenicRoyalCard(role: .majorGroup)
 
                     V054AddressField("Appointment location", text: $location)
 
@@ -744,7 +744,7 @@ struct V054ScheduleView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .scenicRoyalCard(role: .readability)
+                    .scenicRoyalCard(role: .majorGroup)
                 .padding(16)
             }
             .navigationTitle("Appointment Details")

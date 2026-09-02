@@ -51,12 +51,12 @@ enum LifeRouteSurfaceRoleContract: CaseIterable, Hashable, Sendable {
 
     var usesNativeGlass: Bool {
         switch self {
-        case .control, .selectedControl, .focalControl: return true
-        case .majorGroup, .passiveRow: return false
+        case .majorGroup, .control, .selectedControl, .focalControl: return true
+        case .passiveRow: return false
         }
     }
 
     var drawsIndependentShadow: Bool {
-        self == .majorGroup || self == .focalControl
+        self == .focalControl
     }
 }

@@ -45,7 +45,7 @@ struct ScenicRoyalCalendarDateChip: View {
             }
             .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl, style: .continuous))
             .scenicRoyalInteractiveSurface(
-                role: isSelected ? .selectedControl : .ambient,
+                role: isSelected ? .selectedControl : .passiveRow,
                 cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
             )
         }
@@ -286,7 +286,7 @@ struct ScenicRoyalTravelPlanLabel: View {
         }
         .padding(ScenicRoyalDesignSystem.Spacing.standard)
         .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.card, style: .continuous))
-        .scenicRoyalInteractiveSurface(role: .ambient, cornerRadius: ScenicRoyalDesignSystem.Radius.card)
+        .scenicRoyalInteractiveSurface(role: .control, cornerRadius: ScenicRoyalDesignSystem.Radius.card)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Travel plan")
         .accessibilityValue(accessibilityValue)
@@ -299,7 +299,7 @@ struct ScenicRoyalTravelPlanLabel: View {
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(style.accent)
                 .frame(width: 42, height: 42)
-                .scenicRoyalSurface(role: .ambient, cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl)
+                .scenicRoyalSurface(role: .passiveRow, cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
@@ -367,7 +367,7 @@ struct ScenicRoyalCalendarConnectionLabel: View {
         .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
         .frame(minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
         .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous))
-        .scenicRoyalInteractiveSurface(role: .ambient, cornerRadius: ScenicRoyalDesignSystem.Radius.control)
+        .scenicRoyalInteractiveSurface(role: .control, cornerRadius: ScenicRoyalDesignSystem.Radius.control)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Connected calendars")
         .accessibilityValue(summary)
@@ -381,7 +381,7 @@ struct ScenicRoyalRouteLegRow: View {
     let leg: LifeRouteDayRouteLeg
 
     var body: some View {
-        ScenicRoyalInsetRow(role: .ambient) {
+        ScenicRoyalInsetRow(role: .passiveRow) {
             HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                 Text("\(leg.sequence)")
                     .font(.caption.weight(.bold))

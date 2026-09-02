@@ -43,7 +43,7 @@ struct ScenicRoyalSelectedThemeHeader: View {
     let category: ScenicRoyalThemeCategory
 
     var body: some View {
-        ScenicRoyalCard(role: .card) {
+        ScenicRoyalCard(role: .majorGroup) {
             Group {
                 if dynamicTypeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
@@ -170,7 +170,7 @@ struct ScenicRoyalThemeCategoryPicker: View {
                     RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
                 )
                 .scenicRoyalInteractiveSurface(
-                    role: selection == category ? .selectedControl : .ambient
+                    role: selection == category ? .selectedControl : .passiveRow
                 )
             }
             .buttonStyle(.plain)
@@ -190,7 +190,7 @@ struct ScenicRoyalThemeSectionHeading: View {
     let count: Int
 
     var body: some View {
-        ScenicRoyalInsetRow(role: .readability) {
+        ScenicRoyalInsetRow(role: .majorGroup) {
             Group {
                 if dynamicTypeSize.isAccessibilitySize {
                     VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
@@ -336,68 +336,49 @@ private struct ScenicRoyalStaticThemeThumbnail: View {
     let theme: LifeRouteTheme
 
     var body: some View {
-        ZStack {
-            theme.palette.backgroundGradient
-
-            if let assetName = theme.sceneryThumbnailAssetName {
-                Image(assetName)
-                    .resizable()
-                    .scaledToFill()
-                    .overlay(Color.black.opacity(theme.isNightScenery ? 0.12 : 0.02))
-            } else if theme.isPhaseTwoDynamic {
-                dynamicArtwork
-            } else {
-                coreArtwork
+        Image(decorative: theme.thumbnailAssetName)
+            .resizable()
+            .scaledToFill()
+            .overlay {
+                if theme.isPhaseThreeScenery {
+                    Color.black.opacity(theme.isNightScenery ? 0.12 : 0.02)
+                }
             }
-        }
         .clipped()
         .accessibilityHidden(true)
-    }
-
-    private var coreArtwork: some View {
-        ZStack {
-            Circle()
-                .fill(theme.palette.accent.opacity(0.30))
-                .frame(width: 120, height: 120)
-                .blur(radius: 12)
-                .offset(x: 34, y: -18)
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.20),
-                            theme.palette.accentSecondary.opacity(0.18),
-                            .clear,
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .rotationEffect(.degrees(-14))
-                .scaleEffect(1.2)
-        }
-    }
-
-    private var dynamicArtwork: some View {
-        ZStack {
-            Capsule()
-                .fill(theme.palette.accent.opacity(0.40))
-                .frame(width: 180, height: 34)
-                .rotationEffect(.degrees(-18))
-                .offset(x: -16, y: -18)
-            Capsule()
-                .fill(theme.palette.accentSecondary.opacity(0.34))
-                .frame(width: 170, height: 28)
-                .rotationEffect(.degrees(16))
-                .offset(x: 22, y: 20)
-            Circle()
-                .stroke(Color.white.opacity(0.30), lineWidth: 2)
-                .frame(width: 48, height: 48)
-        }
     }
 }
 
 private extension LifeRouteTheme {
+    /// Every user-facing catalog identity resolves to one committed still.
+    /// Core and Dynamic files are fixed-phase captures from their production
+    /// environment paths; Scenery reuses the canonical Day/Night artwork.
+    var thumbnailAssetName: String {
+        switch self {
+        case .royal: return "ThemePreviewCoreRoyal"
+        case .obsidian: return "ThemePreviewCoreObsidian"
+        case .midnight: return "ThemePreviewCoreMidnight"
+        case .titanium: return "ThemePreviewCoreTitanium"
+        case .coreOcean: return "ThemePreviewCoreOcean"
+        case .coreAurora: return "ThemePreviewCoreAurora"
+        case .coreSolarFlare: return "ThemePreviewCoreSolarFlare"
+        case .coreUltraviolet: return "ThemePreviewCoreUltraviolet"
+        case .emerald: return "ThemePreviewCoreEmerald"
+        case .roseQuartz: return "ThemePreviewCoreRoseQuartz"
+        case .arctic: return "ThemePreviewCoreArctic"
+        case .coreEmber: return "ThemePreviewCoreEmber"
+        case .royalCurrent: return "ThemePreviewDynamicRoyalCurrent"
+        case .midnightPrism: return "ThemePreviewDynamicMidnightPrism"
+        case .auroraBloom: return "ThemePreviewDynamicAuroraBloom"
+        case .solarPulse: return "ThemePreviewDynamicSolarPulse"
+        case .emeraldFlow: return "ThemePreviewDynamicEmeraldFlow"
+        case .oceanGlass: return "ThemePreviewDynamicOceanGlass"
+        case .obsidianSpectra: return "ThemePreviewDynamicObsidianSpectra"
+        case .plasmaOrchid: return "ThemePreviewDynamicPlasmaOrchid"
+        default: return sceneryThumbnailAssetName ?? "ThemePreviewCoreRoyal"
+        }
+    }
+
     var sceneryThumbnailAssetName: String? {
         switch self {
         case .sceneryMountainsDay: return "SceneryMountainsDay"

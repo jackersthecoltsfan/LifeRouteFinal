@@ -18,6 +18,8 @@ on:
       - 'scripts/run_simulator_smoke.sh'
       - 'scripts/assess_xcode_warnings.py'
       - '.github/workflows/ios-ci.yml'
+      - '.github/workflows/chatgpt-testflight-request.yml'
+      - '.github/workflows/testflight.yml'
   pull_request:
     paths:
       - 'LifeRoute/**'
@@ -33,6 +35,8 @@ on:
       - 'scripts/run_simulator_smoke.sh'
       - 'scripts/assess_xcode_warnings.py'
       - '.github/workflows/ios-ci.yml'
+      - '.github/workflows/chatgpt-testflight-request.yml'
+      - '.github/workflows/testflight.yml'
   workflow_dispatch:
 
 permissions:

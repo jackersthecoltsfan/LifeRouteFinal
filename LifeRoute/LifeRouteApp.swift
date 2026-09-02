@@ -3647,7 +3647,12 @@ struct LifeRouteApp: App {
     var body: some Scene {
         WindowGroup {
 #if DEBUG
-            if let fixture = LifeRouteVisualFixture.current {
+            if let glassLab = LifeRouteGlassLabLaunch.current {
+                LifeRouteGlassLabView(
+                    initialCandidate: glassLab.candidate,
+                    initialScene: glassLab.scene
+                )
+            } else if let fixture = LifeRouteVisualFixture.current {
                 LifeRouteVisualFixtureView(fixture: fixture)
             } else if ProcessInfo.processInfo.arguments.contains("-LifeRouteSessionNoteReadabilityFixture") {
                 SessionNoteReadabilityFixtureView()

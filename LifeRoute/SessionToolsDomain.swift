@@ -315,6 +315,30 @@ final class VisualTimerCore: ObservableObject {
         }
     }
 
+    func adjustRemainingSeconds(by seconds: TimeInterval, now: Date = Date()) {
+        let wasRunning = deadline != nil
+        let adjustment = VisualTimerAdjustment.apply(
+            deadline: deadline,
+            pausedRemainingSeconds: pausedRemainingSeconds,
+            by: seconds,
+            now: now
+        )
+
+        pausedRemainingSeconds = adjustment.remainingSeconds
+        if wasRunning {
+            deadline = adjustment.deadline
+        } else if adjustment.shouldUseCompletionPath {
+            // Route a paused near-zero adjustment through the same deadline
+            // expiry loop used by a running timer; there is no second
+            // completion implementation.
+            deadline = now
+        }
+
+        if adjustment.shouldUseCompletionPath {
+            startFeedbackLoop()
+        }
+    }
+
     func setVolume(_ value: Double) {
         volume = min(1, max(0, value))
         preferenceStore.set(volume, forKey: PreferenceKey.volume)

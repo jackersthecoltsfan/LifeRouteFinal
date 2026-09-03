@@ -35,7 +35,7 @@ require(
 )
 design = (ROOT / "LifeRoute/ScenicRoyalDesignSystem.swift").read_text()
 require("static let standardMajorGroupUnderlay: Double = 0.044" in design, "night/dark readability token is calibrated at 0.044")
-require("static let brightMajorGroupUnderlay: Double = 0.16" in design, "bright/day readability token is calibrated at 0.16")
+require("static let brightMajorGroupUnderlay: Double = 0.20" in design, "bright/day readability token is calibrated at 0.20")
 
 accessibility_start = modifier.index("} else if reduceTransparency || contrast == .increased")
 native_start = modifier.index("} else if role == .majorGroup, #available")
@@ -55,4 +55,4 @@ fallback_start = modifier.index("} else {", native_start)
 fallback = modifier[fallback_start:]
 require("surfaceShape.fill(.ultraThinMaterial)" in fallback, "pre-iOS26 fallback remains material-based")
 
-print("LifeRoute standard majorGroup recipe contract passed: Glass.clear + 0.044 night / 0.16 day neutral underlay, accessibility/fallback branches preserved")
+print("LifeRoute standard majorGroup recipe passed: Glass.clear + 0.044 night / 0.20 day neutral underlay, accessibility/fallback branches preserved")

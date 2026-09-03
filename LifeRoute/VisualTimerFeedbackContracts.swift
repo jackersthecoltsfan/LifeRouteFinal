@@ -6,6 +6,7 @@ enum VisualTimerToneProfile: String, CaseIterable, Codable, Identifiable {
     case clear
 
     static let defaultProfile: VisualTimerToneProfile = .soft
+    static let physicalQAPitchMultiplier = 1.5
 
     var id: String { rawValue }
 
@@ -35,25 +36,25 @@ enum VisualTimerToneProfile: String, CaseIterable, Codable, Identifiable {
 
     var startFrequency: Double {
         switch self {
-        case .warm: return 196.00
-        case .soft: return 220.00
-        case .clear: return 261.63
+        case .warm: return 196.00 * Self.physicalQAPitchMultiplier
+        case .soft: return 220.00 * Self.physicalQAPitchMultiplier
+        case .clear: return 261.63 * Self.physicalQAPitchMultiplier
         }
     }
 
     var endFrequency: Double {
         switch self {
-        case .warm: return 392.00
-        case .soft: return 440.00
-        case .clear: return 523.25
+        case .warm: return 392.00 * Self.physicalQAPitchMultiplier
+        case .soft: return 440.00 * Self.physicalQAPitchMultiplier
+        case .clear: return 523.25 * Self.physicalQAPitchMultiplier
         }
     }
 
     var completionFrequencies: [Double] {
         switch self {
-        case .warm: return [293.66, 349.23, 392.00]
-        case .soft: return [329.63, 392.00, 440.00]
-        case .clear: return [349.23, 440.00, 523.25]
+        case .warm: return [293.66, 349.23, 392.00].map { $0 * Self.physicalQAPitchMultiplier }
+        case .soft: return [329.63, 392.00, 440.00].map { $0 * Self.physicalQAPitchMultiplier }
+        case .clear: return [349.23, 440.00, 523.25].map { $0 * Self.physicalQAPitchMultiplier }
         }
     }
 
@@ -164,6 +165,38 @@ enum VisualTimerFeedbackCurve {
     }
 
     private static func finite(_ value: Double) -> Double {
+        value.isFinite ? value : 0
+    }
+}
+
+struct VisualTimerAdjustmentResult: Equatable {
+    let remainingSeconds: TimeInterval
+    let deadline: Date?
+    let shouldUseCompletionPath: Bool
+}
+
+enum VisualTimerAdjustment {
+    static let quickAdjustmentSeconds: TimeInterval = 15
+
+    static func apply(
+        deadline: Date?,
+        pausedRemainingSeconds: TimeInterval,
+        by seconds: TimeInterval,
+        now: Date
+    ) -> VisualTimerAdjustmentResult {
+        let currentRemaining = deadline.map { max(0, $0.timeIntervalSince(now)) }
+            ?? max(0, finite(pausedRemainingSeconds))
+        let delta = finite(seconds)
+        let adjustedRemaining = max(0, currentRemaining + delta)
+
+        return VisualTimerAdjustmentResult(
+            remainingSeconds: adjustedRemaining,
+            deadline: deadline == nil ? nil : now.addingTimeInterval(adjustedRemaining),
+            shouldUseCompletionPath: adjustedRemaining == 0
+        )
+    }
+
+    private static func finite(_ value: TimeInterval) -> TimeInterval {
         value.isFinite ? value : 0
     }
 }

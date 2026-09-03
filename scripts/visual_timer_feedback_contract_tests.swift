@@ -15,6 +15,7 @@ struct VisualTimerFeedbackContractTests {
         testAccessibilityMilestones()
         testPreferenceDefaults()
         testAudioSessionPolicy()
+        testQuickAdjustments()
 
         precondition(
             assertionCount >= 119,
@@ -30,10 +31,17 @@ struct VisualTimerFeedbackContractTests {
         for profile in VisualTimerToneProfile.allCases {
             expect(profile.startFrequency > 0, "\(profile.title) starts above zero Hz")
             expect(profile.endFrequency > profile.startFrequency, "\(profile.title) rises gradually")
-            expect(profile.endFrequency <= 523.25, "\(profile.title) avoids the previous harsh high-frequency range")
+            expect(profile.endFrequency <= 785, "\(profile.title) remains within the bounded raised pitch range")
             expect(profile.completionFrequencies.count == 3, "\(profile.title) has a bounded completion cue")
-            expect(profile.completionFrequencies.allSatisfy { $0 <= 523.25 }, "\(profile.title) completion stays soft")
+            expect(profile.completionFrequencies.allSatisfy { $0 <= 785 }, "\(profile.title) completion stays within the raised pitch range")
         }
+
+        expect(VisualTimerToneProfile.physicalQAPitchMultiplier == 1.5, "physical QA pitch multiplier is exactly 1.5")
+        expect(abs(VisualTimerToneProfile.warm.startFrequency - 294.00) < 0.000_001, "Warm start pitch is raised from 196 Hz to 294 Hz")
+        expect(abs(VisualTimerToneProfile.soft.startFrequency - 330.00) < 0.000_001, "Soft start pitch is raised from 220 Hz to 330 Hz")
+        expect(abs(VisualTimerToneProfile.clear.startFrequency - 392.445) < 0.000_001, "Clear start pitch is raised from 261.63 Hz to 392.445 Hz")
+        expect(abs(VisualTimerToneProfile.soft.endFrequency - 660.00) < 0.000_001, "Soft completion-bound pitch is raised from 440 Hz to 660 Hz")
+        expect(abs(VisualTimerToneProfile.clear.completionFrequencies[2] - 784.875) < 0.000_001, "Clear completion pitch is raised from 523.25 Hz to 784.875 Hz")
     }
 
     private static func testExponentialUrgency() {
@@ -261,8 +269,8 @@ struct VisualTimerFeedbackContractTests {
                     "\(profile.title) repeats speaker-effective upper-mid energy on every completion note"
                 )
                 expect(
-                    frequency * 4 >= 1_100 && frequency * 4 <= 2_100,
-                    "\(profile.title) fourth partial remains in a bounded iPhone-speaker-effective range"
+                    frequency * 4 >= 1_700 && frequency * 4 <= 3_150,
+                    "\(profile.title) raised fourth partial remains in a bounded speaker-effective range"
                 )
             }
         }
@@ -466,6 +474,72 @@ struct VisualTimerFeedbackContractTests {
             !VisualTimerAudioSessionPolicy.allowsThemeFeedback(timerPlaybackActive: true),
             "timer playback ownership prevents a theme sound from downgrading the audio session"
         )
+    }
+
+    private static func testQuickAdjustments() {
+        let now = Date(timeIntervalSince1970: 10_000)
+        let runningDeadline = now.addingTimeInterval(60)
+        let runningPlus = VisualTimerAdjustment.apply(
+            deadline: runningDeadline,
+            pausedRemainingSeconds: 60,
+            by: VisualTimerAdjustment.quickAdjustmentSeconds,
+            now: now
+        )
+        expect(VisualTimerAdjustment.quickAdjustmentSeconds == 15, "quick timer adjustment is exactly fifteen seconds")
+        expect(runningPlus.remainingSeconds == 75, "running +15 sec adds exactly fifteen seconds")
+        expect(runningPlus.deadline == now.addingTimeInterval(75), "running +15 sec moves the existing deadline by fifteen seconds")
+        expect(!runningPlus.shouldUseCompletionPath, "running +15 sec does not enter completion")
+
+        let runningMinus = VisualTimerAdjustment.apply(
+            deadline: runningDeadline,
+            pausedRemainingSeconds: 60,
+            by: -VisualTimerAdjustment.quickAdjustmentSeconds,
+            now: now
+        )
+        expect(runningMinus.remainingSeconds == 45, "running −15 sec removes exactly fifteen seconds")
+        expect(runningMinus.deadline == now.addingTimeInterval(45), "running −15 sec moves the existing deadline earlier")
+
+        let pausedMinus = VisualTimerAdjustment.apply(
+            deadline: nil,
+            pausedRemainingSeconds: 60,
+            by: -VisualTimerAdjustment.quickAdjustmentSeconds,
+            now: now
+        )
+        expect(pausedMinus.remainingSeconds == 45 && pausedMinus.deadline == nil, "paused −15 sec updates paused remaining time without creating a deadline")
+
+        let readyPlus = VisualTimerAdjustment.apply(
+            deadline: nil,
+            pausedRemainingSeconds: 0,
+            by: VisualTimerAdjustment.quickAdjustmentSeconds,
+            now: now
+        )
+        expect(readyPlus.remainingSeconds == 15 && readyPlus.deadline == nil, "ready +15 sec remains a coherent paused value")
+
+        let runningNearZero = VisualTimerAdjustment.apply(
+            deadline: now.addingTimeInterval(10),
+            pausedRemainingSeconds: 10,
+            by: -VisualTimerAdjustment.quickAdjustmentSeconds,
+            now: now
+        )
+        expect(runningNearZero.remainingSeconds == 0, "running near-zero −15 sec clamps remaining time to zero")
+        expect(runningNearZero.deadline == now && runningNearZero.shouldUseCompletionPath, "running completion-edge adjustment uses the existing deadline completion path")
+
+        let pausedNearZero = VisualTimerAdjustment.apply(
+            deadline: nil,
+            pausedRemainingSeconds: 10,
+            by: -VisualTimerAdjustment.quickAdjustmentSeconds,
+            now: now
+        )
+        expect(pausedNearZero.remainingSeconds == 0, "paused near-zero −15 sec clamps remaining time to zero")
+        expect(pausedNearZero.deadline == nil && pausedNearZero.shouldUseCompletionPath, "paused completion-edge adjustment requests the existing completion path")
+
+        let belowZero = VisualTimerAdjustment.apply(
+            deadline: nil,
+            pausedRemainingSeconds: 1,
+            by: -60,
+            now: now
+        )
+        expect(belowZero.remainingSeconds == 0, "large negative adjustment never produces a negative remaining value")
     }
 
     private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {

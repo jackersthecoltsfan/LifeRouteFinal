@@ -284,12 +284,16 @@ struct VisualTimerView: View {
                 if dynamicTypeSize.isAccessibilitySize {
                     VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
                         pauseResumeButton
+                        quickAdjustmentButtons
                         addMinuteButton
                     }
                 } else {
-                    HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                        pauseResumeButton
-                        addMinuteButton
+                    VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                        HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                            pauseResumeButton
+                            addMinuteButton
+                        }
+                        quickAdjustmentButtons
                     }
                 }
             }
@@ -329,6 +333,29 @@ struct VisualTimerView: View {
             Label("Add 1 minute", systemImage: "plus.circle")
         }
         .buttonStyle(ScenicRoyalSecondaryButtonStyle())
+    }
+
+    private var quickAdjustmentButtons: some View {
+        HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+            Button {
+                timer.adjustRemainingSeconds(by: -VisualTimerAdjustment.quickAdjustmentSeconds)
+            } label: {
+                Label("−15 sec", systemImage: "minus.circle")
+            }
+            .buttonStyle(ScenicRoyalSecondaryButtonStyle())
+            .disabled(timer.remainingSeconds() <= 0)
+            .accessibilityLabel("Subtract 15 seconds")
+            .accessibilityHint("Removes exactly 15 seconds from the timer")
+
+            Button {
+                timer.adjustRemainingSeconds(by: VisualTimerAdjustment.quickAdjustmentSeconds)
+            } label: {
+                Label("+15 sec", systemImage: "plus.circle")
+            }
+            .buttonStyle(ScenicRoyalSecondaryButtonStyle())
+            .accessibilityLabel("Add 15 seconds")
+            .accessibilityHint("Adds exactly 15 seconds to the timer")
+        }
     }
 
     private func startTimer(minutes: Int) {
@@ -447,9 +474,9 @@ private struct ScenicRoyalTimerOrb: View {
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        style.accent.opacity(0.18 + snapshot.urgency * 0.10),
-                                        style.accentReflection.opacity(0.34 + snapshot.urgency * 0.10),
-                                        style.accent.opacity(0.24 + snapshot.urgency * 0.08),
+                                        style.accent.opacity(0.26 + snapshot.urgency * 0.10),
+                                        style.accentReflection.opacity(0.48 + snapshot.urgency * 0.10),
+                                        style.accent.opacity(0.34 + snapshot.urgency * 0.08),
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
@@ -458,17 +485,40 @@ private struct ScenicRoyalTimerOrb: View {
                             .frame(width: interiorDiameter, height: liquidHeight)
                             .overlay(alignment: .top) {
                                 Capsule()
-                                    .fill(style.accentReflection.opacity(0.58))
-                                    .frame(width: min(92, interiorDiameter * 0.64), height: 8)
+                                    .fill(style.accentReflection.opacity(0.76))
+                                    .frame(width: min(132, interiorDiameter * 0.84), height: 10)
                                     .scaleEffect(x: surfaceScale, y: 1)
                                     .offset(x: surfaceOffset, y: -4)
                                     .opacity(snapshot.remainingProgress > 0 ? 1 : 0)
+                                    .overlay {
+                                        Capsule()
+                                            .stroke(Color.white.opacity(0.34), lineWidth: 0.8)
+                                    }
                             }
                     }
                     .frame(width: orbDiameter, height: orbDiameter)
                     .mask(Circle())
                 }
                 .frame(width: 238, height: 238)
+
+                Circle()
+                    .trim(from: 0.08, to: 0.38)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.46),
+                                style.accentReflection.opacity(0.18),
+                                Color.clear,
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ),
+                        style: StrokeStyle(lineWidth: 9, lineCap: .round)
+                    )
+                    .frame(width: 184, height: 184)
+                    .rotationEffect(.degrees(-32))
+                    .offset(x: highlightOffset.width, y: highlightOffset.height)
+                    .blendMode(.screen)
 
                 Circle()
                     .stroke(

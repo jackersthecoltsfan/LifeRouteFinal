@@ -41,10 +41,10 @@ enum ScenicRoyalDesignSystem {
 
     enum Opacity {
         /// The locked L1 major-group recipe: Glass.clear plus neutral black.
-        static let standardMajorGroupUnderlay: Double = 0.035
+        static let standardMajorGroupUnderlay: Double = 0.044
         /// Bright/day scenery needs a bounded contrast floor while retaining
         /// the accepted thin-glass treatment.
-        static let brightMajorGroupUnderlay: Double = 0.12
+        static let brightMajorGroupUnderlay: Double = 0.16
         static let passiveRowSeparator: Double = 0.28
     }
 

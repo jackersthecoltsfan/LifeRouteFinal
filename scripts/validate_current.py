@@ -1345,9 +1345,15 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
         timer_view,
         [
             "VisualTimerFeedbackCurve.readoutInterval",
-            ".animation(",
-            "VisualTimerFeedbackCurve.visualFrameInterval",
-            "paused: !sceneIsActive",
+            "VisualTimerPresentationSnapshot(",
+            "ScenicRoyalTimerOrb(",
+            "timer.remainingSeconds(at: context.date)",
+            "timer.progress(at: context.date)",
+            "timer.normalizedElapsedProgress(forRemaining: remaining)",
+            "timer.urgency(forRemaining: remaining)",
+            "timer.durationSeconds",
+            "timer.isRunning",
+            "timer.isFinished(at: context.date)",
             "timer.start",
             "timer.pause",
             "timer.resume",
@@ -1357,12 +1363,20 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
             "timer.setSoundEnabled",
             "UIAccessibility.post(notification: .announcement",
             "completionHapticsEnabled",
-            "ScenicRoyalTimerDial",
             "-LifeRouteVisualTimerAutoStart",
             ".frame(width: 238, height: 238)",
+            ".accessibilityElement(children: .ignore)",
+            ".accessibilityValue(remainingText)",
+            "Timer progress",
+            "percent remaining",
         ],
         "Scenic Royal Visual Timer presentation and accessibility",
     )
+    require_count(timer_view, "TimelineView(", 1, "Slice 1 Visual Timer readout clock")
+    require(".animation(" not in timer_view, "Slice 1 Visual Timer must not add an animation TimelineView")
+    require("VisualTimerFeedbackCurve.visualFrameInterval" not in timer_view, "Slice 1 Visual Timer must not add a visual pulse cadence")
+    require("paused: !sceneIsActive" not in timer_view, "Slice 1 Visual Timer must not add a scene-driven pulse loop")
+    require("ScenicRoyalTimerDial" not in timer_view, "Slice 1 Visual Timer must use the Scenic Orb presentation shell")
     require_all(
         live + live_run + attributes + widget,
         [

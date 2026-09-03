@@ -383,6 +383,8 @@ internal struct VisualTimerPresentationSnapshot: Equatable {
 }
 
 private struct ScenicRoyalTimerOrb: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.scenicRoyalThemeStyle) private var style
 
     let snapshot: VisualTimerPresentationSnapshot
@@ -390,102 +392,125 @@ private struct ScenicRoyalTimerOrb: View {
     let reduceTransparency: Bool
 
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            style.glassTint.opacity(reduceTransparency ? 0.92 : 0.64),
-                            style.readabilityBase.opacity(reduceTransparency ? 0.98 : 0.52),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+        TimelineView(
+            .animation(
+                minimumInterval: 1.0 / 20.0,
+                paused: !animationIsActive
+            )
+        ) { context in
+            let motionTime = context.date.timeIntervalSinceReferenceDate
+            let surfaceOffset = sin(motionTime * 2.0 * .pi / 4.8) * 3.0
+            let surfaceScale = 1.0 + sin(motionTime * 2.0 * .pi / 6.4) * 0.04
+            let highlightOffset = CGSize(
+                width: sin(motionTime * 2.0 * .pi / 7.0) * 4.0,
+                height: cos(motionTime * 2.0 * .pi / 8.0) * 2.0
+            )
 
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            style.accentReflection.opacity(0.28 + snapshot.urgency * 0.10),
-                            style.accent.opacity(0.08),
-                            Color.clear,
-                        ],
-                        center: .topLeading,
-                        startRadius: 8,
-                        endRadius: 150
-                    )
-                )
-                .scaleEffect(0.88)
-                .offset(x: -26, y: -30)
-
-            GeometryReader { proxy in
-                let orbDiameter = min(proxy.size.width, proxy.size.height)
-                let interiorDiameter = max(0, orbDiameter - 16)
-                let liquidHeight = interiorDiameter * snapshot.remainingProgress
-
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
-
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    style.accent.opacity(0.18 + snapshot.urgency * 0.10),
-                                    style.accentReflection.opacity(0.34 + snapshot.urgency * 0.10),
-                                    style.accent.opacity(0.24 + snapshot.urgency * 0.08),
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                style.glassTint.opacity(reduceTransparency ? 0.92 : 0.64),
+                                style.readabilityBase.opacity(reduceTransparency ? 0.98 : 0.52),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                        .frame(width: interiorDiameter, height: liquidHeight)
-                        .overlay(alignment: .top) {
-                            Capsule()
-                                .fill(style.accentReflection.opacity(0.58))
-                                .frame(width: min(92, interiorDiameter * 0.64), height: 8)
-                                .offset(y: -4)
-                                .opacity(snapshot.remainingProgress > 0 ? 1 : 0)
-                        }
+                    )
+
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                style.accentReflection.opacity(0.28 + snapshot.urgency * 0.10),
+                                style.accent.opacity(0.08),
+                                Color.clear,
+                            ],
+                            center: .topLeading,
+                            startRadius: 8,
+                            endRadius: 150
+                        )
+                    )
+                    .scaleEffect(0.88)
+                    .offset(x: -26 + highlightOffset.width, y: -30 + highlightOffset.height)
+
+                GeometryReader { proxy in
+                    let orbDiameter = min(proxy.size.width, proxy.size.height)
+                    let interiorDiameter = max(0, orbDiameter - 16)
+                    let liquidHeight = interiorDiameter * snapshot.remainingProgress
+
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
+
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        style.accent.opacity(0.18 + snapshot.urgency * 0.10),
+                                        style.accentReflection.opacity(0.34 + snapshot.urgency * 0.10),
+                                        style.accent.opacity(0.24 + snapshot.urgency * 0.08),
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .frame(width: interiorDiameter, height: liquidHeight)
+                            .overlay(alignment: .top) {
+                                Capsule()
+                                    .fill(style.accentReflection.opacity(0.58))
+                                    .frame(width: min(92, interiorDiameter * 0.64), height: 8)
+                                    .scaleEffect(x: surfaceScale, y: 1)
+                                    .offset(x: surfaceOffset, y: -4)
+                                    .opacity(snapshot.remainingProgress > 0 ? 1 : 0)
+                            }
+                    }
+                    .frame(width: orbDiameter, height: orbDiameter)
+                    .mask(Circle())
                 }
-                .frame(width: orbDiameter, height: orbDiameter)
-                .mask(Circle())
+                .frame(width: 238, height: 238)
+
+                Circle()
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.34),
+                                style.accentReflection.opacity(0.22),
+                                Color.white.opacity(0.08),
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.4
+                    )
+                    .padding(3)
+
+                VStack(spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
+                    Text(remainingText)
+                        .font(.system(.largeTitle, design: .rounded, weight: .bold))
+                        .monospacedDigit()
+                        .foregroundStyle(style.primaryText)
+                        .minimumScaleFactor(0.72)
+
+                    Text(snapshot.isFinished ? "TIME IS UP" : "REMAINING")
+                        .font(.caption2.weight(.bold))
+                        .tracking(1.3)
+                        .foregroundStyle(style.secondaryText)
+                }
             }
             .frame(width: 238, height: 238)
-
-            Circle()
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.34),
-                            style.accentReflection.opacity(0.22),
-                            Color.white.opacity(0.08),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1.4
-                )
-                .padding(3)
-
-            VStack(spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                Text(remainingText)
-                    .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    .monospacedDigit()
-                    .foregroundStyle(style.primaryText)
-                    .minimumScaleFactor(0.72)
-
-                Text(snapshot.isFinished ? "TIME IS UP" : "REMAINING")
-                    .font(.caption2.weight(.bold))
-                    .tracking(1.3)
-                    .foregroundStyle(style.secondaryText)
-            }
+            .clipShape(Circle())
         }
-        .frame(width: 238, height: 238)
-        .clipShape(Circle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(snapshot.isFinished ? "Timer complete" : "Time remaining")
         .accessibilityValue(remainingText)
+    }
+
+    private var animationIsActive: Bool {
+        snapshot.isRunning
+            && !snapshot.isFinished
+            && !reduceMotion
+            && scenePhase == .active
     }
 }
 

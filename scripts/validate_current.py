@@ -1357,6 +1357,13 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
             "let liquidHeight = interiorDiameter * snapshot.remainingProgress",
             ".frame(width: interiorDiameter, height: liquidHeight)",
             ".mask(Circle())",
+            "minimumInterval: 1.0 / 20.0",
+            "paused: !animationIsActive",
+            "context.date.timeIntervalSinceReferenceDate",
+            "surfaceOffset",
+            "highlightOffset",
+            "accessibilityReduceMotion",
+            "scenePhase == .active",
             "timer.start",
             "timer.pause",
             "timer.resume",
@@ -1375,8 +1382,8 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
         ],
         "Scenic Royal Visual Timer presentation and accessibility",
     )
-    require_count(timer_view, "TimelineView(", 1, "Slice 1 Visual Timer readout clock")
-    require(".animation(" not in timer_view, "Slice 1 Visual Timer must not add an animation TimelineView")
+    require_count(timer_view, "TimelineView(", 2, "Slice 3 Visual Timer readout and Orb clocks")
+    require_count(timer_view, ".animation(", 1, "Slice 3 local Orb animation clock")
     require("VisualTimerFeedbackCurve.visualFrameInterval" not in timer_view, "Slice 1 Visual Timer must not add a visual pulse cadence")
     require("paused: !sceneIsActive" not in timer_view, "Slice 1 Visual Timer must not add a scene-driven pulse loop")
     require("ScenicRoyalTimerDial" not in timer_view, "Slice 1 Visual Timer must use the Scenic Orb presentation shell")

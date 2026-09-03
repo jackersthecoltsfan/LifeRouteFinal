@@ -419,25 +419,39 @@ private struct ScenicRoyalTimerOrb: View {
                 .scaleEffect(0.88)
                 .offset(x: -26, y: -30)
 
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            style.accent.opacity(0.18 + snapshot.urgency * 0.10),
-                            style.accentReflection.opacity(0.34 + snapshot.urgency * 0.10),
-                            style.accent.opacity(0.24 + snapshot.urgency * 0.08),
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .scaleEffect(0.92)
-                .offset(y: 88)
+            GeometryReader { proxy in
+                let orbDiameter = min(proxy.size.width, proxy.size.height)
+                let interiorDiameter = max(0, orbDiameter - 16)
+                let liquidHeight = interiorDiameter * snapshot.remainingProgress
 
-            Capsule()
-                .fill(style.accentReflection.opacity(0.58))
-                .frame(width: 92, height: 8)
-                .offset(y: 48)
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    style.accent.opacity(0.18 + snapshot.urgency * 0.10),
+                                    style.accentReflection.opacity(0.34 + snapshot.urgency * 0.10),
+                                    style.accent.opacity(0.24 + snapshot.urgency * 0.08),
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: interiorDiameter, height: liquidHeight)
+                        .overlay(alignment: .top) {
+                            Capsule()
+                                .fill(style.accentReflection.opacity(0.58))
+                                .frame(width: min(92, interiorDiameter * 0.64), height: 8)
+                                .offset(y: -4)
+                                .opacity(snapshot.remainingProgress > 0 ? 1 : 0)
+                        }
+                }
+                .frame(width: orbDiameter, height: orbDiameter)
+                .mask(Circle())
+            }
+            .frame(width: 238, height: 238)
 
             Circle()
                 .stroke(

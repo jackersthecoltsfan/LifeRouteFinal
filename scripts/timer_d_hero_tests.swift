@@ -63,11 +63,13 @@ import Combine
     }
     @MainActor static func geometry() {
         var d = driver(); d.request(expanded: true); d.advance(by: 0.16)
-        let p = d.progress, v = d.velocity
+        let p = d.progress, v = d.velocity, originalFrame = d.frame
         let rotatedSlot = CGRect(x: 130, y: 88, width: 252, height: 252)
         let rotatedFull = CGRect(x: 66, y: 84, width: 300, height: 300)
         d.updateGeometry(anchor: rotatedSlot, expanded: rotatedFull)
         expect(d.progress == p && d.velocity == v, "rotation preserves scalar progress and velocity")
+        expect(d.frame != nil && d.frame != originalFrame && !d.isFading,
+               "valid geometry update follows fresh endpoints without stale-frame freezing")
         d.request(expanded: false)
         let newest = rotatedSlot.offsetBy(dx: 18, dy: -14)
         d.updateGeometry(anchor: newest, expanded: rotatedFull)
@@ -109,6 +111,29 @@ import Combine
         d.request(expanded: false)
         expect(d.frame == nil, "old anchor cannot reappear after fallback")
 
+        var combined = driver(); combined.request(expanded: true); combined.advance(by: 0.2)
+        let presented = combined.frame!
+        let changedSlot = CGRect(x: 112, y: 96, width: 224, height: 224)
+        let changedFull = CGRect(x: 122.25, y: 76, width: 298, height: 298)
+        combined.updateGeometry(anchor: changedSlot, expanded: changedFull)
+        let recomputed = combined.frame!
+        expect(recomputed != presented && !combined.isFading,
+               "combined regression calculates a distinct geometry frame G")
+        combined.updateGeometry(anchor: nil, expanded: changedFull,
+                                lastPresentedFrame: presented)
+        expect(combined.isFading && combined.frame == presented && combined.frame != recomputed,
+               "anchor loss freezes presented frame P without presenting G first")
+        combined.updateGeometry(anchor: changedSlot, expanded: full,
+                                lastPresentedFrame: recomputed)
+        expect(combined.frame == presented,
+               "later geometry callbacks cannot replace the fallback frozen frame")
+        combined.advance(by: 0.09)
+        expect(combined.frame == presented && abs(combined.fallbackOpacity - 0.5) < 1e-12,
+               "combined fade begins and remains at presented frame P")
+        combined.advance(by: 0.1)
+        expect(combined.frame == nil && !combined.blocksNavigation,
+               "combined fallback clears hero state after its bounded fade")
+
         let probe = TimerProbe(); defer { probe.close() }
         let timer = probe.timer
         let t = Date().addingTimeInterval(10000)
@@ -117,6 +142,8 @@ import Combine
         let audioBefore = VisualTimerToneEngine.completions
         d = driver(); d.request(expanded: true); d.advance(by: 0.1)
         let before = d.progress
+        expect(before > 0 && before < 1 && d.velocity > 0 && d.target == 1 && d.needsFrames,
+               "completion scenario begins with hero transition actually in flight")
         timer.processCompletion(at: t.addingTimeInterval(60), generation: generation)
         timer.processCompletion(at: t.addingTimeInterval(60), generation: generation)
         expect(probe.cues.count == 1 && VisualTimerToneEngine.completions == audioBefore + 1, "one production completion during expansion")

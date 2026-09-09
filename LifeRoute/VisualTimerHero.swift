@@ -29,12 +29,14 @@ struct VisualTimerHeroTransition {
                       height: anchor.height + (expanded.height - anchor.height) * p)
     }
 
-    mutating func updateGeometry(anchor newAnchor: CGRect?, expanded: CGRect) {
+    mutating func updateGeometry(anchor newAnchor: CGRect?, expanded: CGRect,
+                                 lastPresentedFrame: CGRect? = nil) {
+        let fallbackFrame = lastPresentedFrame ?? frame
         self.expanded = expanded
         guard let newAnchor, Self.valid(newAnchor) else {
             // Freeze the last actually presented rectangle, never guess a return slot.
             if blocksNavigation && !isFading {
-                fadingFrame = frame
+                fadingFrame = fallbackFrame
                 fadeRemaining = 0.18
                 velocity = 0
                 target = 0
@@ -367,6 +369,10 @@ final class VisualTimerHeroController: UIViewController {
         let safe = view.convert(window.safeAreaLayoutGuide.layoutFrame, from: window).intersection(view.bounds)
         let layout = VisualTimerHeroLayout(safeArea: safe, controlsHeight: 285,
                                           accessibilitySize: environment.dynamicTypeSize.isAccessibilitySize)
+        // The presentation layer is the last frame actually committed to screen. Sample it
+        // before changing either endpoint so adjacent geometry/anchor callbacks cannot replace
+        // the fallback position with a model-layer frame that was never displayed.
+        let lastPresentedFrame = presentedOrbFrame() ?? transition.frame
         backdrop.frame = view.bounds
         headerHost?.view.frame = layout.header
         controlsHost?.view.frame = layout.controls
@@ -385,12 +391,21 @@ final class VisualTimerHeroController: UIViewController {
             }
             clipFrame = clipFrame.intersection(safe)
         }
-        transition.updateGeometry(anchor: anchor, expanded: layout.orb)
+        transition.updateGeometry(anchor: anchor, expanded: layout.orb,
+                                  lastPresentedFrame: lastPresentedFrame)
         if let presentation = hero.presentation, presentation.isFullScreen,
            !transition.blocksNavigation, anchor != nil { request(expanded: true) }
         render()
         startFramesIfNeeded()
         trace("geometry")
+    }
+
+    private func presentedOrbFrame() -> CGRect? {
+        guard let layer = orbHost?.view.layer.presentation() else { return nil }
+        let frame = layer.frame.offsetBy(dx: orbClip.frame.minX, dy: orbClip.frame.minY)
+        guard [frame.minX, frame.minY, frame.width, frame.height].allSatisfy(\.isFinite),
+              frame.width > 0, frame.height > 0 else { return nil }
+        return frame
     }
 
     func request(expanded: Bool) {

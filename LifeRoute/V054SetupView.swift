@@ -1,6 +1,21 @@
 import SwiftUI
 import UIKit
 
+#if DEBUG
+private enum LifeRouteBuildIdentity {
+    static let shortCommit: String = {
+        guard let url = Bundle.main.url(forResource: "LifeRouteSourceCommit", withExtension: "txt"),
+              let contents = try? String(contentsOf: url, encoding: .utf8) else {
+            return "unavailable"
+        }
+
+        let value = contents.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hexadecimalDigits = Set("0123456789abcdef")
+        return value.count == 7 && value.allSatisfy(hexadecimalDigits.contains) ? value : "unavailable"
+    }()
+}
+#endif
+
 struct V054SetupView: View {
     @StateObject private var themeLease = LifeRouteOwnedHandle()
     @Environment(\.scenicRoyalThemeStyle) private var style
@@ -48,6 +63,10 @@ struct V054SetupView: View {
         ScrollView {
             LazyVStack(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                 hero
+
+#if DEBUG
+                buildIdentityCard
+#endif
 
                 ScenicRoyalSetupDisclosureGroup(
                     title: "Appearance",
@@ -126,6 +145,30 @@ struct V054SetupView: View {
     private var hero: some View {
         ScenicRoyalSetupHeader(savedPlaceCount: routingState.savedPlaces.count)
     }
+
+#if DEBUG
+    private var buildIdentityCard: some View {
+        ScenicRoyalSetupCard(
+            title: "Build Identity",
+            subtitle: "Development QA",
+            systemImage: "number"
+        ) {
+            HStack {
+                Text("Source commit")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(style.primaryText)
+
+                Spacer()
+
+                Text(verbatim: LifeRouteBuildIdentity.shortCommit)
+                    .font(.system(.subheadline, design: .monospaced).weight(.bold))
+                    .foregroundStyle(style.accentReflection)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Source commit \(LifeRouteBuildIdentity.shortCommit)")
+        }
+    }
+#endif
 
     private var rbtProfileCard: some View {
         ScenicRoyalSetupCard(

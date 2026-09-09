@@ -274,6 +274,7 @@
 				A60000000000000000000001 /* Sources */,
 				A30000000000000000000001 /* Frameworks */,
 				A60000000000000000000002 /* Resources */,
+				D1B17D3E839BA00000000001 /* Embed Build Identity */,
 				W60000000000000000000003 /* Embed App Extensions */,
 			);
 			buildRules = (
@@ -357,6 +358,30 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		D1B17D3E839BA00000000001 /* Embed Build Identity */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed Build Identity";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/LifeRouteSourceCommit.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"${SRCROOT}/scripts/embed_build_identity.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		A60000000000000000000001 /* Sources */ = {

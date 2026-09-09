@@ -141,6 +141,7 @@ def validate_active_build_path() -> None:
     require("run_session_note_contract_tests.sh" in full, "validate_full must run executable Session Note contracts")
     require("run_day_route_contract_tests.sh" in full, "validate_full must run executable Day Route contracts")
     require("run_calendar_edit_contract_tests.sh" in full, "validate_full must run executable Calendar Edit contracts")
+    require("run_calendar_cross_provider_dedup_tests.sh" in full, "validate_full must run executable cross-provider Calendar contracts")
     require("run_visual_timer_feedback_contract_tests.sh" in full, "validate_full must run executable Visual Timer feedback contracts")
     require("run_runtime_feedback_contract_tests.sh" in full, "validate_full must run executable runtime feedback contracts")
     require("run_visual_activity_contract_tests.sh" in full, "validate_full must run executable visual-activity contracts")
@@ -154,6 +155,8 @@ def validate_active_build_path() -> None:
     day_route_fixture_source = read(ROOT / "scripts" / "day_route_contract_tests.swift")
     calendar_edit_fixture_runner = read(ROOT / "scripts" / "run_calendar_edit_contract_tests.sh")
     calendar_edit_fixture_source = read(ROOT / "scripts" / "calendar_edit_contract_tests.swift")
+    calendar_dedup_fixture_runner = read(ROOT / "scripts" / "run_calendar_cross_provider_dedup_tests.sh")
+    calendar_dedup_fixture_source = read(ROOT / "scripts" / "calendar_cross_provider_dedup_tests.swift")
     timer_fixture_runner = read(ROOT / "scripts" / "run_visual_timer_feedback_contract_tests.sh")
     timer_fixture_source = read(ROOT / "scripts" / "visual_timer_feedback_contract_tests.swift")
     runtime_fixture_runner = read(ROOT / "scripts" / "run_runtime_feedback_contract_tests.sh")
@@ -201,6 +204,7 @@ def validate_active_build_path() -> None:
     require("run_session_note_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Session Note contracts")
     require("run_day_route_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Day Route contracts")
     require("run_calendar_edit_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Calendar Edit contracts")
+    require("run_calendar_cross_provider_dedup_tests.sh" in simulator_smoke, "native simulator smoke must execute cross-provider Calendar contracts")
     require("run_visual_timer_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute Visual Timer feedback contracts")
     require("run_runtime_feedback_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute runtime feedback contracts")
     require("run_scenery_effect_contract_tests.sh" in simulator_smoke, "native simulator smoke must execute scenery-effect contracts")
@@ -243,6 +247,7 @@ def validate_active_build_path() -> None:
     )
     require_all(day_route_fixture_runner, ["run_swift_contract_test.sh", "DayRouteContracts.swift", "DayItineraryContracts.swift", "LiveDayRunContracts.swift", "FullRouteHandoffContracts.swift", "day_route_contract_tests.swift"], "Day Route fixture runner")
     require_all(calendar_edit_fixture_runner, ["run_swift_contract_test.sh", "CalendarDomain.swift", "calendar_edit_contract_tests.swift"], "Calendar Edit fixture runner")
+    require_all(calendar_dedup_fixture_runner, ["run_swift_contract_test.sh", "CalendarDomain.swift", "DayRouteContracts.swift", "calendar_cross_provider_dedup_tests.swift"], "cross-provider Calendar fixture runner")
     require_all(
         calendar_edit_fixture_source,
         [
@@ -257,6 +262,23 @@ def validate_active_build_path() -> None:
             "Calendar Edit regression floor requires at least 29 assertions",
         ],
         "Calendar Edit executable fixtures",
+    )
+    require_all(
+        calendar_dedup_fixture_source,
+        [
+            "B1 raw Apple and Google records remain available",
+            "B2 six raw records remain",
+            "B3 title, time, and location alone never merge distinct appointments",
+            "B3 an identity group with multiple records from one provider is not guessed into one appointment",
+            "B4 matching cross-provider recurring instances collapse independently",
+            "B4 different occurrence remains separately once",
+            "B5 Apple-only event remains exactly once",
+            "B5 Google-only event remains exactly once",
+            "B6 route sequencing receives one appointment destination",
+            "B7 unrelated chronological ordering remains unchanged",
+            "Calendar B regression floor requires at least 34 assertions",
+        ],
+        "cross-provider Calendar executable fixtures",
     )
     require_all(
         day_route_fixture_source,
@@ -1224,8 +1246,9 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
     today = sources["V054TodayView.swift"]
     persistence = sources["PersistenceCore.swift"]
     migration = sources["LegacyMigrationCore.swift"]
-    require_all(calendar, ["case day", "case week", "case month", "loadManualCalendarEvents", "addManualEvent", "updateManualEvent", "providerEventReadOnly", "removeEvent", "persistManualEvents"], "calendar range/manual appointment behavior")
-    require_all(providers, ["EKEventStore", "https://www.googleapis.com/auth/calendar.readonly", "ASWebAuthenticationSession", "kSecClassGenericPassword"], "Apple/Google read-only calendar providers")
+    require_all(calendar, ["case day", "case week", "case month", "loadManualCalendarEvents", "addManualEvent", "updateManualEvent", "providerEventReadOnly", "removeEvent", "persistManualEvents", "LifeRouteCalendarCanonicalizer", "rawProviderEvents", "canonicalEvents(from: providerEvents)"], "calendar range/manual appointment and canonical provider behavior")
+    require_all(providers, ["EKEventStore", "calendarItemExternalIdentifier", "occurrenceDate", "https://www.googleapis.com/auth/calendar.readonly", 'item["iCalUID"]', 'item["originalStartTime"]', "ASWebAuthenticationSession", "kSecClassGenericPassword"], "Apple/Google read-only calendar providers and exact cross-provider identity")
+    require("providerIdentity: event.providerIdentity" in persistence, "provider persistence must retain raw cross-provider identity metadata")
     require_all(
         schedule,
         [

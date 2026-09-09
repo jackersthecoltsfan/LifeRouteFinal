@@ -10,6 +10,22 @@ enum LifeRouteCalendarSource: String, Codable, CaseIterable, Hashable {
     case calendarLink
 }
 
+/// Provider metadata retained with each raw imported event. Calendar and route
+/// consumers continue to use `LifeRouteCalendarEvent`; this metadata only gives
+/// the upstream projection enough exact identity to recognize the same event
+/// arriving through two providers.
+struct LifeRouteCalendarProviderIdentity: Codable, Hashable {
+    let eventIdentifier: String
+    let externalIdentifier: String?
+    let recurrenceIdentifier: String?
+    let isRecurring: Bool
+    let calendarIdentifier: String
+    let accountIdentifier: String?
+    let timeZoneIdentifier: String?
+    let modifiedAt: Date?
+    let revision: Int?
+}
+
 enum LifeRouteCalendarRange: String, CaseIterable, Identifiable, Hashable {
     case day = "Day"
     case week = "Week"
@@ -27,6 +43,7 @@ struct LifeRouteCalendarEvent: Identifiable, Codable, Hashable {
     var calendarTitle: String
     var isAllDay: Bool
     var source: LifeRouteCalendarSource
+    var providerIdentity: LifeRouteCalendarProviderIdentity?
 
     init(
         id: String = UUID().uuidString,
@@ -36,7 +53,8 @@ struct LifeRouteCalendarEvent: Identifiable, Codable, Hashable {
         location: String = "",
         calendarTitle: String = "",
         isAllDay: Bool = false,
-        source: LifeRouteCalendarSource = .manual
+        source: LifeRouteCalendarSource = .manual,
+        providerIdentity: LifeRouteCalendarProviderIdentity? = nil
     ) {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         self.id = id
@@ -47,11 +65,83 @@ struct LifeRouteCalendarEvent: Identifiable, Codable, Hashable {
         self.calendarTitle = calendarTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         self.isAllDay = isAllDay
         self.source = source
+        self.providerIdentity = providerIdentity
     }
 
     var durationMinutes: Int {
         guard !isAllDay else { return 0 }
         return max(0, Int(end.timeIntervalSince(start) / 60))
+    }
+}
+
+enum LifeRouteCalendarCanonicalizer {
+    private struct CrossProviderKey: Hashable {
+        let externalIdentifier: String
+        let occurrence: String
+    }
+
+    /// Returns a non-destructive projection. Ambiguous identity groups and all
+    /// events without exact provider identity pass through unchanged.
+    static func canonicalEvents(from rawEvents: [LifeRouteCalendarEvent]) -> [LifeRouteCalendarEvent] {
+        var indicesByKey: [CrossProviderKey: [Int]] = [:]
+        for (index, event) in rawEvents.enumerated() {
+            guard let key = crossProviderKey(for: event) else { continue }
+            indicesByKey[key, default: []].append(index)
+        }
+
+        var replacements: [Int: LifeRouteCalendarEvent] = [:]
+        var suppressedIndices = Set<Int>()
+        for indices in indicesByKey.values {
+            guard indices.count == 2 else { continue }
+            let appleIndices = indices.filter { rawEvents[$0].source == .apple }
+            let googleIndices = indices.filter { rawEvents[$0].source == .google }
+            guard appleIndices.count == 1, googleIndices.count == 1 else { continue }
+
+            let firstIndex = min(appleIndices[0], googleIndices[0])
+            replacements[firstIndex] = preferredCanonicalEvent(
+                apple: rawEvents[appleIndices[0]],
+                google: rawEvents[googleIndices[0]]
+            )
+            suppressedIndices.formUnion(indices.filter { $0 != firstIndex })
+        }
+
+        return rawEvents.enumerated().compactMap { index, event in
+            if let replacement = replacements[index] { return replacement }
+            return suppressedIndices.contains(index) ? nil : event
+        }
+    }
+
+    private static func crossProviderKey(for event: LifeRouteCalendarEvent) -> CrossProviderKey? {
+        guard event.source == .apple || event.source == .google,
+              let identity = event.providerIdentity else { return nil }
+        let externalIdentifier = identity.externalIdentifier?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !externalIdentifier.isEmpty else { return nil }
+
+        if identity.isRecurring {
+            let recurrenceIdentifier = identity.recurrenceIdentifier?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !recurrenceIdentifier.isEmpty else { return nil }
+            return CrossProviderKey(
+                externalIdentifier: externalIdentifier,
+                occurrence: "recurring:\(recurrenceIdentifier)"
+            )
+        }
+        return CrossProviderKey(externalIdentifier: externalIdentifier, occurrence: "single")
+    }
+
+    private static func preferredCanonicalEvent(
+        apple: LifeRouteCalendarEvent,
+        google: LifeRouteCalendarEvent
+    ) -> LifeRouteCalendarEvent {
+        if let appleModified = apple.providerIdentity?.modifiedAt,
+           let googleModified = google.providerIdentity?.modifiedAt,
+           appleModified != googleModified {
+            return appleModified > googleModified ? apple : google
+        }
+        // The direct Google record is deterministic when update timestamps are
+        // equal or unavailable. No title/time/location heuristic participates.
+        return google
     }
 }
 
@@ -95,6 +185,7 @@ enum CalendarCoreError: LocalizedError, Equatable {
 final class CalendarCoreState: ObservableObject {
     @Published var selectedDate: Date
     @Published private(set) var events: [LifeRouteCalendarEvent]
+    private(set) var rawProviderEvents: [LifeRouteCalendarEvent]
 
     private var calendar: Calendar
     private var eventIndicesByDay: [Date: [Int]] = [:]
@@ -110,11 +201,19 @@ final class CalendarCoreState: ObservableObject {
         self.selectedDate = now
 
         if let events {
-            self.events = events.sorted(by: Self.eventSort)
+            let manualEvents = events.filter { $0.source == .manual }
+            let providerEvents = events.filter { $0.source != .manual }
+            self.rawProviderEvents = providerEvents
+            self.events = (
+                manualEvents + LifeRouteCalendarCanonicalizer.canonicalEvents(from: providerEvents)
+            ).sorted(by: Self.eventSort)
         } else {
             let manualEvents = LifeRoutePersistenceStore.shared.loadManualCalendarEvents()
             let providerEvents = LifeRoutePersistenceStore.shared.loadProviderCalendarEvents()
-            self.events = (manualEvents + providerEvents).sorted(by: Self.eventSort)
+            self.rawProviderEvents = providerEvents
+            self.events = (
+                manualEvents + LifeRouteCalendarCanonicalizer.canonicalEvents(from: providerEvents)
+            ).sorted(by: Self.eventSort)
         }
         rebuildEventIndexes()
     }
@@ -209,11 +308,16 @@ final class CalendarCoreState: ObservableObject {
 
     func replaceProviderEvents(_ incoming: [LifeRouteCalendarEvent], source: LifeRouteCalendarSource) {
         guard source != .manual else { return }
-        let nextEvents = (
-            events.filter { $0.source != source }
+        let nextRawProviderEvents = (
+            rawProviderEvents.filter { $0.source != source }
                 + incoming.filter { $0.source == source }
+        )
+        let nextEvents = (
+            events.filter { $0.source == .manual }
+                + LifeRouteCalendarCanonicalizer.canonicalEvents(from: nextRawProviderEvents)
         ).sorted(by: Self.eventSort)
-        guard nextEvents != events else { return }
+        guard nextRawProviderEvents != rawProviderEvents || nextEvents != events else { return }
+        rawProviderEvents = nextRawProviderEvents
         events = nextEvents
         rebuildEventIndexes()
         persistProviderEvents()
@@ -221,8 +325,13 @@ final class CalendarCoreState: ObservableObject {
 
     func removeProviderEvents(source: LifeRouteCalendarSource) {
         guard source != .manual else { return }
-        let nextEvents = events.filter { $0.source != source }
-        guard nextEvents != events else { return }
+        let nextRawProviderEvents = rawProviderEvents.filter { $0.source != source }
+        let nextEvents = (
+            events.filter { $0.source == .manual }
+                + LifeRouteCalendarCanonicalizer.canonicalEvents(from: nextRawProviderEvents)
+        ).sorted(by: Self.eventSort)
+        guard nextRawProviderEvents != rawProviderEvents || nextEvents != events else { return }
+        rawProviderEvents = nextRawProviderEvents
         events = nextEvents
         rebuildEventIndexes()
         persistProviderEvents()
@@ -339,7 +448,7 @@ final class CalendarCoreState: ObservableObject {
     }
 
     private func persistProviderEvents() {
-        LifeRoutePersistenceStore.shared.saveProviderCalendarEvents(events.filter { $0.source != .manual })
+        LifeRoutePersistenceStore.shared.saveProviderCalendarEvents(rawProviderEvents)
     }
 
     private func rebuildEventIndexes() {

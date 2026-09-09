@@ -215,15 +215,30 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
         let predicate = eventStore.predicateForEvents(withStart: start, end: end, calendars: nil)
 
         return eventStore.events(matching: predicate).map { event in
-            LifeRouteCalendarEvent(
-                id: "apple-\(event.eventIdentifier ?? UUID().uuidString)",
+            let eventIdentifier = event.eventIdentifier ?? event.calendarItemIdentifier
+            let isRecurring = event.hasRecurrenceRules || event.isDetached
+            return LifeRouteCalendarEvent(
+                id: "apple-\(eventIdentifier)",
                 title: event.title ?? "Calendar event",
                 start: event.startDate,
                 end: event.endDate,
                 location: event.location ?? "",
                 calendarTitle: event.calendar.title,
                 isAllDay: event.isAllDay,
-                source: .apple
+                source: .apple,
+                providerIdentity: LifeRouteCalendarProviderIdentity(
+                    eventIdentifier: eventIdentifier,
+                    externalIdentifier: event.calendarItemExternalIdentifier,
+                    recurrenceIdentifier: isRecurring
+                        ? recurrenceIdentifier(for: event.occurrenceDate, isAllDay: event.isAllDay)
+                        : nil,
+                    isRecurring: isRecurring,
+                    calendarIdentifier: event.calendar.calendarIdentifier,
+                    accountIdentifier: event.calendar.source.sourceIdentifier,
+                    timeZoneIdentifier: event.timeZone?.identifier,
+                    modifiedAt: event.lastModifiedDate,
+                    revision: nil
+                )
             )
         }
     }
@@ -443,10 +458,13 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
                 let payload = try await googleGET(url: components.url!, accessToken: accessToken)
                 try validateGoogleOperation(generation)
                 for item in payload["items"] as? [[String: Any]] ?? [] {
+                    let startPayload = item["start"] as? [String: Any]
+                    let endPayload = item["end"] as? [String: Any]
                     guard (item["status"] as? String) != "cancelled",
                           let eventID = item["id"] as? String,
-                          let startValue = googleDate(item["start"] as? [String: Any], timeZoneID: calendarTimeZone),
-                          let endValue = googleDate(item["end"] as? [String: Any], timeZoneID: calendarTimeZone) else { continue }
+                          let startValue = googleDate(startPayload, timeZoneID: calendarTimeZone),
+                          let endValue = googleDate(endPayload, timeZoneID: calendarTimeZone) else { continue }
+                    let recurringEventID = item["recurringEventId"] as? String
 
                     output.append(
                         LifeRouteCalendarEvent(
@@ -457,7 +475,23 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
                             location: (item["location"] as? String) ?? "",
                             calendarTitle: calendarTitle,
                             isAllDay: startValue.allDay,
-                            source: .google
+                            source: .google,
+                            providerIdentity: LifeRouteCalendarProviderIdentity(
+                                eventIdentifier: eventID,
+                                externalIdentifier: item["iCalUID"] as? String,
+                                recurrenceIdentifier: recurringEventID == nil
+                                    ? nil
+                                    : googleRecurrenceIdentifier(
+                                        item["originalStartTime"] as? [String: Any],
+                                        timeZoneID: calendarTimeZone
+                                    ),
+                                isRecurring: recurringEventID != nil,
+                                calendarIdentifier: calendarID,
+                                accountIdentifier: nil,
+                                timeZoneIdentifier: (startPayload?["timeZone"] as? String) ?? calendarTimeZone,
+                                modifiedAt: googleTimestamp(item["updated"] as? String),
+                                revision: (item["sequence"] as? NSNumber)?.intValue
+                            )
                         )
                     )
                 }
@@ -585,6 +619,40 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
         formatter.timeZone = timeZoneID.flatMap(TimeZone.init(identifier:)) ?? .current
         guard let date = formatter.date(from: dateString) else { return nil }
         return (date, true)
+    }
+
+    private func googleTimestamp(_ value: String?) -> Date? {
+        guard let value else { return nil }
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+    }
+
+    private func googleRecurrenceIdentifier(
+        _ value: [String: Any]?,
+        timeZoneID: String?
+    ) -> String? {
+        guard let value else { return nil }
+        if let date = value["date"] as? String,
+           googleDate(value, timeZoneID: timeZoneID) != nil {
+            return "date:\(date)"
+        }
+        guard let parsed = googleDate(value, timeZoneID: timeZoneID) else { return nil }
+        return recurrenceIdentifier(for: parsed.date, isAllDay: false)
+    }
+
+    private func recurrenceIdentifier(for date: Date?, isAllDay: Bool) -> String? {
+        guard let date else { return nil }
+        if isAllDay {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = .current
+            let components = calendar.dateComponents([.year, .month, .day], from: date)
+            guard let year = components.year,
+                  let month = components.month,
+                  let day = components.day else { return nil }
+            return String(format: "date:%04d-%02d-%02d", year, month, day)
+        }
+        return "instant:\(Int64(date.timeIntervalSince1970.rounded()))"
     }
 
     private func randomURLSafeString(byteCount: Int) -> String {

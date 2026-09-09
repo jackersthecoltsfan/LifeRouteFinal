@@ -10,6 +10,7 @@ The native iOS bridge uses EventKit. On iOS 17+ LifeRoute requests full event ac
 
 Normalized Apple events include:
 - event id
+- EventKit external id and recurrence occurrence identity
 - title
 - start/end ISO-8601 timestamps
 - location
@@ -24,6 +25,12 @@ The iPhone app uses OAuth authorization-code flow with PKCE and the read-only sc
 `https://www.googleapis.com/auth/calendar.readonly`
 
 The public iOS OAuth client ID and redirect scheme live in `LifeRoute/Info.plist`; no OAuth client secret is stored in the app. Refresh tokens are stored in Keychain and access tokens remain in memory. LifeRoute reads the user's accessible Google calendars, pages through events, normalizes them into the same schedule model as Apple Calendar, and can disconnect by deleting the stored refresh token.
+
+Normalized Google events retain the Google event id, `iCalUID`, recurring event/original-start identity, calendar id, timezone, update timestamp, and sequence where supplied.
+
+### Cross-provider canonicalization — implemented
+
+LifeRoute persists the complete normalized Apple and Google provider records, then publishes a reconstructable canonical schedule through the existing calendar-event model. Exactly one Apple record and one Google record collapse only when they share the same non-empty external iCalendar identity. Recurring records must additionally share the same exact occurrence identity. Missing or ambiguous identity, provider-only records, and superficially similar title/time/location records pass through unchanged; title/time/location fuzzy matching is not used. Calendar, Today, route planning, travel sequencing, and gap calculations consume this canonical projection. No source provider event is edited or deleted.
 
 The browser preview has its own Google Calendar helper/persistence layer and likewise uses read-only access. Production secrets or refresh tokens must not be embedded in web code or localStorage.
 

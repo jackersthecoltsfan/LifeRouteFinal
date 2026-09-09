@@ -1,7 +1,6 @@
 import SwiftUI
 import Foundation
 import OSLog
-import PhotosUI
 
 // v0.7.0 Build D clinical presentation: visual hierarchy only; generation contracts are unchanged.
 // v0.8.0 session-note runtime repair: explicit terminal states, retained cancellation,
@@ -15,6 +14,7 @@ enum SessionNoteGenerationState: Equatable {
     case completed(SessionNoteFinalOutcome)
     case unavailable(String)
     case failed(String)
+    case blocked(SessionNoteBoundaryError)
     case timedOut
     case cancelled
 
@@ -28,20 +28,12 @@ enum SessionNoteGenerationState: Equatable {
     }
 }
 
-// v0.8.0 follow-up session-note refinement:
-// Multiple screenshots keep stable UI identity while their bytes remain in-memory only.
-private struct SessionNoteScreenshotAttachment: Identifiable {
-    let id: UUID
-    let pickerItem: PhotosPickerItem
-    let data: Data
-}
-
 @MainActor
 protocol SessionNoteGenerating: AnyObject {
     func availability() async -> SessionNoteModelAvailability
     func generateNote(
         narrative: String,
-        screenshotDataItems: [Data],
+        writerRole: SessionNoteWriterRole,
         client: LifeRouteClientProfile?,
         progress: @escaping (SessionNoteGenerationProgress) async -> Void
     ) async throws -> SessionNoteGenerationResult
@@ -57,7 +49,7 @@ final class FoundationModelSessionNoteGenerator: SessionNoteGenerating {
 
     func generateNote(
         narrative: String,
-        screenshotDataItems: [Data],
+        writerRole: SessionNoteWriterRole,
         client: LifeRouteClientProfile?,
         progress: @escaping (SessionNoteGenerationProgress) async -> Void
     ) async throws -> SessionNoteGenerationResult {
@@ -70,7 +62,7 @@ final class FoundationModelSessionNoteGenerator: SessionNoteGenerating {
         defer { isBusy = false }
         return try await LifeRouteIntelligenceCore.generateABASessionNote(
             narrative: narrative,
-            screenshotDataItems: screenshotDataItems,
+            writerRole: writerRole,
             client: client,
             progress: progress
         )
@@ -87,12 +79,25 @@ final class AISessionNoteRuntimeModel: ObservableObject {
     @Published private(set) var state: SessionNoteGenerationState = .idle
     @Published var generatedNote = ""
     @Published private(set) var diagnosticReceipt = ""
+    @Published private(set) var extractionSummary: SessionNoteExtractionSummary?
+    @Published private(set) var completeness: SessionNoteOutputCompleteness = .reviewRequired
 
     private let generator: SessionNoteGenerating
     private let timeoutSeconds: UInt64
     private var activeTask: Task<Void, Never>?
     private var activeRace: SessionNoteRequestRace<SessionNoteGenerationResult>?
     private var draftLedger = SessionNoteDraftLedger()
+    weak var presentationScope: LifeRoutePresentationScope?
+    private var cancellationRequestedID: UUID?
+    private var presentationLeave: [UInt64]?
+
+    func reconcilePresentation(_ context: LifeRouteEffectContext) {
+        let previous = presentationLeave
+        presentationLeave = context.leaveIdentity
+        if (previous != nil && previous != context.leaveIdentity) || !context.alive || context.scene != .active {
+            cancel()
+        }
+    }
 
     init(generator: SessionNoteGenerating, timeoutSeconds: UInt64 = 75) {
         self.generator = generator
@@ -101,10 +106,25 @@ final class AISessionNoteRuntimeModel: ObservableObject {
 
     var isGenerating: Bool { state.isActive }
 
-    func start(narrative: String, screenshotDataItems: [Data], client: LifeRouteClientProfile?) {
+    func start(narrative: String, writerCredential: String, client: LifeRouteClientProfile?) {
         guard !state.isActive else { return }
+        extractionSummary = nil
+        let writerRole: SessionNoteWriterRole
+        do {
+            try SessionNoteInputBounds.validateTypedFacts(characterCount: narrative.count)
+            writerRole = try SessionNoteWriterRole.resolve(profileCredential: writerCredential)
+        } catch let error as SessionNoteBoundaryError {
+            state = .blocked(error)
+            diagnosticReceipt = ""
+            recordRuntimeDiagnostic(error.diagnosticCode)
+            return
+        } catch {
+            return
+        }
 
         let currentRequestID = UUID()
+        let feedbackTicket = presentationScope?.feedbackTicket()
+        cancellationRequestedID = nil
         draftLedger.begin(requestID: currentRequestID, preserving: generatedNote)
         diagnosticReceipt = ""
         state = .checkingAvailability
@@ -115,7 +135,13 @@ final class AISessionNoteRuntimeModel: ObservableObject {
         activeTask = Task { [weak self] in
             guard let self else { return }
             let availability = await generator.availability()
-            guard draftLedger.isCurrent(currentRequestID), !Task.isCancelled else { return }
+            guard draftLedger.isCurrent(currentRequestID) else { return }
+            guard !Task.isCancelled else {
+                state = .cancelled
+                recordRuntimeDiagnostic("cancelled")
+                finish(requestID: currentRequestID)
+                return
+            }
 
             guard case .available = availability else {
                 if case .unavailable(let explanation) = availability {
@@ -132,7 +158,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
                 let result = try await race.run {
                     try await self.generator.generateNote(
                         narrative: narrative,
-                        screenshotDataItems: screenshotDataItems,
+                        writerRole: writerRole,
                         client: client
                     ) { progress in
                         await self.receive(progress: progress, requestID: currentRequestID)
@@ -140,6 +166,14 @@ final class AISessionNoteRuntimeModel: ObservableObject {
                 }
                 guard draftLedger.isCurrent(currentRequestID) else { return }
                 diagnosticReceipt = result.diagnostics.shareableText
+                if let summary = result.extractionSummary { extractionSummary = summary }
+                completeness = result.completeness
+                guard result.outcome != .rejected else {
+                    state = .failed(SessionNoteFinalOutcome.rejected.userFacingStatusMessage)
+                    recordRuntimeDiagnostic("rejectedResult")
+                    finish(requestID: currentRequestID)
+                    return
+                }
                 let cleaned = result.draft.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !cleaned.isEmpty else {
                     state = .failed("Apple Intelligence returned an empty draft. Your session facts and any previous draft were preserved.")
@@ -151,7 +185,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
                 generatedNote = draftLedger.draft
                 state = .completed(result.outcome)
                 Self.logger.notice("Session-note generation completed with outcome: \(result.outcome.rawValue, privacy: .public)")
-                if result.outcome != .fallback {
+                if result.outcome != .fallback, feedbackTicket?.isEligible == true {
                     LifeRouteHaptics.success()
                 }
             } catch is CancellationError {
@@ -164,6 +198,10 @@ final class AISessionNoteRuntimeModel: ObservableObject {
                 state = .timedOut
                 recordRuntimeDiagnostic("timedOut")
                 Self.logger.error("Session-note generation timed out")
+            } catch let error as SessionNoteBoundaryError {
+                guard draftLedger.isCurrent(currentRequestID) else { return }
+                state = .blocked(error)
+                recordRuntimeDiagnostic(error.diagnosticCode)
             } catch let error as LifeRouteIntelligenceError {
                 guard draftLedger.isCurrent(currentRequestID) else { return }
                 switch error {
@@ -190,15 +228,23 @@ final class AISessionNoteRuntimeModel: ObservableObject {
     }
 
     func cancel() {
-        guard state.isActive else { return }
+        guard state.isActive, let id = draftLedger.activeRequestID, cancellationRequestedID != id else { return }
+        cancellationRequestedID = id
         Self.logger.notice("Session-note generation cancellation requested")
         activeRace?.cancel()
         activeTask?.cancel()
+        if state == .checkingAvailability {
+            state = .cancelled
+            recordRuntimeDiagnostic("cancelled")
+            finish(requestID: id)
+        }
     }
 
     private func receive(progress: SessionNoteGenerationProgress, requestID: UUID) async {
         guard draftLedger.isCurrent(requestID), !Task.isCancelled else { return }
         switch progress {
+        case .extracted(let summary):
+            extractionSummary = summary
         case .generating:
             state = .generating
             Self.logger.notice("Session-note first generation pass active")
@@ -249,6 +295,16 @@ private final class SessionNoteFixtureGenerator: SessionNoteGenerating {
         case contextRetrySuccess = "context-retry-success"
         case contextRetryFailure = "context-retry-failure"
         case regenerationFailure = "regeneration-failure"
+        case overLimit = "over-limit"
+        case outputLimit = "output-limit"
+        case unfinishedOutput = "unfinished-output"
+
+        static var current: Mode? {
+            let arguments = ProcessInfo.processInfo.arguments
+            guard let index = arguments.firstIndex(of: "-LifeRouteSessionNoteFixture"),
+                  arguments.indices.contains(index + 1) else { return nil }
+            return Mode(rawValue: arguments[index + 1])
+        }
     }
 
     private let mode: Mode
@@ -267,18 +323,29 @@ private final class SessionNoteFixtureGenerator: SessionNoteGenerating {
 
     func generateNote(
         narrative: String,
-        screenshotDataItems: [Data],
+        writerRole: SessionNoteWriterRole,
         client: LifeRouteClientProfile?,
         progress: @escaping (SessionNoteGenerationProgress) async -> Void
     ) async throws -> SessionNoteGenerationResult {
         requestCount += 1
         await progress(.generating)
         switch mode {
+        case .overLimit:
+            try SessionNoteInputBounds.validateTypedFacts(characterCount: narrative.count)
+            return try await Self.result(.generated, writerRole: writerRole)
+        case .outputLimit, .unfinishedOutput:
+            let packet = SessionNoteEvidencePacket.make(
+                typedFacts: narrative, ocrEvidence: "", savedTerminologyContext: "", profileCode: nil
+            )
+            return try await SessionNoteGenerationPipeline.generateNote(packet: packet, writerRole: writerRole) { [mode] _ in
+                mode == .outputLimit ? String(repeating: "x", count: 8_000) :
+                    "The client practiced with the RBT. The RBT supported the client during"
+            }
         case .success:
-            return Self.result(.generated)
+            return try await Self.result(.generated, writerRole: writerRole)
         case .delayedSuccess:
             try await Task.sleep(nanoseconds: 1_200_000_000)
-            return Self.result(.generated)
+            return try await Self.result(.generated, writerRole: writerRole)
         case .unavailable:
             throw LifeRouteIntelligenceError.unavailable
         case .error:
@@ -287,32 +354,44 @@ private final class SessionNoteFixtureGenerator: SessionNoteGenerating {
             return SessionNoteGenerationResult(draft: "", outcome: .rejected, issueCodes: [])
         case .timeout, .cancellation:
             try await Task.sleep(nanoseconds: 600_000_000_000)
-            return Self.result(.generated)
+            return try await Self.result(.generated, writerRole: writerRole)
         case .repair:
             await progress(.repairing)
             try await Task.sleep(nanoseconds: 400_000_000)
-            return Self.result(.repaired)
+            return try await Self.result(.repaired, writerRole: writerRole)
         case .repairFailure:
             await progress(.repairing)
             throw LifeRouteIntelligenceError.generationFailed("Injected bounded repair failure.")
         case .contextRetrySuccess:
             await progress(.compacting)
             try await Task.sleep(nanoseconds: 300_000_000)
-            return Self.result(.generated)
+            return try await Self.result(.generated, writerRole: writerRole)
         case .contextRetryFailure:
             await progress(.compacting)
             throw LifeRouteIntelligenceError.contextWindowExceeded
         case .regenerationFailure:
-            if requestCount == 1 { return Self.result(.generated) }
+            if requestCount == 1 { return try await Self.result(.generated, writerRole: writerRole) }
             throw LifeRouteIntelligenceError.generationFailed("Injected regeneration failure.")
         }
     }
 
-    private static func result(_ outcome: SessionNoteFinalOutcome) -> SessionNoteGenerationResult {
-        SessionNoteGenerationResult(draft: sampleDraft, outcome: outcome, issueCodes: [])
+    private static func result(
+        _ outcome: SessionNoteFinalOutcome, writerRole: SessionNoteWriterRole
+    ) async throws -> SessionNoteGenerationResult {
+        let packet = SessionNoteEvidencePacket.make(
+            typedFacts: sampleDraft, ocrEvidence: "", savedTerminologyContext: "", profileCode: nil
+        )
+        let result = try await SessionNoteGenerationPipeline.generateNote(packet: packet, writerRole: writerRole) { _ in
+            sampleDraft
+        }
+        return SessionNoteGenerationResult(
+            draft: result.draft, outcome: outcome, issueCodes: result.issueCodes,
+            diagnostics: result.diagnostics, completeness: result.completeness
+        )
     }
 
-    private static let sampleDraft = "The RBT met with the client at home with the caregiver present. The RBT began with pairing and FCT during play, and the client used a full verbal prompt to mand for more time. The client then transitioned to table work and required two redirections to attend.\n\nFollowing completion, the client earned outside play and responded well to the supplied reinforcement. The RBT will continue implementing the established treatment plan during future sessions."
+    private static let sampleDraft = "At home, the client practiced Following Directions with the RBT at 80% accuracy with a verbal prompt. The client returned the blue folder to the caregiver."
+
 }
 #endif
 
@@ -320,10 +399,7 @@ private final class SessionNoteFixtureGenerator: SessionNoteGenerating {
 private enum SessionNoteGeneratorFactory {
     static func make() -> SessionNoteGenerating {
         #if DEBUG
-        let arguments = ProcessInfo.processInfo.arguments
-        if let flagIndex = arguments.firstIndex(of: "-LifeRouteSessionNoteFixture"),
-           arguments.indices.contains(flagIndex + 1),
-           let mode = SessionNoteFixtureGenerator.Mode(rawValue: arguments[flagIndex + 1]) {
+        if let mode = SessionNoteFixtureGenerator.Mode.current {
             return SessionNoteFixtureGenerator(mode: mode)
         }
         #endif
@@ -333,6 +409,9 @@ private enum SessionNoteGeneratorFactory {
 
 @MainActor
 struct AISessionNoteGeneratorView: View {
+    @Environment(\.lifeRoutePresentation) private var visibilityScope
+    @State private var visibilityLeave: [UInt64]?
+
     private enum FocusedField: Hashable {
         case sessionFacts
         case generatedDraft
@@ -345,12 +424,13 @@ struct AISessionNoteGeneratorView: View {
     @StateObject private var runtime: AISessionNoteRuntimeModel
 
     @State private var selectedClientCode = ""
+    @AppStorage(SessionNoteWriterRole.profileCredentialKey) private var writerCredential = ""
     @State private var narrative = ""
-    @State private var selectedPhotoItems: [PhotosPickerItem] = []
-    @State private var screenshotAttachments: [SessionNoteScreenshotAttachment] = []
-    @State private var isLoadingScreenshots = false
     @State private var localNotice: String?
     @FocusState private var focusedField: FocusedField?
+    #if DEBUG
+    @State private var seededSyntheticFixture = false
+    #endif
 
     init(
         clientState: ClientProfileCore,
@@ -391,12 +471,19 @@ struct AISessionNoteGeneratorView: View {
                     .fontWeight(.semibold)
             }
         }
-        .task(id: selectedPhotoItems) {
-            await loadSelectedScreenshots()
+        .onAppear {
+            #if DEBUG
+            seedSyntheticFixtureIfRequested()
+            #endif
         }
-        .onDisappear {
-            focusedField = nil
-            runtime.cancel()
+        .lifeRouteReconcile { context in
+            runtime.presentationScope = visibilityScope
+            let previous = visibilityLeave
+            visibilityLeave = context.leaveIdentity
+            if (previous != nil && Array(previous!.prefix(2)) != Array(context.leaveIdentity.prefix(2))) || !context.alive {
+                focusedField = nil
+            }
+            runtime.reconcilePresentation(context)
         }
         .onChange(of: focusedField) { field in
             if field != .sessionFacts {
@@ -415,9 +502,16 @@ struct AISessionNoteGeneratorView: View {
 
     private var hero: some View {
         VStack(alignment: .leading, spacing: 10) {
+            #if DEBUG
+            if SessionNoteFixtureGenerator.Mode.current != nil {
+                Text("SYNTHETIC DEBUG FIXTURE · Model double; no FoundationModels quality evidence")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(palette.textPrimary)
+            }
+            #endif
             LifeRouteScreenHeader(
                 title: "Session Note",
-                subtitle: "Draft from supplied session facts, one or more local data screenshots, and reviewed client context.",
+                subtitle: "Draft from supplied session facts and reviewed client context.",
                 systemImage: "sparkles.rectangle.stack.fill"
             )
 
@@ -468,14 +562,7 @@ struct AISessionNoteGeneratorView: View {
     }
 
     private var inputCard: some View {
-        let hasScreenshots = !screenshotAttachments.isEmpty
-        let loadingScreenshots = isLoadingScreenshots
-        let pickerAccent = palette.accent
-        let pickerTextPrimary = palette.textPrimary
-        let pickerTextSecondary = palette.textSecondary
-        let pickerPanelElevated = palette.panelElevated
-
-        return VStack(alignment: .leading, spacing: 13) {
+        VStack(alignment: .leading, spacing: 13) {
             Text("Session facts")
                 .font(.title3.weight(.bold))
                 .foregroundStyle(palette.textPrimary)
@@ -539,6 +626,7 @@ struct AISessionNoteGeneratorView: View {
                     .autocorrectionDisabled(false)
                     .frame(minHeight: 160)
                     .lifeRouteReadableTextSurface()
+                    .accessibilityIdentifier("session-note-facts")
 
                 if narrative.isEmpty {
                     Text("Type or paste what happened during the session…")
@@ -549,79 +637,10 @@ struct AISessionNoteGeneratorView: View {
                 }
             }
 
-            PhotosPicker(
-                selection: $selectedPhotoItems,
-                maxSelectionCount: 6,
-                matching: .images
-            ) { [
-                hasScreenshots,
-                loadingScreenshots,
-                pickerAccent,
-                pickerTextPrimary,
-                pickerTextSecondary,
-                pickerPanelElevated
-            ] in
-                HStack(spacing: 11) {
-                    Image(systemName: hasScreenshots ? "photo.stack.fill" : "photo.badge.plus")
-                        .font(.title3)
-                        .foregroundStyle(pickerAccent)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(hasScreenshots ? "Add or change screenshots" : "Attach data screenshots")
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(pickerTextPrimary)
-                        Text("Up to 6 · text recognition runs locally")
-                            .font(.caption2)
-                            .foregroundStyle(pickerTextSecondary)
-                    }
-                    Spacer()
-                    if loadingScreenshots {
-                        ProgressView()
-                            .tint(pickerAccent)
-                    } else {
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(pickerTextSecondary)
-                    }
-                }
-                .padding(12)
-                .background(pickerPanelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-            }
-
-            if !screenshotAttachments.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Attached data screenshots")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(palette.textPrimary)
-                        Spacer()
-                        Text("\(screenshotAttachments.count) of 6")
-                            .font(.caption2.weight(.black))
-                            .foregroundStyle(palette.accentSecondary)
-                    }
-
-                    ForEach(Array(screenshotAttachments.enumerated()), id: \.element.id) { index, attachment in
-                        HStack(spacing: 10) {
-                            Image(systemName: "doc.text.image.fill")
-                                .foregroundStyle(palette.accent)
-                            Text("Data screenshot \(index + 1)")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(palette.textPrimary)
-                            Spacer()
-                            Button(role: .destructive) {
-                                removeScreenshot(attachment)
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                            }
-                            .accessibilityLabel("Remove data screenshot \(index + 1)")
-                        }
-                        .padding(.horizontal, 11)
-                        .frame(minHeight: 44)
-                        .background(palette.panelElevated.opacity(0.24), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                }
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel("Attached data screenshots")
-            }
+            Text("\(narrative.count) / 5200 characters" + (narrative.count > 5_200 ? " · Over limit; complete input retained" : ""))
+                .font(.caption)
+                .foregroundStyle(narrative.count > 5_200 ? palette.accentSecondary : palette.textSecondary)
+                .accessibilityIdentifier("session-note-input-count")
 
             if let selectedClient {
                 Text("Saved context for \(selectedClient.code) can help the model understand terminology, but it is explicitly told not to claim a target or behavior occurred unless your session facts support it.")
@@ -645,7 +664,6 @@ struct AISessionNoteGeneratorView: View {
             if runtime.state != .idle {
                 generationStatusCard
             }
-
             if let localNotice {
                 Label(localNotice, systemImage: "info.circle.fill")
                     .font(.caption)
@@ -727,12 +745,18 @@ struct AISessionNoteGeneratorView: View {
                 .font(.caption.weight(.bold))
             }
 
+            Text(runtime.completeness.message)
+                .font(.subheadline)
+                .foregroundStyle(palette.textSecondary)
+                .accessibilityIdentifier("session-note-completeness-status")
+
             TextEditor(text: $runtime.generatedNote)
                 .focused($focusedField, equals: .generatedDraft)
                 .textInputAutocapitalization(.sentences)
                 .autocorrectionDisabled(false)
                 .frame(minHeight: 230)
                 .lifeRouteReadableTextSurface()
+                .accessibilityIdentifier("session-note-draft")
 
             Button {
                 startGeneration()
@@ -768,7 +792,7 @@ struct AISessionNoteGeneratorView: View {
     }
 
     private var hasEvidence: Bool {
-        !narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !screenshotAttachments.isEmpty
+        !narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var activeButtonTitle: String {
@@ -785,6 +809,7 @@ struct AISessionNoteGeneratorView: View {
         case .completed(let outcome): return outcome.userFacingStatusTitle
         case .unavailable: return "Apple Intelligence unavailable"
         case .failed: return "Generation failed"
+        case .blocked(let error): return error.statusTitle
         case .timedOut: return "Generation timed out"
         case .cancelled: return "Generation cancelled"
         }
@@ -799,26 +824,28 @@ struct AISessionNoteGeneratorView: View {
         case .generating:
             return "LifeRoute is creating a draft from the facts you supplied."
         case .compacting:
-            return "Apple Intelligence requested a smaller context. LifeRoute is retrying once with typed facts first and reduced supporting context."
+            return "Apple Intelligence requested a smaller context. LifeRoute will retry once only if all session evidence fits; terminology context is omitted."
         case .repairing:
             return "The first draft needs a bounded second pass to meet the Master ABA format."
         case .completed(let outcome):
             return outcome.userFacingStatusMessage
         case .unavailable(let explanation), .failed(let explanation):
             return explanation
+        case .blocked(let error):
+            return error.localizedDescription
         case .timedOut:
-            return "Apple Intelligence did not finish this step within 75 seconds. Your facts, screenshots, and prior draft were preserved."
+            return "Apple Intelligence did not finish this step within 75 seconds. Your facts and prior draft were preserved."
         case .cancelled:
-            return "The request stopped safely. Your facts, screenshots, and prior draft were preserved."
+            return "The request stopped safely. Your facts and prior draft were preserved."
         }
     }
 
     private var statusIcon: String {
         switch runtime.state {
-        case .completed(.generated), .completed(.repaired): return "checkmark.circle.fill"
+        case .completed(.generated), .completed(.repaired): return "doc.text.magnifyingglass"
         case .completed(.fallback), .completed(.rejected): return "exclamationmark.triangle.fill"
         case .unavailable: return "apple.intelligence"
-        case .failed, .timedOut: return "exclamationmark.triangle.fill"
+        case .failed, .blocked, .timedOut: return "exclamationmark.triangle.fill"
         case .cancelled: return "xmark.circle.fill"
         default: return "info.circle.fill"
         }
@@ -826,9 +853,9 @@ struct AISessionNoteGeneratorView: View {
 
     private var statusTint: Color {
         switch runtime.state {
-        case .completed(.generated), .completed(.repaired): return .green
+        case .completed(.generated), .completed(.repaired): return palette.accentSecondary
         case .completed(.fallback), .completed(.rejected): return .orange
-        case .unavailable, .failed, .timedOut: return .orange
+        case .unavailable, .failed, .blocked, .timedOut: return .orange
         case .cancelled: return palette.textSecondary
         default: return palette.accent
         }
@@ -846,49 +873,11 @@ struct AISessionNoteGeneratorView: View {
     private var shouldOfferDiagnostics: Bool {
         guard !runtime.diagnosticReceipt.isEmpty else { return false }
         switch runtime.state {
-        case .completed(.fallback), .completed(.rejected), .unavailable, .failed, .timedOut, .cancelled:
+        case .completed(.fallback), .completed(.rejected), .unavailable, .failed, .blocked, .timedOut, .cancelled:
             return true
         default:
             return false
         }
-    }
-
-    private func loadSelectedScreenshots() async {
-        let selectedItems = Array(selectedPhotoItems.prefix(6))
-        guard !selectedItems.isEmpty else {
-            screenshotAttachments.removeAll()
-            isLoadingScreenshots = false
-            return
-        }
-
-        isLoadingScreenshots = true
-        defer { isLoadingScreenshots = false }
-
-        var loaded: [SessionNoteScreenshotAttachment] = []
-        var failedCount = 0
-        for item in selectedItems {
-            guard !Task.isCancelled else { return }
-            guard let data = try? await item.loadTransferable(type: Data.self), !data.isEmpty else {
-                failedCount += 1
-                continue
-            }
-            let stableID = screenshotAttachments.first(where: { $0.pickerItem == item })?.id ?? UUID()
-            loaded.append(SessionNoteScreenshotAttachment(id: stableID, pickerItem: item, data: data))
-        }
-
-        guard !Task.isCancelled, selectedPhotoItems == selectedItems else { return }
-        screenshotAttachments = loaded
-        if failedCount > 0 {
-            localNotice = "\(failedCount) screenshot\(failedCount == 1 ? "" : "s") could not be loaded. The remaining attachments are ready."
-        } else {
-            localNotice = "\(loaded.count) data screenshot\(loaded.count == 1 ? "" : "s") ready for local text recognition."
-        }
-    }
-
-    private func removeScreenshot(_ attachment: SessionNoteScreenshotAttachment) {
-        selectedPhotoItems.removeAll { $0 == attachment.pickerItem }
-        screenshotAttachments.removeAll { $0.id == attachment.id }
-        localNotice = "Data screenshot removed."
     }
 
     private func appendToNarrative(_ value: String) {
@@ -902,16 +891,33 @@ struct AISessionNoteGeneratorView: View {
     }
 
     private func startGeneration() {
+        runtime.presentationScope = visibilityScope
         localNotice = nil
         focusedField = nil
         let normalizedFacts = ABATerminologyNormalizer.normalize(narrative)
         narrative = normalizedFacts
         runtime.start(
             narrative: normalizedFacts,
-            screenshotDataItems: screenshotAttachments.map(\.data),
+            writerCredential: writerCredential,
             client: selectedClient
         )
     }
+
+    #if DEBUG
+    private func seedSyntheticFixtureIfRequested() {
+        guard !seededSyntheticFixture, let mode = SessionNoteFixtureGenerator.Mode.current else { return }
+        seededSyntheticFixture = true
+        narrative = "At home, the client practiced Following Directions with the RBT at 80% accuracy with a verbal prompt. The client returned the blue folder to the caregiver."
+        if mode == .overLimit {
+            narrative = String(repeating: "The client practiced with the RBT. ", count: 160) +
+                "The client returned the blue folder to the caregiver."
+        }
+        runtime.generatedNote = "Previous synthetic draft: the client practiced with the RBT. Keep this edited draft if the next attempt fails or is cancelled."
+        if ProcessInfo.processInfo.arguments.contains("-LifeRouteSessionNoteAutoStart") {
+            startGeneration()
+        }
+    }
+    #endif
 
     private func finishEditing() {
         narrative = ABATerminologyNormalizer.normalize(narrative)
@@ -923,6 +929,8 @@ struct AISessionNoteGeneratorView: View {
 #if DEBUG
 struct SessionNoteReadabilityFixtureView: View {
     @Environment(\.lifeRoutePalette) private var palette
+    @StateObject private var fixtureClients = ClientProfileCore(clients: [])
+    @StateObject private var fixtureTools = SessionToolsCore()
 
     @State private var sessionFacts = """
     The RBT met with the client in the client's home while the LBS and family members were present. The session began with outdoor pairing and functional communication targets before the client transitioned indoors for instructional activities and waiting practice. The client later returned outdoors for play, transitioned inside for cooperative play and another instructional period, and engaged in elopement during the later work period.
@@ -936,6 +944,14 @@ struct SessionNoteReadabilityFixtureView: View {
     """
 
     var body: some View {
+        if SessionNoteFixtureGenerator.Mode.current != nil {
+            AISessionNoteGeneratorView(clientState: fixtureClients, toolsState: fixtureTools)
+        } else {
+            readabilityContent
+        }
+    }
+
+    private var readabilityContent: some View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 LifeRouteScreenHeader(
@@ -973,6 +989,8 @@ struct SessionNoteReadabilityFixtureView: View {
 #endif
 
 struct AISessionPlanBuilderView: View {
+    @Environment(\.lifeRoutePresentation) private var visibilityScope
+
     @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var clientState: ClientProfileCore
 
@@ -1138,6 +1156,7 @@ struct AISessionPlanBuilderView: View {
 
     @MainActor
     private func generate() async {
+        let feedbackTicket = visibilityScope?.feedbackTicket()
         guard !isGenerating else { return }
         isGenerating = true
         message = nil
@@ -1152,7 +1171,7 @@ struct AISessionPlanBuilderView: View {
                 additionalContext: additionalContext
             )
             message = "Session flow generated on device."
-            LifeRouteHaptics.success()
+            if feedbackTicket?.isEligible == true { LifeRouteHaptics.success() }
         } catch {
             message = error.localizedDescription
         }

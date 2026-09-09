@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 struct V054SetupView: View {
+    @StateObject private var themeLease = LifeRouteOwnedHandle()
     @Environment(\.scenicRoyalThemeStyle) private var style
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @EnvironmentObject private var themeStore: LifeRouteThemeStore
@@ -114,7 +115,6 @@ struct V054SetupView: View {
         .navigationTitle("Setup")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            router.setBottomToolbarSuppressed(false)
             if homeDraft.isEmpty { homeDraft = routingState.homeAddress }
             if !routeBufferPresets.contains(routingState.routeBufferMinutes) {
                 customRouteBufferMinutes = routingState.routeBufferMinutes
@@ -180,7 +180,7 @@ struct V054SetupView: View {
                     Text("Custom").tag(-1)
                 }
                 .pickerStyle(.menu)
-                .tint(style.accent)
+                .tint(style.selectedControlFill)
                 .scenicRoyalField()
 
                 if customRouteBufferSelected {
@@ -220,7 +220,7 @@ struct V054SetupView: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(style.accent)
+            .tint(style.selectedControlFill)
             .scenicRoyalField()
             .onChange(of: preferredNavigationAppRaw) { _ in
                 LifeRouteHaptics.selection()
@@ -251,7 +251,7 @@ struct V054SetupView: View {
     private var themeCard: some View {
         NavigationLink {
             V054ThemeCenterView { isVisible in
-                suspensionCoordinator.setThemeCenterVisible(isVisible)
+                themeLease.reconcile(isVisible, acquire: suspensionCoordinator.acquireAmbientSuspension, release: suspensionCoordinator.releaseAmbientSuspension)
             }
                 .lifeRouteDeepDestination()
         } label: {
@@ -396,7 +396,7 @@ struct V054SetupView: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(style.accent)
+            .tint(style.selectedControlFill)
             .scenicRoyalField()
 
             Picker("Estimated task time", selection: $todoDurationMinutes) {
@@ -409,7 +409,7 @@ struct V054SetupView: View {
                 Text("1.5 hours").tag(90)
             }
             .pickerStyle(.menu)
-            .tint(style.accent)
+            .tint(style.selectedControlFill)
             .scenicRoyalField()
 
             Picker("Saved place (optional)", selection: $todoSavedPlaceID) {
@@ -419,7 +419,7 @@ struct V054SetupView: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(style.accent)
+            .tint(style.selectedControlFill)
             .scenicRoyalField()
             .onChange(of: todoSavedPlaceID) { value in
                 guard let id = UUID(uuidString: value),
@@ -446,11 +446,11 @@ struct V054SetupView: View {
                     .pickerStyle(.segmented)
                 }
             }
-            .tint(style.accent)
+            .tint(style.selectedControlFill)
             .scenicRoyalField()
 
             DatePicker("Do by", selection: $todoDueDate, displayedComponents: .date)
-                .tint(style.accent)
+                .tint(style.selectedControlFill)
                 .scenicRoyalField()
 
             TextField("Notes (optional)", text: $todoNotes, axis: .vertical)
@@ -487,7 +487,7 @@ struct V054SetupView: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(style.accent)
+            .tint(style.selectedControlFill)
             .scenicRoyalField()
 
             Stepper("Useful visit: \(minimumVisitMinutes) min", value: $minimumVisitMinutes, in: 5...240, step: 5)
@@ -496,7 +496,7 @@ struct V054SetupView: View {
 
             Toggle("Use in gap suggestions", isOn: $gapSuggestion)
                 .font(.subheadline.weight(.semibold))
-                .tint(style.accent)
+                .tint(style.selectedControlFill)
                 .scenicRoyalField()
 
             Button(action: addPlace) {

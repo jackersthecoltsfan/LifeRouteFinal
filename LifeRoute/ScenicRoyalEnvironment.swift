@@ -29,22 +29,26 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
         let style = theme.scenicRoyalStyle
         let motionIsReduced = reduceMotion || reduceMotionOverride
 
-        ZStack {
-            environmentBackdrop(reduceMotion: motionIsReduced)
+        // Foreground content owns the root proposal and system safe area.
+        // A backdrop (including an aspect-fill image) must never enlarge that
+        // proposal or change the toolbar's shared safe-area reservation.
+        content
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
+            .background {
+                ZStack {
+                    environmentBackdrop(reduceMotion: motionIsReduced)
 
-            ScenicRoyalEnvironmentReadabilityVeil(
-                style: style,
-                reduceTransparency: reduceTransparency
-            )
-
-            content
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
-        }
+                    ScenicRoyalEnvironmentReadabilityVeil(
+                        style: style,
+                        reduceTransparency: reduceTransparency
+                    )
+                }
+            }
         .environment(\.scenicRoyalThemeStyle, style)
         .environment(\.defaultMinListRowHeight, 52)
-        .tint(palette.accent)
-        .preferredColorScheme(theme == .light ? .light : .dark)
+        .tint(style.nativeControlTint)
+        .preferredColorScheme(style.nativeColorScheme)
     }
 
     @ViewBuilder

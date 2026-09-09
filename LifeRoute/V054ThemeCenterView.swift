@@ -4,6 +4,7 @@ struct V054ThemeCenterView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @EnvironmentObject private var themeStore: LifeRouteThemeStore
 
+    @StateObject private var visibilityEpisode = LifeRouteThemeVisibilityEpisode()
     @State private var selectedCategory: ScenicRoyalThemeCategory = .core
     /// Sol/Terra can observe Theme Center visibility without a second global
     /// coordinator. `true` is emitted when the catalog becomes visible and
@@ -51,12 +52,10 @@ struct V054ThemeCenterView: View {
         }
         .navigationTitle("Themes")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            selectedCategory = category(for: themeStore.selectedTheme)
-            onVisibilityChanged?(true)
-        }
-        .onDisappear {
-            onVisibilityChanged?(false)
+        .lifeRouteReconcile { context in
+            visibilityEpisode.reconcile(context, initialize: {
+                selectedCategory = category(for: themeStore.selectedTheme)
+            }, visibilityChanged: onVisibilityChanged)
         }
         // Keep the iOS 16 deployment path; this single-value overload is
         // availability-safe until the app's minimum OS moves to iOS 17.
@@ -80,16 +79,13 @@ struct V054ThemeCenterView: View {
         case .core:
             return LifeRouteTheme.phaseOneCoreGlassCatalog
         case .dynamic:
-            return LifeRouteTheme.v071RetainedDynamicCatalog
-        case .scenery:
-            return LifeRouteTheme.v071RetainedSceneryCatalog
+            return LifeRouteTheme.visibleDynamicCatalog
         }
     }
 
     private func category(for theme: LifeRouteTheme) -> ScenicRoyalThemeCategory {
         if theme.isPhaseOneCoreGlass { return .core }
-        if theme.isPhaseTwoDynamic { return .dynamic }
-        if theme.isPhaseThreeScenery { return .scenery }
+        if LifeRouteTheme.visibleDynamicCatalog.contains(theme) { return .dynamic }
         return .core
     }
 
@@ -98,3 +94,20 @@ struct V054ThemeCenterView: View {
         LifeRouteHaptics.success()
     }
 }
+
+// BEGIN THEME VISIBILITY EPISODE
+@MainActor
+final class LifeRouteThemeVisibilityEpisode: ObservableObject {
+    private(set) var categoryInitialized = false
+    private(set) var holdsVisibility = false
+    func reconcile(_ context: LifeRouteEffectContext, initialize: () -> Void, visibilityChanged: ((Bool) -> Void)?) {
+        if context.exposed && !categoryInitialized {
+            categoryInitialized = true
+            initialize()
+        }
+        guard holdsVisibility != context.exposed else { return }
+        holdsVisibility = context.exposed
+        visibilityChanged?(context.exposed)
+    }
+}
+// END THEME VISIBILITY EPISODE

@@ -5,6 +5,7 @@ import SwiftUI
 /// the selected day's route generation, canonical itinerary, departure guidance,
 /// gap-fit suggestions, and Live Day projection.
 struct V054TodayView: View {
+    @LifeRoutePresentation private var visibility
     @Environment(\.scenicRoyalThemeStyle) private var scenicStyle
     @ObservedObject var router: AppRouter
     @ObservedObject var calendarState: CalendarCoreState
@@ -111,7 +112,7 @@ struct V054TodayView: View {
         .background(Color.clear)
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showingDayPicker) {
-            dayPickerSheet
+            dayPickerSheet.lifeRouteModalScope()
         }
         .onAppear {
             if routingState.homeAddress.isEmpty {
@@ -205,7 +206,7 @@ struct V054TodayView: View {
     }
 
     private var commandStatus: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
+        TimelineView(LifeRoutePresentationClock(interval: 1, active: visibility.active)) { context in
             commandStatusContent(now: context.date)
         }
     }
@@ -346,7 +347,7 @@ struct V054TodayView: View {
                     .foregroundStyle(scenicStyle.accentReflection)
                 }
                 timeline(itinerary)
-                TimelineView(.periodic(from: .now, by: 30)) { context in
+                TimelineView(LifeRoutePresentationClock(interval: 30, active: visibility.active)) { context in
                     startRouteControl(itinerary, now: context.date)
                 }
             } else {

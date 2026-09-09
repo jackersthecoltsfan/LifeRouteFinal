@@ -1,17 +1,15 @@
 import SwiftUI
 
 enum ScenicRoyalThemeCategory: String, CaseIterable, Identifiable {
-    case core = "Core"
-    case dynamic = "Dynamic"
-    case scenery = "Scenery"
+    case core = "CORE"
+    case dynamic = "DYNAMIC"
 
     var id: String { rawValue }
 
     var sectionTitle: String {
         switch self {
-        case .core: return "Core Glass"
-        case .dynamic: return "Dynamic Liquid Glass"
-        case .scenery: return "Scenery"
+        case .core: return "CORE"
+        case .dynamic: return "DYNAMIC"
         }
     }
 
@@ -20,9 +18,7 @@ enum ScenicRoyalThemeCategory: String, CaseIterable, Identifiable {
         case .core:
             return "12 still app-wide glass environments with no continuous ambient motion."
         case .dynamic:
-            return "8 full-frame Liquid Glass environments. Reduce Motion retains a finished still phase."
-        case .scenery:
-            return "12 cinematic Day/Night environments. Reduce Motion keeps the selected scene and freezes ambience."
+            return "20 live environments, including cinematic Day/Night scenery. Reduce Motion preserves the selected environment and freezes ambience."
         }
     }
 
@@ -30,7 +26,6 @@ enum ScenicRoyalThemeCategory: String, CaseIterable, Identifiable {
         switch self {
         case .core: return "sparkles"
         case .dynamic: return "waveform.path"
-        case .scenery: return "mountain.2.fill"
         }
     }
 }
@@ -85,7 +80,7 @@ struct ScenicRoyalSelectedThemeHeader: View {
                     cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl,
                     style: .continuous
                 )
-                .stroke(style.accent.opacity(0.62), lineWidth: ScenicRoyalDesignSystem.Stroke.selected)
+                .stroke(style.selectedControlIndicator.opacity(0.62), lineWidth: ScenicRoyalDesignSystem.Stroke.selected)
             }
             .accessibilityHidden(true)
     }
@@ -114,7 +109,7 @@ struct ScenicRoyalSelectedThemeHeader: View {
     private var selectionMark: some View {
         Image(systemName: "checkmark.circle.fill")
             .font(.title3.weight(.bold))
-            .foregroundStyle(style.accent)
+            .foregroundStyle(style.selectedControlIndicator)
             .accessibilityHidden(true)
     }
 }
@@ -157,13 +152,14 @@ struct ScenicRoyalThemeCategoryPicker: View {
                     Text(category.rawValue)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .foregroundStyle(selection == category ? ScenicRoyalDesignSystem.ColorToken.brandNavyDeep : style.primaryText)
+                .foregroundStyle(selection == category ? style.selectedControlForeground : style.contentPrimaryForeground)
                 .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
                 .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
                 .background {
                     if selection == category {
-                        RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
-                            .fill(style.accent)
+                        ScenicRoyalSelectedControlMaterial(
+                            shape: RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
+                        )
                     }
                 }
                 .contentShape(
@@ -257,7 +253,7 @@ struct ScenicRoyalThemeCard: View {
                     style: .continuous
                 )
                 .stroke(
-                    isSelected ? style.accent : Color.white.opacity(contrast == .increased ? 0.30 : 0.08),
+                    isSelected ? style.selectedControlIndicator : Color.white.opacity(contrast == .increased ? 0.30 : 0.08),
                     lineWidth: isSelected ? ScenicRoyalDesignSystem.Stroke.selected : ScenicRoyalDesignSystem.Stroke.subtle
                 )
             }
@@ -307,14 +303,14 @@ struct ScenicRoyalThemeCard: View {
                 Text(category.rawValue.uppercased())
                     .font(.caption2.weight(.bold))
                     .tracking(0.5)
-                    .foregroundStyle(isSelected ? style.accent : style.secondaryText)
+                    .foregroundStyle(isSelected ? style.selectedControlIndicator : style.contentSecondaryForeground)
             }
 
             Spacer(minLength: 0)
 
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(style.accent)
+                    .foregroundStyle(style.selectedControlIndicator)
                     .accessibilityHidden(true)
             }
         }

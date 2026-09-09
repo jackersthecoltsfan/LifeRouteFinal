@@ -38,6 +38,99 @@ extension LifeRouteSurfaceRoleContract {
     }
 }
 
+/// The single selected-state surface language. It keeps functional selection
+/// separate from a scenery's decorative accent while allowing every selected
+/// control shape to clip the same day/night treatment.
+struct ScenicRoyalSelectedControlMaterial<Form: Shape>: View {
+    @Environment(\.scenicRoyalThemeStyle) private var style
+
+    let shape: Form
+
+    var body: some View {
+        ZStack {
+            shape.fill(style.selectedControlFill)
+
+            if style.isBrightEnvironment {
+                shape.fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.98),
+                            Color.white.opacity(0.86),
+                            style.selectedControlDayEdge.opacity(0.20),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            } else {
+                shape.fill(
+                    LinearGradient(
+                        colors: [
+                            ScenicRoyalDesignSystem.ColorToken.selectedControlNightEdge,
+                            ScenicRoyalDesignSystem.ColorToken.selectedControlNightInnerGlow.opacity(0.72),
+                            ScenicRoyalDesignSystem.ColorToken.selectedControlNightFill,
+                            ScenicRoyalDesignSystem.ColorToken.selectedControlNightEdge,
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                shape.fill(
+                    RadialGradient(
+                        colors: [
+                            Color.white.opacity(0.16),
+                            Color.white.opacity(0.035),
+                            .clear,
+                        ],
+                        center: .top,
+                        startRadius: 0,
+                        endRadius: 110
+                    )
+                )
+            }
+
+            // Theme reflection coordinates emphasis without replacing the
+            // legible base or changing the selected foreground contract.
+            shape.fill(
+                RadialGradient(
+                    colors: [style.accent.opacity(0.14), .clear],
+                    center: .bottomTrailing,
+                    startRadius: 0,
+                    endRadius: 110
+                )
+            )
+
+            if style.isBrightEnvironment {
+                shape.stroke(
+                    style.selectedControlIndicator.opacity(0.34),
+                    lineWidth: ScenicRoyalDesignSystem.Stroke.selected
+                )
+            } else {
+                shape.stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.36),
+                            ScenicRoyalDesignSystem.ColorToken.selectedControlNightInnerGlow.opacity(0.56),
+                            Color.black.opacity(0.46),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: ScenicRoyalDesignSystem.Stroke.selected
+                )
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private extension ScenicRoyalThemeStyle {
+    var selectedControlDayEdge: Color {
+        ScenicRoyalDesignSystem.ColorToken.brandNavy
+    }
+}
+
 struct ScenicRoyalGlassEffectContainer<Content: View>: View {
     let spacing: CGFloat
     private let content: Content
@@ -83,7 +176,7 @@ private struct ScenicRoyalGlassSurfaceModifier: ViewModifier {
         } else if reduceTransparency || contrast == .increased {
             decorated(
                 content.background {
-                    surfaceShape.fill(style.readabilityBase.opacity(accessibleSurfaceOpacity))
+                    surfaceShape.fill(style.accessibleSurfaceFill.opacity(accessibleSurfaceOpacity))
                 },
                 opaque: true
             )

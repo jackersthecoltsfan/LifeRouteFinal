@@ -391,7 +391,7 @@ private struct LegacyVisualTimerView: View {
                         }
                     }
 
-                    Stepper("Custom: \(minutes) minutes", value: $minutes, in: 1...180)
+                    Stepper("Custom: \(minutes) minutes", value: $minutes, in: 1...VisualTimerDuration.maximumMinutes)
                         .font(.subheadline.weight(.semibold))
 
                     Button {
@@ -670,6 +670,7 @@ struct ClientVisualSupportCenter: View {
                     LazyVGrid(columns: columns, spacing: 10) {
                         NavigationLink {
                             ClientVisualIconLibraryView(visualState: visualState, clientCode: selectedClientCode)
+                            .lifeRouteDeepDestination()
                         } label: {
                             VisualWorkspaceCard(title: "Icon Library", subtitle: "Photos, text, or illustrated icons", systemImage: "photo.on.rectangle.angled")
                         }
@@ -677,6 +678,7 @@ struct ClientVisualSupportCenter: View {
 
                         NavigationLink {
                             ClientChoiceBoardBuilderView(visualState: visualState, clientCode: selectedClientCode)
+                            .lifeRouteDeepDestination()
                         } label: {
                             VisualWorkspaceCard(title: "Choice Boards", subtitle: "Build fast choice grids", systemImage: "square.grid.2x2.fill")
                         }
@@ -684,6 +686,7 @@ struct ClientVisualSupportCenter: View {
 
                         NavigationLink {
                             ClientFirstThenVisualView(visualState: visualState, clientState: clientState, initialClientCode: selectedClientCode)
+                            .lifeRouteDeepDestination()
                         } label: {
                             VisualWorkspaceCard(title: "First / Then", subtitle: "Create a two-step visual", systemImage: "arrow.right.circle.fill")
                         }
@@ -754,6 +757,7 @@ struct ClientVisualSupportCenter: View {
                                 board: board,
                                 clientCode: selectedClientCode
                             )
+                            .lifeRouteDeepDestination()
                         } label: {
                             SavedVisualLibraryRow(
                                 title: board.title,
@@ -900,7 +904,73 @@ private struct VisualSupportScrollContainer<Content: View>: View {
     }
 }
 
+// BEGIN MEDIA VISIBILITY ADMISSION
+@MainActor
+private final class LifeRouteMediaAdmission: ObservableObject {
+    struct Request: Equatable { let id: UUID; let input: UInt64 }
+    struct Accepted: Equatable { let id: UUID; let request: Request }
+    private(set) var inputRevision: UInt64 = 0
+    private(set) var presentationEpoch: UInt64 = 0
+    private var signature: [String] = []
+    private var request: Request?
+    private var accepted: Accepted?
+    private var published: UUID?
+    func update(_ signature: [String]) {
+        guard self.signature != signature else { return }
+        self.signature = signature; inputRevision &+= 1; request = nil; accepted = nil
+    }
+    func begin(_ signature: [String]) -> Request {
+        update(signature)
+        let value = Request(id: UUID(), input: inputRevision); request = value; return value
+    }
+    func accepts(_ request: Request, signature: [String]) -> Bool {
+        update(signature); return self.request == request && request.input == inputRevision
+    }
+    func accept(_ request: Request, signature: [String]) -> Accepted? {
+        guard accepts(request, signature: signature) else { return nil }
+        let value = Accepted(id: UUID(), request: request); accepted = value; return value
+    }
+    func publish(_ value: Accepted, signature: [String]) -> Bool {
+        guard accepts(value.request, signature: signature), accepted == value, published != value.id else { return false }
+        published = value.id; return true
+    }
+    func revokePresentation() { presentationEpoch &+= 1 }
+}
+
+private struct LifeRoutePhotoSelection: Equatable {
+    let item: PhotosPickerItem
+    let client: String
+}
+
+private struct LifeRoutePhotoActivity: Equatable {
+    let item: PhotosPickerItem?
+    let input: [String]
+    let active: Bool
+}
+
+private struct LifeRouteThumbnailActivity: Equatable {
+    let request: ClientVisualThumbnailRequest
+    let active: Bool
+}
+// END MEDIA VISIBILITY ADMISSION
+
 struct ClientVisualIconLibraryView: View {
+    @LifeRoutePresentation private var visibility
+    @Environment(\.lifeRoutePresentation) private var visibilityScope
+    @StateObject private var media = LifeRouteMediaAdmission()
+    @State private var loadedPhotoSelection: LifeRoutePhotoSelection?
+    @State private var permissionID: UUID?
+    @State private var permissionIntent: LifeRoutePresentationIntent?
+    @State private var permissionResult: Bool?
+    @State private var permissionInput: [String] = []
+    @State private var leaveIdentity: [UInt64]?
+    @State private var cameraRequest: LifeRouteMediaAdmission.Request?
+    private var inputSignature: [String] { [clientCode, label, visualDescription, String(selectedPhotoItem?.hashValue ?? 0), inputMethod.rawValue] }
+    private var photoSelection: LifeRoutePhotoSelection? {
+        selectedPhotoItem.map { LifeRoutePhotoSelection(item: $0, client: clientCode) }
+    }
+
+
     @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var visualState: ClientVisualSupportCore
     let clientCode: String
@@ -1177,32 +1247,60 @@ struct ClientVisualIconLibraryView: View {
                     .fontWeight(.semibold)
             }
         }
+        .lifeRoutePhotoPickerScope()
         .fullScreenCover(isPresented: $isCameraPresented) {
             VisualSupportCameraPicker { imageData in
-                inputMethod = .camera
-                Task { await prepareReferencePhoto(imageData, sourceMessage: "Camera reference ready.") }
+                guard let request = cameraRequest,
+                      let accepted = media.accept(request, signature: inputSignature) else { return }
+                let feedback = visibilityScope?.owner?.presentedFeedbackTicket(for: visibilityScope!.id)
+                Task { await prepareReferencePhoto(imageData, sourceMessage: "Camera reference ready.", accepted: accepted, feedback: feedback) }
             } onCancel: {
                 if referencePhotoData == nil { inputMethod = .textOnly }
             }
             .ignoresSafeArea()
+            .lifeRouteModalScope()
         }
-        .task(id: selectedPhotoItem) {
-            guard let selectedPhotoItem else {
-                if inputMethod != .camera { clearReferencePhoto() }
-                return
+        .lifeRouteReconcile { context in
+            let previous = leaveIdentity
+            leaveIdentity = context.leaveIdentity
+            if (previous != nil && previous != context.leaveIdentity) || !context.alive {
+                media.revokePresentation()
+                focusedInput = nil
             }
-            let loadedData = try? await selectedPhotoItem.loadTransferable(type: Data.self)
-            guard !Task.isCancelled,
-                  selectedPhotoItem == self.selectedPhotoItem else { return }
-            guard let loadedData else {
-                message = "LifeRoute could not load that photo."
-                return
+            resumeCameraPermission()
+        }
+        .onChange(of: inputSignature) { signature in media.update(signature) }
+        .onDisappear { media.revokePresentation() }
+        .task(id: LifeRoutePhotoActivity(item: selectedPhotoItem,
+            input: [clientCode, label, visualDescription], active: visibility.active)) {
+            await loadSelectedPhoto()
+        }
+    }
+
+    @MainActor
+    private func loadSelectedPhoto() async {
+        // Nil/cancellation changes bookkeeping only, never accepted artwork.
+        guard let selection = photoSelection else { loadedPhotoSelection = nil; return }
+        guard visibility.active, selection != loadedPhotoSelection else { return }
+        let request = media.begin(inputSignature)
+        let feedback = visibilityScope?.feedbackTicket()
+        let loadedData = try? await selection.item.loadTransferable(type: Data.self)
+        guard !Task.isCancelled, selection == photoSelection,
+              media.accepts(request, signature: inputSignature) else { return }
+        guard let loadedData else {
+            if feedback?.isEligible == true { message = "LifeRoute could not load that photo." }
+            return
+        }
+        inputMethod = .photoLibrary
+        let acceptedRequest = media.begin(inputSignature)
+        guard let accepted = media.accept(acceptedRequest, signature: inputSignature) else { return }
+        // The finite accepted normalization may finish while the origin is
+        // hidden. Only successful publication completes this item/client.
+        // Pending semantic edits retry; later edits preserve accepted/generated art.
+        Task {
+            if await prepareReferencePhoto(loadedData, sourceMessage: "Photo Library reference ready.", accepted: accepted, feedback: feedback) {
+                loadedPhotoSelection = selection
             }
-            inputMethod = .photoLibrary
-            await prepareReferencePhoto(
-                loadedData,
-                sourceMessage: "Photo Library reference ready."
-            )
         }
     }
 
@@ -1255,42 +1353,53 @@ struct ClientVisualIconLibraryView: View {
     }
 
     private func requestCamera() {
+        guard visibility.interaction, let scope = visibilityScope,
+              let intent = scope.owner?.intent(for: scope.id) else { return }
         guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
             message = "A camera is not available on this device. Text only and Photo Library remain available."
             return
         }
-
+        let request = UUID()
+        permissionID = request; permissionIntent = intent; permissionResult = nil; permissionInput = inputSignature
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
-            focusedInput = nil
-            selectedPhotoItem = nil
-            inputMethod = .camera
-            isCameraPresented = true
+            permissionResult = true; resumeCameraPermission()
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { granted in
                 Task { @MainActor in
-                    if granted {
-                        focusedInput = nil
-                        selectedPhotoItem = nil
-                        inputMethod = .camera
-                        isCameraPresented = true
-                    } else {
-                        message = "Camera access was not granted. Text only and Photo Library remain available."
-                    }
+                    guard permissionID == request else { return }
+                    permissionResult = granted; resumeCameraPermission()
                 }
             }
         case .denied, .restricted:
-            message = "Camera access is off for LifeRoute. Text only and Photo Library remain available."
+            permissionResult = false; resumeCameraPermission()
         @unknown default:
-            message = "The camera is unavailable right now. Text only and Photo Library remain available."
+            permissionResult = false; resumeCameraPermission()
+        }
+    }
+
+    private func resumeCameraPermission() {
+        guard permissionID != nil, let intent = permissionIntent else { return }
+        guard intent.isValid, permissionInput == inputSignature else {
+            permissionID = nil; permissionIntent = nil; permissionResult = nil; return
+        }
+        guard intent.isEligible, let granted = permissionResult else { return }
+        // Consume the originating intent before native presentation can reenter.
+        permissionID = nil; permissionIntent = nil; permissionResult = nil
+        if granted {
+            focusedInput = nil; selectedPhotoItem = nil; inputMethod = .camera
+            cameraRequest = media.begin(inputSignature)
+            isCameraPresented = true
+        } else {
+            message = "Camera access was not granted. Text only and Photo Library remain available."
         }
     }
 
     @MainActor
-    private func prepareReferencePhoto(_ data: Data, sourceMessage: String) async {
+    private func prepareReferencePhoto(_ data: Data, sourceMessage: String, accepted: LifeRouteMediaAdmission.Accepted, feedback: LifeRouteFeedbackTicket?) async -> Bool {
         guard !data.isEmpty else {
-            message = "LifeRoute could not load that reference photo."
-            return
+            if feedback?.isEligible == true { message = "LifeRoute could not load that reference photo." }
+            return false
         }
         // Decode outside SwiftUI body evaluation and keep the source in memory until explicit save.
         let requestID = UUID()
@@ -1301,14 +1410,15 @@ struct ClientVisualIconLibraryView: View {
             ),
             imageData: data
         )
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, visibilityScope?.context.alive == true, media.publish(accepted, signature: inputSignature) else { return false }
         referencePhotoData = data
         referenceSourceImage = decodedReference.map { Image(uiImage: $0) }
         photoData = data
         isGeneratedArtwork = false
         referencePreviewID = requestID
         photoPreviewID = requestID
-        message = "\(sourceMessage) Review it, save it directly, or generate an illustrated icon."
+        if feedback?.isEligible == true { message = "\(sourceMessage) Review it, save it directly, or generate an illustrated icon." }
+        return true
     }
 
     private func clearReferencePhoto() {
@@ -1364,16 +1474,18 @@ struct ClientVisualIconLibraryView: View {
         .foregroundStyle(palette.textSecondary)
     }
 
-    private func receiveGeneratedImage(_ data: Data?) {
+    private func receiveGeneratedImage(_ data: Data?, feedback: LifeRouteFeedbackTicket?) {
         guard let data else {
-            message = "LifeRoute could not import that generated image. Try generating again."
+            if feedback?.isEligible == true { message = "LifeRoute could not import that generated image. Try generating again." }
             return
         }
         photoData = data
         photoPreviewID = UUID()
         isGeneratedArtwork = true
-        message = "Illustrated ABA visual ready. Review the artwork and exact label before saving."
-        LifeRouteHaptics.success()
+        if feedback?.isEligible == true {
+            message = "Illustrated ABA visual ready. Review the artwork and exact label before saving."
+            LifeRouteHaptics.success()
+        }
     }
 
     private func saveIcon() {
@@ -1512,6 +1624,12 @@ private enum ABAVisualSupportImageProcessor {
 #if canImport(ImagePlayground)
 @available(iOS 26.4, *)
 private struct ABAVisualSupportImageGeneratorButton: View {
+    @Environment(\.lifeRoutePresentation) private var visibilityScope
+    @StateObject private var admission = LifeRouteMediaAdmission()
+    @State private var request: LifeRouteMediaAdmission.Request?
+    @State private var feedback: LifeRouteFeedbackTicket?
+    private var inputSignature: [String] { [label, visualDescription, String(referencePhotoData?.hashValue ?? 0)] }
+
     @Environment(\.lifeRoutePalette) private var palette
     @Environment(\.supportsImagePlayground) private var supportsImagePlayground
     @State private var showingPlayground = false
@@ -1522,7 +1640,7 @@ private struct ABAVisualSupportImageGeneratorButton: View {
     let referencePhotoData: Data?
     let sourceImage: Image?
     let isRegeneration: Bool
-    let onImageReady: (Data?) -> Void
+    let onImageReady: (Data?, LifeRouteFeedbackTicket?) -> Void
 
     private var cleanLabel: String {
         label.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1549,8 +1667,12 @@ private struct ABAVisualSupportImageGeneratorButton: View {
     }
 
     var body: some View {
+        let presentedRequest = request
         VStack(alignment: .leading, spacing: 7) {
             Button {
+                guard visibilityScope?.context.interaction == true else { return }
+                request = admission.begin(inputSignature)
+                feedback = visibilityScope?.feedbackTicket()
                 showingPlayground = true
             } label: {
                 if isPreparingResult {
@@ -1567,20 +1689,32 @@ private struct ABAVisualSupportImageGeneratorButton: View {
             }
             .buttonStyle(LifeRouteSecondaryButtonStyle())
             .disabled(cleanLabel.isEmpty || !supportsImagePlayground || isPreparingResult)
+            .lifeRouteSystemModal(isPresented: showingPlayground)
+            .onChange(of: inputSignature) { signature in
+                admission.update(signature)
+                if request?.input != admission.inputRevision { request = nil; isPreparingResult = false }
+            }
+            .onDisappear { admission.revokePresentation() }
             .imagePlaygroundSheet(
                 isPresented: $showingPlayground,
                 concepts: concepts,
                 sourceImage: sourceImage,
                 onCompletion: { url in
+                    guard let presentedRequest, let accepted = admission.accept(presentedRequest, signature: inputSignature) else { return }
+                    let originFeedback = feedback
+                    let modalFeedback = visibilityScope?.owner?.presentedFeedbackTicket(for: visibilityScope!.id)
+                    let epoch = admission.presentationEpoch
                     isPreparingResult = true
                     Task {
                         let data = await ABAVisualSupportImageProcessor.normalizedSquarePNG(from: url)
+                        guard visibilityScope?.context.alive == true, admission.publish(accepted, signature: inputSignature) else { return }
                         isPreparingResult = false
-                        onImageReady(data)
+                        let eligible = modalFeedback?.isEligible == true ? modalFeedback : (epoch == admission.presentationEpoch ? originFeedback : nil)
+                        onImageReady(data, eligible)
                     }
                 },
                 onCancellation: {
-                    isPreparingResult = false
+                    if request == presentedRequest { isPreparingResult = false }
                 }
             )
             .imagePlaygroundOptions(options)
@@ -1755,6 +1889,7 @@ struct ClientChoiceBoardBuilderView: View {
                                             board: board,
                                             clientCode: clientCode
                                         )
+                                        .lifeRouteDeepDestination()
                                     } label: {
                                         Label("Preview board", systemImage: "rectangle.on.rectangle")
                                     }
@@ -1802,6 +1937,7 @@ struct ClientChoiceBoardBuilderView: View {
         .toolbar(.hidden, for: .tabBar)
         .fullScreenCover(item: $previewBoard) { board in
             ClientChoiceBoardPreviewView(visualState: visualState, board: board, clientCode: clientCode)
+                .lifeRouteModalScope()
         }
     }
 
@@ -2007,6 +2143,7 @@ struct ClientFirstThenVisualView: View {
                         clientState: clientState,
                         initialClientCode: selectedClientCode
                     )
+                    .lifeRouteDeepDestination()
                 } label: {
                     Label("View Library", systemImage: "books.vertical.fill")
                 }
@@ -2031,6 +2168,7 @@ struct ClientFirstThenVisualView: View {
                 thenIcon: selectedIcon(idString: thenIconID),
                 thenText: resolvedThenText
             )
+            .lifeRouteModalScope()
         }
         .onAppear { validateSelectedLibrary() }
         .onChange(of: selectedClientCode) { _ in
@@ -2750,6 +2888,8 @@ private actor ClientVisualThumbnailCache {
 }
 
 private struct ClientVisualDraftPhotoPreview: View {
+    @LifeRoutePresentation private var visibility
+    @State private var completedRequest: ClientVisualThumbnailRequest?
     let imageData: Data
     let requestID: UUID
     let maximumHeight: CGFloat
@@ -2772,18 +2912,22 @@ private struct ClientVisualDraftPhotoPreview: View {
         .frame(maxHeight: maximumHeight)
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .task(id: request) {
+        .task(id: LifeRouteThumbnailActivity(request: request, active: visibility.active)) {
+            guard visibility.active, completedRequest != request else { return }
             let decoded = await ClientVisualThumbnailCache.shared.thumbnail(
                 for: request,
                 imageData: imageData
             )
             guard !Task.isCancelled else { return }
+            completedRequest = request
             preview = decoded
         }
     }
 }
 
 private struct ClientVisualIconThumbnail: View {
+    @LifeRoutePresentation private var visibility
+    @State private var completedRequest: ClientVisualThumbnailRequest?
     let icon: ClientVisualIcon
     let size: CGFloat
     @Environment(\.displayScale) private var displayScale
@@ -2807,7 +2951,8 @@ private struct ClientVisualIconThumbnail: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: 10))
-        .task(id: request) {
+        .task(id: LifeRouteThumbnailActivity(request: request, active: visibility.active)) {
+            guard visibility.active, completedRequest != request else { return }
             guard let imageData = icon.imageData else {
                 thumbnail = nil
                 return
@@ -2817,6 +2962,7 @@ private struct ClientVisualIconThumbnail: View {
                 imageData: imageData
             )
             guard !Task.isCancelled else { return }
+            completedRequest = request
             thumbnail = decoded
         }
     }

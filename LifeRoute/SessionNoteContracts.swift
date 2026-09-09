@@ -1,5 +1,178 @@
 import Foundation
 
+// Shared evidence and style policy is composed into every production stage.
+enum SessionNoteClinicalInstructions {
+    static let sharedConstraints = """
+    Use person-first, objective third-person wording and role-based identity only: the client, RBT, LBS, BCBA, BHT, and caregiver relationship roles. Preserve supplied chronology and attribute caregiver reports to the reporting caregiver; never turn a report into direct observation.
+    Preserve every clinically relevant supplied fact, including location, attendees, pairing, targets, transitions, prompting, reinforcement, behaviors of concern, intervention, observable outcome, caregiver collaboration, and LBS/BCBA instruction when present. Include a behavior of concern only when evidence says it occurred. Say “behaviors of concern.”
+    Integrate every clear current-session measurement exactly once beside its matching target or behavior. Preserve target association, measurement type, numeric value, unit, prompt level, and attribution. Exclude administrative screenshot content. Saved terminology is context only, never session evidence.
+    Never infer function, intent, emotion, cause, progress, training, supervision, treatment changes, recommendations, effectiveness, or causal relationships. Do not add unsupported clinical facts.
+    Improve grammar, possessives, role clarity, sentence structure, transitions, and organization while preserving the supplied meaning and order. Expand unambiguous abbreviations, such as functional communication training (FCT). Retain qualifications and attribution; clinical terminology is not a reason to remove a supplied fact.
+    Write natural, useful prose with detail proportional to the evidence. Sparse evidence may be one short cohesive paragraph, with no minimum word, sentence, or paragraph count. Develop richer evidence into substantive paragraphs: make setting, participants, and the beginning clear; connect supplied interventions, activities, transitions, and community work in order; describe supplied behaviors, responses, reinforcement, and the session ending in context. Use these groups only where the facts exist and chronology allows; never require a fixed paragraph count. Expand shorthand into complete professional sentences and meaningfully connect related events instead of compressing a rich session into a few short sentences or converting each bullet mechanically. Do not repeat facts or add generic sentences to fill space.
+    A supplied “client responded well” may remain that response; it does not establish engagement, participation throughout the session, independent performance, improvement, or successful transitions. Do not invent prompting, reinforcement, redirection, caregiver involvement beyond presence, treatment-plan compliance, or future plans. Include these only when explicitly supplied, with their original qualifications and attribution. End when the supplied facts have been expressed; no mandatory summary or future-treatment-plan close.
+    Return the session BODY only, without a closing sentence or writer credential. LifeRoute adds its authorized standard closing separately after body acceptance. Finish every body sentence within the response budget; do not sacrifice the ending to lengthen the prose. Return editable narrative paragraphs only, without headings, lists, markdown, template language, disclaimers, or commentary.
+    """
+}
+
+enum SessionNoteBoundaryError: LocalizedError, Equatable {
+    case typedFactsOverLimit(Int)
+    case measurementSectionOverLimit(Int)
+    case quantitativeSectionOverLimit(Int)
+    case attachmentLimit
+    case outputCharacterLimit
+    case unfinishedOutput
+    case writerRoleRequired
+
+    var statusTitle: String {
+        switch self {
+        case .outputCharacterLimit, .unfinishedOutput: return "Incomplete output rejected"
+        case .writerRoleRequired: return "Writer role required"
+        default: return "Evidence exceeds the note limit"
+        }
+    }
+
+    var diagnosticCode: String {
+        switch self {
+        case .typedFactsOverLimit: return "typedFactsOverLimit"
+        case .measurementSectionOverLimit: return "measurementSectionOverLimit"
+        case .quantitativeSectionOverLimit: return "quantitativeSectionOverLimit"
+        case .attachmentLimit: return "attachmentLimit"
+        case .outputCharacterLimit: return "outputCharacterLimit"
+        case .unfinishedOutput: return "unfinishedOutput"
+        case .writerRoleRequired: return "writerRoleRequired"
+        }
+    }
+
+    var errorDescription: String? {
+        let detail: String
+        switch self {
+        case .typedFactsOverLimit(let count):
+            detail = "Session facts contain \(count) characters; this note request supports up to 5200. Shorten the request yourself before generating."
+        case .measurementSectionOverLimit(let limit):
+            detail = "The complete measurements cannot fit this generation step's \(limit)-character evidence section. No shortened measurement records were used. Reduce the evidence in this request before trying again."
+        case .quantitativeSectionOverLimit(let limit):
+            detail = "The complete supporting quantitative evidence cannot fit this generation step's \(limit)-character section. No shortened evidence was used."
+        case .attachmentLimit:
+            detail = "A note request supports up to six screenshots. Choose no more than six before trying again."
+        case .outputCharacterLimit:
+            detail = "The model response reached the note's output size limit. LifeRoute cannot verify that it finished, so this attempt was rejected."
+        case .unfinishedOutput:
+            detail = "The model response ended without final sentence punctuation and may contain an unfinished clause. This attempt was rejected; adding punctuation would not establish completeness."
+        case .writerRoleRequired:
+            detail = "Your saved profile credential must explicitly identify RBT, BHT, BT, or ABA Therapist before a note can be generated. Check Profile & Work in Setup. A credential ID alone does not establish the writer role."
+        }
+        return detail + " Your complete facts and previous draft were preserved."
+    }
+}
+
+enum SessionNoteWriterRole: String, CaseIterable {
+    case rbt = "RBT"
+    case bht = "BHT"
+    case bt = "BT"
+    case abaTherapist = "ABA Therapist"
+
+    // Existing Setup > Profile & Work storage. The optional credential ID is not
+    // itself a role; only an explicit, unambiguous label can establish one.
+    static let profileCredentialKey = "liferoute.rbtProfile.credential"
+
+    static func resolve(profileCredential: String) throws -> Self {
+        let label = profileCredential.split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ").lowercased()
+        switch label {
+        case "rbt", "registered behavior technician": return .rbt
+        case "bht", "behavioral health technician": return .bht
+        case "bt", "behavior technician": return .bt
+        case "aba therapist", "applied behavior analysis therapist": return .abaTherapist
+        default: throw SessionNoteBoundaryError.writerRoleRequired
+        }
+    }
+}
+
+enum SessionNoteStandardClosing {
+    private static let action = "will continue to maintain pairing and rapport with the client, implement skill acquisition and behavior reduction protocols as written, and consult the supervising clinician regarding any questions, concerns, or barriers to progress."
+
+    static func sentence(for role: SessionNoteWriterRole) -> String {
+        "\(role.rawValue) \(action)"
+    }
+
+    static func isPresent(in body: String) -> Bool {
+        // Keep this blocker through the existing clinician-to-role normalization.
+        // Matching the full sentence would lose it when that formatter edits its tail.
+        body.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            .localizedCaseInsensitiveContains("will continue to maintain pairing and rapport with the client")
+    }
+}
+
+enum SessionNoteInputBounds {
+    static func validateTypedFacts(characterCount: Int) throws {
+        if characterCount > 5_200 { throw SessionNoteBoundaryError.typedFactsOverLimit(characterCount) }
+    }
+}
+
+enum SessionNoteOutputCompleteness: Equatable {
+    // The adapter supplies no completion-limit/finish-reason signal. Safety/format checks
+    // cannot establish semantic coverage, even when the response ends with a period.
+    case reviewRequired
+
+    var message: String {
+        "This draft may be incomplete. Compare every supplied fact and measurement with the draft before use; the model may omit details or stop at its response limit."
+    }
+}
+
+enum SessionNoteOutputBoundary {
+    static func validate(_ raw: String) throws {
+        if raw.count >= 8_000 { throw SessionNoteBoundaryError.outputCharacterLimit }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Empty responses retain the existing single repair/fallback path.
+        if let last = trimmed.last, !".!?".contains(last) {
+            throw SessionNoteBoundaryError.unfinishedOutput
+        }
+    }
+}
+
+struct SessionNoteRecognizedScreenshot: Equatable {
+    let text: String
+    let exceededTextLimit: Bool
+
+    static func bounded(_ raw: String) -> SessionNoteRecognizedScreenshot {
+        // Never extract measurements from an arbitrarily shortened OCR prefix.
+        let exceeded = raw.count > 12_000
+        return SessionNoteRecognizedScreenshot(text: exceeded ? "" : raw, exceededTextLimit: exceeded)
+    }
+}
+
+struct SessionNoteExtractionSummary: Equatable {
+    let attachmentCount: Int
+    let measurementCount: Int
+    let attachmentsWithoutReadableMeasurements: Int
+    let attachmentsExceedingTextLimit: Int
+
+    static func make(
+        screenshots: [SessionNoteRecognizedScreenshot],
+        measurements: [SessionNoteMeasurementEvidence]
+    ) -> SessionNoteExtractionSummary {
+        SessionNoteExtractionSummary(
+            attachmentCount: screenshots.count,
+            measurementCount: measurements.count,
+            // Count per image before cross-image deduplication: a duplicate readable image
+            // must not be described as unreadable just because its values were already seen.
+            attachmentsWithoutReadableMeasurements: screenshots.filter {
+                SessionNoteOCRMeasurementExtractor.extract(from: [$0.text]).isEmpty
+            }.count,
+            attachmentsExceedingTextLimit: screenshots.filter(\.exceededTextLimit).count
+        )
+    }
+
+    var message: String {
+        guard attachmentCount > 0 else { return "No screenshots were included in this attempt." }
+        let status = measurementCount == 0 ? "No readable measurements extracted." :
+            (attachmentsWithoutReadableMeasurements > 0 ? "Mixed extraction." : "Measurements extracted; image review required.")
+        let limit = attachmentsExceedingTextLimit == 0 ? "" :
+            " \(attachmentsExceedingTextLimit) attachment(s) exceeded the text-reading limit and contributed no measurements."
+        return "\(status) \(measurementCount) distinct measurement(s) read from \(attachmentCount) attachment(s); \(attachmentsWithoutReadableMeasurements) attachment(s) yielded no readable measurements.\(limit) Check every image for missed values. This does not mean an image contained no measurements."
+    }
+}
+
 enum SessionNoteRequestCompaction: Equatable {
     case standard
     case compactRetry
@@ -228,6 +401,7 @@ struct SessionNoteSupervisorClaim: Hashable {
 }
 
 struct SessionNoteEvidencePacket {
+    let originalTypedCharacterCount: Int
     let typedFacts: String
     let quantitativeOCR: String
     let structuredMeasurements: [SessionNoteMeasurementEvidence]
@@ -280,6 +454,7 @@ struct SessionNoteEvidencePacket {
         ].joined(separator: "\n")
 
         return SessionNoteEvidencePacket(
+            originalTypedCharacterCount: typedFacts.count,
             typedFacts: normalizedFacts,
             quantitativeOCR: normalizedOCR,
             structuredMeasurements: normalizedMeasurements,
@@ -296,21 +471,32 @@ struct SessionNoteEvidencePacket {
         )
     }
 
-    func modelPrompt(compaction: SessionNoteRequestCompaction) -> String {
-        let ocrLimit = compaction == .standard ? 1_600 : 900
+    func validateBounds(compaction: SessionNoteRequestCompaction) throws {
+        try SessionNoteInputBounds.validateTypedFacts(characterCount: max(originalTypedCharacterCount, typedFacts.count))
+        let limit = compaction == .standard ? 1_600 : 900
+        if structuredMeasurements.map(\.promptLine).joined(separator: "\n").count > limit {
+            throw SessionNoteBoundaryError.measurementSectionOverLimit(limit)
+        }
+        if quantitativeOCR.count > limit {
+            throw SessionNoteBoundaryError.quantitativeSectionOverLimit(limit)
+        }
+    }
+
+    func modelPrompt(compaction: SessionNoteRequestCompaction) throws -> String {
+        try validateBounds(compaction: compaction)
         let context = compaction == .standard ? savedTerminologyContext : ""
         let measurementLines = structuredMeasurements
             .map(\.promptLine)
             .joined(separator: "\n")
         return """
         RAW FACTUAL SOURCE MATERIAL — reconstruct into professional ABA prose; do not preserve its wording or sentence structure:
-        \(typedFacts.isEmpty ? "none" : String(typedFacts.prefix(5_200)))
+        \(typedFacts.isEmpty ? "none" : typedFacts)
 
         CLEAR CURRENT-SESSION MEASUREMENTS — integrate every entry and keep each target, type, value, unit, and prompt level associated exactly:
-        \(measurementLines.isEmpty ? "none" : String(measurementLines.prefix(ocrLimit)))
+        \(measurementLines.isEmpty ? "none" : measurementLines)
 
         OTHER CLEAR QUANTITATIVE OCR — supporting evidence only; never use administrative screenshot content:
-        \(quantitativeOCR.isEmpty ? "none" : String(quantitativeOCR.prefix(ocrLimit)))
+        \(quantitativeOCR.isEmpty ? "none" : quantitativeOCR)
 
         NEUTRAL TERMINOLOGY CONTEXT — never evidence that an event occurred:
         \(context.isEmpty ? "none" : String(context.prefix(280)))
@@ -319,8 +505,8 @@ struct SessionNoteEvidencePacket {
         - Do not copy conversational transitions or preserve the source clause structure.
         - Rebuild each event with its supplied actor in objective ABA documentation language. Express generic work only as instructional activities or a work period; do not invent its content.
         - Preserve the supplied event order instead of regrouping events by target. Connect the opening, transitions, later activities, behavior/intervention/outcome sequence, reinforcement, and collaboration chronologically when supplied.
-        - Produce 2–4 cohesive narrative paragraphs. Integrate each measurement in the sentence about its matching target or behavior; never append a detached data list.
-        - Close once with supported client participation and continued implementation of the established treatment plan.
+        - Use the shared evidence-proportional style guidance; a concise single paragraph is acceptable. Integrate each measurement in the sentence about its matching target or behavior; never append a detached data list.
+        - End after the supplied facts. Do not append generic participation, session-continuation, or future-plan sentences.
         """
     }
 }
@@ -329,6 +515,10 @@ enum SessionNotePipelineStage: Equatable {
     case standardDraft
     case compactDraft
     case repair([String])
+
+    var compaction: SessionNoteRequestCompaction {
+        self == .standardDraft ? .standard : .compactRetry
+    }
 }
 
 enum SessionNoteFailureCategory: String, Equatable {
@@ -365,8 +555,8 @@ enum SessionNoteFinalOutcome: String, Equatable {
 
     var userFacingStatusTitle: String {
         switch self {
-        case .generated: return "Draft ready"
-        case .repaired: return "Draft ready after review"
+        case .generated: return "Draft requires review"
+        case .repaired: return "Repaired draft requires review"
         case .fallback: return "Professional rewrite could not be completed"
         case .rejected: return "Generation failed"
         }
@@ -501,17 +691,23 @@ struct SessionNoteGenerationResult: Equatable {
     let outcome: SessionNoteFinalOutcome
     let issueCodes: [String]
     let diagnostics: SessionNoteDiagnosticReceipt
+    let extractionSummary: SessionNoteExtractionSummary?
+    let completeness: SessionNoteOutputCompleteness
 
     init(
         draft: String,
         outcome: SessionNoteFinalOutcome,
         issueCodes: [String],
-        diagnostics: SessionNoteDiagnosticReceipt = SessionNoteDiagnosticReceipt(events: [])
+        diagnostics: SessionNoteDiagnosticReceipt = SessionNoteDiagnosticReceipt(events: []),
+        extractionSummary: SessionNoteExtractionSummary? = nil,
+        completeness: SessionNoteOutputCompleteness = .reviewRequired
     ) {
         self.draft = draft
         self.outcome = outcome
         self.issueCodes = issueCodes
         self.diagnostics = diagnostics
+        self.extractionSummary = extractionSummary
+        self.completeness = completeness
     }
 }
 
@@ -535,6 +731,29 @@ enum SessionNotePipelineError: LocalizedError, Equatable {
 }
 
 enum SessionNoteGenerationPipeline {
+    // Product entry point. The existing pipeline accepts BODY evidence first,
+    // including raw-output boundaries, deterministic repair, one model repair,
+    // and safe fallback/rejection. Nothing appends to the current editable draft.
+    static func generateNote(
+        packet: SessionNoteEvidencePacket,
+        writerRole: SessionNoteWriterRole,
+        request: @escaping (SessionNotePipelineStage) async throws -> String,
+        progress: @escaping (SessionNotePipelineEvent) async -> Void = { _ in },
+        diagnostic: @escaping (SessionNotePipelineDiagnosticEvent) -> Void = { _ in }
+    ) async throws -> SessionNoteGenerationResult {
+        let body = try await generate(
+            packet: packet, request: request, progress: progress, diagnostic: diagnostic
+        )
+        try Task.checkCancellation()
+        try SessionNoteOutputBoundary.validate(body.draft)
+        return SessionNoteGenerationResult(
+            draft: body.draft + "\n\n" + SessionNoteStandardClosing.sentence(for: writerRole),
+            outcome: body.outcome, issueCodes: body.issueCodes,
+            diagnostics: body.diagnostics, extractionSummary: body.extractionSummary,
+            completeness: body.completeness
+        )
+    }
+
     static func run(
         packet: SessionNoteEvidencePacket,
         request: @escaping (SessionNotePipelineStage) async throws -> String,
@@ -561,12 +780,22 @@ enum SessionNoteGenerationPipeline {
             diagnostic(event)
         }
 
+        // Enforce bounds even for injected model adapters; no stage receives a prefix.
+        func boundedRequest(_ stage: SessionNotePipelineStage) async throws -> String {
+            try Task.checkCancellation()
+            try packet.validateBounds(compaction: stage.compaction)
+            let raw = try await request(stage)
+            try Task.checkCancellation()
+            try SessionNoteOutputBoundary.validate(raw)
+            return raw
+        }
+
         let firstRawDraft: String
         do {
-            firstRawDraft = try await request(.standardDraft)
+            firstRawDraft = try await boundedRequest(.standardDraft)
         } catch SessionNotePipelineError.contextTooLarge {
             await progress(.compacting)
-            firstRawDraft = try await request(.compactDraft)
+            firstRawDraft = try await boundedRequest(.compactDraft)
         }
 
         let firstSanitization = SessionNoteOutputSanitizer.sanitizeWithReport(
@@ -604,7 +833,7 @@ enum SessionNoteGenerationPipeline {
 
         record(.repairAttempted(normalizedValidation.boundedModelRepairIssues.map(\.code).sorted()))
         await progress(.repairing)
-        let repairedRawDraft = try await request(.repair(normalizedValidation.boundedModelRepairInstructions))
+        let repairedRawDraft = try await boundedRequest(.repair(normalizedValidation.boundedModelRepairInstructions))
         let repairedSanitization = SessionNoteOutputSanitizer.sanitizeWithReport(
             repairedRawDraft,
             scrubber: packet.scrubber
@@ -1041,7 +1270,7 @@ struct SessionNoteIdentifierScrubber {
 enum SessionNoteEvidenceNormalizer {
     static func typedFacts(_ value: String) -> String {
         let normalized = normalizeLines(value, removeAmbiguousOCR: false)
-        return String(ABATerminologyNormalizer.normalize(normalized).prefix(5_200))
+        return ABATerminologyNormalizer.normalize(normalized)
     }
 
     static func quantitativeOCR(_ value: String) -> String {
@@ -1054,7 +1283,7 @@ enum SessionNoteEvidenceNormalizer {
             .filter { line in
                 line.contains(where: \.isNumber) && !isStructuralOCRHeading(line)
             }
-        return String(lines.joined(separator: "\n").prefix(1_600))
+        return lines.joined(separator: "\n")
     }
 
     private static func retainingLegacySplitLineAssociations(in value: String) -> String {
@@ -1142,8 +1371,9 @@ enum SessionNoteEvidenceNormalizer {
         let lower = value.lowercased()
         let levels = ["independent", "gestural", "verbal", "visual", "model", "partial physical", "full physical"]
         return Set(levels.filter { level in
-            lower.range(
-                of: "(?<![A-Za-z])\(NSRegularExpression.escapedPattern(for: level))(?![A-Za-z])",
+            let pattern = level == "independent" ? "independent(?:ly)?" : NSRegularExpression.escapedPattern(for: level)
+            return lower.range(
+                of: "(?<![A-Za-z])\(pattern)(?![A-Za-z])",
                 options: .regularExpression
             ) != nil
         })
@@ -1534,9 +1764,16 @@ enum SessionNoteDeterministicRepairer {
             if validation.issueCodes.contains("SN-FORMAT-007") { repairs.append("SN-FORMAT-007") }
         }
 
-        let beforeClose = repaired
-        repaired = normalizeContinuationClose(in: repaired)
-        if repaired != beforeClose { repairs.append("SN-FORMAT-005") }
+        // Remove only this demonstrated standalone padding sentence. Mixed clinical
+        // claims require the existing bounded model repair, never whole-sentence deletion.
+        if validation.issueCodes.contains("SN-QUALITY-006") {
+            repaired = repaired.components(separatedBy: "\n\n").map { paragraph in
+                SessionNoteOutputSanitizer.splitSentences(paragraph)
+                    .filter { $0.lowercased() != "the rbt continued the session." }
+                    .joined(separator: " ")
+            }.filter { !$0.isEmpty }.joined(separator: "\n\n")
+            repairs.append("SN-QUALITY-006")
+        }
 
         let beforePunctuation = repaired
         repaired = repaired
@@ -1551,30 +1788,7 @@ enum SessionNoteDeterministicRepairer {
         )
     }
 
-    private static func normalizeContinuationClose(in value: String) -> String {
-        var paragraphs = value
-            .components(separatedBy: "\n\n")
-            .map { paragraph in
-                SessionNoteOutputSanitizer.splitSentences(paragraph)
-                    .filter { !isContinuationClose($0) }
-                    .joined(separator: " ")
-            }
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
 
-        guard !paragraphs.isEmpty else { return "" }
-        paragraphs[paragraphs.count - 1] = SessionNoteOutputSanitizer.ensureTerminalPunctuation(
-            paragraphs.last ?? ""
-        ) + " " + SessionNoteOutputSanitizer.continuationSentence
-        return paragraphs.joined(separator: "\n\n")
-    }
-
-    private static func isContinuationClose(_ sentence: String) -> Bool {
-        let lower = sentence.lowercased()
-        return lower.contains("continu") && (
-            lower.contains("treatment plan") || lower.contains("future session")
-        )
-    }
 }
 
 enum SessionNoteConservativeFallback {
@@ -1637,6 +1851,14 @@ enum SessionNoteOutputValidator {
             issues.append(issue(
                 "SN-EVIDENCE-000", .hardBlocker, .evidenceVerification, .boundedModel,
                 "Return a nonempty note grounded only in the supplied session evidence."
+            ))
+        }
+        // Product boilerplate is never model evidence, even if pasted into facts.
+        // It can enter a presented note only after this body validator accepts.
+        if SessionNoteStandardClosing.isPresent(in: cleaned) {
+            issues.append(issue(
+                "SN-CLINICAL-014", .hardBlocker, .clinicalClaimVerification, .boundedModel,
+                "Return only the complete session body. Remove the standard closing; LifeRoute adds it after body acceptance."
             ))
         }
         if evidence.scrubber.survivingIdentifier(in: cleaned) != nil {
@@ -1709,12 +1931,6 @@ enum SessionNoteOutputValidator {
                 "Use a supplied ABA role instead of a generic clinician label when the role is established."
             ))
         }
-        if !lower.contains("continue implementing the established treatment plan during future sessions") {
-            issues.append(issue(
-                "SN-FORMAT-005", .repairable, .formatNormalization, .deterministic,
-                "Append the approved treatment-plan continuation sentence."
-            ))
-        }
 
         let paragraphs = cleaned.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         if paragraphs.count > 4 {
@@ -1737,14 +1953,6 @@ enum SessionNoteOutputValidator {
                 "Add final punctuation."
             ))
         }
-        let sentences = SessionNoteOutputSanitizer.splitSentences(cleaned)
-        if sentences.count < 2 || !lower.contains("client") {
-            issues.append(issue(
-                "SN-QUALITY-002", .warning, .quality, .userEditable,
-                "Prefer a supplied client participation or observable-response summary."
-            ))
-        }
-
         let outputClaims = SessionNoteEvidenceNormalizer.numericClaims(in: cleaned)
         for claim in outputClaims {
             let candidates = evidence.numericClaims.filter { $0.value == claim.value }
@@ -1817,6 +2025,13 @@ enum SessionNoteOutputValidator {
             issues.append(issue(
                 "SN-FORMAT-009", .repairable, .formatNormalization, .deterministic,
                 "Remove obvious template or model scaffolding."
+            ))
+        }
+        if lower.contains("the rbt continued the session."),
+           evidence.typedFacts.range(of: #"(?i)\b(?:the )?RBT continued (?:the )?session\b"#, options: .regularExpression) == nil {
+            issues.append(issue(
+                "SN-QUALITY-006", .repairable, .quality, .deterministic,
+                "Remove the standalone generic session-continuation padding sentence."
             ))
         }
         if hasRepetitiveOpenings(cleaned) {
@@ -1960,13 +2175,33 @@ enum SessionNoteOutputValidator {
             ("SN-CLINICAL-006", #"(?i)\brecommend(?:ed|ation|ations)?\b"#, "Remove recommendations that were not supplied."),
             ("SN-CLINICAL-007", #"(?i)\b(reinforcement (?:was|proved) effective|responded (?:well|positively) to (?:the )?reinforcement)\b"#, "Remove unsupported conclusions about reinforcement effectiveness."),
         ]
-        return patterns.compactMap { code, pattern, instruction in
+        var result = patterns.compactMap { code, pattern, instruction in
             let outputContains = value.range(of: pattern, options: .regularExpression) != nil
             let evidenceContains = supplied.range(of: pattern, options: .regularExpression) != nil
             return outputContains && !evidenceContains
                 ? issue(code, .hardBlocker, .clinicalClaimVerification, .boundedModel, instruction)
                 : nil
         }
+        // Narrow additions to the existing evidence-presence checks. These are not
+        // a semantic completeness certificate; qualified facts still require review.
+        let additions: [(String, String, String)] = [
+            ("SN-CLINICAL-009", #"(?i)\b(?:was|remained|stayed)\s+(?:actively\s+|well\s+)?engaged\b|\b(?:sustained|demonstrated)\s+engagement\b"#, "engagement or participation"),
+            ("SN-CLINICAL-009", #"(?i)\bparticipat(?:ed|es|ing|ion)\b"#, "engagement or participation"),
+            ("SN-CLINICAL-010", #"(?i)\b(?:will|plans? to|intends? to)\b[^.!?\n]*(?:treatment plan|future sessions?|next session)|\b(?:continu(?:e|ed|ing)|implement(?:ed|ing)|follow(?:ed|ing)|adher(?:ed|ence)|complian(?:t|ce))\b[^.!?\n]*\btreatment plan\b"#, "treatment-plan compliance or future plans"),
+            ("SN-CLINICAL-011", #"(?i)\b(?:reinforcement|reinforced|reinforcing|earned)\b"#, "reinforcement or praise"),
+            ("SN-CLINICAL-011", #"(?i)\b(?:praise|praised|praising)\b"#, "reinforcement or praise"),
+            ("SN-CLINICAL-012", #"(?i)\b(?:because|due to|resulted in|led to|in order to)\b"#, "purpose or causal relationships"),
+            ("SN-CLINICAL-013", #"(?i)\b(?:engaged|engagement|participat(?:ed|es|ing|ion))\b[^.!?\n]*\bthroughout (?:the )?session\b"#, "sustained engagement, sustained participation, or successful transitions"),
+            ("SN-CLINICAL-013", #"(?i)\b(?:successful transitions?|transitioned successfully)\b"#, "sustained engagement, sustained participation, or successful transitions"),
+        ]
+        for (code, pattern, claim) in additions {
+            if value.range(of: pattern, options: .regularExpression) != nil,
+               supplied.range(of: pattern, options: .regularExpression) == nil {
+                result.append(issue(code, .hardBlocker, .clinicalClaimVerification, .boundedModel,
+                    "Remove unsupported \(claim); preserve all supplied facts, qualifications, and attribution. A positive response alone does not support this claim."))
+            }
+        }
+        return result
     }
 
     private static func hasRepetitiveOpenings(_ value: String) -> Bool {

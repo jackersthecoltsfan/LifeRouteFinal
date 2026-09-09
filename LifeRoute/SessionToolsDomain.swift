@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import AVFoundation
+import UIKit
 
 enum LifeRouteAudioSessionOwnership {
     // Both the timer engine and SwiftUI theme-change hook access this on the
@@ -72,29 +73,71 @@ private final class VisualTimerToneEngine {
     private static let pulseDuration = 0.085
 
     private let engine = AVAudioEngine()
-    private let player = AVAudioPlayerNode()
-    private let format = AVAudioFormat(
+    // Pulse cancellation must not cut the independent completion cue.
+    private let pulsePlayer = AVAudioPlayerNode()
+    private let completionPlayer = AVAudioPlayerNode()
+    private let pulseFormat = AVAudioFormat(
         standardFormatWithSampleRate: VisualTimerToneEngine.sampleRate,
         channels: 1
+    )!
+    private let completionFormat = AVAudioFormat(
+        standardFormatWithSampleRate: Double(VisualTimerCompletionCue.sampleRate),
+        channels: AVAudioChannelCount(VisualTimerCompletionCue.channelCount)
     )!
     private var isPrepared = false
     private var isSessionActive = false
     private var completionStopTask: Task<Void, Never>?
+    private var scheduledPulseIDs: Set<UInt64> = []
 
-    func playPulse(frequency: Double, profile: VisualTimerToneProfile, gain: Float) {
+    /// ProcessInfo.systemUptime and AVAudioTime host time are both monotonic
+    /// seconds since boot. Converting the planned uptime directly keeps the
+    /// audio timeline aligned with the scheduler's presentation timeline.
+    func schedulePulse(
+        id: UInt64,
+        plannedUptime: TimeInterval,
+        frequency: Double,
+        profile: VisualTimerToneProfile,
+        gain: Float
+    ) {
         guard prepareIfNeeded(),
               let buffer = pulseBuffer(frequency: frequency, profile: profile) else { return }
-        player.volume = max(0, min(1, gain))
-        player.scheduleBuffer(buffer, at: nil, options: [])
-        if !player.isPlaying { player.play() }
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-LifeRouteVisualTimerDiagnostics") {
+            print("PHASE1AJ3_AUDIO scheduled id=\(id) plannedUptime=\(plannedUptime) intervalFromNow=\(plannedUptime - ProcessInfo.processInfo.systemUptime) frequency=\(frequency) gain=\(gain)")
+        }
+#endif
+        pulsePlayer.volume = max(0, min(1, gain))
+        let audioTime = AVAudioTime(hostTime: AVAudioTime.hostTime(forSeconds: plannedUptime))
+        scheduledPulseIDs.insert(id)
+        pulsePlayer.scheduleBuffer(
+            buffer,
+            at: audioTime,
+            options: [],
+            completionCallbackType: .dataPlayedBack
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.scheduledPulseIDs.remove(id)
+            }
+        }
+        if !pulsePlayer.isPlaying { pulsePlayer.play() }
     }
 
-    func playCompletion(profile: VisualTimerToneProfile, gain: Float) {
+    /// AVAudioPlayerNode.stop() removes pending buffers from this dedicated
+    /// pulse player. It cannot retract samples the hardware has already read.
+    @discardableResult
+    func cancelScheduledPulses() -> Int {
+        let canceledCount = scheduledPulseIDs.count
+        scheduledPulseIDs.removeAll()
+        pulsePlayer.stop()
+        return canceledCount
+    }
+
+    func playCompletion(gain: Float) {
         guard prepareIfNeeded(),
-              let buffer = completionBuffer(profile: profile) else { return }
-        player.volume = max(0, min(1, gain))
-        player.scheduleBuffer(buffer, at: nil, options: [])
-        if !player.isPlaying { player.play() }
+              let buffer = completionBuffer() else { return }
+        completionPlayer.volume = max(0, min(1, gain))
+        completionPlayer.scheduleBuffer(buffer, at: nil, options: [])
+        if !completionPlayer.isPlaying { completionPlayer.play() }
 
         completionStopTask?.cancel()
         completionStopTask = Task { [weak self] in
@@ -115,7 +158,9 @@ private final class VisualTimerToneEngine {
     func stop() {
         completionStopTask?.cancel()
         completionStopTask = nil
-        player.stop()
+        scheduledPulseIDs.removeAll()
+        pulsePlayer.stop()
+        completionPlayer.stop()
         engine.stop()
         if isSessionActive {
             try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
@@ -137,15 +182,20 @@ private final class VisualTimerToneEngine {
             }
 
             if !isPrepared {
-                engine.attach(player)
-                engine.connect(player, to: engine.mainMixerNode, format: format)
-                player.volume = 1
+                engine.attach(pulsePlayer)
+                engine.attach(completionPlayer)
+                engine.connect(pulsePlayer, to: engine.mainMixerNode, format: pulseFormat)
+                engine.connect(completionPlayer, to: engine.mainMixerNode, format: completionFormat)
+                pulsePlayer.volume = 1
+                completionPlayer.volume = 1
                 isPrepared = true
             }
             if !engine.isRunning { try engine.start() }
             return engine.isRunning
         } catch {
-            player.stop()
+            scheduledPulseIDs.removeAll()
+            pulsePlayer.stop()
+            completionPlayer.stop()
             engine.stop()
             if isSessionActive {
                 try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
@@ -161,7 +211,7 @@ private final class VisualTimerToneEngine {
         profile: VisualTimerToneProfile
     ) -> AVAudioPCMBuffer? {
         let frameCount = AVAudioFrameCount(Self.sampleRate * Self.pulseDuration)
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: pulseFormat, frameCapacity: frameCount),
               let samples = buffer.floatChannelData?[0] else { return nil }
         buffer.frameLength = frameCount
 
@@ -187,25 +237,55 @@ private final class VisualTimerToneEngine {
         return buffer
     }
 
-    private func completionBuffer(profile: VisualTimerToneProfile) -> AVAudioPCMBuffer? {
-        let generatedSamples = VisualTimerCompletionCue.samples(
-            for: profile,
-            sampleRate: Self.sampleRate
-        )
-        guard !generatedSamples.isEmpty,
-              generatedSamples.count <= Int(AVAudioFrameCount.max) else {
+    private func completionBuffer() -> AVAudioPCMBuffer? {
+        guard let data = NSDataAsset(name: VisualTimerCompletionCue.resourceName)?.data else {
+            return nil
+        }
+        let bytes = [UInt8](data)
+        let expectedLength = 44 + VisualTimerCompletionCue.pcmByteCount
+        guard bytes.count == expectedLength,
+              bytes[0..<4].elementsEqual([0x52, 0x49, 0x46, 0x46]), // RIFF
+              bytes[8..<12].elementsEqual([0x57, 0x41, 0x56, 0x45]), // WAVE
+              bytes[12..<16].elementsEqual([0x66, 0x6D, 0x74, 0x20]), // fmt chunk
+              bytes[36..<40].elementsEqual([0x64, 0x61, 0x74, 0x61]), // data
+              unsigned16(in: bytes, at: 20) == 1,
+              unsigned16(in: bytes, at: 22) == VisualTimerCompletionCue.channelCount,
+              unsigned32(in: bytes, at: 24) == VisualTimerCompletionCue.sampleRate,
+              unsigned16(in: bytes, at: 34) == VisualTimerCompletionCue.bitDepth,
+              Int(unsigned32(in: bytes, at: 40)) == VisualTimerCompletionCue.pcmByteCount else {
             return nil
         }
 
-        let frameCount = AVAudioFrameCount(generatedSamples.count)
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
-              let samples = buffer.floatChannelData?[0] else { return nil }
+        let frameCount = AVAudioFrameCount(VisualTimerCompletionCue.frameCount)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: completionFormat, frameCapacity: frameCount),
+              let channels = buffer.floatChannelData else { return nil }
         buffer.frameLength = frameCount
 
-        for (frame, sample) in generatedSamples.enumerated() {
-            samples[frame] = sample
+        for frame in 0..<VisualTimerCompletionCue.frameCount {
+            let offset = 44 + (frame * 6)
+            channels[0][frame] = normalized24BitSample(in: bytes, at: offset)
+            channels[1][frame] = normalized24BitSample(in: bytes, at: offset + 3)
         }
         return buffer
+    }
+
+    private func unsigned16(in bytes: [UInt8], at offset: Int) -> Int {
+        Int(bytes[offset]) | (Int(bytes[offset + 1]) << 8)
+    }
+
+    private func unsigned32(in bytes: [UInt8], at offset: Int) -> Int {
+        Int(bytes[offset])
+            | (Int(bytes[offset + 1]) << 8)
+            | (Int(bytes[offset + 2]) << 16)
+            | (Int(bytes[offset + 3]) << 24)
+    }
+
+    private func normalized24BitSample(in bytes: [UInt8], at offset: Int) -> Float {
+        let unsigned = Int32(bytes[offset])
+            | (Int32(bytes[offset + 1]) << 8)
+            | (Int32(bytes[offset + 2]) << 16)
+        let signed = unsigned >= 0x80_0000 ? unsigned - 0x1_000000 : unsigned
+        return Float(signed) / 8_388_608
     }
 }
 
@@ -220,17 +300,39 @@ final class VisualTimerCore: ObservableObject {
         static let completionHaptics = "liferoute.visualTimer.completionHaptics.v1"
     }
 
-    @Published private(set) var durationSeconds: TimeInterval = 5 * 60
+    @Published private(set) var durationSeconds: TimeInterval = VisualTimerDuration.initialSeconds
     @Published private(set) var deadline: Date?
-    @Published private(set) var pausedRemainingSeconds: TimeInterval = 5 * 60
+    @Published private(set) var pausedRemainingSeconds: TimeInterval = VisualTimerDuration.initialSeconds
     @Published private(set) var toneProfile: VisualTimerToneProfile
     @Published private(set) var soundEnabled: Bool
     @Published private(set) var volume: Double
     @Published private(set) var completionHapticsEnabled: Bool
 
+    let presentationBeatPublisher = PassthroughSubject<VisualTimerPresentationBeat, Never>()
+    let presentationGenerationPublisher = PassthroughSubject<UInt64, Never>()
+    let completionCuePublisher = PassthroughSubject<VisualTimerCompletionCueEvent, Never>()
+    let completionGenerationPublisher = PassthroughSubject<UInt64, Never>()
+
     private let toneEngine = VisualTimerToneEngine()
     private let preferenceStore: UserDefaults
     private var feedbackTask: Task<Void, Never>?
+    private var feedbackScheduler = VisualTimerFeedbackScheduler()
+    // Captured only by Start/reset. +/-15 and Add 1 minute continue to alter
+    // authoritative remaining time without stretching the crescendo curve.
+    private var feedbackReferenceDurationSeconds: TimeInterval = VisualTimerDuration.initialSeconds
+    // Completion generations advance only across terminal -> positive.
+    // Beat-scheduler generations may change independently on pause/rebuild.
+    private(set) var completionCueSessionID: UInt64 = 1
+    enum CompletionDisposition { case armed, emitted, silent }
+    private(set) var completionDisposition: CompletionDisposition = .armed
+    private var completionTerminalDate: Date?
+    static let completionStalenessBound: TimeInterval = 30
+
+    private enum FeedbackStartMode {
+        case begin
+        case resume
+        case preservePhase
+    }
 
     init(preferenceStore: UserDefaults = .standard) {
         self.preferenceStore = preferenceStore
@@ -271,18 +373,20 @@ final class VisualTimerCore: ObservableObject {
     var isRunning: Bool { deadline != nil }
 
     func start(minutes: Int, now: Date = Date()) {
-        let seconds = TimeInterval(max(1, min(180, minutes)) * 60)
+        let seconds = VisualTimerDuration.clamp(TimeInterval(max(1, minutes)) * 60)
+        prepareRemainingTransition(to: seconds, now: now)
         durationSeconds = seconds
+        feedbackReferenceDurationSeconds = seconds
         pausedRemainingSeconds = seconds
         deadline = now.addingTimeInterval(seconds)
-        startFeedbackLoop()
+        startFeedbackLoop(.begin)
     }
 
     func remainingSeconds(at now: Date = Date()) -> TimeInterval {
         if let deadline {
-            return max(0, deadline.timeIntervalSince(now))
+            return VisualTimerDuration.clamp(deadline.timeIntervalSince(now))
         }
-        return max(0, pausedRemainingSeconds)
+        return VisualTimerDuration.clamp(pausedRemainingSeconds)
     }
 
     func progress(at now: Date = Date()) -> Double {
@@ -294,25 +398,33 @@ final class VisualTimerCore: ObservableObject {
         remainingSeconds(at: now) <= 0
     }
 
+    func isCurrentCompletionCue(_ event: VisualTimerCompletionCueEvent) -> Bool {
+        completionCueSessionID == event.sessionID
+            && completionDisposition == .emitted
+            && deadline == nil
+            && pausedRemainingSeconds <= 0
+    }
+
     func pause(now: Date = Date()) {
+        if remainingSeconds(at: now) <= 0 {
+            processCompletion(at: now, generation: completionCueSessionID)
+            return
+        }
         pausedRemainingSeconds = remainingSeconds(at: now)
         deadline = nil
-        stopFeedbackLoop()
+        stopFeedbackLoop(preservingCadence: true)
     }
 
     func resume(now: Date = Date()) {
         guard pausedRemainingSeconds > 0 else { return }
+        pausedRemainingSeconds = VisualTimerDuration.clamp(pausedRemainingSeconds)
         deadline = now.addingTimeInterval(pausedRemainingSeconds)
-        startFeedbackLoop()
+        startFeedbackLoop(.resume)
     }
 
     func addMinute(now: Date = Date()) {
-        durationSeconds += 60
-        if let deadline {
-            self.deadline = deadline.addingTimeInterval(60)
-        } else {
-            pausedRemainingSeconds = remainingSeconds(at: now) + 60
-        }
+        durationSeconds = VisualTimerDuration.clamp(durationSeconds + 60)
+        adjustRemainingSeconds(by: 60, now: now)
     }
 
     func adjustRemainingSeconds(by seconds: TimeInterval, now: Date = Date()) {
@@ -324,6 +436,7 @@ final class VisualTimerCore: ObservableObject {
             now: now
         )
 
+        prepareRemainingTransition(to: adjustment.remainingSeconds, now: now)
         pausedRemainingSeconds = adjustment.remainingSeconds
         if wasRunning {
             deadline = adjustment.deadline
@@ -335,25 +448,37 @@ final class VisualTimerCore: ObservableObject {
         }
 
         if adjustment.shouldUseCompletionPath {
-            startFeedbackLoop()
+            rebuildFeedbackLoopPreservingPhase()
+        } else if wasRunning {
+            rebuildFeedbackLoopPreservingPhase()
         }
     }
 
     func setVolume(_ value: Double) {
+        let wasAudible = volume > 0
         volume = min(1, max(0, value))
         preferenceStore.set(volume, forKey: PreferenceKey.volume)
-        if volume == 0 { toneEngine.stop() }
+        if volume == 0 {
+            _ = toneEngine.cancelScheduledPulses()
+        } else if !wasAudible, isRunning {
+            rebuildFeedbackLoopPreservingPhase()
+        }
     }
 
     func setToneProfile(_ profile: VisualTimerToneProfile) {
         toneProfile = profile
         preferenceStore.set(profile.rawValue, forKey: PreferenceKey.toneProfile)
+        if isRunning { rebuildFeedbackLoopPreservingPhase() }
     }
 
     func setSoundEnabled(_ enabled: Bool) {
         soundEnabled = enabled
         preferenceStore.set(enabled, forKey: PreferenceKey.soundEnabled)
-        if !enabled { toneEngine.stop() }
+        if !enabled {
+            _ = toneEngine.cancelScheduledPulses()
+        } else if isRunning {
+            rebuildFeedbackLoopPreservingPhase()
+        }
     }
 
     func setCompletionHapticsEnabled(_ enabled: Bool) {
@@ -368,7 +493,8 @@ final class VisualTimerCore: ObservableObject {
 
     func pulsesPerSecond(forRemaining remaining: TimeInterval) -> Double {
         VisualTimerFeedbackCurve.pulsesPerSecond(
-            elapsedProgress: normalizedElapsedProgress(forRemaining: remaining)
+            elapsedProgress: feedbackElapsedProgress(forRemaining: remaining),
+            referenceDurationSeconds: feedbackReferenceDurationSeconds
         )
     }
 
@@ -381,66 +507,187 @@ final class VisualTimerCore: ObservableObject {
 
     func urgency(forRemaining remaining: TimeInterval) -> Double {
         VisualTimerFeedbackCurve.urgency(
-            normalizedElapsedProgress(forRemaining: remaining)
+            feedbackElapsedProgress(forRemaining: remaining),
+            referenceDurationSeconds: feedbackReferenceDurationSeconds
         )
     }
 
     func reset() {
+        prepareRemainingTransition(to: VisualTimerDuration.clamp(durationSeconds), now: Date())
         deadline = nil
-        pausedRemainingSeconds = durationSeconds
+        pausedRemainingSeconds = VisualTimerDuration.clamp(durationSeconds)
+        feedbackReferenceDurationSeconds = pausedRemainingSeconds
         stopFeedbackLoop()
     }
 
-    private func startFeedbackLoop() {
+    private func prepareRemainingTransition(to remaining: TimeInterval, now: Date) {
+        if remaining <= 0 {
+            // Retain an expired deadline before an adjustment replaces it with now.
+            if completionTerminalDate == nil {
+                completionTerminalDate = deadline.map { min($0, now) } ?? now
+            }
+        } else if remainingSeconds(at: now) <= 0 {
+            stopFeedbackLoop() // Cancels the old completion player and audio tail.
+            completionCueSessionID &+= 1
+            completionDisposition = .armed
+            completionTerminalDate = nil
+            completionGenerationPublisher.send(completionCueSessionID)
+        }
+    }
+
+    /// Shared by the deadline loop and deterministic tests. The caller's token
+    /// cannot consume a newer generation's completion right after a revive.
+    func processCompletion(at now: Date, generation: UInt64) {
+        guard generation == completionCueSessionID,
+              remainingSeconds(at: now) <= 0 else { return }
+        let terminalDate = completionTerminalDate ?? deadline ?? now
+        completionTerminalDate = terminalDate
+        let shouldEmit = completionDisposition == .armed
+            && now.timeIntervalSince(terminalDate) <= Self.completionStalenessBound
+        if completionDisposition == .armed {
+            completionDisposition = shouldEmit ? .emitted : .silent
+        }
+        pausedRemainingSeconds = VisualTimerDuration.clamp(0)
+        deadline = nil
         feedbackTask?.cancel()
-        toneEngine.stop()
+        feedbackTask = nil
+        _ = feedbackScheduler.stop()
+        presentationGenerationPublisher.send(feedbackScheduler.generation)
+        _ = toneEngine.cancelScheduledPulses()
+        // Recheck after synchronous publication: a subscriber may revive us.
+        guard generation == completionCueSessionID,
+              remainingSeconds(at: now) <= 0 else { return }
+        guard shouldEmit else {
+            if completionDisposition == .silent { toneEngine.stop() }
+            return
+        }
+        let event = VisualTimerCompletionCueEvent(
+            sessionID: generation,
+            cueStartUptime: ProcessInfo.processInfo.systemUptime
+        )
+        if VisualTimerAudioSessionPolicy.shouldActivate(soundEnabled: soundEnabled, volume: volume) {
+            toneEngine.playCompletion(gain: Float(volume))
+        }
+        completionCuePublisher.send(event)
+    }
+
+    private func feedbackElapsedProgress(forRemaining remaining: TimeInterval) -> Double {
+        guard feedbackReferenceDurationSeconds > 0 else { return 0 }
+        // A +15 adjustment may exceed the started duration. That is safely an
+        // early-session rate, never a negative urgency or a new timer authority.
+        return min(1, max(0, 1 - remaining / feedbackReferenceDurationSeconds))
+    }
+
+    private func startFeedbackLoop(_ mode: FeedbackStartMode) {
+        feedbackTask?.cancel()
+        if case .begin = mode {
+            toneEngine.stop()
+        }
+
+        let uptime = ProcessInfo.processInfo.systemUptime
+        let remaining = remainingSeconds()
+        let update: VisualTimerFeedbackScheduleUpdate
+        switch mode {
+        case .begin:
+            update = feedbackScheduler.begin(
+                at: uptime,
+                remainingSeconds: remaining,
+                rate: pulsesPerSecond(forRemaining:)
+            )
+        case .resume:
+            update = feedbackScheduler.resume(
+                at: uptime,
+                remainingSeconds: remaining,
+                rate: pulsesPerSecond(forRemaining:)
+            )
+        case .preservePhase:
+            update = feedbackScheduler.replenish(
+                at: uptime,
+                remainingSeconds: remaining,
+                rate: pulsesPerSecond(forRemaining:)
+            )
+        }
+        presentationGenerationPublisher.send(feedbackScheduler.generation)
+        publishScheduledBeats(update, at: uptime, remainingSeconds: remaining)
+
+        let completionGeneration = completionCueSessionID
         feedbackTask = Task { [weak self] in
             guard let self else { return }
 
             while !Task.isCancelled {
-                guard let deadline = self.deadline else { return }
-                let remaining = max(0, deadline.timeIntervalSinceNow)
+                guard self.completionCueSessionID == completionGeneration,
+                      self.deadline != nil else { return }
+                let remaining = self.remainingSeconds()
 
                 if remaining <= 0 {
-                    self.pausedRemainingSeconds = 0
-                    self.deadline = nil
-                    self.feedbackTask = nil
-                    if VisualTimerAudioSessionPolicy.shouldActivate(
-                        soundEnabled: self.soundEnabled,
-                        volume: self.volume
-                    ) {
-                        self.toneEngine.playCompletion(
-                            profile: self.toneProfile,
-                            gain: Float(self.volume)
-                        )
-                    }
+                    self.processCompletion(at: Date(), generation: completionGeneration)
                     return
                 }
 
-                if VisualTimerAudioSessionPolicy.shouldActivate(
-                    soundEnabled: self.soundEnabled,
-                    volume: self.volume
-                ) {
-                    self.toneEngine.playPulse(
-                        frequency: self.toneFrequency(forRemaining: remaining),
-                        profile: self.toneProfile,
-                        gain: Float(self.signalGain(forRemaining: remaining))
-                    )
-                }
-                let interval = 1.0 / self.pulsesPerSecond(forRemaining: remaining)
+                let uptime = ProcessInfo.processInfo.systemUptime
+                let update = self.feedbackScheduler.replenish(
+                    at: uptime,
+                    remainingSeconds: remaining,
+                    rate: self.pulsesPerSecond(forRemaining:)
+                )
+                self.publishScheduledBeats(update, at: uptime, remainingSeconds: remaining)
+                let generation = self.feedbackScheduler.generation
+                let wakeUptime = self.feedbackScheduler.queued.first?.plannedUptime
+                    ?? (uptime + 0.05)
+                let delay = max(0.001, wakeUptime - uptime)
                 do {
-                    try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                 } catch {
                     return
                 }
+                guard self.feedbackScheduler.generation == generation else { return }
             }
         }
     }
 
-    private func stopFeedbackLoop() {
+    private func rebuildFeedbackLoopPreservingPhase() {
+        feedbackTask?.cancel()
+        _ = feedbackScheduler.invalidatePreservingPhase()
+        presentationGenerationPublisher.send(feedbackScheduler.generation)
+        _ = toneEngine.cancelScheduledPulses()
+        startFeedbackLoop(.preservePhase)
+    }
+
+    private func publishScheduledBeats(
+        _ update: VisualTimerFeedbackScheduleUpdate,
+        at uptime: TimeInterval,
+        remainingSeconds: TimeInterval
+    ) {
+        for scheduled in update.scheduled where feedbackScheduler.accepts(scheduled) {
+            let remainingAtBeat = VisualTimerDuration.clamp(remainingSeconds - max(0, scheduled.plannedUptime - uptime))
+            // Every calculated beat is published from Start. The duration-aware
+            // law supplies a calm 0.72-Hz opening without a separate mute gate.
+            presentationBeatPublisher.send(VisualTimerPresentationBeat(scheduled))
+            guard VisualTimerAudioSessionPolicy.shouldActivate(
+                soundEnabled: soundEnabled,
+                volume: volume
+            ) else { continue }
+            toneEngine.schedulePulse(
+                id: scheduled.index,
+                plannedUptime: scheduled.plannedUptime,
+                frequency: toneFrequency(forRemaining: remainingAtBeat),
+                profile: toneProfile,
+                gain: Float(signalGain(forRemaining: remainingAtBeat))
+            )
+        }
+    }
+
+    private func stopFeedbackLoop(preservingCadence: Bool = false) {
+        if preservingCadence {
+            _ = feedbackScheduler.pause(at: ProcessInfo.processInfo.systemUptime)
+        } else {
+            _ = feedbackScheduler.stop()
+        }
+        presentationGenerationPublisher.send(feedbackScheduler.generation)
         feedbackTask?.cancel()
         feedbackTask = nil
-        toneEngine.stop()
+        _ = toneEngine.cancelScheduledPulses()
+        if !preservingCadence { toneEngine.stop() }
     }
 
     private func signalGain(forRemaining remaining: TimeInterval) -> Double {

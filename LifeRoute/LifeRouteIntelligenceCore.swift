@@ -6,6 +6,33 @@ import Vision
 import FoundationModels
 #endif
 
+// BEGIN SESSION NOTE PRODUCTION INSTRUCTIONS
+// The contract runner compiles this exact declaration, together with the shared policy.
+enum SessionNoteStageInstructions {
+    static func instructions(for stage: SessionNotePipelineStage) -> String {
+        let guidance: String
+        switch stage {
+        case .standardDraft: guidance = standardReconstruction
+        case .compactDraft: guidance = compactReconstruction
+        case .repair: guidance = repairReconstruction
+        }
+        return SessionNoteClinicalInstructions.sharedConstraints + "\n\n" + guidance
+    }
+
+    private static let standardReconstruction = """
+    Reconstruct one editable professional ABA session-note body from the supplied evidence only. Treat SESSION FACTS as rough factual source material, never as prose to clean up or preserve. Rebuild each supplied event by identifying its actor, clinical action, and place in the sequence; replace dictated fragments and conversational transitions with natural objective ABA documentation. Do not copy the source clause structure or repeatedly begin with “Then” or “After this.” For style only, “RBT began pairing and FCT then moved to transitions” can become “The RBT began with pairing and functional communication training (FCT), followed by transitions”; never add the example's events unless supplied. Preserve the original chronology instead of regrouping events by target. Translate generic “work” only as instructional activities or a work period without inventing its content. Use the shared evidence-proportional paragraph guidance; never append a detached data section.
+    """
+
+    private static let compactReconstruction = """
+    Reconstruct natural chronological prose using the shared evidence-proportional style guidance. Rebuild rough facts by actor, clinical action, and supplied sequence; do not copy their clause structure or conversational “Then/After this” transitions. Translate generic work only as instructional activities or a work period without inventing content. Keep measurements in the matching narrative sentences, never a detached data list. Return plain narrative only.
+    """
+
+    private static let repairReconstruction = """
+    Re-create the professional ABA session-note body from the original evidence and correct only the listed validation issues. Rebuild rough facts by supplied actor, clinical action, and chronology rather than copying source clauses or conversational transitions. Translate generic work only as instructional activities or a work period without inventing content. Return only cohesive plain-text narrative using the shared evidence-proportional style guidance; do not append a detached data list.
+    """
+}
+// END SESSION NOTE PRODUCTION INSTRUCTIONS
+
 enum LifeRouteIntelligenceError: LocalizedError {
     case unavailable
     case emptyInput
@@ -19,7 +46,7 @@ enum LifeRouteIntelligenceError: LocalizedError {
         case .emptyInput:
             return "Add session facts before asking LifeRoute to generate anything."
         case .contextWindowExceeded:
-            return "Apple Intelligence could not fit the bounded session evidence into its on-device context. Your facts, screenshots, and previous draft were preserved."
+            return "Apple Intelligence could not fit the bounded session evidence into its on-device context. Your facts and previous draft were preserved."
         case .generationFailed(let message):
             return message.isEmpty ? "LifeRoute could not generate a response." : message
         }
@@ -33,6 +60,7 @@ enum SessionNoteModelAvailability: Equatable {
 
 enum SessionNoteGenerationProgress: Equatable {
     case generating
+    case extracted(SessionNoteExtractionSummary)
     case compacting
     case repairing
 }
@@ -64,8 +92,8 @@ enum LifeRouteIntelligenceCore {
         return .unavailable("AI Session Note requires an Apple Intelligence-capable iPhone running iOS 26 or later.")
     }
 
-    static func recognizeText(in imageData: Data) async -> String {
-        guard !imageData.isEmpty else { return "" }
+    static func recognizeText(in imageData: Data) async -> SessionNoteRecognizedScreenshot {
+        guard !imageData.isEmpty else { return .bounded("") }
 
         return await Task.detached(priority: .userInitiated) {
             let request = VNRecognizeTextRequest()
@@ -77,90 +105,64 @@ enum LifeRouteIntelligenceCore {
             do {
                 try handler.perform([request])
                 let observations = request.results ?? []
-                return observations
+                let recognized = observations
                     .compactMap { $0.topCandidates(1).first?.string }
                     .joined(separator: "\n")
-                    .prefix(12_000)
-                    .description
+                return .bounded(recognized)
             } catch {
-                return ""
+                return .bounded("")
             }
         }.value
     }
 
-    // v0.8.0 follow-up session-note refinement:
-    // Typed narrative remains primary; up to six screenshot OCR streams are supplemental.
-    private static func recognizeSessionNoteScreenshots(_ imageDataItems: [Data]) async -> [String] {
-        let limitedItems = Array(imageDataItems.prefix(6))
-        return await withTaskGroup(of: (Int, String).self, returning: [String].self) { group in
-            for (index, data) in limitedItems.enumerated() {
-                group.addTask {
-                    (index, await recognizeText(in: data))
-                }
-            }
-
-            var indexedResults: [(Int, String)] = []
-            for await result in group {
-                indexedResults.append(result)
-            }
-            return indexedResults
-                .sorted { $0.0 < $1.0 }
-                .map { $0.1.trimmingCharacters(in: .whitespacesAndNewlines) }
-        }
-    }
-
     static func generateABASessionNote(
         narrative: String,
-        screenshotDataItems: [Data],
+        writerRole: SessionNoteWriterRole,
         client: LifeRouteClientProfile?,
         progress: @escaping (SessionNoteGenerationProgress) async -> Void = { _ in }
     ) async throws -> SessionNoteGenerationResult {
+        try Task.checkCancellation()
+        try SessionNoteInputBounds.validateTypedFacts(characterCount: narrative.count)
         let cleanNarrative = narrative.trimmingCharacters(in: .whitespacesAndNewlines)
-        let recognizedScreenshots = await recognizeSessionNoteScreenshots(screenshotDataItems)
-        let structuredMeasurements = SessionNoteOCRMeasurementExtractor.extract(
-            from: recognizedScreenshots
-        )
-
-        guard !cleanNarrative.isEmpty || !structuredMeasurements.isEmpty else {
-            throw LifeRouteIntelligenceError.emptyInput
-        }
+        guard !cleanNarrative.isEmpty else { throw LifeRouteIntelligenceError.emptyInput }
 
         let packet = SessionNoteEvidencePacket.make(
             typedFacts: cleanNarrative,
             ocrEvidence: "",
-            structuredMeasurements: structuredMeasurements,
             savedTerminologyContext: compactSessionNoteClientContext(client),
             profileCode: client?.code
         )
 
         await progress(.generating)
         do {
-            return try await SessionNoteGenerationPipeline.generate(
+            let result = try await SessionNoteGenerationPipeline.generateNote(
                 packet: packet,
+                writerRole: writerRole,
                 request: { stage in
                     switch stage {
                     case .standardDraft:
                         return try await requestSessionNoteDraft(
                             packet: packet,
                             compaction: .standard,
-                            instructions: sessionNoteDraftInstructions
+                            instructions: SessionNoteStageInstructions.instructions(for: .standardDraft)
                         )
                     case .compactDraft:
                         return try await requestSessionNoteDraft(
                             packet: packet,
                             compaction: .compactRetry,
-                            instructions: sessionNoteCompactDraftInstructions
+                            instructions: SessionNoteStageInstructions.instructions(for: .compactDraft)
                         )
                     case .repair(let issues):
-                        let repairPrompt = packet.modelPrompt(compaction: .compactRetry) + """
+                        let repairPrompt = try packet.modelPrompt(compaction: .compactRetry) + """
 
                         DETERMINISTIC VALIDATION ISSUES TO CORRECT:
                         \(issues.prefix(8).map { "- \($0)" }.joined(separator: "\n"))
                         """
                         return try await generate(
-                            instructions: sessionNoteRepairInstructions,
+                            instructions: SessionNoteStageInstructions.instructions(for: stage),
                             prompt: repairPrompt,
-                            maximumResponseTokens: 900
+                            maximumResponseTokens: 900,
+                            isSessionNote: true
                         )
                     }
                 },
@@ -178,19 +180,20 @@ enum LifeRouteIntelligenceCore {
                     )
                 }
             )
+            return result
         } catch SessionNotePipelineError.contextTooLarge {
             throw LifeRouteIntelligenceError.contextWindowExceeded
         } catch SessionNotePipelineError.rejected(let category) {
             let message: String
             switch category {
             case .identityVerification:
-                message = "LifeRoute could not safely verify that the generated draft used role-based identifiers only. Your facts, screenshots, and previous draft were preserved. Category: \(category.userSafeLabel)."
+                message = "LifeRoute could not safely verify that the generated draft used role-based identifiers only. Your facts and previous draft were preserved. Category: \(category.userSafeLabel)."
             case .evidenceVerification:
-                message = "LifeRoute could not safely verify one or more session-data claims in the generated draft. Your facts, screenshots, and previous draft were preserved. Category: \(category.userSafeLabel)."
+                message = "LifeRoute could not safely verify one or more session-data claims in the generated draft. Your facts and previous draft were preserved. Category: \(category.userSafeLabel)."
             case .clinicalClaimVerification:
-                message = "LifeRoute could not safely verify one or more clinical claims in the generated draft. Your facts, screenshots, and previous draft were preserved. Category: \(category.userSafeLabel)."
+                message = "LifeRoute could not safely verify one or more clinical claims in the generated draft. Your facts and previous draft were preserved. Category: \(category.userSafeLabel)."
             case .professionalPresentation:
-                message = "LifeRoute could not complete a professional rewrite from the supplied evidence. Your facts, screenshots, and previous draft were preserved."
+                message = "LifeRoute could not complete a professional rewrite from the supplied evidence. Your facts and previous draft were preserved."
             }
             throw LifeRouteIntelligenceError.generationFailed(
                 message
@@ -200,20 +203,6 @@ enum LifeRouteIntelligenceCore {
         }
     }
 
-    private static let sessionNoteDraftInstructions = """
-    Reconstruct one editable professional ABA session note from the supplied evidence only. Treat SESSION FACTS as rough factual source material, never as prose to clean up or preserve. Rebuild each supplied event by identifying its actor, clinical action, and place in the sequence; replace dictated fragments and conversational transitions with natural objective ABA documentation. Do not copy the source clause structure or repeatedly begin with “Then” or “After this.” For style only, “then went inside for work and waited” becomes “The RBT transitioned the client indoors for instructional activities and targeted waiting”; never add the example's actor or events unless supplied. Preserve the original chronology instead of regrouping events by target. Translate generic “work” only as instructional activities or a work period without inventing its content. Use person-first, third-person prose in 2–4 cohesive paragraphs.
-
-    Preserve every clinically relevant supplied fact, including location, attendees, pairing, targets, transitions, prompting, reinforcement, behaviors of concern, intervention, observable outcome, caregiver collaboration, and LBS/BCBA instruction when present. Integrate every CLEAR CURRENT-SESSION MEASUREMENT exactly once in the sentence about its matching target or behavior, preserving target association, measurement type, unit, numeric value, prompt level, and attribution; never append a detached data section. Never use or mention administrative screenshot content. Use role identifiers only: the client, RBT, LBS, BCBA, BHT, and caregiver relationship roles. Include a behavior of concern only when evidence says it occurred; never infer function, intent, emotion, cause, progress, training, supervision, treatment changes, recommendations, effectiveness, or causal relationships. Say “behaviors of concern.” End once with a supported participation/response summary and that the RBT will continue implementing the established treatment plan during future sessions. Return narrative paragraphs only—no title, headings, lists, markdown, template language, disclaimer, or commentary.
-    """
-
-    private static let sessionNoteCompactDraftInstructions = """
-    Reconstruct an objective third-person professional ABA session note from evidence only in 2–4 natural chronological paragraphs. Rebuild rough facts by actor, clinical action, and supplied sequence; do not copy their clause structure or conversational “Then/After this” transitions. Translate generic work only as instructional activities or a work period without inventing content. Preserve all supplied location, attendees, targets, events, behavior/intervention/outcome details, reinforcement, and supervisor collaboration. Integrate every clear structured measurement beside its exact target or behavior with unchanged type, value, unit, and prompting—never as a detached data list. Exclude administrative screenshot content, use roles only, retain caregiver attribution, never infer or add clinical facts, say “behaviors of concern,” and close once with supported participation plus continued implementation of the established treatment plan. Return plain narrative only.
-    """
-
-    private static let sessionNoteRepairInstructions = """
-    Re-create the professional ABA session note from the original evidence and correct only the listed validation issues. Rebuild rough facts by supplied actor, clinical action, and chronology rather than copying source clauses or conversational transitions. Translate generic work only as instructional activities or a work period without inventing content. Preserve every supplied event, behavior/intervention/outcome detail, reinforcement, and collaboration claim. Integrate every clear structured measurement beside its exact supplied target or behavior with unchanged type, value, unit, and prompt level; exclude administrative screenshot content and detached data lists. Use role-only identity, objective third-person prose, attributed caregiver reports, and “behaviors of concern.” Do not add, infer, reinterpret, or recommend. Return only 2–4 cohesive plain-text narrative paragraphs with one supported participation summary and established-treatment-plan continuation.
-    """
-
     private static func requestSessionNoteDraft(
         packet: SessionNoteEvidencePacket,
         compaction: SessionNoteRequestCompaction,
@@ -222,7 +211,8 @@ enum LifeRouteIntelligenceCore {
         try await generate(
             instructions: instructions,
             prompt: packet.modelPrompt(compaction: compaction),
-            maximumResponseTokens: 900
+            maximumResponseTokens: 900,
+            isSessionNote: true
         )
     }
 
@@ -369,7 +359,8 @@ enum LifeRouteIntelligenceCore {
     private static func generate(
         instructions: String,
         prompt: String,
-        maximumResponseTokens: Int? = nil
+        maximumResponseTokens: Int? = nil,
+        isSessionNote: Bool = false
     ) async throws -> String {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
@@ -386,7 +377,17 @@ enum LifeRouteIntelligenceCore {
                 guard !text.isEmpty else {
                     throw LifeRouteIntelligenceError.generationFailed("")
                 }
+                if isSessionNote {
+                    // Response has no finish-reason field. Inspect before clipping/sanitization;
+                    // the result contract explicitly leaves semantic completeness unverified.
+                    try SessionNoteOutputBoundary.validate(response.content)
+                    return text
+                }
                 return String(text.prefix(8_000))
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch let error as SessionNoteBoundaryError {
+                throw error
             } catch LanguageModelSession.GenerationError.exceededContextWindowSize(_) {
                 throw SessionNotePipelineError.contextTooLarge
             } catch let error as LifeRouteIntelligenceError {

@@ -6,6 +6,9 @@ enum V054AddressFieldMode {
 }
 
 struct V054AddressField: View {
+    @LifeRoutePresentation private var visibility
+    @State private var queryActive = false
+    @State private var leaveIdentity: [UInt64]?
     @Environment(\.scenicRoyalThemeStyle) private var style
 
     @Binding var text: String
@@ -31,18 +34,18 @@ struct V054AddressField: View {
         VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
             addressInput
 
-            if isFocused && (!flexibleIntents.isEmpty || !autocomplete.suggestions.isEmpty) {
+            if visibility.active && isFocused && (!flexibleIntents.isEmpty || !autocomplete.suggestions.isEmpty) {
                 suggestionList
             }
 
-            if mode == .todoDestination && isFocused {
+            if visibility.active && mode == .todoDestination && isFocused {
                 Text("Choose a specific place, or a flexible destination such as Any Walmart, Any BJ's, or Any grocery store.")
                     .font(.caption)
                     .foregroundStyle(style.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            if isFocused, let message = autocomplete.message {
+            if visibility.active && isFocused, let message = autocomplete.message {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(style.secondaryText)
@@ -75,6 +78,13 @@ struct V054AddressField: View {
             cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
         )
         .onChange(of: text, perform: updateSuggestions)
+        .lifeRouteReconcile { context in
+            if queryActive && !context.active { autocomplete.clear() }
+            queryActive = context.active
+            let previous = leaveIdentity
+            leaveIdentity = context.leaveIdentity
+            if (previous != nil && previous != context.leaveIdentity) || !context.alive { isFocused = false }
+        }
     }
 
     private var suggestionList: some View {
@@ -211,6 +221,7 @@ struct V054AddressField: View {
             suppressNextQuery = false
             return
         }
+        guard visibility.active else { return }
         autocomplete.update(query: value)
     }
 

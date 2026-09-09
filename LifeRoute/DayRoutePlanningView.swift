@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct DayRoutePlanningView: View {
+    @LifeRoutePresentation private var visibility
+    @State private var queryActive = false
+    @State private var leaveIdentity: [UInt64]?
     @Environment(\.scenicRoyalThemeStyle) private var scenicStyle
     @ObservedObject var calendarState: CalendarCoreState
     @ObservedObject var routingState: RoutingLocationCore
@@ -30,6 +33,13 @@ struct DayRoutePlanningView: View {
             .padding(.horizontal, ScenicRoyalDesignSystem.Layout.pageHorizontal)
             .padding(.top, ScenicRoyalDesignSystem.Spacing.compact)
             .padding(.bottom, ScenicRoyalDesignSystem.Spacing.spacious * 2)
+        }
+        .lifeRouteReconcile { context in
+            if queryActive && !context.active { stopAutocomplete.clear() }
+            queryActive = context.active
+            let previous = leaveIdentity
+            leaveIdentity = context.leaveIdentity
+            if (previous != nil && previous != context.leaveIdentity) || !context.alive { stopAddressFocused = false }
         }
         .navigationTitle("Day Route")
         .navigationBarTitleDisplayMode(.inline)
@@ -171,6 +181,7 @@ struct DayRoutePlanningView: View {
                         suppressStopAutocompleteQuery = false
                         return
                     }
+                    guard visibility.active else { return }
                     stopAutocomplete.update(query: value)
                 }
                 .onSubmit {
@@ -179,7 +190,7 @@ struct DayRoutePlanningView: View {
                 }
                 .scenicRoyalField()
 
-            ForEach(stopAutocomplete.suggestions) { suggestion in
+            ForEach(visibility.active ? stopAutocomplete.suggestions : []) { suggestion in
                 Button {
                     suppressStopAutocompleteQuery = true
                     stopAddress = suggestion.addressText

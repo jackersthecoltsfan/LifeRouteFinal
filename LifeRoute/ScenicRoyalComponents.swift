@@ -47,12 +47,12 @@ struct ScenicRoyalSectionHeader: View {
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
                 Text(title)
                     .font(.headline.weight(.semibold))
-                    .foregroundStyle(style.primaryText)
+                    .foregroundStyle(style.contentPrimaryForeground)
 
                 if let subtitle {
                     Text(subtitle)
                         .font(.subheadline)
-                        .foregroundStyle(style.secondaryText)
+                        .foregroundStyle(style.contentSecondaryForeground)
                 }
             }
 
@@ -118,11 +118,11 @@ struct ScenicRoyalScreenHeader<Actions: View>: View {
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
                 Text(title)
                     .font(.largeTitle.weight(.bold))
-                    .foregroundStyle(style.primaryText)
+                    .foregroundStyle(style.contentPrimaryForeground)
 
                 Text(subtitle)
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(style.secondaryText)
+                    .foregroundStyle(style.contentSecondaryForeground)
             }
             .accessibilityElement(children: .combine)
 
@@ -148,7 +148,7 @@ struct ScenicRoyalCompactIconButton: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.subheadline.weight(.bold))
-                .foregroundStyle(style.accent)
+                .foregroundStyle(style.selectedControlForeground)
                 .frame(
                     width: ScenicRoyalDesignSystem.Layout.minimumTouchTarget,
                     height: ScenicRoyalDesignSystem.Layout.minimumTouchTarget
@@ -161,6 +161,64 @@ struct ScenicRoyalCompactIconButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+/// Shared segmented-choice geometry for selections that need Scenic Royal's
+/// semantic selected material instead of a flat platform tint.
+struct ScenicRoyalSegmentedControl<Option: Identifiable & Hashable, Label: View>: View {
+    @Environment(\.scenicRoyalThemeStyle) private var style
+
+    @Binding var selection: Option
+    let options: [Option]
+    let label: (Option) -> Label
+
+    init(
+        selection: Binding<Option>,
+        options: [Option],
+        @ViewBuilder label: @escaping (Option) -> Label
+    ) {
+        _selection = selection
+        self.options = options
+        self.label = label
+    }
+
+    var body: some View {
+        HStack(spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
+            ForEach(options) { option in
+                Button {
+                    selection = option
+                } label: {
+                    label(option)
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(selection == option ? style.selectedControlForeground : style.contentSecondaryForeground)
+                        .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
+                        .background {
+                            if selection == option {
+                                ScenicRoyalSelectedControlMaterial(
+                                    shape: RoundedRectangle(
+                                        cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl,
+                                        style: .continuous
+                                    )
+                                )
+                            }
+                        }
+                        .contentShape(
+                            RoundedRectangle(
+                                cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl,
+                                style: .continuous
+                            )
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selection == option ? .isSelected : [])
+            }
+        }
+        .padding(ScenicRoyalDesignSystem.Spacing.hairline)
+        .scenicRoyalSurface(
+            role: .passiveRow,
+            cornerRadius: ScenicRoyalDesignSystem.Radius.control
+        )
     }
 }
 
@@ -235,16 +293,17 @@ struct ScenicRoyalPrimaryButtonStyle: ButtonStyle {
 struct ScenicRoyalSecondaryButtonStyle: ButtonStyle {
     @Environment(\.scenicRoyalThemeStyle) private var style
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(style.primaryText)
+            .foregroundStyle(style.contentPrimaryForeground)
             .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
             .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
             .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous))
             .scenicRoyalInteractiveSurface(role: .selectedControl)
-            .opacity(configuration.isPressed ? 0.78 : 1)
+            .opacity(isEnabled ? (configuration.isPressed ? 0.78 : 1) : 0.46)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
             .animation(
                 reduceMotion ? nil : ScenicRoyalDesignSystem.Motion.selection,

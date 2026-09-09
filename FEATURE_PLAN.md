@@ -22,6 +22,7 @@
 ### Places, errands, and shopping
 - Saved Places and frequent/membership-place flags.
 - To-Dos that can participate in route planning.
+- A To-Do's "Do by" date is a deadline. Incomplete To-Dos may be recommended before that date when the existing location, travel, and gap-fit checks pass.
 - Store-chain preferences for shopping tasks.
 - Nearby branch search in the iPhone app with Apple MapKit.
 - Web-preview store-search fallback.

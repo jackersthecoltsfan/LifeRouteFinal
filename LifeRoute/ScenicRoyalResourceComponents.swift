@@ -236,7 +236,7 @@ struct ScenicRoyalCustomPortalForm: View {
                     }
                 }
                 .pickerStyle(.menu)
-                .tint(style.accent)
+                .tint(style.selectedControlFill)
                 .scenicRoyalField()
 
                 Button("Save portal", action: onSave)

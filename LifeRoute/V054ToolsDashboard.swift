@@ -133,7 +133,6 @@ struct V054ToolsDashboard: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
-            router.setBottomToolbarSuppressed(false)
             visualState.retainClients(clientState.clients)
         }
         .onReceive(clientState.$clients) { clients in
@@ -470,6 +469,7 @@ struct VisualAIAssistedStudioView: View {
                     visualState: visualState,
                     clientCode: selectedClientCode
                 )
+                .lifeRouteDeepDestination()
             } label: {
                 visualBuilderLinkLabel("Choice Boards", systemImage: "square.grid.2x2.fill")
             }
@@ -481,6 +481,7 @@ struct VisualAIAssistedStudioView: View {
                     clientState: clientState,
                     initialClientCode: selectedClientCode
                 )
+                .lifeRouteDeepDestination()
             } label: {
                 visualBuilderLinkLabel("First / Then", systemImage: "arrow.right.square.fill")
             }
@@ -521,6 +522,7 @@ struct VisualAIAssistedStudioView: View {
 
             NavigationLink {
                 ClientVisualSupportCenter(visualState: visualState, clientState: clientState)
+                    .lifeRouteDeepDestination()
             } label: {
                 HStack {
                     Text("Open Manual Workspace")

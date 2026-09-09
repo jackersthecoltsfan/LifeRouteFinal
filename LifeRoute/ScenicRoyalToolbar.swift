@@ -63,7 +63,7 @@ struct ScenicRoyalToolbar: View {
             // All five root destinations must remain simultaneously available. Keep the
             // compact navigation label readable while the surrounding hit target grows.
             .dynamicTypeSize(.xSmall ... .xxxLarge)
-            .foregroundStyle(isSelected ? ScenicRoyalDesignSystem.ColorToken.brandGoldBright : Color.white.opacity(0.76))
+            .foregroundStyle(isSelected ? style.selectedControlForeground : style.contentSecondaryForeground)
             .frame(
                 maxWidth: .infinity,
                 minHeight: dynamicTypeSize.isAccessibilitySize
@@ -73,15 +73,12 @@ struct ScenicRoyalToolbar: View {
             .padding(.horizontal, 2)
             .background {
                 if isSelected {
-                    RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
-                        .fill(ScenicRoyalDesignSystem.ColorToken.brandNavy.opacity(0.46))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
-                                .fill(style.accent.opacity(0.09))
-                        }
+                    ScenicRoyalSelectedControlMaterial(
+                        shape: RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
+                    )
                         .overlay(alignment: .top) {
                             Capsule()
-                                .fill(ScenicRoyalDesignSystem.ColorToken.brandGoldBright)
+                                .fill(style.selectedControlIndicator)
                                 .frame(width: 16, height: 2)
                                 .padding(.top, 3)
                         }

@@ -7,15 +7,20 @@ struct VisualTimerFeedbackContractTests {
     static func main() {
         testToneProfiles()
         testExponentialUrgency()
+        testDurationAwareCrescendo()
+        testMaximumDurationCrescendoStability()
         testFeedbackBounds()
-        testVisualPulsePhase()
+        testShortHorizonScheduler()
+        testSharedPresentationCadence()
+        testUrgencyHapticSubselection()
+        testOrganicShimmerWander()
         testVisualRenderingBudget()
-        testCompletionOutputBudget()
-        testSpeakerEffectiveCompletionSpectrum()
+        testCompletionCueContract()
         testAccessibilityMilestones()
         testPreferenceDefaults()
         testAudioSessionPolicy()
         testQuickAdjustments()
+        testOrbLiquidAreaMapping()
 
         precondition(
             assertionCount >= 119,
@@ -32,8 +37,6 @@ struct VisualTimerFeedbackContractTests {
             expect(profile.startFrequency > 0, "\(profile.title) starts above zero Hz")
             expect(profile.endFrequency > profile.startFrequency, "\(profile.title) rises gradually")
             expect(profile.endFrequency <= 785, "\(profile.title) remains within the bounded raised pitch range")
-            expect(profile.completionFrequencies.count == 3, "\(profile.title) has a bounded completion cue")
-            expect(profile.completionFrequencies.allSatisfy { $0 <= 785 }, "\(profile.title) completion stays within the raised pitch range")
         }
 
         expect(VisualTimerToneProfile.physicalQAPitchMultiplier == 1.5, "physical QA pitch multiplier is exactly 1.5")
@@ -41,7 +44,7 @@ struct VisualTimerFeedbackContractTests {
         expect(abs(VisualTimerToneProfile.soft.startFrequency - 330.00) < 0.000_001, "Soft start pitch is raised from 220 Hz to 330 Hz")
         expect(abs(VisualTimerToneProfile.clear.startFrequency - 392.445) < 0.000_001, "Clear start pitch is raised from 261.63 Hz to 392.445 Hz")
         expect(abs(VisualTimerToneProfile.soft.endFrequency - 660.00) < 0.000_001, "Soft completion-bound pitch is raised from 440 Hz to 660 Hz")
-        expect(abs(VisualTimerToneProfile.clear.completionFrequencies[2] - 784.875) < 0.000_001, "Clear completion pitch is raised from 523.25 Hz to 784.875 Hz")
+        expect(abs(VisualTimerToneProfile.clear.endFrequency - 784.875) < 0.000_001, "Clear final tick pitch is raised from 523.25 Hz to 784.875 Hz")
     }
 
     private static func testExponentialUrgency() {
@@ -56,6 +59,86 @@ struct VisualTimerFeedbackContractTests {
         expect(VisualTimerFeedbackCurve.urgency(0.5) < 0.25, "the first half remains calm")
     }
 
+    private static func testDurationAwareCrescendo() {
+        expect(VisualTimerFeedbackCurve.effectiveExponent(referenceDurationSeconds: 60) == 4,
+               "one-minute sessions retain the accepted base exponent")
+        expect(VisualTimerFeedbackCurve.effectiveExponent(referenceDurationSeconds: 300) == 20,
+               "five-minute sessions use the duration-aware exponent")
+        expect(VisualTimerFeedbackCurve.effectiveExponent(referenceDurationSeconds: 600) == 40,
+               "ten-minute sessions use the duration-aware exponent")
+        for duration in [60.0, 300.0, 600.0] {
+            let early = VisualTimerFeedbackCurve.pulsesPerSecond(
+                elapsedProgress: 0,
+                referenceDurationSeconds: duration
+            )
+            let late = VisualTimerFeedbackCurve.pulsesPerSecond(
+                elapsedProgress: 1,
+                referenceDurationSeconds: duration
+            )
+            expect(early == VisualTimerFeedbackCurve.minimumPulsesPerSecond,
+                   "duration-aware curve preserves the lower endpoint for \(duration) seconds")
+            expect(late == VisualTimerFeedbackCurve.maximumPulsesPerSecond,
+                   "duration-aware curve preserves the seven-Hz endpoint for \(duration) seconds")
+            let crossing = remainingSecondsAtContinuousGate(duration: duration)
+            expect((15...21).contains(crossing),
+                   "the retained urgency-reference rate occurs near the same real-time tail for \(duration) seconds")
+        }
+        expect(!VisualTimerFeedbackCurve.isContinuousOutputActive(rate: 2.49),
+               "the legacy threshold remains available only as an urgency reference")
+        expect(VisualTimerFeedbackCurve.isContinuousOutputActive(rate: 2.5),
+               "the urgency reference remains exact")
+    }
+
+    private static func remainingSecondsAtContinuousGate(duration: TimeInterval) -> Int {
+        var lower = 0.0
+        var upper = duration
+        for _ in 0..<80 {
+            let remaining = (lower + upper) / 2
+            let elapsed = min(1, max(0, 1 - remaining / duration))
+            let rate = VisualTimerFeedbackCurve.pulsesPerSecond(
+                elapsedProgress: elapsed,
+                referenceDurationSeconds: duration
+            )
+            if rate >= VisualTimerFeedbackCurve.continuousOutputRate {
+                lower = remaining
+            } else {
+                upper = remaining
+            }
+        }
+        return Int(((lower + upper) / 2).rounded())
+    }
+
+    private static func testMaximumDurationCrescendoStability() {
+        let duration = 180.0 * 60
+        let exponent = VisualTimerFeedbackCurve.effectiveExponent(referenceDurationSeconds: duration)
+        expect(exponent == 720, "the configured 180-minute maximum uses the expected duration-scaled exponent")
+
+        let samples = (0...Int(duration)).map { elapsed -> (urgency: Double, rate: Double) in
+            let progress = Double(elapsed) / duration
+            return (
+                VisualTimerFeedbackCurve.urgency(progress, referenceDurationSeconds: duration),
+                VisualTimerFeedbackCurve.pulsesPerSecond(
+                    elapsedProgress: progress,
+                    referenceDurationSeconds: duration
+                )
+            )
+        }
+        expect(samples.allSatisfy { $0.urgency.isFinite && $0.urgency >= 0 && $0.urgency <= 1 },
+               "180-minute urgency remains finite and bounded")
+        expect(samples.allSatisfy { $0.rate.isFinite && $0.rate >= VisualTimerFeedbackCurve.minimumPulsesPerSecond && $0.rate <= VisualTimerFeedbackCurve.maximumPulsesPerSecond },
+               "180-minute cadence remains finite within the selected rate bounds")
+        expect(zip(samples, samples.dropFirst()).allSatisfy { $0.urgency <= $1.urgency && $0.rate <= $1.rate },
+               "180-minute urgency and cadence remain monotonic without precision reversals")
+        expect(samples.first?.urgency == 0 && samples.first?.rate == VisualTimerFeedbackCurve.minimumPulsesPerSecond,
+               "180-minute cadence preserves the minimum-rate start")
+        expect(samples.last?.urgency == 1 && samples.last?.rate == VisualTimerFeedbackCurve.maximumPulsesPerSecond,
+               "180-minute cadence preserves the seven-Hz endpoint")
+
+        let crossing = remainingSecondsAtContinuousGate(duration: duration)
+        expect((15...21).contains(crossing),
+               "180-minute rate gate still opens in the intended real-time tail")
+    }
+
     private static func testFeedbackBounds() {
         let profile = VisualTimerToneProfile.soft
         let startRate = VisualTimerFeedbackCurve.pulsesPerSecond(elapsedProgress: 0)
@@ -63,6 +146,7 @@ struct VisualTimerFeedbackContractTests {
         let endRate = VisualTimerFeedbackCurve.pulsesPerSecond(elapsedProgress: 1)
         expect(startRate == VisualTimerFeedbackCurve.minimumPulsesPerSecond, "pulse cadence begins at the lower bound")
         expect(endRate == VisualTimerFeedbackCurve.maximumPulsesPerSecond, "pulse cadence ends at the upper bound")
+        expect(endRate == 7, "seven-tick audition changes only the shared cadence ceiling")
         expect(middleRate < (startRate + endRate) / 2, "pulse cadence remains restrained through mid-countdown")
 
         let startPitch = VisualTimerFeedbackCurve.frequency(for: profile, elapsedProgress: 0)
@@ -78,345 +162,184 @@ struct VisualTimerFeedbackContractTests {
         expect(VisualTimerFeedbackCurve.maximumSynthesisSample < 1, "synthesized completion retains clipping headroom")
     }
 
-    private static func testVisualPulsePhase() {
-        let phases = stride(from: 0.0, through: 300.0, by: 0.25).map {
-            VisualTimerFeedbackCurve.visualPulsePhase(
-                elapsedSeconds: $0,
-                durationSeconds: 300
+    private static func testSharedPresentationCadence() {
+        var tracker = VisualTimerPresentationBeatTracker()
+        let interval = 1 / VisualTimerFeedbackCurve.pulsesPerSecond(elapsedProgress: 0.5)
+        let first = VisualTimerPresentationBeat(
+            VisualTimerScheduledBeat(index: 12, generation: 4, plannedUptime: 40, interval: interval)
+        )
+        tracker.register(first, at: 40)
+
+        expect(tracker.phase(at: 40) == 0, "shared visual pulse begins on the authoritative audible beat")
+        expect(tracker.phase(at: 40 + interval * 0.08) > 0.079, "shared beat phase advances from Orb-local active time")
+        let beforeDuplicate = tracker.phase(at: 40 + interval * 0.25)
+        tracker.register(first, at: 40 + interval * 0.25)
+        expect(tracker.phase(at: 40 + interval * 0.25) == beforeDuplicate, "duplicate beat delivery cannot reset visual phase")
+
+        let skipped = VisualTimerPresentationBeat(
+            VisualTimerScheduledBeat(index: 15, generation: 4, plannedUptime: 41, interval: interval * 0.5)
+        )
+        tracker.register(skipped, at: 41)
+        expect(tracker.beatIndex == 15 && tracker.phase(at: 41) == 0, "skipped frames consume only the newest beat without replaying a burst")
+        expect(abs(tracker.phase(at: 41 + skipped.interval) - 1) < 0.000_001,
+               "pulse phase settles at the end of the current beat interval")
+        expect(tracker.phase(at: .nan) == 1, "non-finite presentation time safely produces a settled pulse")
+    }
+
+    private static func testUrgencyHapticSubselection() {
+        var selector = VisualTimerUrgencyHapticSubselector()
+        let interval = 1 / VisualTimerFeedbackCurve.maximumPulsesPerSecond
+        let beforeWindow = VisualTimerPresentationBeat(
+            VisualTimerScheduledBeat(index: 1, generation: 1, plannedUptime: 10, interval: interval)
+        )
+        expect(selector.event(for: beforeWindow, remainingSeconds: 15.01) == nil,
+               "urgency haptics never begin before the final fifteen seconds")
+
+        var events: [VisualTimerUrgencyHapticEvent] = []
+        var selectedBeatTimes: [String: TimeInterval] = [:]
+        for index in 2..<212 {
+            let beat = VisualTimerPresentationBeat(
+                VisualTimerScheduledBeat(
+                    index: UInt64(index),
+                    generation: 1,
+                    plannedUptime: 10 + Double(index - 1) * interval,
+                    interval: interval
+                )
             )
+            let remaining = max(0.01, 15 - Double(index - 2) * interval)
+            if let event = selector.event(for: beat, remainingSeconds: remaining) {
+                events.append(event)
+                selectedBeatTimes["\(event.generation):\(event.index)"] = beat.plannedUptime
+            }
         }
-        expect(phases.allSatisfy { $0 >= 0 && $0 < 1 }, "timer-relative visual phase stays within one cycle")
+        expect(!events.isEmpty, "final-fifteen shared beats produce a bounded haptic subset")
+        expect(events.allSatisfy { (VisualTimerUrgencyHapticSubselector.minimumIntensity...VisualTimerUrgencyHapticSubselector.maximumIntensity).contains($0.intensity) },
+               "urgency haptic intensity stays within the selected physical audition range")
+        expect(VisualTimerUrgencyHapticSubselector.minimumIntensity == 0.50,
+               "final-fifteen entry uses the restrained but perceptible soft floor")
+        expect(VisualTimerUrgencyHapticSubselector.maximumIntensity == 0.95,
+               "urgency remains a soft-generator progression below the distinct heavy completion")
+        expect(events.allSatisfy { event in
+            selectedBeatTimes["\(event.generation):\(event.index)"] == event.plannedUptime
+        }, "selected urgency events retain the shared beat planned due-time")
+        expect((events.last?.intensity ?? 0) > (events.first?.intensity ?? 1),
+               "urgency haptic intensity increases toward completion")
+        let spacings = zip(events, events.dropFirst()).map { $1.plannedUptime - $0.plannedUptime }
+        expect(spacings.allSatisfy { $0 >= 1 / VisualTimerUrgencyHapticSubselector.maximumRate * 0.90 },
+               "urgency haptics never follow the full seven-Hz audio ceiling")
+
+        selector.invalidate()
+        let reentered = VisualTimerPresentationBeat(
+            VisualTimerScheduledBeat(index: 0, generation: 2, plannedUptime: 50, interval: interval)
+        )
+        expect(selector.event(for: reentered, remainingSeconds: 14) != nil,
+               "a new valid generation can enter the urgency window without stale suppression")
+        expect(selector.event(for: reentered, remainingSeconds: 16) == nil,
+               "moving outside the final-fifteen window cancels haptic eligibility")
+    }
+
+    private static func testOrganicShimmerWander() {
+        let frames = stride(from: 1.5, through: 180.0, by: VisualTimerOrbMotionFrame.interval).map {
+            VisualTimerOrbMotionFrame(elapsed: $0, progress: 0.55, urgency: 0.35)
+        }
+        expect(frames.allSatisfy { $0.driftX.isFinite && $0.driftY.isFinite && $0.sheenX.isFinite },
+               "organic shimmer positions remain finite")
+        expect(frames.allSatisfy { abs($0.driftX) < 34 && abs($0.driftY) < 21 && $0.sheenX > 48 && $0.sheenX < 292 },
+               "organic shimmer remains spatially bounded inside the Orb")
+        let steps = zip(frames, frames.dropFirst()).map {
+            hypot(Double($1.driftX - $0.driftX), Double($1.driftY - $0.driftY))
+        }
+        expect(steps.allSatisfy { $0 < 1.1 }, "organic shimmer has no frame-to-frame position jitter")
+        let early = Array(frames.prefix(600))
+        let delayed = Array(frames.dropFirst(600).prefix(600))
+        let repeated = zip(early, delayed).allSatisfy {
+            abs($0.driftX - $1.driftX) < 0.15 && abs($0.driftY - $1.driftY) < 0.15
+        }
+        expect(!repeated, "organic shimmer has no short repeated trajectory loop")
+        expect(VisualTimerOrbMotionFrame.still == VisualTimerOrbMotionFrame(elapsed: 0, progress: 0, urgency: 0),
+               "Reduce Motion retains the accepted static shimmer frame")
+    }
+
+    private static func testShortHorizonScheduler() {
+        let rate: (TimeInterval) -> Double = { _ in VisualTimerFeedbackCurve.maximumPulsesPerSecond }
+        var scheduler = VisualTimerFeedbackScheduler()
+        let initial = scheduler.begin(at: 100, remainingSeconds: 60, rate: rate)
+        expect(initial.scheduled.count == 2 && initial.skipped.isEmpty, "planner predicts exactly two initial beats")
+        expect(scheduler.queued.count == 2, "planner retains no more than two queued beats")
+        expect(initial.scheduled[0].plannedUptime > 100, "first planned beat is ahead of the monotonic scheduling instant")
+        expect(initial.scheduled[1].plannedUptime > initial.scheduled[0].plannedUptime,
+               "short-horizon prediction keeps future beats ordered")
         expect(
-            VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: -5, durationSeconds: 300) == 0,
-            "visual phase clamps negative elapsed time"
+            initial.scheduled[1].plannedUptime - 100
+                <= 2 / VisualTimerFeedbackCurve.maximumPulsesPerSecond + 0.000_001,
+            "initial planning horizon stays within two current-ceiling intervals"
         )
         expect(
-            VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: 12, durationSeconds: 0) == 0,
-            "visual phase handles an invalid duration safely"
+            abs(VisualTimerFeedbackScheduler.lateThreshold() - 1 / (2 * VisualTimerFeedbackCurve.maximumPulsesPerSecond)) < 0.000_001,
+            "late threshold is derived from the selected ceiling"
+        )
+        expect(
+            abs(VisualTimerFeedbackScheduler.lateThreshold() - 1 / 14) < 0.000_001,
+            "seven-tick late threshold is the derived 71.43 milliseconds, not a magic constant"
         )
 
-        let before = VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: 120, durationSeconds: 300)
-        let after = VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: 120.01, durationSeconds: 300)
-        let directDistance = abs(after - before)
-        let wrappedDistance = min(directDistance, 1 - directDistance)
-        expect(wrappedDistance < 0.05, "timer-relative pulse advances continuously between display frames")
+        let obsolete = scheduler.invalidatePreservingPhase()
+        let replacement = scheduler.replenish(at: 100, remainingSeconds: 45, rate: rate)
+        expect(obsolete.count == 2 && replacement.scheduled.count == 2,
+               "state replacement cancels the old short queue and rederives two beats")
+        expect(replacement.scheduled[0].plannedUptime == obsolete[0].plannedUptime,
+               "time adjustment retains the next shared phase anchor")
+        expect(!scheduler.accepts(obsolete[0]) && scheduler.accepts(replacement.scheduled[0]),
+               "new generation rejects obsolete callbacks without restarting phase")
+
+        let paused = scheduler.pause(at: 100.01)
+        let resumed = scheduler.resume(at: 200, remainingSeconds: 45, rate: rate)
+        expect(!paused.isEmpty && resumed.scheduled.count == 2,
+               "pause cancels real future plans and resume restores a bounded queue")
+        expect(resumed.scheduled[0].plannedUptime > 200,
+               "resume retains a forward phase delay instead of replaying an old beat")
+
+        _ = scheduler.invalidatePreservingPhase()
+        let delayed = scheduler.replenish(at: 205, remainingSeconds: 40, rate: rate)
+        expect(!delayed.skipped.isEmpty && delayed.scheduled.count == 2,
+               "delayed replan skips overdue beats and restores only the future short queue")
         expect(
-            before == VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: 120, durationSeconds: 300),
-            "paused visual phase stays stable without depending on wall-clock time"
-        )
-        expect(
-            before == VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: 120, durationSeconds: 360),
-            "adding one minute preserves the current visual pulse phase"
-        )
-        expect(
-            VisualTimerFeedbackCurve.visualPulsePhase(elapsedSeconds: .nan, durationSeconds: 300) == 0,
-            "non-finite elapsed time cannot reach the renderer"
+            delayed.scheduled.allSatisfy { $0.plannedUptime >= 205 - VisualTimerFeedbackScheduler.lateThreshold() },
+            "late scheduling never emits an accumulated historical beat burst"
         )
     }
 
     private static func testVisualRenderingBudget() {
-        let samplesPerCycle = (1 / VisualTimerFeedbackCurve.visualFrameInterval)
-            / VisualTimerFeedbackCurve.visualPulsesPerSecond
-        expect(samplesPerCycle >= 15, "localized visual pulse retains at least fifteen samples per cycle")
+        let samplesPerFastestCycle = (1 / VisualTimerOrbMotionFrame.interval)
+            / VisualTimerFeedbackCurve.maximumPulsesPerSecond
+        expect(samplesPerFastestCycle >= 4, "seven-tick pulse retains four 30 Hz samples for bounded audition review")
         expect(VisualTimerFeedbackCurve.readoutInterval == 1, "timer readout uses a bounded one-second cadence")
-        expect(VisualTimerFeedbackCurve.visualPulsesPerSecond <= 1, "visual motion remains calm while audio cadence accelerates independently")
 
         let phases = stride(from: 0.0, through: 1.0, by: 0.025)
-        let envelopes = phases.map(VisualTimerFeedbackCurve.visualPulseEnvelope)
+        let envelopes = phases.map(VisualTimerFeedbackCurve.presentationPulseEnvelope)
         expect(envelopes.allSatisfy { $0.isFinite && $0 >= 0 && $0 <= 1 }, "visual pulse envelope is finite and bounded")
-        expect(abs(VisualTimerFeedbackCurve.visualPulseEnvelope(phase: 0)) < 0.000_001, "visual pulse wrap begins continuously at rest")
-        expect(abs(VisualTimerFeedbackCurve.visualPulseEnvelope(phase: 1)) < 0.000_001, "visual pulse wrap ends continuously at rest")
-        expect(abs(VisualTimerFeedbackCurve.visualPulseEnvelope(phase: 0.5) - 1) < 0.000_001, "visual pulse reaches one smooth midpoint peak")
-        expect(VisualTimerFeedbackCurve.visualPulseEnvelope(phase: .infinity) == 0, "non-finite pulse phase is safely bounded")
+        expect(abs(VisualTimerFeedbackCurve.presentationPulseEnvelope(phase: 0) - 1) < 0.000_001, "spatial pressure crests at the scheduled audible onset")
+        expect(abs(VisualTimerFeedbackCurve.presentationPulseEnvelope(phase: -0.00001) - VisualTimerFeedbackCurve.presentationPulseEnvelope(phase: 0.00001)) < 0.000_001, "anticipation and release meet continuously at the beat")
+        expect(abs(VisualTimerFeedbackCurve.presentationPulseEnvelope(phase: 1)) < 0.000_001, "visual pulse settles before the next beat")
+        expect(VisualTimerFeedbackCurve.presentationPulseEnvelope(phase: .infinity) == 0, "non-finite pulse phase is safely bounded")
     }
 
-    private static func testCompletionOutputBudget() {
-        let sampleRate = 44_100.0
-        let newSamples = VisualTimerToneProfile.allCases.map {
-            VisualTimerCompletionCue.samples(for: $0, sampleRate: sampleRate)
-        }
-        let newMetrics = newSamples.map(sampleMetrics)
-        let build120Metrics = VisualTimerToneProfile.allCases.map {
-            build120CompletionMetrics(profile: $0, sampleRate: sampleRate)
-        }
-        let build122Metrics = VisualTimerToneProfile.allCases.map {
-            build122CompletionMetrics(profile: $0, sampleRate: sampleRate)
-        }
-
-        expect(
-            newSamples.allSatisfy {
-                $0.count == Int(sampleRate * VisualTimerCompletionCue.duration)
-            },
-            "completion cue duration remains deterministic and bounded"
-        )
-        expect(
-            newSamples.allSatisfy { $0.allSatisfy(\.isFinite) },
-            "every completion sample remains finite"
-        )
-        expect(
-            newMetrics.allSatisfy {
-                abs($0.peak - VisualTimerFeedbackCurve.maximumSynthesisSample) < 0.000_01
-            },
-            "maximum completion output uses the retained digital headroom"
-        )
-        expect(
-            newMetrics.allSatisfy { $0.rms >= 0.65 },
-            "completion cue carries calibrated sustained output instead of relying on isolated peaks"
-        )
-        expect(
-            newMetrics.allSatisfy { $0.peak / $0.rms <= 1.42 },
-            "completion cue crest factor stays bounded for useful perceived loudness"
-        )
-        expect(
-            zip(newMetrics, build120Metrics).allSatisfy { $0.rms / $1.rms > 1.90 },
-            "maximum completion RMS is at least ninety percent stronger than Build 120"
-        )
-        expect(
-            zip(newMetrics, build120Metrics).allSatisfy { $0.energy / $1.energy > 8.5 },
-            "maximum completion cue carries more than eight times Build 120 signal energy"
-        )
-        expect(
-            zip(newMetrics, build122Metrics).allSatisfy { $0.rms / $1.rms > 1.16 },
-            "maximum completion RMS is measurably stronger than Build 122 on every tone"
-        )
-        expect(
-            zip(newMetrics, build122Metrics).allSatisfy { $0.energy / $1.energy > 2.45 },
-            "the mastered completion pattern carries more than twice Build 122 total signal energy"
-        )
-        expect(
-            newSamples.allSatisfy { strongSampleFraction(in: $0) >= 0.64 },
-            "at least sixty-four percent of the cue carries half-scale-or-stronger output"
-        )
-        expect(
-            newSamples.allSatisfy {
-                longestNearPeakRun(in: $0) <= 2
-            },
-            "peak normalization does not introduce a clipped plateau"
-        )
-        expect(
-            VisualTimerCompletionCue.noteOffsets.count == 5,
-            "one completion event contains a bounded five-note alert pattern"
-        )
-        expect(
-            VisualTimerCompletionCue.notePitchIndices == [0, 1, 2, 1, 2],
-            "the repeated alert pattern preserves the selected three-pitch identity"
-        )
-        expect(
-            VisualTimerCompletionCue.softLimiterDrive >= 1.25
-                && VisualTimerCompletionCue.softLimiterDrive <= 1.60,
-            "soft limiting raises average energy without an extreme distortion drive"
-        )
-        expect(
-            VisualTimerCompletionCue.duration >= 2.0 && VisualTimerCompletionCue.duration <= 2.2,
-            "completion sustains useful output for a bounded alert-length window"
-        )
-        expect(
-            VisualTimerCompletionCue.noteDuration <= 0.42,
-            "completion notes remain separated instead of overlapping into excess gain"
-        )
-        expect(
-            VisualTimerCompletionCue.samples(for: .soft, sampleRate: 0).isEmpty
-                && VisualTimerCompletionCue.samples(for: .soft, sampleRate: .infinity).isEmpty,
-            "invalid sample rates fail silently and deterministically"
-        )
-        expect(VisualTimerFeedbackCurve.maximumSynthesisSample < 1, "stronger completion output cannot reach digital full scale")
-    }
-
-    // Build 122: broadband RMS alone did not predict physical iPhone output.
-    // Every repeated completion note must carry a musically related upper-mid
-    // partial while retaining the selected profile's fundamental identity.
-    private static func testSpeakerEffectiveCompletionSpectrum() {
-        let sampleRate = 44_100.0
-        expect(
-            zip(VisualTimerCompletionCue.noteOffsets, VisualTimerCompletionCue.noteOffsets.dropFirst())
-                .allSatisfy { $1 - $0 >= VisualTimerCompletionCue.noteDuration },
-            "completion notes never overlap into duplicate gain"
-        )
-        expect(
-            (VisualTimerCompletionCue.noteOffsets.last ?? 0) + VisualTimerCompletionCue.noteDuration
-                <= VisualTimerCompletionCue.duration,
-            "the full repeated completion envelope fits before playback ends"
-        )
-        expect(
-            VisualTimerCompletionCue.playbackTail >= 0.15,
-            "the audio engine retains a bounded tail after the final envelope"
-        )
-
-        var profileWaveforms: [[Float]] = []
-        for profile in VisualTimerToneProfile.allCases {
-            let samples = VisualTimerCompletionCue.samples(for: profile, sampleRate: sampleRate)
-            profileWaveforms.append(samples)
-            for (offset, frequency) in zip(
-                VisualTimerCompletionCue.noteOffsets,
-                VisualTimerCompletionCue.noteFrequencies(for: profile)
-            ) {
-                let fundamental = spectralProjection(
-                    samples,
-                    sampleRate: sampleRate,
-                    offset: offset,
-                    duration: VisualTimerCompletionCue.noteDuration,
-                    frequency: frequency
-                )
-                let fourthPartial = spectralProjection(
-                    samples,
-                    sampleRate: sampleRate,
-                    offset: offset,
-                    duration: VisualTimerCompletionCue.noteDuration,
-                    frequency: frequency * 4
-                )
-                expect(
-                    fundamental > 0 && fourthPartial / fundamental >= 0.09,
-                    "\(profile.title) repeats speaker-effective upper-mid energy on every completion note"
-                )
-                expect(
-                    frequency * 4 >= 1_700 && frequency * 4 <= 3_150,
-                    "\(profile.title) raised fourth partial remains in a bounded speaker-effective range"
-                )
-            }
-        }
-        expect(profileWaveforms[0] != profileWaveforms[1], "Warm and Soft completion identities remain distinct")
-        expect(profileWaveforms[1] != profileWaveforms[2], "Soft and Clear completion identities remain distinct")
-    }
-
-    private static func build120CompletionMetrics(
-        profile: VisualTimerToneProfile,
-        sampleRate: Double
-    ) -> (peak: Double, rms: Double, energy: Double) {
-        let sampleCount = Int(sampleRate * 0.52)
-        let notes = zip([0.00, 0.15, 0.30], profile.completionFrequencies)
-        var peak = 0.0
-        var energy = 0.0
-
-        for frame in 0..<sampleCount {
-            let t = Double(frame) / sampleRate
-            var value = 0.0
-            for note in notes {
-                let localTime = t - note.0
-                guard localTime >= 0, localTime <= 0.19 else { continue }
-                let attack = min(1, localTime / 0.012)
-                let decay = exp(-12 * localTime)
-                let releaseProgress = max(0, (localTime - 0.12) / 0.07)
-                let release = releaseProgress <= 0
-                    ? 1
-                    : 0.5 * (1 + cos(Double.pi * min(1, releaseProgress)))
-                let fundamental = sin(2 * Double.pi * note.1 * localTime)
-                let second = profile.secondHarmonicMix
-                    * sin(2 * Double.pi * note.1 * 2 * localTime)
-                value += (fundamental + second) * attack * decay * release * 0.84
-            }
-            value = max(
-                -VisualTimerFeedbackCurve.maximumSynthesisSample,
-                min(VisualTimerFeedbackCurve.maximumSynthesisSample, value)
-            )
-            peak = max(peak, abs(value))
-            energy += value * value
-        }
-        return (peak, sqrt(energy / Double(sampleCount)), energy)
-    }
-
-    private static func build122CompletionMetrics(
-        profile: VisualTimerToneProfile,
-        sampleRate: Double
-    ) -> (peak: Double, rms: Double, energy: Double) {
-        let duration = 1.20
-        let noteOffsets = [0.00, 0.40, 0.80]
-        let noteDuration = 0.38
-        let attackDuration = 0.006
-        let releaseStart = 0.29
-        let decayRate = 0.70
-        let sampleCount = Int(sampleRate * duration)
-        var rawSamples = [Double](repeating: 0, count: sampleCount)
-        var rawPeak = 0.0
-
-        for frame in rawSamples.indices {
-            let time = Double(frame) / sampleRate
-            var value = 0.0
-            for (offset, frequency) in zip(noteOffsets, profile.completionFrequencies) {
-                let localTime = time - offset
-                guard localTime >= 0, localTime <= noteDuration else { continue }
-                let attack = min(1, localTime / attackDuration)
-                let decay = exp(-decayRate * localTime)
-                let releaseProgress = max(
-                    0,
-                    (localTime - releaseStart) / (noteDuration - releaseStart)
-                )
-                let release = releaseProgress <= 0
-                    ? 1
-                    : 0.5 * (1 + cos(Double.pi * min(1, releaseProgress)))
-                let fundamental = sin(2 * Double.pi * frequency * localTime)
-                let second = (profile.secondHarmonicMix + 0.12)
-                    * sin(2 * Double.pi * frequency * 2 * localTime)
-                let third = 0.12 * sin(2 * Double.pi * frequency * 3 * localTime)
-                let fourth = 0.12 * sin(2 * Double.pi * frequency * 4 * localTime)
-                value += (fundamental + second + third + fourth) * attack * decay * release
-            }
-            rawSamples[frame] = value
-            rawPeak = max(rawPeak, abs(value))
-        }
-
-        let gain = VisualTimerFeedbackCurve.maximumSynthesisSample / rawPeak
-        let values = rawSamples.map { $0 * gain }
-        let energy = values.reduce(0) { $0 + $1 * $1 }
-        return (
-            values.map(abs).max() ?? 0,
-            sqrt(energy / Double(values.count)),
-            energy
-        )
-    }
-
-    private static func sampleMetrics(_ samples: [Float]) -> (peak: Double, rms: Double, energy: Double) {
-        let values = samples.map(Double.init)
-        let energy = values.reduce(0) { $0 + $1 * $1 }
-        return (
-            values.map(abs).max() ?? 0,
-            values.isEmpty ? 0 : sqrt(energy / Double(values.count)),
-            energy
-        )
-    }
-
-    private static func longestNearPeakRun(in samples: [Float]) -> Int {
-        let threshold = Float(VisualTimerFeedbackCurve.maximumSynthesisSample * 0.999)
-        var longest = 0
-        var current = 0
-        for sample in samples {
-            if abs(sample) >= threshold {
-                current += 1
-                longest = max(longest, current)
-            } else {
-                current = 0
-            }
-        }
-        return longest
-    }
-
-    private static func strongSampleFraction(in samples: [Float]) -> Double {
-        guard !samples.isEmpty else { return 0 }
-        let threshold = Float(VisualTimerFeedbackCurve.maximumSynthesisSample * 0.5)
-        let strongSamples = samples.lazy.filter { abs($0) >= threshold }.count
-        return Double(strongSamples) / Double(samples.count)
-    }
-
-    private static func spectralProjection(
-        _ samples: [Float],
-        sampleRate: Double,
-        offset: TimeInterval,
-        duration: TimeInterval,
-        frequency: Double
-    ) -> Double {
-        let start = max(0, Int((offset * sampleRate).rounded(.down)))
-        let end = min(samples.count, Int(((offset + duration) * sampleRate).rounded(.down)))
-        guard start < end else { return 0 }
-
-        var real = 0.0
-        var imaginary = 0.0
-        for frame in start..<end {
-            let localTime = Double(frame - start) / sampleRate
-            let angle = 2 * Double.pi * frequency * localTime
-            let sample = Double(samples[frame])
-            real += sample * cos(angle)
-            imaginary -= sample * sin(angle)
-        }
-        return hypot(real, imaginary) / Double(end - start)
+    private static func testCompletionCueContract() {
+        let beats = VisualTimerCompletionCue.hapticBeatMap
+        expect(VisualTimerCompletionCue.resourceName == "TimerCompletionCue", "completion cue loads from the dedicated bundled data asset")
+        expect(VisualTimerCompletionCue.sourceFilename == "TIMER_SOUND_3s.wav", "completion cue retains Brandon's supplied filename")
+        expect(VisualTimerCompletionCue.approvedSourceSHA256 == "ddde780da9eb13cc1b7f00f0f7ba03d7f4bd50e8f480574078fd20092174e52b", "completion cue declares the approved source hash")
+        expect(VisualTimerCompletionCue.duration == 3, "supplied completion cue remains exactly three seconds")
+        expect(VisualTimerCompletionCue.sampleRate == 44_100, "supplied completion cue remains 44.1 kHz")
+        expect(VisualTimerCompletionCue.channelCount == 2 && VisualTimerCompletionCue.bitDepth == 24, "supplied completion cue remains stereo 24-bit PCM")
+        expect(VisualTimerCompletionCue.frameCount == 132_300 && VisualTimerCompletionCue.pcmByteCount == 793_800, "supplied completion cue retains its exact PCM frame and byte counts")
+        expect(VisualTimerCompletionCue.playbackTail >= 0.15, "audio ownership retains a bounded post-playback cleanup tail")
+        expect(beats.count == 4, "completion celebration uses a bounded four-attack haptic map")
+        expect(beats.map(\.cueOffset) == [0, 0.96, 1.68, 2.27], "completion haptics follow the selected source attacks")
+        expect(beats.map(\.intensity) == [0.70, 0.76, 0.84, 1.00], "completion haptics resolve with the intended restrained-to-strong progression")
+        expect(beats.allSatisfy { $0.cueOffset >= 0 && $0.cueOffset < VisualTimerCompletionCue.duration }, "completion haptic offsets remain inside the audio cue")
+        expect(zip(beats, beats.dropFirst()).allSatisfy { $1.cueOffset - $0.cueOffset >= 0.5 }, "completion haptics never become continuous vibration")
+        expect(beats.last?.intensity == 1, "the final selected source attack owns the resolved completion impact")
     }
 
     private static func testAccessibilityMilestones() {
@@ -540,6 +463,49 @@ struct VisualTimerFeedbackContractTests {
             now: now
         )
         expect(belowZero.remainingSeconds == 0, "large negative adjustment never produces a negative remaining value")
+    }
+
+    private static func testOrbLiquidAreaMapping() {
+        let progressValues = [0.0, 0.10, 0.25, 0.50, 0.75, 0.98, 1.0]
+        let surfaces = progressValues.map {
+            VisualTimerOrbLiquidGeometry.circularFillSurfaceY(progress: CGFloat($0))
+        }
+
+        expect(surfaces.allSatisfy { $0.isFinite }, "liquid surfaces remain finite")
+        expect(
+            surfaces.allSatisfy {
+                $0 >= VisualTimerOrbLiquidGeometry.wellCenter - VisualTimerOrbLiquidGeometry.wellRadius
+                    && $0 <= VisualTimerOrbLiquidGeometry.wellCenter + VisualTimerOrbLiquidGeometry.wellRadius
+            },
+            "liquid surfaces remain within the circular well"
+        )
+        expect(surfaces == surfaces.sorted(by: >), "liquid surface rises monotonically as remaining area increases")
+        expect(
+            VisualTimerOrbLiquidGeometry.circularFillSurfaceY(progress: 0) == 316,
+            "zero progress reaches the bottom of the liquid well"
+        )
+        expect(
+            VisualTimerOrbLiquidGeometry.circularFillSurfaceY(progress: 1) == 24,
+            "full progress reaches the top of the liquid well"
+        )
+        expect(
+            abs(VisualTimerOrbLiquidGeometry.circularFillSurfaceY(progress: 0.5) - 170) < 0.001,
+            "half area places the surface through the circular well center"
+        )
+
+        for progress in progressValues {
+            let surface = VisualTimerOrbLiquidGeometry.circularFillSurfaceY(progress: CGFloat(progress))
+            let normalizedHeight = (surface - VisualTimerOrbLiquidGeometry.wellCenter)
+                / VisualTimerOrbLiquidGeometry.wellRadius
+            let areaFraction = 0.5 - (
+                (asin(normalizedHeight) + normalizedHeight * sqrt(max(0, 1 - (normalizedHeight * normalizedHeight))))
+                / CGFloat.pi
+            )
+            expect(
+                abs(areaFraction - CGFloat(progress)) < 0.000_01,
+                "solved surface preserves the requested circular area at \(progress)"
+            )
+        }
     }
 
     private static func expect(_ condition: @autoclosure () -> Bool, _ message: String) {

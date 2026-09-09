@@ -155,6 +155,10 @@ enum LifeRouteTheme: String, CaseIterable, Identifiable {
         .sceneryArcticDay, .sceneryArcticNight,
     ]
 
+    /// User-facing membership is independent of the legacy migration category
+    /// and the renderer cohorts above. Scenery keeps its own renderer/effects.
+    static let visibleDynamicCatalog = phaseTwoDynamicCatalog + phaseThreeSceneryCatalog
+
     var isPhaseThreeScenery: Bool {
         Self.phaseThreeSceneryCatalog.contains(self)
     }
@@ -424,7 +428,9 @@ final class LifeRouteThemeStore: ObservableObject {
     @Published var selectedTheme: LifeRouteTheme {
         didSet {
             UserDefaults.standard.set(selectedTheme.rawValue, forKey: Self.storageKey)
-            LifeRouteAppearance.configure(theme: selectedTheme)
+            // The mounted Scenic Royal root owns a live theme change. Do not
+            // repaint an already-visible UIWindow fallback underneath it.
+            LifeRouteAppearance.configure(theme: selectedTheme, updateVisibleWindows: false)
         }
     }
 
@@ -441,10 +447,13 @@ final class LifeRouteThemeStore: ObservableObject {
         if savedIdentifier != theme.rawValue {
             UserDefaults.standard.set(theme.rawValue, forKey: Self.storageKey)
         }
-        LifeRouteAppearance.configure(theme: theme)
+        // Phase 1N first-frame protection: before the transparent SwiftUI
+        // hosts mount, the window must already carry the selected scenery's
+        // compatible fallback color.
+        LifeRouteAppearance.configure(theme: theme, updateVisibleWindows: true)
     }
 
-    var palette: LifeRouteThemePalette { selectedTheme.palette }
+    var palette: LifeRouteThemePalette { selectedTheme.scenicRoyalStyle.contentPalette }
 
     // v0.7.1 shipping theme hold: preserve unfinished theme code while exposing only physically proven non-Core themes.
     private static func shippingTheme(_ theme: LifeRouteTheme) -> LifeRouteTheme {
@@ -594,6 +603,7 @@ enum LifeRouteHaptics {
         weak var hostView: UIView?
         var rootNavigation: UIImpactFeedbackGenerator?
         var primaryAction: UIImpactFeedbackGenerator?
+        var timerUrgency: UIImpactFeedbackGenerator?
         var timerCompletion: UIImpactFeedbackGenerator?
         var selection: UISelectionFeedbackGenerator?
         var notification: UINotificationFeedbackGenerator?
@@ -641,11 +651,19 @@ enum LifeRouteHaptics {
         generator.prepare()
     }
 
-    static func timerCompletion() {
+    static func timerCompletion(intensity: Double = LifeRouteRuntimeFeedbackPolicy.timerCompletionIntensity) {
         prepareGenerators()
         guard let generator = generators.timerCompletion else { return }
         generator.prepare()
-        generator.impactOccurred(intensity: LifeRouteRuntimeFeedbackPolicy.timerCompletionIntensity)
+        generator.impactOccurred(intensity: min(1, max(0, intensity)))
+        generator.prepare()
+    }
+
+    static func timerUrgency(intensity: Double) {
+        prepareGenerators()
+        guard let generator = generators.timerUrgency else { return }
+        generator.prepare()
+        generator.impactOccurred(intensity: min(1, max(0, intensity)))
         generator.prepare()
     }
 
@@ -657,6 +675,7 @@ enum LifeRouteHaptics {
             guard generators.hostView !== hostView
                     || generators.rootNavigation == nil
                     || generators.primaryAction == nil
+                    || generators.timerUrgency == nil
                     || generators.timerCompletion == nil
                     || generators.selection == nil
                     || generators.notification == nil else { return }
@@ -664,6 +683,7 @@ enum LifeRouteHaptics {
             generators.hostView = hostView
             generators.rootNavigation = UIImpactFeedbackGenerator(style: .medium, view: hostView)
             generators.primaryAction = UIImpactFeedbackGenerator(style: .medium, view: hostView)
+            generators.timerUrgency = UIImpactFeedbackGenerator(style: .soft, view: hostView)
             generators.timerCompletion = UIImpactFeedbackGenerator(style: .heavy, view: hostView)
             generators.selection = UISelectionFeedbackGenerator(view: hostView)
             generators.notification = UINotificationFeedbackGenerator(view: hostView)
@@ -673,6 +693,7 @@ enum LifeRouteHaptics {
         guard generators.hostView != nil
                 || generators.rootNavigation == nil
                 || generators.primaryAction == nil
+                || generators.timerUrgency == nil
                 || generators.timerCompletion == nil
                 || generators.selection == nil
                 || generators.notification == nil else { return }
@@ -680,6 +701,7 @@ enum LifeRouteHaptics {
         generators.hostView = nil
         generators.rootNavigation = UIImpactFeedbackGenerator(style: .medium)
         generators.primaryAction = UIImpactFeedbackGenerator(style: .medium)
+        generators.timerUrgency = UIImpactFeedbackGenerator(style: .soft)
         generators.timerCompletion = UIImpactFeedbackGenerator(style: .heavy)
         generators.selection = UISelectionFeedbackGenerator()
         generators.notification = UINotificationFeedbackGenerator()
@@ -744,11 +766,12 @@ struct LifeRoutePrimaryButtonStyle: ButtonStyle {
 struct LifeRouteSecondaryButtonStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.lifeRouteTheme) private var theme
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(palette.textPrimary)
+            .foregroundStyle(theme.scenicRoyalStyle.filledPanelForeground)
             .frame(maxWidth: .infinity, minHeight: LifeRouteDesign.Layout.secondaryControlHeight)
             .padding(.horizontal, 14)
             .background(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).fill(palette.panelElevated.opacity(configuration.isPressed ? 0.94 : 0.68)))
@@ -901,26 +924,28 @@ struct LifeRouteBrandMark: View {
 
 struct LifeRouteSectionLabel: View {
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.lifeRouteTheme) private var theme
     let title: String
 
     var body: some View {
         Text(title.uppercased())
             .font(.caption2.weight(.bold))
             .tracking(0.8)
-            .foregroundStyle(palette.textSecondary)
+            .foregroundStyle(theme.scenicRoyalStyle.contentSecondaryForeground)
             .accessibilityAddTraits(.isHeader)
     }
 }
 
 struct LifeRouteIconBadge: View {
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.lifeRouteTheme) private var theme
     let systemImage: String
     var prominent = false
 
     var body: some View {
         Image(systemName: systemImage)
             .font(.system(size: 16, weight: .semibold))
-            .foregroundStyle(prominent ? palette.accent : palette.textPrimary)
+            .foregroundStyle(prominent ? palette.accent : theme.scenicRoyalStyle.contentPrimaryForeground)
             .frame(width: LifeRouteDesign.Layout.minimumTouchTarget, height: LifeRouteDesign.Layout.minimumTouchTarget)
             .background(
                 RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.iconContainer, style: .continuous)
@@ -935,6 +960,7 @@ struct LifeRouteIconBadge: View {
 
 struct LifeRoutePill: View {
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.lifeRouteTheme) private var theme
     let title: String
     var systemImage: String? = nil
     var isSelected = false
@@ -948,25 +974,26 @@ struct LifeRoutePill: View {
                 .lineLimit(1)
         }
         .font(.caption.weight(.semibold))
-        .foregroundStyle(isSelected ? Color.black.opacity(0.82) : palette.textSecondary)
+        .foregroundStyle(isSelected ? theme.scenicRoyalStyle.selectedControlForeground : theme.scenicRoyalStyle.contentSecondaryForeground)
         .padding(.horizontal, 12)
         .frame(minHeight: 34)
         .background {
             if isSelected {
-                Capsule().fill(palette.accentGradient)
+                ScenicRoyalSelectedControlMaterial(shape: Capsule())
             } else {
                 Capsule().fill(palette.panelElevated.opacity(0.72))
             }
         }
         .overlay {
             Capsule()
-                .stroke(isSelected ? palette.accentSecondary.opacity(0.32) : Color.white.opacity(0.08), lineWidth: LifeRouteDesign.Stroke.subtle)
+                .stroke(isSelected ? theme.scenicRoyalStyle.selectedControlIndicator.opacity(0.32) : Color.white.opacity(0.08), lineWidth: LifeRouteDesign.Stroke.subtle)
         }
     }
 }
 
 struct LifeRouteScreenHeader: View {
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.lifeRouteTheme) private var theme
     let title: String
     var subtitle: String? = nil
     var systemImage: String? = nil
@@ -980,12 +1007,12 @@ struct LifeRouteScreenHeader: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(palette.textPrimary)
+                    .foregroundStyle(theme.scenicRoyalStyle.contentPrimaryForeground)
                     .accessibilityAddTraits(.isHeader)
                 if let subtitle {
                     Text(subtitle)
                         .font(.subheadline)
-                        .foregroundStyle(palette.textSecondary)
+                    .foregroundStyle(theme.scenicRoyalStyle.contentSecondaryForeground)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -997,13 +1024,14 @@ struct LifeRouteScreenHeader: View {
 
 struct LifeRouteModalChromeModifier: ViewModifier {
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.lifeRouteTheme) private var theme
 
     func body(content: Content) -> some View {
         content
             .scrollContentBackground(.hidden)
             .background(palette.backgroundGradient.ignoresSafeArea())
             .presentationDragIndicator(.visible)
-            .tint(palette.accent)
+            .tint(theme.scenicRoyalStyle.selectedControlFill)
     }
 }
 
@@ -1148,16 +1176,7 @@ struct LifeRouteCoreGlassEnvironment: View {
 
 // v0.7.1 retained Dynamic library: seven distinct production renderers join Royal Current.
 extension LifeRouteTheme {
-    static let v071RetainedDynamicCatalog: [LifeRouteTheme] = [
-        .royalCurrent,
-        .midnightPrism,
-        .auroraBloom,
-        .solarPulse,
-        .emeraldFlow,
-        .oceanGlass,
-        .obsidianSpectra,
-        .plasmaOrchid,
-    ]
+    static let v071RetainedDynamicCatalog = phaseTwoDynamicCatalog
 
     var isV071RetainedDynamic: Bool {
         Self.v071RetainedDynamicCatalog.contains(self)
@@ -2371,20 +2390,7 @@ struct LifeRouteDynamicGlassFrame: View {
 
 // v0.7.1 retained Scenery library: eleven optimized scenes join Canyon Day.
 extension LifeRouteTheme {
-    static let v071RetainedSceneryCatalog: [LifeRouteTheme] = [
-        .sceneryMountainsDay,
-        .sceneryMountainsNight,
-        .sceneryOceanDay,
-        .sceneryOceanNight,
-        .sceneryDesertDay,
-        .sceneryDesertNight,
-        .sceneryRainforestDay,
-        .sceneryRainforestNight,
-        .sceneryCanyonDay,
-        .sceneryCanyonNight,
-        .sceneryArcticDay,
-        .sceneryArcticNight,
-    ]
+    static let v071RetainedSceneryCatalog = phaseThreeSceneryCatalog
 
     var isV071RetainedScenery: Bool {
         Self.v071RetainedSceneryCatalog.contains(self)
@@ -3501,14 +3507,31 @@ extension View {
 }
 
 enum LifeRouteAppearance {
-    static func configure(theme: LifeRouteTheme) {
+    static func configure(theme: LifeRouteTheme, updateVisibleWindows: Bool) {
         let palette = theme.palette
+        let style = theme.scenicRoyalStyle
         let background = UIColor(palette.backgroundTop)
         let panel = UIColor(palette.panel)
         let elevated = UIColor(palette.panelElevated)
-        let accent = UIColor(palette.accent)
-        let primary = UIColor(palette.textPrimary)
-        let secondary = UIColor(palette.textSecondary)
+        let accent = UIColor(style.nativeControlTint)
+        let primary = UIColor(style.contentPrimaryForeground)
+        let secondary = UIColor(style.contentSecondaryForeground)
+        let selectedControl = UIColor(style.selectedControlFill)
+        let selectedControlForeground = UIColor(style.selectedControlForeground)
+
+        // This is the only surface guaranteed to exist before WindowGroup has
+        // mounted the transparent SwiftUI/navigation hosts. Owning it here
+        // prevents UIKit's default black window from becoming the first visible
+        // frame, while the persistent Scenic Royal environment replaces it as
+        // soon as the root hierarchy is ready.
+        UIWindow.appearance().backgroundColor = background
+        if updateVisibleWindows {
+            for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+                for window in scene.windows {
+                    window.backgroundColor = background
+                }
+            }
+        }
 
         // UIKit owns the iOS 26 Liquid Glass navigation-bar material. Build 117
         // combined a global appearance proxy with repeated live-bar mutation,
@@ -3519,8 +3542,8 @@ enum LifeRouteAppearance {
         if usesLegacyChrome {
             let nav = UINavigationBarAppearance()
             nav.configureWithTransparentBackground()
-            nav.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-            nav.backgroundColor = background.withAlphaComponent(0.54)
+            nav.backgroundEffect = UIBlurEffect(style: style.isBrightEnvironment ? .systemUltraThinMaterialLight : .systemUltraThinMaterialDark)
+            nav.backgroundColor = UIColor(style.nativeBarFill).withAlphaComponent(0.54)
             nav.shadowColor = accent.withAlphaComponent(0.10)
             nav.titleTextAttributes = [.foregroundColor: primary, .font: UIFont.systemFont(ofSize: 17, weight: .semibold)]
             nav.largeTitleTextAttributes = [.foregroundColor: primary, .font: UIFont.systemFont(ofSize: 34, weight: .bold)]
@@ -3557,30 +3580,30 @@ enum LifeRouteAppearance {
         if usesLegacyChrome {
             let tab = UITabBarAppearance()
             tab.configureWithTransparentBackground()
-            tab.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterialDark)
-            tab.backgroundColor = background.withAlphaComponent(0.66)
+            tab.backgroundEffect = UIBlurEffect(style: style.isBrightEnvironment ? .systemUltraThinMaterialLight : .systemUltraThinMaterialDark)
+            tab.backgroundColor = UIColor(style.nativeBarFill).withAlphaComponent(0.66)
             tab.shadowColor = accent.withAlphaComponent(0.09)
-            configure(tab.stackedLayoutAppearance, accent: accent, secondary: secondary)
-            configure(tab.inlineLayoutAppearance, accent: accent, secondary: secondary)
-            configure(tab.compactInlineLayoutAppearance, accent: accent, secondary: secondary)
+            configure(tab.stackedLayoutAppearance, selectedControl: accent, secondary: secondary)
+            configure(tab.inlineLayoutAppearance, selectedControl: accent, secondary: secondary)
+            configure(tab.compactInlineLayoutAppearance, selectedControl: accent, secondary: secondary)
             let tabBar = UITabBar.appearance()
             tabBar.standardAppearance = tab
             tabBar.scrollEdgeAppearance = tab
             tabBar.tintColor = accent
             tabBar.unselectedItemTintColor = secondary
             tabBar.itemPositioning = .fill
-            tabBar.selectionIndicatorImage = makeTabSelectionIndicator(accent: accent)
+            tabBar.selectionIndicatorImage = makeTabSelectionIndicator(accent: selectedControl)
         }
 
         let segmented = UISegmentedControl.appearance()
-        segmented.backgroundColor = panel.withAlphaComponent(0.72)
-        segmented.selectedSegmentTintColor = accent
+        segmented.backgroundColor = UIColor(style.nativeSegmentedFill).withAlphaComponent(0.72)
+        segmented.selectedSegmentTintColor = selectedControl
         segmented.setTitleTextAttributes([
             .foregroundColor: secondary,
             .font: UIFont.systemFont(ofSize: 13, weight: .semibold)
         ], for: .normal)
         segmented.setTitleTextAttributes([
-            .foregroundColor: UIColor.black.withAlphaComponent(0.78),
+            .foregroundColor: selectedControlForeground,
             .font: UIFont.systemFont(ofSize: 13, weight: .bold)
         ], for: .selected)
 
@@ -3631,11 +3654,11 @@ enum LifeRouteAppearance {
         )
     }
 
-    private static func configure(_ item: UITabBarItemAppearance, accent: UIColor, secondary: UIColor) {
+    private static func configure(_ item: UITabBarItemAppearance, selectedControl: UIColor, secondary: UIColor) {
         item.normal.iconColor = secondary
         item.normal.titleTextAttributes = [.foregroundColor: secondary, .font: UIFont.systemFont(ofSize: 10, weight: .medium)]
-        item.selected.iconColor = accent
-        item.selected.titleTextAttributes = [.foregroundColor: accent, .font: UIFont.systemFont(ofSize: 10, weight: .bold)]
+        item.selected.iconColor = selectedControl
+        item.selected.titleTextAttributes = [.foregroundColor: selectedControl, .font: UIFont.systemFont(ofSize: 10, weight: .bold)]
     }
 }
 

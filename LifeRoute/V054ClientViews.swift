@@ -10,6 +10,7 @@ struct V054ClientProfilesView: View {
 
                 ScenicRoyalClientAddRow {
                     V054ClientEditorView(clientState: clientState, profile: nil)
+                    .lifeRouteDeepDestination()
                 }
 
                 ScenicRoyalSectionHeader(
@@ -27,6 +28,7 @@ struct V054ClientProfilesView: View {
                             profile: profile,
                             destination: {
                                 V054ClientEditorView(clientState: clientState, profile: profile)
+                            .lifeRouteDeepDestination()
                             },
                             onRemove: {
                                 clientState.removeClient(id: profile.id)

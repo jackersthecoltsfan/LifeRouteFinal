@@ -8,6 +8,23 @@ enum ScenicRoyalDesignSystem {
         static let brandNavyDeep = Color(red: 0.008, green: 0.026, blue: 0.065)
         static let brandGold = Color(red: 0.93, green: 0.70, blue: 0.31)
         static let brandGoldBright = Color(red: 1.00, green: 0.83, blue: 0.49)
+
+        static let contentDayPrimary = Color(red: 0.020, green: 0.055, blue: 0.115)
+        static let contentDaySecondary = Color(red: 0.095, green: 0.155, blue: 0.230)
+        static let contentNightPrimary = Color.white.opacity(0.98)
+        static let contentNightSecondary = Color.white.opacity(0.76)
+
+        static let selectedControlDayFill = Color.white.opacity(0.94)
+        static let selectedControlDayForeground = brandNavyDeep
+        static let selectedControlDayIndicator = brandNavy
+        /// Functional tint for dark selected controls. The reusable material
+        /// adds the illuminated-glass grade; this remains the stable Color
+        /// token for native control tint APIs.
+        static let selectedControlNightFill = Color(red: 0.018, green: 0.066, blue: 0.205)
+        static let selectedControlNightInnerGlow = Color(red: 0.090, green: 0.255, blue: 0.560)
+        static let selectedControlNightEdge = Color(red: 0.006, green: 0.026, blue: 0.105)
+        static let selectedControlNightForeground = Color.white.opacity(0.98)
+        static let selectedControlNightIndicator = Color.white.opacity(0.92)
     }
 
     enum Spacing {

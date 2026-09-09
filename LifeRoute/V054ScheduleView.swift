@@ -4,6 +4,8 @@ import SwiftUI
 // v0.7.0 Build C compile hotfix: explicit shape fills and deployment-target-safe date strip.
 // selected-day, and routing behaviors stay owned by their existing native domains.
 struct V054ScheduleView: View {
+    @LifeRoutePresentation private var visibility
+    @State private var lastCenteredDate: Date?
     private enum PresentedCalendarSheet: Identifiable {
         case addAppointment
         case editAppointment(LifeRouteCalendarEvent)
@@ -71,17 +73,18 @@ struct V054ScheduleView: View {
             .padding(.bottom, ScenicRoyalDesignSystem.Spacing.spacious * 2)
         }
         .toolbar(.hidden, for: .navigationBar)
-        .onChange(of: selectedRange) { _ in LifeRouteHaptics.selection() }
-        .sheet(isPresented: $showingDatePicker) { datePickerSheet }
-        .sheet(isPresented: $showingProviders) { providerSheet }
+        .onChange(of: selectedRange) { _ in if visibility.active { LifeRouteHaptics.selection() } }
+        .sheet(isPresented: $showingDatePicker) { datePickerSheet.lifeRouteModalScope() }
+        .sheet(isPresented: $showingProviders) { LifeRouteModalContent { scope in providerSheet(scope: scope) } }
         .sheet(item: $presentedCalendarSheet) { sheet in
             switch sheet {
             case .addAppointment, .editAppointment:
-                appointmentSheet(sheet)
+                appointmentSheet(sheet).lifeRouteModalScope()
             case .providerDetails(let event):
-                providerEventDetailsSheet(event)
+                providerEventDetailsSheet(event).lifeRouteModalScope()
             }
         }
+        .lifeRouteSystemModal(isPresented: eventPendingRowDeletion != nil)
         .confirmationDialog(
             "Delete this appointment?",
             isPresented: Binding(
@@ -182,17 +185,14 @@ struct V054ScheduleView: View {
                     .accessibilityLabel("Calendar range")
                     .accessibilityValue(rangeTitle(selectedRange))
                 } else {
-                    Picker("Range", selection: $selectedRange) {
-                        ForEach(LifeRouteCalendarRange.allCases) { range in
-                            Text(rangeTitle(range)).tag(range)
-                        }
+                    ScenicRoyalSegmentedControl(
+                        selection: $selectedRange,
+                        options: LifeRouteCalendarRange.allCases
+                    ) { range in
+                        Text(rangeTitle(range))
                     }
-                    .pickerStyle(.segmented)
-                    .padding(3)
-                    .scenicRoyalSurface(
-                        role: .passiveRow,
-                        cornerRadius: ScenicRoyalDesignSystem.Radius.control
-                    )
+                    .accessibilityLabel("Calendar range")
+                    .accessibilityValue(rangeTitle(selectedRange))
                 }
 
                 ScenicRoyalCompactIconButton(
@@ -221,6 +221,7 @@ struct V054ScheduleView: View {
             }
             .onAppear { centerSelectedDate(in: proxy) }
             .onChange(of: calendarState.selectedDate) { _ in centerSelectedDate(in: proxy) }
+            .onChange(of: visibility.active) { active in if active { centerSelectedDate(in: proxy) } }
         }
         // Deployment-target-safe: horizontal date browsing remains clipped by the ScrollView.
     }
@@ -437,6 +438,8 @@ struct V054ScheduleView: View {
 
     private func centerSelectedDate(in proxy: ScrollViewProxy) {
         let selectedDay = Calendar.current.startOfDay(for: calendarState.selectedDate)
+        guard visibility.active, lastCenteredDate != selectedDay else { return }
+        lastCenteredDate = selectedDay
         if reduceMotion {
             proxy.scrollTo(selectedDay, anchor: .center)
         } else {
@@ -451,7 +454,7 @@ struct V054ScheduleView: View {
             VStack(spacing: 18) {
                 DatePicker("Selected date", selection: $calendarState.selectedDate, displayedComponents: .date)
                     .datePickerStyle(.graphical)
-                    .tint(scenicStyle.accent)
+                    .tint(scenicStyle.selectedControlFill)
 
                 Button("Today") {
                     calendarState.selectToday()
@@ -471,7 +474,7 @@ struct V054ScheduleView: View {
         .presentationDetents([.medium, .large])
     }
 
-    private var providerSheet: some View {
+    private func providerSheet(scope: LifeRoutePresentationScope) -> some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
@@ -487,9 +490,10 @@ struct V054ScheduleView: View {
                         busy: providerState.appleBusy,
                         systemImage: "apple.logo"
                     ) {
+                        let feedbackTicket = scope.feedbackTicket()
                         providerState.connectOrRefreshApple { events in
                             calendarState.replaceProviderEvents(events, source: .apple)
-                            LifeRouteHaptics.success()
+                            if feedbackTicket?.isEligible == true { LifeRouteHaptics.success() }
                         }
                     }
 
@@ -500,9 +504,10 @@ struct V054ScheduleView: View {
                         busy: providerState.googleBusy,
                         systemImage: "g.circle.fill"
                     ) {
+                        let feedbackTicket = scope.feedbackTicket()
                         providerState.connectOrRefreshGoogle { events in
                             calendarState.replaceProviderEvents(events, source: .google)
-                            LifeRouteHaptics.success()
+                            if feedbackTicket?.isEligible == true { LifeRouteHaptics.success() }
                         }
                     }
 

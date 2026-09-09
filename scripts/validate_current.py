@@ -209,11 +209,11 @@ def validate_active_build_path() -> None:
     require_all(
         root_paging_fixture_source,
         [
-            "finger-tracked page style",
-            "LifeRouteRootPagingAmbientSuspensionModifier(router: router)",
-            "the rejected Prototype A path is absent",
+            "five permanent root hosts",
+            "scrollView.isPagingEnabled = true",
+            "no root recycling or navigation wrapping",
         ],
-        "Prototype B paging fixtures",
+        "Permanent root ownership fixtures",
     )
     require_all(
         thumbnail_fixture_source,
@@ -308,12 +308,14 @@ def validate_active_build_path() -> None:
             "timer playback mixes instead of unnecessarily interrupting other audio",
             "LifeRoute Sound Off remains authoritative",
             "zero percent volume remains silent",
-            "adding one minute preserves the current visual pulse phase",
-            "localized visual pulse retains at least fifteen samples per cycle",
+            "duplicate beat delivery cannot reset visual phase",
+            "seven-tick pulse retains four 30 Hz samples for bounded audition review",
             "visual pulse envelope is finite and bounded",
-            "maximum completion RMS is at least ninety percent stronger than Build 120",
-            "maximum completion cue carries more than eight times Build 120 signal energy",
-            "peak normalization does not introduce a clipped plateau",
+            "completion cue declares the approved source hash",
+            "supplied completion cue remains exactly three seconds",
+            "supplied completion cue remains stereo 24-bit PCM",
+            "completion celebration uses a bounded four-attack haptic map",
+            "completion haptics follow the selected source attacks",
             "Visual Timer regression floor requires at least 119 assertions",
         ],
         "Visual Timer feedback executable fixtures",
@@ -410,8 +412,9 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
             "case setup",
             'case .schedule: return "Calendar"',
             'case .tools: return "wrench.and.screwdriver.fill"',
-            "isBottomToolbarSuppressed",
-            "func setBottomToolbarSuppressed(_ suppressed: Bool)",
+            "deepDestinationTokens",
+            "func beginDeepDestination(in section: AppSection) -> UUID",
+            "func endDeepDestination(_ token: UUID)",
             "var shouldShowBottomToolbar: Bool",
             "return todayPath.isEmpty",
             "return schedulePath.isEmpty",
@@ -423,9 +426,10 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
     )
     require_all(navigation, ["todayPath = NavigationPath()", "schedulePath = NavigationPath()", "toolsPath = NavigationPath()", "resourcesPath = NavigationPath()", "setupPath = NavigationPath()"], "independent router paths")
     require_count(root, "@StateObject private var router = AppRouter()", 1, "root router ownership")
+    require_all(navigation, ["final class LifeRouteVisibilityOwner", "snapshotRevision", "terminalAdmission", "LifeRoutePresentationScope", "LifeRouteFeedbackTicket"], "A2 coherent visibility and effect admission")
     require_count(root, "LifeRouteRootNavigationStack(path: $router.", 5, "five roots share one navigation-container owner")
     require_count(root, "NavigationStack(path: $path)", 1, "shared root navigation-stack implementation")
-    require_count(root, ".tag(AppSection.", 10, "legacy fallback and canonical Prototype B five-section tags")
+    require_count(root, ".init(section: .", 5, "five immutable permanent-root registrations")
     toolbar = sources["ScenicRoyalToolbar.swift"]
     require_count(toolbar, "struct ScenicRoyalToolbar: View", 1, "Scenic Royal toolbar ownership")
     require_all(
@@ -434,13 +438,12 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
             "selection: $router.selectedSection",
             "if #available(iOS 26.0, *)",
             "fingerTrackedRootShell",
-            ".tabViewStyle(.page(indexDisplayMode: .never))",
+            "LifeRoutePersistentRootPager(router: router, visibility: visibility, roots:",
             "LifeRouteRootPagingToolbar(selection: $router.selectedSection)",
-            "LifeRouteRootPagingAmbientSuspensionModifier(router: router)",
+            "scrollView.isPagingEnabled = true",
             "ScenicRoyalToolbar(selection: $router.selectedSection)",
             "if router.shouldShowBottomToolbar",
             ".environmentObject(router)",
-            ".toolbar(.hidden, for: .tabBar)",
             "bar.isHidden = true",
             "clearNativeContainerBackgrounds()",
             "private static func clearContainerBackgrounds(in viewController: UIViewController?)",
@@ -449,7 +452,7 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
             "private struct LifeRouteRootNavigationStack<Content: View>: View",
             "if #available(iOS 26.0, *)",
             "content.containerBackground(Color.clear, for: .navigation)",
-            "DragGesture(minimumDistance: 8)",
+            "func scrollViewWillBeginDragging",
             "router.shouldShowBottomToolbar",
         ],
         "Prototype B finger-tracked iOS 26 paging, legacy fallback, declarative transparent navigation ownership, and Debug deep-screen fixture",
@@ -499,7 +502,7 @@ def validate_navigation_and_ownership(sources: dict[str, str]) -> None:
         "runtime UIKit chrome guard must precede all scene/controller traversal",
     )
     require(
-        "setNeedsLayout()" not in root and "layoutIfNeeded()" not in root,
+        "setNeedsLayout()" not in root[refresh_start:] and "layoutIfNeeded()" not in root[refresh_start:],
         "shipping chrome refresh must not force UIKit layout",
     )
     require_all(
@@ -531,31 +534,70 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
     environment = sources["ScenicRoyalEnvironment.swift"]
     center = sources["V054ThemeCenterView.swift"]
     theme_components = sources["ScenicRoyalThemeComponents.swift"]
+    materials = sources["ScenicRoyalMaterials.swift"]
+    toolbar = sources["ScenicRoyalToolbar.swift"]
+    schedule_components = sources["ScenicRoyalScheduleComponents.swift"]
+    visual_timer = sources["ScenicRoyalVisualTimerView.swift"]
+    schedule = sources["V054ScheduleView.swift"]
     corpus = "\n".join(sources.values())
     require_count(corpus, "struct LifeRouteLiveThemeEnvironment: View", 1, "live theme environment ownership")
     require_count(app, "TimelineView(", 1, "authoritative root animation clock")
     visual_activity = sources["LifeRouteVisualActivityCoordinator.swift"]
     require_all(app, ["minimumInterval: 1.0 / 15.0", "paused: reduceMotion || !isActive", "renderMode: LifeRouteAmbientRenderMode", "liveEffects(at: Date(timeIntervalSinceReferenceDate: 0), plan: renderMode.plan)"], "lifecycle, suspension, and Reduce Motion clock pausing")
     require_all(environment, ["struct ScenicRoyalEnvironmentHost", "isActive: scenePhase == .active", "reduceMotion || reduceMotionOverride", "@EnvironmentObject private var visualActivityCoordinator", "return .frozen"], "persistent Scenic Royal environment and suspension host")
+    require_all(
+        app,
+        [
+            "static func configure(theme: LifeRouteTheme, updateVisibleWindows: Bool)",
+            "configure(theme: selectedTheme, updateVisibleWindows: false)",
+            "LifeRouteAppearance.configure(theme: theme, updateVisibleWindows: true)",
+            "if updateVisibleWindows {",
+            "UIWindow.appearance().backgroundColor = background",
+        ],
+        "Phase 1N launch fallback and stable live-theme root boundary",
+    )
+    require_all(
+        materials,
+        [
+            "struct ScenicRoyalSelectedControlMaterial",
+            "selectedControlNightInnerGlow",
+            "RadialGradient(",
+            "style.selectedControlFill",
+        ],
+        "centralized selected-control illuminated material",
+    )
+    require_all(
+        toolbar + theme_components + schedule_components + visual_timer + app,
+        ["ScenicRoyalSelectedControlMaterial"],
+        "shared selected-state material migration",
+    )
+    require_all(
+        schedule,
+        ["ScenicRoyalSegmentedControl(", "options: LifeRouteCalendarRange.allCases"],
+        "Calendar range semantic segmented control",
+    )
     require_all(visual_activity, ["case full", "case frozen", "case sceneryOnly", "case dynamicOnly", "case noEffects", "final class LifeRouteVisualActivityCoordinator", "private var activeRequests = Set<UUID>()", "private var themeCenterRequestID: UUID?", "func acquireAmbientSuspension() -> UUID", "func releaseAmbientSuspension(_ requestID: UUID)", "func setThemeCenterVisible(_ isVisible: Bool)", "#if DEBUG", "-LifeRouteVisualActivityMode"], "debug A/B modes and idempotent Theme Center suspension")
     require("Timer.scheduledTimer" not in app, "theme architecture must not introduce a competing Timer owner")
     core = extract_catalog(app, "static let phaseOneCoreGlassCatalog")
-    dynamic = extract_catalog(app, "static let v071RetainedDynamicCatalog")
-    scenery = extract_catalog(app, "static let v071RetainedSceneryCatalog")
-    require((len(core), len(dynamic), len(scenery)) == (12, 8, 12), f"current user-facing theme catalog counts changed: core={len(core)}, dynamic={len(dynamic)}, scenery={len(scenery)}")
+    dynamic = extract_catalog(app, "static let phaseTwoDynamicCatalog")
+    scenery = extract_catalog(app, "static let phaseThreeSceneryCatalog")
+    require((len(core), len(dynamic), len(scenery)) == (12, 8, 12), f"renderer cohort counts changed: core={len(core)}, dynamic={len(dynamic)}, scenery={len(scenery)}")
     require(len(set(core + dynamic + scenery)) == 32, "current user-facing theme catalogs must not overlap")
+    require_all(app, ["static let visibleDynamicCatalog = phaseTwoDynamicCatalog + phaseThreeSceneryCatalog", "static let v071RetainedDynamicCatalog = phaseTwoDynamicCatalog", "static let v071RetainedSceneryCatalog = phaseThreeSceneryCatalog"], "authoritative catalog cohorts and derived compatibility membership")
+    require('case scenery = "Scenery"' not in theme_components, "visible picker must contain only CORE and DYNAMIC")
+    require_all(theme_components, ['case core = "CORE"', 'case dynamic = "DYNAMIC"'], "two visible theme categories")
     require_all(
         center,
         [
             "return LifeRouteTheme.phaseOneCoreGlassCatalog",
-            "return LifeRouteTheme.v071RetainedDynamicCatalog",
-            "return LifeRouteTheme.v071RetainedSceneryCatalog",
+            "return LifeRouteTheme.visibleDynamicCatalog",
             "@EnvironmentObject private var themeStore: LifeRouteThemeStore",
             "themeStore.selectedTheme = theme",
             "dynamicTypeSize.isAccessibilitySize",
             "ScenicRoyalThemeCard",
-            "onVisibilityChanged?(true)",
-            "onVisibilityChanged?(false)",
+            "visibilityChanged?(context.exposed)",
+            "guard holdsVisibility != context.exposed",
+            "categoryInitialized = true",
         ],
         "Theme Center current catalogs and authoritative selection owner",
     )
@@ -878,7 +920,7 @@ def validate_setup_and_address(sources: dict[str, str]) -> None:
 
     require_count(setup, "ScenicRoyalSetupDisclosureGroup(", 6, "six active Scenic Royal Setup groups")
     require_count(setup, ".lifeRouteDeepDestination()", 2, "deep Setup destination toolbar suppression")
-    require("router.setBottomToolbarSuppressed(false)" in setup, "Setup root restores the five-root toolbar after deep navigation")
+    require("router.setBottomToolbarSuppressed" not in setup, "Setup root cannot clear a deep-page toolbar token")
     require_all(
         setup,
         [
@@ -890,7 +932,7 @@ def validate_setup_and_address(sources: dict[str, str]) -> None:
             'title: "Privacy"',
             '@EnvironmentObject private var themeStore: LifeRouteThemeStore',
             '@EnvironmentObject private var suspensionCoordinator: LifeRouteVisualActivityCoordinator',
-            "suspensionCoordinator.setThemeCenterVisible(isVisible)",
+            "themeLease.reconcile(isVisible, acquire: suspensionCoordinator.acquireAmbientSuspension, release: suspensionCoordinator.releaseAmbientSuspension)",
             '@ObservedObject var routingState: RoutingLocationCore',
             '@AppStorage("liferoute.rbtProfile.name")',
             '@AppStorage("liferoute.preferredNavigationApp")',
@@ -931,7 +973,7 @@ def validate_setup_and_address(sources: dict[str, str]) -> None:
             "@StateObject private var autocomplete = LifeRouteAddressAutocomplete()",
             "@FocusState private var isFocused: Bool",
             "LifeRouteDestinationIntent.matches(text)",
-            "if isFocused && (!flexibleIntents.isEmpty || !autocomplete.suggestions.isEmpty)",
+            "if visibility.active && isFocused && (!flexibleIntents.isEmpty || !autocomplete.suggestions.isEmpty)",
             "autocomplete.update(query: value)",
             "autocomplete.clear()",
             "text = intent.storedValue",
@@ -1016,7 +1058,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
             "outcome.userFacingStatusTitle",
             ".lifeRouteReadableTextSurface()",
             "SessionNoteReadabilityFixtureView",
-            "maxSelectionCount: 6",
+            "SessionNoteWriterRole.resolve(profileCredential: writerCredential)",
             "@FocusState private var focusedField",
             ".scrollDismissesKeyboard(.interactively)",
             "ToolbarItemGroup(placement: .keyboard)",
@@ -1029,6 +1071,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         ],
         "reviewable on-device Session Note flow",
     )
+    require("PhotosPicker" not in clinical and "screenshotDataItems" not in clinical and "screenshotDataItems" not in intelligence, "Session Note must have no photo picker or screenshot request input")
     require_all(
         intelligence,
         [
@@ -1039,10 +1082,10 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
             "case contextWindowExceeded",
             "VNRecognizeTextRequest",
             "FoundationModels",
-            "SessionNoteOCRMeasurementExtractor.extract",
+            "SessionNoteGenerationPipeline.generateNote(",
             'category: "SessionNotePipeline"',
             "event.privacySafeDescription",
-            "Reconstruct one editable professional ABA session note",
+            "Reconstruct one editable professional ABA session-note body",
             "Do not copy the source clause structure",
             "Preserve the original chronology instead of regrouping events by target",
             "never append a detached data section",
@@ -1160,7 +1203,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         ],
         "explicit text, camera, and photo-library Visual AI input",
     )
-    require_count(dashboard, ".lifeRouteDeepDestination()", 6, "deep Tools destination toolbar suppression")
+    require_count(dashboard, ".lifeRouteDeepDestination()", 9, "complete current and nested Tools destination scopes, including the independent Manual Workspace scope")
     forbidden_network = ["URLSession.shared", "api.openai.com", "anthropic.com"]
     present = [token for token in forbidden_network if token in clinical + intelligence]
     require(not present, f"clinical generation must not add a cloud fallback: {present}")
@@ -1312,6 +1355,9 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
             "liferoute.visualTimer.soundEnabled.v1",
             "liferoute.visualTimer.volume.v1",
             "liferoute.visualTimer.completionHaptics.v1",
+            "completionCuePublisher",
+            "completionCueSessionID",
+            "NSDataAsset(name: VisualTimerCompletionCue.resourceName)",
         ],
         "Visual Timer countdown ownership and feedback integration",
     )
@@ -1326,22 +1372,24 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
             "struct VisualTimerAdjustmentResult",
             "quickAdjustmentSeconds: TimeInterval = 15",
             "let soundEnabled: Bool",
-            "let exponent = 4.0",
+            "static let baseExponent = 4.0",
             "pow(clamped(elapsedProgress), 1.65)",
             "enum VisualTimerAccessibilityMilestone",
             "enum VisualTimerAudioSessionPolicy",
             "playsThroughRingSilentSwitch = true",
             "mixesWithOtherAudio = true",
-            "visualPulsesPerSecond = 0.80",
-            "visualFrameInterval: TimeInterval = 1.0 / 15.0",
-            "visualPulseEnvelope",
+            "struct VisualTimerPresentationBeat",
+            "struct VisualTimerPresentationBeatTracker",
+            "presentationPulseEnvelope",
+            "struct VisualTimerCompletionCueEvent",
+            "struct VisualTimerCompletionHapticBeat",
             "enum VisualTimerCompletionCue",
-            "duration: TimeInterval = 2.10",
-            "softLimiterDrive = 1.40",
-            "presenceSecondHarmonicMix = 0.12",
-            "presenceThirdHarmonicMix = 0.12",
-            "presenceFourthHarmonicMix = 0.12",
-            "maximumSynthesisSample / rawPeak",
+            "resourceName = \"TimerCompletionCue\"",
+            "approvedSourceSHA256 = \"ddde780da9eb13cc1b7f00f0f7ba03d7f4bd50e8f480574078fd20092174e52b\"",
+            "duration: TimeInterval = 3.0",
+            "sampleRate = 44_100",
+            "hapticBeatMap",
+            "cueOffset: 2.27",
         ],
         "Visual Timer pure feedback contract",
     )
@@ -1351,23 +1399,21 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
             "VisualTimerFeedbackCurve.readoutInterval",
             "VisualTimerPresentationSnapshot(",
             "ScenicRoyalTimerOrb(",
-            "timer.remainingSeconds(at: context.date)",
-            "timer.progress(at: context.date)",
+            "timer.remainingSeconds(at: date)",
+            "timer.progress(at: date)",
             "timer.normalizedElapsedProgress(forRemaining: remaining)",
             "timer.urgency(forRemaining: remaining)",
             "timer.durationSeconds",
             "timer.isRunning",
-            "timer.isFinished(at: context.date)",
-            "let liquidHeight = interiorDiameter * snapshot.remainingProgress",
-            ".frame(width: interiorDiameter, height: liquidHeight)",
-            ".mask(Circle())",
-            "minimumInterval: 1.0 / 20.0",
-            "paused: !animationIsActive",
-            "context.date.timeIntervalSinceReferenceDate",
-            "surfaceOffset",
-            "highlightOffset",
-            "accessibilityReduceMotion",
-            "scenePhase == .active",
+            "timer.isFinished(at: date)",
+            'registeredMaterial("orb_v04_accepted_material")',
+            "VisualTimerOrbRegions(progress: snapshot.isFinished ? 0 : CGFloat(progress), motion: motion)",
+            "Canvas(opaque: false, colorMode: .extendedLinear)",
+            "canvas.clip(to: regions.well)",
+            "if !regions.liquid.isEmpty",
+            "liquidOptics.clip(to: regions.liquid)",
+            "submergedAccent.clip(to: regions.liquid)",
+            "regions.meniscus",
             "timer.start",
             "timer.pause",
             "timer.resume",
@@ -1379,8 +1425,11 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
             "timer.setSoundEnabled",
             "UIAccessibility.post(notification: .announcement",
             "completionHapticsEnabled",
+            "completionCuePublisher",
+            "scheduleCompletionHaptics",
+            "isCurrentCompletionCue",
             "-LifeRouteVisualTimerAutoStart",
-            ".frame(width: 238, height: 238)",
+            "private let canvasSize: CGFloat = 340",
             ".accessibilityElement(children: .ignore)",
             ".accessibilityValue(remainingText)",
             "Timer progress",
@@ -1388,9 +1437,13 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
         ],
         "Scenic Royal Visual Timer presentation and accessibility",
     )
-    require_count(timer_view, "TimelineView(", 2, "Slice 3 Visual Timer readout and Orb clocks")
-    require_count(timer_view, ".animation(", 1, "Slice 3 local Orb animation clock")
-    require("VisualTimerFeedbackCurve.visualFrameInterval" not in timer_view, "Slice 1 Visual Timer must not add a visual pulse cadence")
+    require_count(timer_view, "TimelineView(", 2, "One text readout schedule and one isolated Orb material animation schedule")
+    require_count(timer_view, ".animation(", 1, "Only the Orb material composite receives the animation cadence")
+    require_all(timer_view, ["paused: !canAnimate", "isActive && !reduceMotion && running && !timer.isFinished()",
+                            "motionDriver.setActive(false", "ProcessInfo.processInfo.systemUptime"],
+                "Orb motion must suspend without changing timer authority")
+    require("presentationBeatPublisher" in timer, "Visual Timer audible loop publishes the shared presentation beat")
+    require("presentation.motionDriver" in timer_view, "Embedded and full-screen Orbs share presentation motion and beat state")
     require("paused: !sceneIsActive" not in timer_view, "Slice 1 Visual Timer must not add a scene-driven pulse loop")
     require("ScenicRoyalTimerDial" not in timer_view, "Slice 1 Visual Timer must use the Scenic Orb presentation shell")
     require_all(

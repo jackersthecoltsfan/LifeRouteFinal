@@ -229,11 +229,10 @@ final class DayRoutePlanningCore: ObservableObject {
         }
         gapEvaluationTasks[gap.id]?.cancel()
 
-        let calendar = Calendar.current
-        let dayEnd = calendar.date(byAdding: .day, value: 1, to: itinerary.selectedDay)
-            ?? itinerary.selectedDay.addingTimeInterval(86_400)
+        // "Do by" is a deadline, not an earliest-eligible date. Upcoming
+        // errands still have to pass the same location, travel and gap-fit rules.
         let eligibleTodos = todos.filter {
-            !$0.completed && $0.dueDate < dayEnd
+            !$0.completed
         }
         let locationlessRecommendations = eligibleTodos.compactMap { todo -> LifeRouteGapFillerRecommendation? in
             let address = Self.resolvedAddress(for: todo, savedPlaces: savedPlaces)

@@ -25,15 +25,16 @@ struct ScenicRoyalCalendarDateChip: View {
                     .fill(eventCount > 0 ? eventIndicatorColor : .clear)
                     .frame(width: 5, height: 5)
             }
-            .foregroundStyle(isSelected ? selectedTextColor : style.primaryText)
+            .foregroundStyle(isSelected ? style.selectedControlForeground : style.contentPrimaryForeground)
             .frame(
                 width: dynamicTypeSize.isAccessibilitySize ? 88 : 44,
                 height: dynamicTypeSize.isAccessibilitySize ? 96 : 58
             )
             .background {
                 if isSelected {
-                    RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl, style: .continuous)
-                        .fill(style.accent)
+                    ScenicRoyalSelectedControlMaterial(
+                        shape: RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl, style: .continuous)
+                    )
                 }
             }
             .overlay {
@@ -55,12 +56,8 @@ struct ScenicRoyalCalendarDateChip: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    private var selectedTextColor: Color {
-        ScenicRoyalDesignSystem.ColorToken.brandNavyDeep
-    }
-
     private var eventIndicatorColor: Color {
-        isSelected ? selectedTextColor.opacity(0.72) : style.accent
+        isSelected ? style.selectedControlIndicator.opacity(0.72) : style.accent
     }
 }
 
@@ -78,7 +75,7 @@ struct ScenicRoyalCalendarMonthDay: View {
             ZStack(alignment: .bottom) {
                 Text(date.formatted(.dateTime.day()))
                     .font(.caption.weight(isSelected ? .bold : .semibold))
-                    .foregroundStyle(isSelected ? selectedTextColor : style.primaryText)
+                    .foregroundStyle(isSelected ? style.selectedControlForeground : style.contentPrimaryForeground)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 Circle()
@@ -88,8 +85,14 @@ struct ScenicRoyalCalendarMonthDay: View {
             }
             .frame(minHeight: 40)
             .background {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isSelected ? style.accent : (isToday ? style.accent.opacity(0.14) : .clear))
+                if isSelected {
+                    ScenicRoyalSelectedControlMaterial(
+                        shape: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    )
+                } else {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isToday ? style.accent.opacity(0.14) : .clear)
+                }
             }
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
@@ -100,12 +103,8 @@ struct ScenicRoyalCalendarMonthDay: View {
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
-    private var selectedTextColor: Color {
-        ScenicRoyalDesignSystem.ColorToken.brandNavyDeep
-    }
-
     private var eventIndicatorColor: Color {
-        isSelected ? selectedTextColor.opacity(0.72) : style.accent
+        isSelected ? style.selectedControlIndicator.opacity(0.72) : style.accent
     }
 }
 

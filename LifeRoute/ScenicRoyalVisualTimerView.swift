@@ -8,7 +8,8 @@ struct VisualTimerView: View {
     @State private var hapticsActive = false
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Namespace private var expansionNamespace
+    @EnvironmentObject private var hero: VisualTimerHeroCoordinator
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.scenicRoyalThemeStyle) private var style
     @Environment(\.scenePhase) private var scenePhase
@@ -55,12 +56,12 @@ struct VisualTimerView: View {
                 ScenicRoyalTimerReadout(
                     timer: timer,
                     motionDriver: presentation.motionDriver,
-                    isActive: isVisible && !presentation.isFullScreen && scenePhase == .active,
+                    isActive: isVisible && scenePhase == .active,
                     canvasSize: 252,
                     compact: true,
+                    hero: hero,
                     announce: presentation.announceIfNeeded
                 )
-                .modifier(VisualTimerExpansionSource(namespace: expansionNamespace, enabled: !reduceMotion))
                 durationCard
                 if timer.isRunning {
                     ScenicRoyalTimerControls(timer: timer, reset: presentation.reset)
@@ -106,19 +107,10 @@ struct VisualTimerView: View {
                 .accessibilityIdentifier("visualTimer.expand")
             }
         }
-        .fullScreenCover(isPresented: $presentation.isFullScreen, onDismiss: {
-            presentation.close()
-        }) {
-            ScenicRoyalFullScreenTimerView(
-                timer: timer,
-                presentation: presentation,
-                minutes: minutes,
-                start: { startTimer(minutes: minutes) }
-            )
-            .modifier(VisualTimerExpansionDestination(namespace: expansionNamespace, enabled: !reduceMotion))
-            .lifeRouteModalScope()
-        }
+        .navigationBarBackButtonHidden(hero.blocksNavigation)
+        .onChange(of: minutes) { _ in bindHero() }
         .onAppear {
+            bindHero()
             presentation.trace("embedded.appear")
 #if DEBUG
             if !didApplyFullScreenFixture,
@@ -136,8 +128,9 @@ struct VisualTimerView: View {
         }
         .lifeRouteReconcile { context in
             isVisible = context.active
+            hero.setActive(context.active)
             // One logical owner in the existing presentation layer spans the
-            // compatible embedded/cover handoff. The scheduler stays shared.
+            // embedded/hero handoff. The scheduler stays shared.
             let active = visibility.timerActive(in: visibilityScope)
             if active != hapticsActive {
                 hapticsActive = active
@@ -278,6 +271,11 @@ struct VisualTimerView: View {
                 .foregroundStyle(style.contentPrimaryForeground)
         }
         .scenicRoyalCard(role: .readability)
+    }
+
+    private func bindHero() {
+        hero.bind(presentation, minutes: minutes,
+                  start: { startTimer(minutes: minutes) }, back: { dismiss() })
     }
 
     private func startTimer(minutes: Int) {
@@ -515,166 +513,52 @@ final class VisualTimerPresentationState: ObservableObject {
     }
 }
 
-private struct ScenicRoyalFullScreenTimerView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @EnvironmentObject private var themeStore: LifeRouteThemeStore
-    @EnvironmentObject private var visualActivityCoordinator: LifeRouteVisualActivityCoordinator
-
-    @ObservedObject var timer: VisualTimerCore
-    @ObservedObject var presentation: VisualTimerPresentationState
-    let minutes: Int
-    let start: () -> Void
-
-    @State private var isVisible = false
-    @State private var ambientSuspension: UUID?
-    @State private var controlsVisible = true
-    @State private var hapticActivityID = UUID()
-    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+// Kept as the existing fullscreen chrome seam; the Orb lives solely at root.
+struct ScenicRoyalFullScreenTimerView: View {
+    @Environment(\.scenicRoyalThemeStyle) private var style
+    @ObservedObject var hero: VisualTimerHeroCoordinator
 
     var body: some View {
-        ScenicRoyalEnvironmentHost(theme: themeStore.selectedTheme, palette: themeStore.palette) {
-            GeometryReader { proxy in
-                let availableWidth = proxy.size.width - 2 * ScenicRoyalDesignSystem.Layout.pageHorizontal
-                let horizontal = proxy.size.width > proxy.size.height && !dynamicTypeSize.isAccessibilitySize
-                let readoutWidth = horizontal ? (availableWidth - ScenicRoyalDesignSystem.Spacing.comfortable) * 0.57 : availableWidth
-                let widthCanvas = min(480, max(120, readoutWidth - 2 * ScenicRoyalDesignSystem.Spacing.comfortable))
-                // Landscape reserves the complete control card beside the Orb.
-                // Portrait keeps the Orb width-led and scrolls only when content
-                // size or device height requires it.
-                let heightCanvas = max(120, proxy.size.height - 3 * ScenicRoyalDesignSystem.Spacing.comfortable)
-                let canvas = horizontal ? min(widthCanvas, heightCanvas) : widthCanvas
-
-                ZStack {
-                    ScrollView {
-                        if horizontal {
-                            HStack(alignment: .center, spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
-                                readout(canvasSize: canvas)
-                                    .frame(width: readoutWidth)
-                                presentationChrome
-                                    .frame(maxWidth: .infinity)
-                            }
-                        } else {
-                            VStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
-                                readout(canvasSize: canvas)
-                                presentationChrome
-                            }
-                        }
-                    }
-                    .padding(.horizontal, ScenicRoyalDesignSystem.Layout.pageHorizontal)
-                    .padding(.bottom, ScenicRoyalDesignSystem.Spacing.comfortable)
-
-                    if !controlsVisible {
-                        Button(action: revealControls) {
-                            Color.clear
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Show timer controls")
-                        .accessibilityHint("Reveals Pause, adjustments, Reset, and Close")
-                    }
-                }
+        HStack(spacing: 12) {
+            Button {
+                hero.navigate { [weak hero] in hero?.back?() }
+            } label: {
+                Label("Back", systemImage: "chevron.left")
+                    .frame(minHeight: 44)
             }
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            HStack(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-                Text("Visual Timer")
-                    .font(.headline)
-                    .foregroundStyle(themeStore.selectedTheme.scenicRoyalStyle.contentPrimaryForeground)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 0)
-                Button {
-                    closeTimer()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.headline)
-                        .frame(width: 56, height: 56)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(themeStore.selectedTheme.scenicRoyalStyle.contentPrimaryForeground)
-                .contentShape(Rectangle())
-                .accessibilityLabel("Close full screen")
-                .accessibilityHint("Returns to Visual Timer without stopping the countdown")
-                .accessibilityIdentifier("visualTimer.close")
+            .accessibilityIdentifier("visualTimer.back")
+            Spacer(minLength: 0)
+            Text("Visual Timer").font(.headline)
+            Spacer(minLength: 0)
+            Button { hero.presentation?.expand() } label: {
+                Image(systemName: "arrow.up.left.and.arrow.down.right").frame(width: 44, height: 44)
             }
-            .padding(.horizontal, ScenicRoyalDesignSystem.Layout.pageHorizontal)
-            .padding(.vertical, ScenicRoyalDesignSystem.Spacing.compact)
-            .zIndex(1)
-        }
-        .accessibilityAction(.escape) { presentation.close() }
-        .task(id: controlsAutoHideKey) {
-            guard shouldAutoHideControls else { return }
-            try? await Task.sleep(nanoseconds: 2_500_000_000)
-            guard !Task.isCancelled, shouldAutoHideControls else { return }
-            controlsVisible = false
-        }
-        .onChange(of: timer.isRunning) { running in
-            if !running { controlsVisible = true }
-        }
-        .lifeRouteReconcile { context in
-            isVisible = context.active
-            if context.exposed && ambientSuspension == nil {
-                ambientSuspension = visualActivityCoordinator.acquireAmbientSuspension()
-            } else if !context.exposed, let held = ambientSuspension {
-                ambientSuspension = nil
-                visualActivityCoordinator.releaseAmbientSuspension(held)
+            .accessibilityLabel("Open timer full screen")
+            .accessibilityIdentifier("visualTimer.heroExpand")
+            Button { hero.presentation?.close() } label: {
+                Image(systemName: "xmark").frame(width: 44, height: 44)
             }
+            .accessibilityLabel("Close full screen")
+            .accessibilityHint("Returns to Visual Timer without stopping the countdown")
+            .accessibilityIdentifier("visualTimer.close")
         }
-        .onAppear { presentation.trace("cover.appear") }
-        .onDisappear { presentation.trace("cover.disappear") }
-    }
-
-    private func readout(canvasSize: CGFloat) -> some View {
-        ScenicRoyalTimerReadout(
-            timer: timer,
-            motionDriver: presentation.motionDriver,
-            isActive: isVisible && scenePhase == .active,
-            canvasSize: canvasSize,
-            announce: presentation.announceIfNeeded
-        )
-        .scenicRoyalCard(role: .readability)
-    }
-
-    private var controls: some View {
-        ScenicRoyalTimerControls(
-            timer: timer,
-            reset: presentation.reset,
-            start: start,
-            startTitle: "Start \(minutes)-minute timer"
-        )
-    }
-
-    private var presentationChrome: some View {
-        controls
-            .opacity(controlsVisible ? 1 : 0)
-            .allowsHitTesting(controlsVisible)
-            .accessibilityHidden(!controlsVisible)
-    }
-
-    private var shouldAutoHideControls: Bool {
-        isVisible && timer.isRunning && controlsVisible && !voiceOverEnabled
-    }
-
-    private var controlsAutoHideKey: String {
-        "\(isVisible)-\(timer.isRunning)-\(controlsVisible)-\(voiceOverEnabled)"
-    }
-
-    private func revealControls() {
-        controlsVisible = true
-    }
-
-    private func closeTimer() {
-        // Close remains independent of hidden action chrome and changes only
-        // presentation ownership; the shared timer continues uninterrupted.
-        controlsVisible = true
-        presentation.close()
-        dismiss()
+        .buttonStyle(.plain)
+        .foregroundStyle(style.contentPrimaryForeground)
+        .accessibilityAction(.escape) { hero.presentation?.close() }
     }
 }
 
-private struct ScenicRoyalTimerReadout: View {
+struct ScenicRoyalHeroOrbReadout: View {
+    @ObservedObject var hero: VisualTimerHeroCoordinator
+    let presentation: VisualTimerPresentationState
+    var body: some View {
+        ScenicRoyalTimerReadout(timer: presentation.timer, motionDriver: presentation.motionDriver,
+            isActive: hero.orbActive, canvasSize: 340, compact: true, orbOnly: true,
+            announce: presentation.announceIfNeeded)
+    }
+}
+
+struct ScenicRoyalTimerReadout: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.scenicRoyalThemeStyle) private var style
@@ -684,15 +568,14 @@ private struct ScenicRoyalTimerReadout: View {
     let isActive: Bool
     var canvasSize: CGFloat = 340
     var compact = false
+    var orbOnly = false
+    var hero: VisualTimerHeroCoordinator? = nil
     let announce: (VisualTimerAccessibilityMilestone?) -> Void
 
     var body: some View {
-        if isActive {
-            TimelineView(.periodic(from: .now, by: VisualTimerFeedbackCurve.readoutInterval)) { context in
-                readout(at: context.date)
-            }
-        } else {
-            readout(at: Date())
+        // A stable schedule/view path keeps the sole Orb identity through activity changes.
+        TimelineView(.periodic(from: .now, by: isActive ? VisualTimerFeedbackCurve.readoutInterval : 86_400)) { context in
+            readout(at: context.date)
         }
     }
 
@@ -716,7 +599,7 @@ private struct ScenicRoyalTimerReadout: View {
             let milestone = VisualTimerAccessibilityMilestone.forRemaining(remaining)
 
             VStack(spacing: compact ? ScenicRoyalDesignSystem.Spacing.compact : ScenicRoyalDesignSystem.Spacing.comfortable) {
-                if !compact || timer.isRunning {
+                if !orbOnly && (!compact || timer.isRunning) {
                 timerStatus(
                     text: statusText(at: date),
                     icon: statusIcon(at: date),
@@ -724,6 +607,11 @@ private struct ScenicRoyalTimerReadout: View {
                 )
                 }
 
+                if let hero {
+                    VisualTimerHeroAnchor(hero: hero)
+                        .frame(width: canvasSize, height: canvasSize)
+                        .accessibilityHidden(true)
+                } else {
                 ScenicRoyalTimerOrb(
                     timer: timer,
                     motionDriver: motionDriver,
@@ -737,7 +625,9 @@ private struct ScenicRoyalTimerReadout: View {
                 .scaleEffect(canvasSize / 340)
                 .frame(width: canvasSize, height: canvasSize)
 
-                if !compact {
+                }
+
+                if !compact && !orbOnly {
                 ProgressView(value: presentation.remainingProgress)
                     .tint(style.accent)
                     .accessibilityLabel("Timer progress")
@@ -806,7 +696,7 @@ private struct ScenicRoyalTimerReadout: View {
     }
 }
 
-private struct ScenicRoyalTimerControls: View {
+struct ScenicRoyalTimerControls: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject var timer: VisualTimerCore
     let reset: () -> Void
@@ -1436,26 +1326,5 @@ private struct ScenicRoyalToneChoice: View {
             role: isSelected ? .selectedControl : .ambient,
             cornerRadius: ScenicRoyalDesignSystem.Radius.control
         )
-    }
-}
-
-
-private struct VisualTimerExpansionSource: ViewModifier {
-    let namespace: Namespace.ID
-    let enabled: Bool
-    @ViewBuilder func body(content: Content) -> some View {
-        if #available(iOS 18.0, *), enabled {
-            content.matchedTransitionSource(id: "visualTimer.orb", in: namespace)
-        } else { content }
-    }
-}
-
-private struct VisualTimerExpansionDestination: ViewModifier {
-    let namespace: Namespace.ID
-    let enabled: Bool
-    @ViewBuilder func body(content: Content) -> some View {
-        if #available(iOS 18.0, *), enabled {
-            content.navigationTransition(.zoom(sourceID: "visualTimer.orb", in: namespace))
-        } else { content }
     }
 }

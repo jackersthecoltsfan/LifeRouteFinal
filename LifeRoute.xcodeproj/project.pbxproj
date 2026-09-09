@@ -48,6 +48,7 @@
 		A10000000000000000000045 /* VisualTimerFeedbackContracts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000045 /* VisualTimerFeedbackContracts.swift */; };
 		A10000000000000000000046 /* ScenicRoyalToolsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000046 /* ScenicRoyalToolsComponents.swift */; };
 		A10000000000000000000047 /* ScenicRoyalVisualTimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000047 /* ScenicRoyalVisualTimerView.swift */; };
+		A10000000000000000000058 /* VisualTimerHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000058 /* VisualTimerHero.swift */; };
 		A10000000000000000000048 /* ScenicRoyalResourceComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000048 /* ScenicRoyalResourceComponents.swift */; };
 		A10000000000000000000049 /* ScenicRoyalSetupComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000049 /* ScenicRoyalSetupComponents.swift */; };
 		A10000000000000000000050 /* ScenicRoyalClientComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000050 /* ScenicRoyalClientComponents.swift */; };
@@ -136,6 +137,7 @@
 		A20000000000000000000045 /* VisualTimerFeedbackContracts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualTimerFeedbackContracts.swift; sourceTree = "<group>"; };
 		A20000000000000000000046 /* ScenicRoyalToolsComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalToolsComponents.swift; sourceTree = "<group>"; };
 		A20000000000000000000047 /* ScenicRoyalVisualTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalVisualTimerView.swift; sourceTree = "<group>"; };
+		A20000000000000000000058 /* VisualTimerHero.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualTimerHero.swift; sourceTree = "<group>"; };
 		A20000000000000000000048 /* ScenicRoyalResourceComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalResourceComponents.swift; sourceTree = "<group>"; };
 		A20000000000000000000049 /* ScenicRoyalSetupComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalSetupComponents.swift; sourceTree = "<group>"; };
 		A20000000000000000000050 /* ScenicRoyalClientComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenicRoyalClientComponents.swift; sourceTree = "<group>"; };
@@ -197,6 +199,7 @@
 				A20000000000000000000045 /* VisualTimerFeedbackContracts.swift */,
 				A2A100000000000000000001 /* VisualTimerOrbMotion.metal */,
 				A20000000000000000000047 /* ScenicRoyalVisualTimerView.swift */,
+				A20000000000000000000058 /* VisualTimerHero.swift */,
 				A20000000000000000000048 /* ScenicRoyalResourceComponents.swift */,
 				A20000000000000000000049 /* ScenicRoyalSetupComponents.swift */,
 				A20000000000000000000050 /* ScenicRoyalClientComponents.swift */,
@@ -375,6 +378,7 @@
 				A10000000000000000000045 /* VisualTimerFeedbackContracts.swift in Sources */,
 				A1A100000000000000000001 /* VisualTimerOrbMotion.metal in Sources */,
 				A10000000000000000000047 /* ScenicRoyalVisualTimerView.swift in Sources */,
+				A10000000000000000000058 /* VisualTimerHero.swift in Sources */,
 				A10000000000000000000048 /* ScenicRoyalResourceComponents.swift in Sources */,
 				A10000000000000000000049 /* ScenicRoyalSetupComponents.swift in Sources */,
 				A10000000000000000000050 /* ScenicRoyalClientComponents.swift in Sources */,

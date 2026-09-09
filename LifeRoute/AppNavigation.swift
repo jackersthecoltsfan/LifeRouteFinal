@@ -91,14 +91,29 @@ final class AppRouter: ObservableObject {
     /// NavigationPath, so deep presentation visibility must be tracked
     /// independently and per root. Tokens support nested deep destinations
     /// without allowing one disappearance callback to reveal the root toolbar.
+    @Published private(set) var timerHeroNavigationBlocked = false
+    var collapseTimerHeroBeforeNavigation: ((@escaping () -> Void) -> Void)?
+
+    func setTimerHeroNavigationBlocked(_ blocked: Bool) {
+        if timerHeroNavigationBlocked != blocked { timerHeroNavigationBlocked = blocked }
+    }
+
     @Published private var deepDestinationTokens: [UUID: AppSection] = [:]
 
     func select(_ section: AppSection) {
         guard selectedSection != section else { return }
+        if timerHeroNavigationBlocked {
+            collapseTimerHeroBeforeNavigation? { [weak self] in self?.select(section) }
+            return
+        }
         selectedSection = section
     }
 
     func open(_ route: AppRoute, in section: AppSection) {
+        if timerHeroNavigationBlocked {
+            collapseTimerHeroBeforeNavigation? { [weak self] in self?.open(route, in: section) }
+            return
+        }
         if selectedSection != section {
             selectedSection = section
         }
@@ -117,6 +132,10 @@ final class AppRouter: ObservableObject {
     }
 
     func resetPath(for section: AppSection) {
+        if timerHeroNavigationBlocked {
+            collapseTimerHeroBeforeNavigation? { [weak self] in self?.resetPath(for: section) }
+            return
+        }
         switch section {
         case .today:
             todayPath = NavigationPath()

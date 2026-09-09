@@ -143,6 +143,7 @@ struct V054ContentView: View {
     @StateObject private var liveDayActivity = LiveDayActivityCore()
     @StateObject private var clientState = ClientProfileCore()
     @StateObject private var toolsState = SessionToolsCore()
+    @StateObject private var timerHero = VisualTimerHeroCoordinator()
 
     var body: some View {
         rootShell
@@ -205,6 +206,11 @@ struct V054ContentView: View {
 
     private var rootShell: some View {
         rootShellContent
+            .overlay {
+                VisualTimerHeroLayer(hero: timerHero, router: router)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(timerHero.blocksNavigation)
+            }
     }
 
     @ViewBuilder
@@ -306,6 +312,7 @@ struct V054ContentView: View {
             toolsDashboard
 #endif
         }
+        .environmentObject(timerHero)
     }
 
     private var resourcesRoot: some View {
@@ -503,6 +510,7 @@ private final class LifeRouteRootPagerController: UIViewController, UIScrollView
     private let router: AppRouter
     let visibility: LifeRouteVisibilityOwner
     private var visibilitySubscription: AnyCancellable?
+    private var timerHeroSubscription: AnyCancellable?
     private var layoutRevision: UInt64 = 0
     private var transitionOrigin: AppSection?
     private var actuallyExposed = false
@@ -562,6 +570,9 @@ private final class LifeRouteRootPagerController: UIViewController, UIScrollView
             host.didMove(toParent: self)
         }
         visibilitySubscription = visibility.revisions.sink { [weak self] _ in self?.updateInteraction() }
+        timerHeroSubscription = router.$timerHeroNavigationBlocked.sink { [weak self] blocked in
+            self?.updateInteraction(timerHeroBlocked: blocked)
+        }
         updateInteraction()
         selectionSubscription = router.$selectedSection.dropFirst().sink { [weak self] section in
             guard let self, !self.writesSelection else { return }
@@ -850,12 +861,14 @@ private final class LifeRouteRootPagerController: UIViewController, UIScrollView
             parent: actuallyExposed, window: viewIfLoaded?.window != nil, committedFrom: committedFrom)
     }
 
-    private func updateInteraction() {
+    private func updateInteraction(timerHeroBlocked: Bool? = nil) {
+        let heroBlocked = timerHeroBlocked ?? router.timerHeroNavigationBlocked
+        scrollView.isScrollEnabled = !heroBlocked
         // Mechanical ingress is synchronous; the installed visibility snapshot
         // can still describe idle until its deferred publication is drained.
         let settledInput: Bool
         if case .idle = motion {
-            settledInput = !tornDown && pendingSelection == nil && requestedSelection == settledSelection
+            settledInput = !heroBlocked && !tornDown && pendingSelection == nil && requestedSelection == settledSelection
         } else {
             settledInput = false
         }
@@ -870,6 +883,7 @@ private final class LifeRouteRootPagerController: UIViewController, UIScrollView
     }
 
     private func accessibilityPage(_ direction: UIAccessibilityScrollDirection) -> Bool {
+        guard !router.timerHeroNavigationBlocked else { return false }
         let delta: Int
         switch direction {
         case .left: delta = 1

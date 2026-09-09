@@ -8,7 +8,7 @@ root=Path(__file__).resolve().parents[1]
 domain=(root/'LifeRoute/SessionToolsDomain.swift').read_text()
 view=(root/'LifeRoute/ScenicRoyalVisualTimerView.swift').read_text()
 core=domain.split('@MainActor\nfinal class VisualTimerCore:',1)[1].split('@MainActor\nfinal class SessionToolsCore:',1)[0]
-state=view.split('@MainActor\nfinal class VisualTimerPresentationState:',1)[1].split('private struct ScenicRoyalFullScreenTimerView:',1)[0]
+state=view.split('@MainActor\nfinal class VisualTimerPresentationState:',1)[1].split('// Kept as the existing fullscreen chrome seam;',1)[0]
 source='import Foundation\nimport Combine\n@MainActor\nfinal class VisualTimerCore:'+core+'@MainActor\nfinal class VisualTimerPresentationState:'+state
 # The external donor ledger is the run's exhaustive input, not a copied timer.
 ledger_path=os.environ.get('TIMER_ABC_LEDGER')

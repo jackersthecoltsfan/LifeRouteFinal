@@ -1443,7 +1443,15 @@ def validate_timer_and_live_activity(sources: dict[str, str]) -> None:
                             "motionDriver.setActive(false", "ProcessInfo.processInfo.systemUptime"],
                 "Orb motion must suspend without changing timer authority")
     require("presentationBeatPublisher" in timer, "Visual Timer audible loop publishes the shared presentation beat")
-    require("presentation.motionDriver" in timer_view, "Embedded and full-screen Orbs share presentation motion and beat state")
+    hero = sources["VisualTimerHero.swift"]
+    require_count(timer_view, "ScenicRoyalTimerOrb(", 1, "Timer D has one production Orb construction")
+    require("fullScreenCover" not in timer_view, "Timer D root host replaces the former Orb cover")
+    require_all(hero, ["struct VisualTimerHeroTransition", "transition.takeSettledNavigation()",
+                       "orb.transform = CGAffineTransform", "scroll.observe(\\.contentOffset"],
+                "Timer D live anchor and transform-only presentation integration")
+    require(not any(value in hero for value in ["VisualTimerCore(", "VisualTimerOrbPresentationDriver(", "UIWindow("]),
+            "Timer D must not duplicate timer, phase driver or window authority")
+    require("presentation.motionDriver" in timer_view, "One root Hero Orb uses the existing presentation motion and beat state")
     require("paused: !sceneIsActive" not in timer_view, "Slice 1 Visual Timer must not add a scene-driven pulse loop")
     require("ScenicRoyalTimerDial" not in timer_view, "Slice 1 Visual Timer must use the Scenic Orb presentation shell")
     require_all(

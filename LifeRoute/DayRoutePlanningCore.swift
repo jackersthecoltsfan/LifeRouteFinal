@@ -4,6 +4,57 @@ import MapKit
 import CoreLocation
 import UIKit
 
+struct LifeRouteLiveLaunchConfiguration: Codable, Equatable, Sendable {
+    let plannerAEnabled: Bool
+
+    static let disabled = LifeRouteLiveLaunchConfiguration(plannerAEnabled: false)
+}
+
+struct LifeRouteLaunchConfigurationResolution: Equatable, Sendable {
+    let live: LifeRouteLiveLaunchConfiguration
+    let previous: LifeRouteLiveLaunchConfiguration?
+    let configurationChanged: Bool
+    let invalidatedReconstructableCaches: Bool
+}
+
+enum LifeRouteDevelopmentConfiguration {
+    static let pendingPlannerAKey = "liferoute.development.pending.plannerA"
+    static let previousLiveConfigurationKey = "liferoute.development.previousLiveConfiguration"
+    static let reconstructableDerivedCacheKeys = [
+        "liferoute.derived.planner.v1",
+        "liferoute.derived.route.v1",
+        "liferoute.derived.canonicalization.v1",
+    ]
+
+    static func establishLive(
+        defaults: UserDefaults = .standard
+    ) -> LifeRouteLaunchConfigurationResolution {
+#if DEBUG
+        let plannerAEnabled = defaults.object(forKey: pendingPlannerAKey) as? Bool ?? false
+#else
+        let plannerAEnabled = false
+#endif
+        let live = LifeRouteLiveLaunchConfiguration(plannerAEnabled: plannerAEnabled)
+        let previous = defaults.data(forKey: previousLiveConfigurationKey).flatMap {
+            try? JSONDecoder().decode(LifeRouteLiveLaunchConfiguration.self, from: $0)
+        }
+        // An absent or unreadable prior configuration is intentionally different.
+        let configurationChanged = previous != live
+        if configurationChanged {
+            reconstructableDerivedCacheKeys.forEach(defaults.removeObject(forKey:))
+        }
+        if let encoded = try? JSONEncoder().encode(live) {
+            defaults.set(encoded, forKey: previousLiveConfigurationKey)
+        }
+        return LifeRouteLaunchConfigurationResolution(
+            live: live,
+            previous: previous,
+            configurationChanged: configurationChanged,
+            invalidatedReconstructableCaches: configurationChanged
+        )
+    }
+}
+
 struct LifeRouteDayRouteLeg: Identifiable, Hashable {
     let id: String
     let sequence: Int
@@ -87,6 +138,11 @@ final class DayRoutePlanningCore: ObservableObject {
     private var gapEvaluationTasks: [String: Task<Void, Never>] = [:]
     private var gapEvaluationIDs: [String: UUID] = [:]
     private var mapsLaunchGate = LifeRouteMapsLaunchGate()
+    private let plannerAEnabled: Bool
+
+    init(plannerAEnabled: Bool = false) {
+        self.plannerAEnabled = plannerAEnabled
+    }
 
     func calculate(
         selectedDay: Date,
@@ -309,6 +365,97 @@ final class DayRoutePlanningCore: ObservableObject {
         let mode = routeMode
         gapEvaluationTasks[gap.id] = Task { [weak self] in
             guard let self else { return }
+            if self.plannerAEnabled {
+                defer {
+                    if self.gapEvaluationIDs[gap.id] == token {
+                        self.gapEvaluationInFlight.remove(gap.id)
+                        self.gapEvaluationTasks[gap.id] = nil
+                        self.gapEvaluationIDs[gap.id] = nil
+                    }
+                }
+                var recommendations = locationlessRecommendations
+                do {
+                    try Task.checkCancellation()
+                    let sourceItem = try await Self.mapItem(for: previous.address, fallbackName: previous.title)
+                    try Task.checkCancellation()
+                    let destinationItem = try await Self.mapItem(for: next.address, fallbackName: next.title)
+                    for candidate in locatedCandidates {
+                        try Task.checkCancellation()
+                        guard self.gapEvaluationIDs[gap.id] == token,
+                              self.generatedItinerary?.id == itinerary.id,
+                              self.generatedItinerary?.inputFingerprint == itinerary.inputFingerprint else { return }
+                        let inbound: TimeInterval
+                        let outbound: TimeInterval
+                        do {
+                            let candidateItem = try await Self.mapItem(
+                                for: candidate.address,
+                                fallbackName: candidate.title
+                            )
+                            try Task.checkCancellation()
+                            inbound = try await Self.routeDuration(
+                                from: sourceItem,
+                                to: candidateItem,
+                                mode: mode
+                            )
+                            try Task.checkCancellation()
+                            outbound = try await Self.routeDuration(
+                                from: candidateItem,
+                                to: destinationItem,
+                                mode: mode
+                            )
+                            try Task.checkCancellation()
+                        } catch {
+                            // Adapters can surface an endpoint error while the
+                            // task is cancelled. Cancellation always wins.
+                            try Task.checkCancellation()
+                            switch error {
+                            case DayRoutePlanningError.locationNotFound,
+                                 DayRoutePlanningError.routeUnavailable:
+                                continue
+                            case let mapError as MKError where mapError.code == .placemarkNotFound
+                                || mapError.code == .directionsNotFound:
+                                continue
+                            default:
+                                throw error
+                            }
+                        }
+                        let fit = gap.fit(
+                            .located(
+                                id: candidate.id,
+                                title: candidate.title,
+                                durationSeconds: TimeInterval(candidate.durationMinutes * 60),
+                                inboundTravelSeconds: inbound,
+                                outboundTravelSeconds: outbound
+                            )
+                        )
+                        guard fit.state == .fits else { continue }
+                        recommendations.append(
+                            LifeRouteGapFillerRecommendation(
+                                id: candidate.id,
+                                source: candidate.source,
+                                title: candidate.title,
+                                address: candidate.address,
+                                durationMinutes: candidate.durationMinutes,
+                                fit: fit
+                            )
+                        )
+                    }
+                } catch is CancellationError {
+                    return
+                } catch let error as URLError where error.code == .cancelled {
+                    return
+                } catch {
+                    // Shared context and unknown/service failures remain
+                    // whole-evaluation aborts. Proven earlier fits are retained.
+                }
+                guard !Task.isCancelled,
+                      self.gapEvaluationIDs[gap.id] == token,
+                      self.generatedItinerary?.id == itinerary.id,
+                      self.generatedItinerary?.inputFingerprint == itinerary.inputFingerprint else { return }
+                self.gapRecommendationsByGapID[gap.id] = recommendations
+                return
+            }
+
             var recommendations = locationlessRecommendations
             do {
                 let sourceItem = try await Self.mapItem(for: previous.address, fallbackName: previous.title)

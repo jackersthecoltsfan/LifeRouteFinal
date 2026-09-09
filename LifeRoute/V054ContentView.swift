@@ -139,11 +139,21 @@ struct V054ContentView: View {
     @StateObject private var calendarState = CalendarCoreState()
     @StateObject private var providerState = CalendarProviderCore()
     @StateObject private var routingState = RoutingLocationCore()
-    @StateObject private var dayPlanState = DayRoutePlanningCore()
+    @StateObject private var dayPlanState: DayRoutePlanningCore
     @StateObject private var liveDayActivity = LiveDayActivityCore()
     @StateObject private var clientState = ClientProfileCore()
     @StateObject private var toolsState = SessionToolsCore()
     @StateObject private var timerHero = VisualTimerHeroCoordinator()
+    private let launchConfiguration: LifeRouteLiveLaunchConfiguration
+
+    init(launchConfiguration: LifeRouteLiveLaunchConfiguration = .disabled) {
+        self.launchConfiguration = launchConfiguration
+        _dayPlanState = StateObject(
+            wrappedValue: DayRoutePlanningCore(
+                plannerAEnabled: launchConfiguration.plannerAEnabled
+            )
+        )
+    }
 
     var body: some View {
         rootShell
@@ -323,7 +333,12 @@ struct V054ContentView: View {
 
     private var setupRoot: some View {
         LifeRouteRootNavigationStack(path: $router.setupPath) {
-            V054SetupView(routingState: routingState, clientState: clientState).lifeRouteRootScope()
+            V054SetupView(
+                routingState: routingState,
+                clientState: clientState,
+                liveConfiguration: launchConfiguration
+            )
+            .lifeRouteRootScope()
         }
     }
 }

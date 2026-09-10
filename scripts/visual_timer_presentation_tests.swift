@@ -41,6 +41,25 @@ struct VisualTimerPresentationTests {
         precondition(result(), message)
     }
 
+    // Source-bound ownership contract; native rendering remains a separate check.
+    private static func hasSingleRootTimerOwner(root: String, view: String, hero: String) -> Bool {
+        func compact(_ text: String) -> String {
+            text.components(separatedBy: .whitespacesAndNewlines).joined()
+        }
+        let root = compact(root), view = compact(view), hero = compact(hero)
+        let all = root + view + hero
+        func count(_ token: String) -> Int { all.components(separatedBy: token).count - 1 }
+        return count("VisualTimerHeroCoordinator()") == 1
+            && count("VisualTimerHeroLayer(") == 1
+            && count("VisualTimerHeroController(hero:") == 1
+            && root.contains("rootShellContent.overlay{VisualTimerHeroLayer(hero:timerHero,router:router)")
+            && hero.contains("VisualTimerHeroLayer:UIViewControllerRepresentable")
+            && hero.contains("addChild(host)") && hero.contains("host.didMove(toParent:self)")
+            && hero.contains("letwindow=view.window") && hero.contains("slot.window===window")
+            && !all.contains(".fullScreenCover(") && !all.contains(".sheet(")
+            && !all.contains(".present(") && !all.contains("UIWindow(") && !all.contains("UIWindow.init(")
+    }
+
     @MainActor static func main() async throws {
         let suite = "LifeRoute.Phase1AH.Tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -226,36 +245,62 @@ struct VisualTimerPresentationTests {
                "duration selection precedes the primary action and compact preferences")
         expect(embedded.range(of: "durationCard")!.lowerBound < embedded.range(of: "feedbackCard")!.lowerBound,
                "duration and feedback remain available in one secondary flow")
-        expect(view.components(separatedBy: ".fullScreenCover(").count == 2, "one modal presentation owner")
+        let root = try String(contentsOfFile: "LifeRoute/V054ContentView.swift", encoding: .utf8)
+        let hero = try String(contentsOfFile: "LifeRoute/VisualTimerHero.swift", encoding: .utf8)
+        let layer = "VisualTimerHeroLayer(hero: timerHero, router: router)"
+        let duplicateRoot = root.replacingOccurrences(of: layer, with: layer + "\n" + layer)
+        expect(duplicateRoot != root && !hasSingleRootTimerOwner(root: duplicateRoot, view: view, hero: hero),
+               "ownership contract rejects a deliberately duplicated root Timer layer")
+        expect(!hasSingleRootTimerOwner(root: root, view: view + ".fullScreenCover(isPresented: $expanded) { TimerView() }", hero: hero),
+               "ownership contract rejects an added modal beside the root Timer owner")
+        expect(!hasSingleRootTimerOwner(root: root, view: view, hero: hero + "let duplicateWindow = UIWindow(frame: .zero)"),
+               "ownership contract rejects a second window for the Timer")
+        expect(!hasSingleRootTimerOwner(root: root.replacingOccurrences(of: layer, with: "EmptyView()"), view: view, hero: hero),
+               "ownership contract requires a Timer owner rather than merely banning modals")
+        expect(hasSingleRootTimerOwner(root: root, view: view, hero: hero),
+               "one root-hosted fullscreen Timer owner uses the existing UIWindow without a duplicate modal")
+        print("Timer ownership controls passed: duplicate root, modal, extra window and missing owner rejected; accepted Timer D passed.")
         expect(!view.contains("VisualTimerCore()"), "neither presentation constructs a second core")
         expect(view.components(separatedBy: "completionSubscription = timer.completionCuePublisher").count == 2,
                "one UI-lifetime completion subscription")
         expect(!view.contains(".onReceive(timer.$deadline)"), "mounted readout views have no duplicate completion listener")
-        let readout = view.components(separatedBy: "private struct ScenicRoyalTimerReadout: View {")[1]
-            .components(separatedBy: "private struct ScenicRoyalTimerControls: View {")[0]
-        expect(readout.components(separatedBy: "TimelineView(").count == 2 && readout.contains("if isActive {"),
-               "only the visible readout uses the existing periodic cadence")
-        expect(view.contains("isVisible && !presentation.isFullScreen && scenePhase == .active"), "embedded readout sleeps behind cover")
-        expect(view.contains("ScenicRoyalEnvironmentHost(theme: themeStore.selectedTheme, palette: themeStore.palette)"),
-               "cover uses the actual selected LifeRoute theme host")
+        let readout = view.components(separatedBy: "struct ScenicRoyalTimerReadout: View {")[1]
+            .components(separatedBy: "struct ScenicRoyalTimerControls: View {")[0]
+        expect(readout.components(separatedBy: "TimelineView(").count == 2
+                && readout.contains("isActive ? VisualTimerFeedbackCurve.readoutInterval : 86_400"),
+               "the shared readout uses the existing active cadence and sleeps when inactive")
+        expect(readout.contains("if let hero {") && readout.contains("VisualTimerHeroAnchor(hero: hero)")
+                && view.components(separatedBy: "ScenicRoyalTimerOrb(").count == 2,
+               "embedded presentation supplies an anchor for the sole root-hosted Orb")
+        expect(hero.contains(".environment(\\.scenicRoyalThemeStyle, themeStore.selectedTheme.scenicRoyalStyle)"),
+               "root-hosted fullscreen content uses the actual selected LifeRoute theme")
         expect(view.contains(".scaleEffect(canvasSize / 340)"), "full canvas and liquid scale uniformly")
         expect(!view.contains("timer.remainingSeconds() >= timer.durationSeconds"), "controls must not mistake an adjusted paused timer for a ready timer")
-        let cover = view.components(separatedBy: "private struct ScenicRoyalFullScreenTimerView: View {")[1]
-            .components(separatedBy: "private struct ScenicRoyalTimerReadout: View {")[0]
-        expect(!cover.contains("NavigationStack") && !cover.contains("ScenicRoyalToolbar"), "cover has no new root or navigation toolbar")
-        expect(!cover.contains("timer.start") && !cover.contains("timer.reset") && !cover.contains("timer.pause"), "modal lifecycle never mutates the timer")
-        expect(cover.contains(".safeAreaInset(edge: .top"), "full-screen Close owns a physical-safe top inset")
-        expect(cover.contains("@Environment(\\.dismiss)") && cover.contains("private func closeTimer()"),
-               "the rendered Close synchronizes presentation state and invokes native modal dismissal")
-        expect(!cover.contains(".opacity(controlsVisible ? 1 : 0)\n            .allowsHitTesting(controlsVisible)\n            .accessibilityHidden(!controlsVisible)\n        }\n        .accessibilityAction"),
-               "the Close header remains visible and hit-testable while running controls hide")
-        expect(cover.contains("Show timer controls") && cover.contains("shouldAutoHideControls"),
-               "running full-screen action chrome has an accessible tap-to-reveal auto-hide contract")
-        expect(view.contains("presentation.motionDriver"), "embedded and full-screen Orbs share one local motion/cadence state")
-        expect(cover.contains("frame(width: 56, height: 56)") && cover.contains(".contentShape(Rectangle())"),
-               "Close has an explicit enlarged rectangular hit target")
-        expect(cover.contains(".zIndex(1)") && cover.contains("private func closeTimer()"),
-               "Close stays above presentation chrome and owns one timer-neutral dismissal path")
+        let fullscreen = view.components(separatedBy: "struct ScenicRoyalFullScreenTimerView: View {")[1]
+            .components(separatedBy: "struct ScenicRoyalHeroOrbReadout: View {")[0]
+        expect(!fullscreen.contains("NavigationStack") && !fullscreen.contains("ScenicRoyalToolbar"),
+               "fullscreen header has no separate navigation root or toolbar")
+        expect(!fullscreen.contains("timer.start") && !fullscreen.contains("timer.reset") && !fullscreen.contains("timer.pause"),
+               "fullscreen lifecycle never mutates the timer")
+        expect(hero.contains("view.convert(window.safeAreaLayoutGuide.layoutFrame, from: window)")
+                && hero.contains("headerHost?.view.frame = layout.header"),
+               "root Timer host positions Close inside the existing window safe area")
+        expect(fullscreen.contains("Button { hero.presentation?.close() }")
+                && fullscreen.contains(".accessibilityAction(.escape) { hero.presentation?.close() }"),
+               "Close and accessibility escape collapse the shared presentation without modal dismissal")
+        expect(hero.contains("headerHost?.view.alpha = blocked ? 1 : 0")
+                && hero.contains("headerHost?.view.accessibilityElementsHidden = !blocked"),
+               "fullscreen header remains visible and accessible for the whole expansion")
+        expect(hero.contains("surface.capturesInput = blocked")
+                && hero.contains("surface.accessibilityViewIsModal = blocked"),
+               "the one root Timer surface owns fullscreen hit testing and accessibility scope")
+        expect(view.contains("presentation.motionDriver"), "embedded and fullscreen readouts share one motion/cadence state")
+        expect(fullscreen.contains("frame(width: 44, height: 44)")
+                && fullscreen.contains(".accessibilityIdentifier(\"visualTimer.close\")"),
+               "Close retains its accepted native hit target and accessible identity")
+        expect(hero.contains("view.addSubview(headerHost!.view)")
+                && fullscreen.contains("hero.navigate { [weak hero] in hero?.back?() }"),
+               "root host owns the header and settles fullscreen presentation before Back navigation")
         let driver = VisualTimerOrbPresentationDriver()
         let driverOwner = UUID()
         driver.setActive(true, owner: driverOwner, at: 100)

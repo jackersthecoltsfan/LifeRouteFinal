@@ -153,6 +153,7 @@ final class DayRoutePlanningCore: ObservableObject {
         homeAddress: String,
         currentLocation: CLLocation?
     ) {
+        let isRegeneration = generatedItinerary != nil
         calculationTask?.cancel()
         gapEvaluationTasks.values.forEach { $0.cancel() }
         gapEvaluationTasks = [:]
@@ -161,13 +162,15 @@ final class DayRoutePlanningCore: ObservableObject {
         gapRecommendationsByGapID = [:]
         let token = LifeRouteRouteGenerationToken(selectedDay: selectedDay)
         calculationToken = token
-        legs = []
-        generatedItinerary = nil
-        fullRoutePlan = nil
+        if !isRegeneration {
+            legs = []
+            generatedItinerary = nil
+            fullRoutePlan = nil
+        }
         nextSequentialLegIndex = nil
         hasStartedSequentialHandoff = false
         isCalculating = true
-        message = "Building day route…"
+        message = isRegeneration ? "Regenerating day route…" : "Building day route…"
 
         let mode = self.routeMode
         let returnHome = self.returnHome

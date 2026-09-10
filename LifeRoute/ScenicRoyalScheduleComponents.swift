@@ -361,14 +361,16 @@ struct ScenicRoyalFullRouteActionButton: View {
             }
         } label: {
             Label(
-                showsLaunchingState && planState.isLaunchingNavigation
+                planState.isCalculating
+                    ? "Regenerating route…"
+                    : showsLaunchingState && planState.isLaunchingNavigation
                     ? "Opening \(plan.provider.title)…"
                     : actionTitle,
                 systemImage: actionIcon
             )
         }
         .buttonStyle(ScenicRoyalPrimaryButtonStyle())
-        .disabled(disablesWhileLaunching && planState.isLaunchingNavigation)
+        .disabled(planState.isCalculating || (disablesWhileLaunching && planState.isLaunchingNavigation))
         .accessibilityHint(accessibilityHint)
     }
 

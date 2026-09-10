@@ -32,11 +32,6 @@ def main():
     route = read('LifeRoute/DayRoutePlanningCore.swift')
     routing = read('LifeRoute/RoutingLocationDomain.swift')
     seams = {
-        'launch_configuration': between(
-            route,
-            'struct LifeRouteLiveLaunchConfiguration:',
-            'struct LifeRouteDayRouteLeg:'
-        ),
         'route': between(route, 'struct LifeRouteDayRouteLeg:', '    func startFullRoute(')
         + between(route, '    private func googleTravelMode(', '    private static func buildRoute(')
         + between(route, '    private static func inputFingerprint(', '    private static func routeDuration(')

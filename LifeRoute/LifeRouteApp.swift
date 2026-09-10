@@ -3666,11 +3666,6 @@ enum LifeRouteAppearance {
 struct LifeRouteApp: App {
     @StateObject private var themeStore = LifeRouteThemeStore()
     @StateObject private var visualActivityCoordinator = LifeRouteVisualActivityCoordinator()
-    private let launchConfiguration: LifeRouteLiveLaunchConfiguration
-
-    init() {
-        launchConfiguration = LifeRouteDevelopmentConfiguration.establishLive().live
-    }
 
     var body: some Scene {
         WindowGroup {
@@ -3698,7 +3693,7 @@ struct LifeRouteApp: App {
     }
 
     private var appContent: some View {
-        ContentView(launchConfiguration: launchConfiguration)
+        ContentView()
             .lifeRouteChrome()
             .environmentObject(themeStore)
             .environmentObject(visualActivityCoordinator)

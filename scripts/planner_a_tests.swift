@@ -102,10 +102,9 @@ final class PlannerAChecks {
     }
 
     private func makeCore(
-        plannerAEnabled: Bool,
         appointments: [LifeRouteRouteAppointment]? = nil
     ) async -> (DayRoutePlanningCore, LifeRouteGeneratedItinerary, LifeRouteUsableGap) {
-        let core = DayRoutePlanningCore(plannerAEnabled: plannerAEnabled)
+        let core = DayRoutePlanningCore()
         core.calculate(
             selectedDay: date(10),
             appointments: appointments ?? self.appointments(),
@@ -159,82 +158,8 @@ final class PlannerAChecks {
         DayRoutePlanningCore.fixtureSuspended = false
     }
 
-    private func flagConfigurationContract() {
-        let suiteName = "LifeRoutePlannerATests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        let protectedKeys = [
-            "liferoute.test.userTasks",
-            "liferoute.test.rawAppleCalendar",
-            "liferoute.test.rawGoogleCalendar",
-            "liferoute.test.settings",
-        ]
-        for key in protectedKeys { defaults.set("protected", forKey: key) }
-        for key in LifeRouteDevelopmentConfiguration.reconstructableDerivedCacheKeys {
-            defaults.set("stale-derived", forKey: key)
-        }
-
-        let legacyPendingKey = "liferoute.development.pending.plannerA"
-        defaults.set(false, forKey: legacyPendingKey)
-        let first = LifeRouteDevelopmentConfiguration.establishLive(defaults: defaults)
-        expect(first.live.plannerAEnabled, "accepted Planner A defaults ON despite an earlier QA OFF preference")
-        expect(defaults.object(forKey: legacyPendingKey) as? Bool == false,
-               "accepted default leaves the earlier QA preference untouched")
-        expect(first.previous == nil && first.configurationChanged,
-               "absent previous launch configuration is different")
-        expect(first.invalidatedReconstructableCaches,
-               "absent previous configuration invalidates reconstructable caches")
-        expect(LifeRouteDevelopmentConfiguration.reconstructableDerivedCacheKeys.allSatisfy {
-            defaults.object(forKey: $0) == nil
-        }, "only named reconstructable cache slots are cleared")
-        expect(protectedKeys.allSatisfy { defaults.string(forKey: $0) == "protected" },
-               "configuration change preserves source-of-truth records and settings")
-
-        for key in LifeRouteDevelopmentConfiguration.reconstructableDerivedCacheKeys {
-            defaults.set("current-derived", forKey: key)
-        }
-        let same = LifeRouteDevelopmentConfiguration.establishLive(defaults: defaults)
-        expect(!same.configurationChanged && !same.invalidatedReconstructableCaches,
-               "matching live configuration does not invalidate caches")
-        expect(LifeRouteDevelopmentConfiguration.reconstructableDerivedCacheKeys.allSatisfy {
-            defaults.string(forKey: $0) == "current-derived"
-        }, "matching configuration retains current derived caches")
-
-        defaults.set(false, forKey: LifeRouteDevelopmentConfiguration.pendingPlannerAKey)
-        expect(first.live.plannerAEnabled,
-               "pending write cannot mutate immutable current live configuration")
-        expect(LifeRouteDevelopmentConfiguration.reconstructableDerivedCacheKeys.allSatisfy {
-            defaults.string(forKey: $0) == "current-derived"
-        }, "pending write alone cannot invalidate running-process caches")
-
-        let relaunched = LifeRouteDevelopmentConfiguration.establishLive(defaults: defaults)
-        expect(!relaunched.live.plannerAEnabled && relaunched.configurationChanged,
-               "cold-launch establishment still applies an explicit pending Planner A OFF")
-        expect(relaunched.invalidatedReconstructableCaches,
-               "changed live configuration invalidates reconstructable caches")
-        expect(LifeRouteDevelopmentConfiguration.reconstructableDerivedCacheKeys.allSatisfy {
-            defaults.object(forKey: $0) == nil
-        }, "changed configuration clears all and only derived cache slots")
-        expect(protectedKeys.allSatisfy { defaults.string(forKey: $0) == "protected" },
-               "relaunch invalidation preserves protected source-of-truth values")
-
-        defaults.removeObject(forKey: LifeRouteDevelopmentConfiguration.pendingPlannerAKey)
-        let acceptedRelaunch = LifeRouteDevelopmentConfiguration.establishLive(defaults: defaults)
-        expect(acceptedRelaunch.live.plannerAEnabled && acceptedRelaunch.previous == relaunched.live,
-               "unset accepted preference activates Planner A from a previous live OFF configuration")
-        expect(acceptedRelaunch.configurationChanged && acceptedRelaunch.invalidatedReconstructableCaches,
-               "previous live OFF to accepted ON retains derived-cache invalidation")
-        expect(protectedKeys.allSatisfy { defaults.string(forKey: $0) == "protected" },
-               "accepted ON relaunch preserves source-of-truth values")
-        print("PASS FLAG — pending/live launch scope and cache policy")
-    }
-
     func run() async {
-        flagConfigurationContract()
-
-        let (core, itinerary, gap) = await makeCore(plannerAEnabled: true)
+        let (core, itinerary, gap) = await makeCore()
         expect(gap.rawCalendarGapSeconds == 7_200 && gap.isRouteSafe,
                "controlled causal gap is two hours and route safe")
         let bad = todo("Unavailable errand", address: "Unavailable candidate", minutes: 20)
@@ -355,7 +280,6 @@ final class PlannerAChecks {
 
         resetEndpoints()
         let (duplicateCore, duplicateItinerary, duplicateGap) = await makeCore(
-            plannerAEnabled: true,
             appointments: duplicatedAppointments()
         )
         expect(duplicateItinerary.nodes.filter { $0.kind == .appointment }.count == 4,
@@ -374,22 +298,32 @@ final class PlannerAChecks {
                "A5 duplicate input does not corrupt candidate-loop state")
         print("PASS A5 — undeduplicated calendar-style input safety")
 
+        // Registration-domain values are process-local; no phone/user database is touched.
+        let defaults = UserDefaults.standard
+        let registration = defaults.volatileDomain(forName: UserDefaults.registrationDomain)
+        defer { defaults.setVolatileDomain(registration, forName: UserDefaults.registrationDomain) }
+        let obsoleteOffValues: [String: Any] = [
+            "liferoute.development.pending.plannerA": false,
+            "liferoute.development.pending.plannerA.stabilizationExit": false,
+            "liferoute.development.previousLiveConfiguration": Data(#"{"plannerAEnabled":false}"#.utf8),
+        ]
+        defaults.register(defaults: obsoleteOffValues)
         resetEndpoints()
-        let (offCore, offItinerary, offGap) = await makeCore(plannerAEnabled: false)
+        let (defaultCore, defaultItinerary, defaultGap) = await makeCore()
         DayRoutePlanningCore.fixtureLookupFailures[bad.address] =
             DayRoutePlanningError.locationNotFound(bad.address)
-        await evaluate(offCore, gap: offGap, itinerary: offItinerary, todos: [bad, good])
-        expect(recommendations(offCore, gap: offGap).isEmpty,
-               "A6 Planner A OFF retains frozen-D failing-first result")
-        expect(!DayRoutePlanningCore.fixtureQueries.contains(good.address),
-               "A6 Planner A OFF retains frozen-D early loop exit")
+        await evaluate(defaultCore, gap: defaultGap, itinerary: defaultItinerary, todos: [bad, good])
+        expect(recommendations(defaultCore, gap: defaultGap).map(\.title) == [good.title],
+               "A6 fresh default core recovers despite obsolete pending/live OFF preferences")
+        expect(DayRoutePlanningCore.fixtureQueries.contains(good.address),
+               "A6 default product path continues to later candidates without configuration")
         resetEndpoints()
         DayRoutePlanningCore.fixtureLookupFailures[bad.address] =
             DayRoutePlanningError.locationNotFound(bad.address)
-        await evaluate(offCore, gap: offGap, itinerary: offItinerary, todos: [good, bad])
-        expect(recommendations(offCore, gap: offGap).map(\.title) == [good.title],
-               "A6 Planner A OFF retains frozen-D reverse-order result")
-        print("PASS A6 — Planner A OFF frozen-D baseline")
+        await evaluate(defaultCore, gap: defaultGap, itinerary: defaultItinerary, todos: [good, bad])
+        expect(recommendations(defaultCore, gap: defaultGap).map(\.title) == [good.title],
+               "A6 reverse order preserves the same feasible result by default")
+        print("PASS A6 — default recovery is independent of obsolete stabilization preferences")
     }
 }
 

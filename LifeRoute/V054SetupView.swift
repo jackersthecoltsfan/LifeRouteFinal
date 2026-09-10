@@ -15,60 +15,6 @@ private enum LifeRouteBuildIdentity {
     }()
 }
 
-private struct LifeRoutePlannerADevelopmentControl: View {
-    @Environment(\.scenicRoyalThemeStyle) private var style
-    @AppStorage(LifeRouteDevelopmentConfiguration.pendingPlannerAKey)
-    private var pendingPlannerAEnabled = true
-
-    let liveConfiguration: LifeRouteLiveLaunchConfiguration
-
-    private var pendingDiffers: Bool {
-        pendingPlannerAEnabled != liveConfiguration.plannerAEnabled
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-            HStack {
-                Text("LIVE")
-                    .font(.caption.weight(.black))
-                    .foregroundStyle(style.accentReflection)
-                Spacer()
-                Text("Planner \(liveConfiguration.plannerAEnabled ? "ON" : "OFF")")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(style.primaryText)
-            }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Live Planner A")
-            .accessibilityValue(liveConfiguration.plannerAEnabled ? "On" : "Off")
-
-            Toggle(isOn: $pendingPlannerAEnabled) {
-                VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                    Text("PENDING")
-                        .font(.caption.weight(.black))
-                        .foregroundStyle(style.secondaryText)
-                    Text("Planner \(pendingPlannerAEnabled ? "ON" : "OFF") next launch")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(style.primaryText)
-                }
-            }
-            .tint(style.selectedControlFill)
-            .accessibilityLabel("Pending Planner A")
-            .accessibilityValue(pendingPlannerAEnabled ? "On next launch" : "Off next launch")
-
-            if pendingDiffers {
-                Text("Pending change staged — swipe-kill LifeRoute and reopen to apply.")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(style.accentReflection)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityLabel("Pending change staged. Swipe-kill LifeRoute and reopen to apply.")
-            } else {
-                Text("Pending matches this live launch.")
-                    .font(.caption)
-                    .foregroundStyle(style.secondaryText)
-            }
-        }
-    }
-}
 #endif
 
 struct V054SetupView: View {
@@ -80,7 +26,6 @@ struct V054SetupView: View {
     @EnvironmentObject private var suspensionCoordinator: LifeRouteVisualActivityCoordinator
     @ObservedObject var routingState: RoutingLocationCore
     @ObservedObject var clientState: ClientProfileCore
-    let liveConfiguration: LifeRouteLiveLaunchConfiguration
 
     @AppStorage("liferoute.rbtProfile.name") private var rbtName = ""
     @AppStorage("liferoute.rbtProfile.organization") private var rbtOrganization = ""
@@ -223,9 +168,6 @@ struct V054SetupView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Source commit \(LifeRouteBuildIdentity.shortCommit)")
 
-            Divider()
-
-            LifeRoutePlannerADevelopmentControl(liveConfiguration: liveConfiguration)
         }
     }
 #endif

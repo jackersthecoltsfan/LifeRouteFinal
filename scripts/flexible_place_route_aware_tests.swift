@@ -51,7 +51,7 @@ final class FlexiblePlaceRouteAwareChecks {
         LifeRouteGeneratedItinerary,
         LifeRouteUsableGap
     ) {
-        let core = DayRoutePlanningCore(plannerAEnabled: true)
+        let core = DayRoutePlanningCore()
         core.calculate(
             selectedDay: date(0),
             appointments: [

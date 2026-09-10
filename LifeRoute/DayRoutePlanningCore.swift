@@ -1000,6 +1000,8 @@ final class DayRoutePlanningCore: ObservableObject {
                 return $0.index < $1.index
             }
             .prefix(limit)
+            // Geography chooses the set; original provider order breaks exact-cost ties.
+            .sorted { $0.index < $1.index }
             .map(\.item)
     }
 

@@ -8,6 +8,7 @@
 - Browser Google Calendar support for the web preview.
 - Combined Day, Week, and Month views with selectable calendar sources.
 - Manual appointments alongside provider events.
+- Exact-identity deduplication for the same appointment imported through Apple and Google, while retaining both raw provider records.
 
 ### Routing and location
 - Apple Maps and Google Maps route/place handoff.
@@ -51,7 +52,6 @@
 
 ## Good next product improvements
 
-- Deduplicate matching events across multiple calendar sources.
 - Let users select individual calendars within Apple and Google sources.
 - Add opening-hours awareness to errands/store/place scoring.
 - Improve route ranking with richer preference history and configurable detour tolerance.

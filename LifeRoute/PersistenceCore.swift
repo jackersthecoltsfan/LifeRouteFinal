@@ -726,7 +726,8 @@ final class LifeRoutePersistenceStore {
                 location: event.location,
                 calendarTitle: event.calendarTitle,
                 isAllDay: event.isAllDay,
-                source: event.source
+                source: event.source,
+                providerIdentity: event.providerIdentity
             )
         }.sorted {
             if $0.start != $1.start { return $0.start < $1.start }

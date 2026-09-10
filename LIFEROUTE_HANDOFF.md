@@ -1,3 +1,13 @@
+# Flexible-place route-aware selection — September 10, 2026
+
+- Successor: `/Users/brand/Documents/GitHub/LifeRouteFinal-flexible-place-route-aware`, branch `codex/flexible-place-route-aware-selection`, from exact clean consolidated donor `fd8666690d13444d3804702362f91982e718929f`.
+- Confirmed cause: `DayRoutePlanningCore` converted a flexible stored value into an `MKLocalSearch` query, accepted only `response.mapItems.first`, and routed only that result before applying the existing gap-fit contract.
+- Flexible candidates now compare the first four provider-ordered results serially against the actual previous and next route anchors. Each option retains the existing task duration, route buffer, and gap-fit math; only feasible options compete, lowest inbound-plus-outbound travel wins, and provider order breaks route-cost ties within one second. The selected concrete MapKit address is retained for insertion into the day route.
+- Fixed-location and locationless candidates, candidate order/cap/priority, Do-by deadlines, Planner A candidate-local recovery, cancellation/stale/global abort handling, Calendar B, Regenerate Route, Timer D, and Timer ABC remain unchanged. Recoverable failure of one flexible place option may continue to the next bounded option without creating a broader catch-all recovery rule.
+- Focused FP1–FP10 plus the 24-result/poor-first evidence shape passed 20 assertions. Timer D 44, Timer ABC 145, Planner A 47, Day Route 177, Calendar B 34, Regenerate Route 18, Core Product Repair 17, canonical preparation, Simulator compilation, and a dedicated iOS 26.5 native harness/app-launch smoke passed. Physical iPhone acceptance remains pending; this task does not install the artifact.
+
+---
+
 # Stabilization consolidation — September 10, 2026
 
 - Worktree: `/Users/brand/Documents/GitHub/LifeRouteFinal-stabilization-exit`; branch `codex/stabilization-exit-20260909`. Starts at frozen Timer D `325e2bc3f1f25b8846b26808faec4040c1cb09c6` and preserves Planner A `e9811a80963100f2821d11f210c08543cb4920c0`, Regenerate Route `171728565a800983fe4c7312c28df456f0b65d57`, and Calendar B `00f85d862a315555bed1db267de544715de70c29` in ancestry.

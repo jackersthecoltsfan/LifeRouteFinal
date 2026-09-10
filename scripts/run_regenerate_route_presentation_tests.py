@@ -158,6 +158,17 @@ ROUTE_ENDPOINT = r'''
         return item
     }
 
+    private static func flexiblePlaceMapItems(
+        for query: String,
+        limit: Int
+    ) async throws -> [MKMapItem] {
+        [try await mapItem(for: query, fallbackName: query)]
+    }
+
+    private static func resolvedFlexiblePlaceAddress(_ item: MKMapItem, fallback: String) -> String {
+        fallback
+    }
+
     private static func routeDuration(
         from: MKMapItem, to: MKMapItem, mode: LifeRouteTransportMode
     ) async throws -> TimeInterval {

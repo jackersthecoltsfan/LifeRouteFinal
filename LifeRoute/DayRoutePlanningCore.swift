@@ -388,61 +388,33 @@ final class DayRoutePlanningCore: ObservableObject {
                         guard self.gapEvaluationIDs[gap.id] == token,
                               self.generatedItinerary?.id == itinerary.id,
                               self.generatedItinerary?.inputFingerprint == itinerary.inputFingerprint else { return }
-                        let inbound: TimeInterval
-                        let outbound: TimeInterval
                         do {
-                            let candidateItem = try await Self.mapItem(
-                                for: candidate.address,
-                                fallbackName: candidate.title
-                            )
-                            try Task.checkCancellation()
-                            inbound = try await Self.routeDuration(
+                            guard let evaluation = try await Self.bestGapLocationEvaluation(
+                                for: candidate,
+                                in: gap,
                                 from: sourceItem,
-                                to: candidateItem,
-                                mode: mode
-                            )
-                            try Task.checkCancellation()
-                            outbound = try await Self.routeDuration(
-                                from: candidateItem,
                                 to: destinationItem,
                                 mode: mode
+                            ) else { continue }
+                            recommendations.append(
+                                LifeRouteGapFillerRecommendation(
+                                    id: candidate.id,
+                                    source: candidate.source,
+                                    title: candidate.title,
+                                    address: evaluation.address,
+                                    durationMinutes: candidate.durationMinutes,
+                                    fit: evaluation.fit
+                                )
                             )
-                            try Task.checkCancellation()
                         } catch {
                             // Adapters can surface an endpoint error while the
                             // task is cancelled. Cancellation always wins.
                             try Task.checkCancellation()
-                            switch error {
-                            case DayRoutePlanningError.locationNotFound,
-                                 DayRoutePlanningError.routeUnavailable:
+                            if Self.isRecoverableGapCandidateError(error) {
                                 continue
-                            case let mapError as MKError where mapError.code == .placemarkNotFound
-                                || mapError.code == .directionsNotFound:
-                                continue
-                            default:
-                                throw error
                             }
+                            throw error
                         }
-                        let fit = gap.fit(
-                            .located(
-                                id: candidate.id,
-                                title: candidate.title,
-                                durationSeconds: TimeInterval(candidate.durationMinutes * 60),
-                                inboundTravelSeconds: inbound,
-                                outboundTravelSeconds: outbound
-                            )
-                        )
-                        guard fit.state == .fits else { continue }
-                        recommendations.append(
-                            LifeRouteGapFillerRecommendation(
-                                id: candidate.id,
-                                source: candidate.source,
-                                title: candidate.title,
-                                address: candidate.address,
-                                durationMinutes: candidate.durationMinutes,
-                                fit: fit
-                            )
-                        )
                     }
                 } catch is CancellationError {
                     return
@@ -466,38 +438,21 @@ final class DayRoutePlanningCore: ObservableObject {
                 let destinationItem = try await Self.mapItem(for: next.address, fallbackName: next.title)
                 for candidate in locatedCandidates {
                     try Task.checkCancellation()
-                    let candidateItem = try await Self.mapItem(
-                        for: candidate.address,
-                        fallbackName: candidate.title
-                    )
-                    let inbound = try await Self.routeDuration(
+                    guard let evaluation = try await Self.bestGapLocationEvaluation(
+                        for: candidate,
+                        in: gap,
                         from: sourceItem,
-                        to: candidateItem,
-                        mode: mode
-                    )
-                    let outbound = try await Self.routeDuration(
-                        from: candidateItem,
                         to: destinationItem,
                         mode: mode
-                    )
-                    let fit = gap.fit(
-                        .located(
-                            id: candidate.id,
-                            title: candidate.title,
-                            durationSeconds: TimeInterval(candidate.durationMinutes * 60),
-                            inboundTravelSeconds: inbound,
-                            outboundTravelSeconds: outbound
-                        )
-                    )
-                    guard fit.state == .fits else { continue }
+                    ) else { continue }
                     recommendations.append(
                         LifeRouteGapFillerRecommendation(
                             id: candidate.id,
                             source: candidate.source,
                             title: candidate.title,
-                            address: candidate.address,
+                            address: evaluation.address,
                             durationMinutes: candidate.durationMinutes,
-                            fit: fit
+                            fit: evaluation.fit
                         )
                     )
                 }
@@ -756,6 +711,12 @@ final class DayRoutePlanningCore: ObservableObject {
         let durationMinutes: Int
     }
 
+    private struct GapLocationEvaluation {
+        let address: String
+        let fit: LifeRouteGapFitResult
+        let travelSeconds: TimeInterval
+    }
+
     private static func buildRoute(
         appointments: [LifeRouteRouteAppointment],
         beforeStops: [LifeRouteDayStop],
@@ -971,6 +932,101 @@ final class DayRoutePlanningCore: ObservableObject {
         value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
+    // Compare the provider's first result plus three alternatives. With the
+    // retained eight-candidate cap this bounds serial directions work at 64
+    // legs, while giving each flexible task more than a single fallback.
+    private static let flexiblePlaceRouteComparisonLimit = 4
+    // Sub-second differences are not meaningful route-quality distinctions.
+    private static let routeCostTieToleranceSeconds: TimeInterval = 1
+
+    private static func bestGapLocationEvaluation(
+        for candidate: GapLocationCandidate,
+        in gap: LifeRouteUsableGap,
+        from source: MKMapItem,
+        to destination: MKMapItem,
+        mode: LifeRouteTransportMode
+    ) async throws -> GapLocationEvaluation? {
+        let flexible = isFlexiblePlaceAddress(candidate.address)
+        let options = flexible
+            ? try await flexiblePlaceMapItems(
+                for: candidate.address,
+                limit: flexiblePlaceRouteComparisonLimit
+            )
+            : [try await mapItem(for: candidate.address, fallbackName: candidate.title)]
+        var best: GapLocationEvaluation?
+        var lastRecoverableError: Error?
+        var routedOption = false
+
+        for option in options {
+            let inbound: TimeInterval
+            let outbound: TimeInterval
+            do {
+                try Task.checkCancellation()
+                inbound = try await routeDuration(from: source, to: option, mode: mode)
+                try Task.checkCancellation()
+                outbound = try await routeDuration(from: option, to: destination, mode: mode)
+                try Task.checkCancellation()
+            } catch {
+                try Task.checkCancellation()
+                guard flexible, isRecoverableGapCandidateError(error) else { throw error }
+                lastRecoverableError = error
+                continue
+            }
+
+            routedOption = true
+            let fit = gap.fit(
+                .located(
+                    id: candidate.id,
+                    title: candidate.title,
+                    durationSeconds: TimeInterval(candidate.durationMinutes * 60),
+                    inboundTravelSeconds: inbound,
+                    outboundTravelSeconds: outbound
+                )
+            )
+            guard fit.state == .fits else { continue }
+
+            let evaluation = GapLocationEvaluation(
+                address: flexible
+                    ? resolvedFlexiblePlaceAddress(option, fallback: candidate.address)
+                    : candidate.address,
+                fit: fit,
+                travelSeconds: inbound + outbound
+            )
+            if let best,
+               evaluation.travelSeconds >= best.travelSeconds - routeCostTieToleranceSeconds {
+                continue
+            }
+            best = evaluation
+        }
+
+        if !routedOption, let lastRecoverableError {
+            throw lastRecoverableError
+        }
+        return best
+    }
+
+    private static func isRecoverableGapCandidateError(_ error: Error) -> Bool {
+        switch error {
+        case DayRoutePlanningError.locationNotFound,
+             DayRoutePlanningError.routeUnavailable:
+            return true
+        case let mapError as MKError:
+            return mapError.code == .placemarkNotFound || mapError.code == .directionsNotFound
+        default:
+            return false
+        }
+    }
+
+    private static func isFlexiblePlaceAddress(_ value: String) -> Bool {
+        let cleaned = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return LifeRouteDestinationIntent.todoOptions.contains {
+            $0.storedValue.compare(
+                cleaned,
+                options: [.caseInsensitive, .diacriticInsensitive]
+            ) == .orderedSame
+        }
+    }
+
     private static func routeDuration(
         from source: MKMapItem,
         to destination: MKMapItem,
@@ -985,6 +1041,45 @@ final class DayRoutePlanningCore: ObservableObject {
             throw DayRoutePlanningError.routeUnavailable(destination.name ?? "destination")
         }
         return route.expectedTravelTime
+    }
+
+    private static func flexiblePlaceMapItems(
+        for query: String,
+        limit: Int
+    ) async throws -> [MKMapItem] {
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = LifeRouteDestinationIntent.naturalLanguageQuery(forStoredValue: query)
+        let response = try await MKLocalSearch(request: request).start()
+        let items = Array(response.mapItems.prefix(limit))
+        guard !items.isEmpty else {
+            throw DayRoutePlanningError.locationNotFound(query)
+        }
+        return items
+    }
+
+    private static func resolvedFlexiblePlaceAddress(
+        _ item: MKMapItem,
+        fallback: String
+    ) -> String {
+        if #available(iOS 26.0, *),
+           let fullAddress = item.address?.fullAddress.trimmingCharacters(in: .whitespacesAndNewlines),
+           !fullAddress.isEmpty {
+            return fullAddress
+        }
+        if #unavailable(iOS 26.0) {
+            let placemarkTitle = item.placemark.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !placemarkTitle.isEmpty { return placemarkTitle }
+        }
+        let name = item.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !name.isEmpty { return name }
+        let coordinate: CLLocationCoordinate2D
+        if #available(iOS 26.0, *) {
+            coordinate = item.location.coordinate
+        } else {
+            coordinate = item.placemark.coordinate
+        }
+        guard CLLocationCoordinate2DIsValid(coordinate) else { return fallback }
+        return String(format: "%.6f, %.6f", coordinate.latitude, coordinate.longitude)
     }
 
     private static func mapItem(for query: String, fallbackName: String) async throws -> MKMapItem {

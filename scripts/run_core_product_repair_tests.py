@@ -78,6 +78,8 @@ ROUTE_ENDPOINT = r'''
     static var fixtureSuspended = false
     static var fixtureLookupFailures: [String: Error] = [:]
     static var fixtureRouteFailures: [String: Error] = [:]
+    static var fixtureSearchResults: [String: [String]] = [:]
+    static var fixtureTravelSecondsByLeg: [String: TimeInterval] = [:]
     static var fixtureRouteQueries: [String] = []
     static var fixtureFailures: [String] = []
     private static var fixtureAddresses: [ObjectIdentifier: String] = [:]
@@ -121,8 +123,30 @@ ROUTE_ENDPOINT = r'''
             throw error
         }
         if fixtureFailLocation && address == "Any Walmart" { throw DayRoutePlanningError.locationNotFound(address) }
+        return fixtureMapItem(address: address, name: fallbackName)
+    }
+    private static func flexiblePlaceMapItems(
+        for query: String,
+        limit: Int
+    ) async throws -> [MKMapItem] {
+        fixtureQueries.append(query)
+        if let error = fixtureLookupFailures[query] {
+            fixtureFailures.append(query)
+            throw error
+        }
+        if fixtureFailLocation && query == "Any Walmart" {
+            throw DayRoutePlanningError.locationNotFound(query)
+        }
+        let results = fixtureSearchResults[query] ?? [query]
+        guard !results.isEmpty else { throw DayRoutePlanningError.locationNotFound(query) }
+        return results.prefix(limit).map { fixtureMapItem(address: $0, name: $0) }
+    }
+    private static func resolvedFlexiblePlaceAddress(_ item: MKMapItem, fallback: String) -> String {
+        fixtureAddresses[ObjectIdentifier(item)] ?? fallback
+    }
+    private static func fixtureMapItem(address: String, name: String) -> MKMapItem {
         let item = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: 40, longitude: -75)))
-        item.name = fallbackName
+        item.name = name
         fixtureAddresses[ObjectIdentifier(item)] = address
         return item
     }
@@ -136,7 +160,7 @@ ROUTE_ENDPOINT = r'''
         if fixtureSuspended {
             return try await withCheckedThrowingContinuation { fixtureRouteWaiters.append($0) }
         }
-        return fixtureTravelSeconds
+        return fixtureTravelSecondsByLeg[key] ?? fixtureTravelSeconds
     }
 '''
 

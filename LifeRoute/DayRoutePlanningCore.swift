@@ -18,7 +18,8 @@ struct LifeRouteLaunchConfigurationResolution: Equatable, Sendable {
 }
 
 enum LifeRouteDevelopmentConfiguration {
-    static let pendingPlannerAKey = "liferoute.development.pending.plannerA"
+    // Accepted default gets a new QA preference scope; an earlier OFF cannot carry forward.
+    static let pendingPlannerAKey = "liferoute.development.pending.plannerA.stabilizationExit"
     static let previousLiveConfigurationKey = "liferoute.development.previousLiveConfiguration"
     static let reconstructableDerivedCacheKeys = [
         "liferoute.derived.planner.v1",
@@ -30,9 +31,9 @@ enum LifeRouteDevelopmentConfiguration {
         defaults: UserDefaults = .standard
     ) -> LifeRouteLaunchConfigurationResolution {
 #if DEBUG
-        let plannerAEnabled = defaults.object(forKey: pendingPlannerAKey) as? Bool ?? false
+        let plannerAEnabled = defaults.object(forKey: pendingPlannerAKey) as? Bool ?? true
 #else
-        let plannerAEnabled = false
+        let plannerAEnabled = true
 #endif
         let live = LifeRouteLiveLaunchConfiguration(plannerAEnabled: plannerAEnabled)
         let previous = defaults.data(forKey: previousLiveConfigurationKey).flatMap {

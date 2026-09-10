@@ -1,3 +1,14 @@
+# Stabilization consolidation — September 10, 2026
+
+- Worktree: `/Users/brand/Documents/GitHub/LifeRouteFinal-stabilization-exit`; branch `codex/stabilization-exit-20260909`. Starts at frozen Timer D `325e2bc3f1f25b8846b26808faec4040c1cb09c6` and preserves Planner A `e9811a80963100f2821d11f210c08543cb4920c0`, Regenerate Route `171728565a800983fe4c7312c28df456f0b65d57`, and Calendar B `00f85d862a315555bed1db267de544715de70c29` in ancestry.
+- Owner-reported physical authority: Timer D and Planner A ACCEPTED; Regenerate Route PHYSICAL FULL PASS / ACCEPTED. Do not reopen these accepted repairs or require repeated physical QA solely for consolidation.
+- Planner A is active by default. A new pending preference scope prevents the earlier QA OFF preference from carrying forward. Pending/live scaffolding, explicit future QA overrides, candidate-local recovery, cancellation/stale/global aborts, and derived-cache safety remain.
+- Calendar B is unchanged: PHYSICAL PARTIAL / IDENTITY EVIDENCE PENDING, `CALENDAR_B_DEFERRED_NO_EVIDENCE`. LiFe/SaLa collapsed physically; JaHe remains partial. No identity extension or event-specific matching is authorized here.
+- The sole final artifact/validation receipt is `/Users/brand/Documents/LifeRouteCheckpoints/stabilization-exit-20260909/CONSOLIDATION_RECEIPT.md`; it records the final clean source SHA and signed payload hash. No installation, phone launch, CI, or release is part of this run.
+- Remaining phone checks only: visible source SHA, basic launch/navigation, refresh both calendar providers, LiFe/SaLa remain collapsed, observe JaHe partial, and Calendar plus Today/day-route stability.
+
+---
+
 # Root toolbar theme geometry — September 6, 2026
 
 - Successor: `/Users/brand/Documents/GitHub/LifeRouteFinal-toolbar-theme-geometry`, branch `fix/root-toolbar-theme-geometry`, foundation HEAD `097b2c22cbd1eb62b54c5361a8d9ededb561f3d2`. The complete 571-record theme donor fingerprint `7786a00dcbddce6f192549058f8e391d3d7576ad2ea1d2e488b469b014107571` was reconstructed with file bytes, modes, tracked changes, all required untracked files and logical index/staging verified before edits. The donor remains read-only. HEAD alone cannot recover this dirty successor.

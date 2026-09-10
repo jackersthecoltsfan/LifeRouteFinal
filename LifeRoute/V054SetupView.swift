@@ -18,7 +18,7 @@ private enum LifeRouteBuildIdentity {
 private struct LifeRoutePlannerADevelopmentControl: View {
     @Environment(\.scenicRoyalThemeStyle) private var style
     @AppStorage(LifeRouteDevelopmentConfiguration.pendingPlannerAKey)
-    private var pendingPlannerAEnabled = false
+    private var pendingPlannerAEnabled = true
 
     let liveConfiguration: LifeRouteLiveLaunchConfiguration
 

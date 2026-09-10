@@ -170,8 +170,12 @@ final class PlannerAChecks {
             defaults.set("stale-derived", forKey: key)
         }
 
+        let legacyPendingKey = "liferoute.development.pending.plannerA"
+        defaults.set(false, forKey: legacyPendingKey)
         let first = LifeRouteDevelopmentConfiguration.establishLive(defaults: defaults)
-        expect(!first.live.plannerAEnabled, "flag defaults Planner A OFF")
+        expect(first.live.plannerAEnabled, "accepted Planner A defaults ON despite an earlier QA OFF preference")
+        expect(defaults.object(forKey: legacyPendingKey) as? Bool == false,
+               "accepted default leaves the earlier QA preference untouched")
         expect(first.previous == nil && first.configurationChanged,
                "absent previous launch configuration is different")
         expect(first.invalidatedReconstructableCaches,
@@ -192,16 +196,16 @@ final class PlannerAChecks {
             defaults.string(forKey: $0) == "current-derived"
         }, "matching configuration retains current derived caches")
 
-        defaults.set(true, forKey: LifeRouteDevelopmentConfiguration.pendingPlannerAKey)
-        expect(!first.live.plannerAEnabled,
+        defaults.set(false, forKey: LifeRouteDevelopmentConfiguration.pendingPlannerAKey)
+        expect(first.live.plannerAEnabled,
                "pending write cannot mutate immutable current live configuration")
         expect(LifeRouteDevelopmentConfiguration.reconstructableDerivedCacheKeys.allSatisfy {
             defaults.string(forKey: $0) == "current-derived"
         }, "pending write alone cannot invalidate running-process caches")
 
         let relaunched = LifeRouteDevelopmentConfiguration.establishLive(defaults: defaults)
-        expect(relaunched.live.plannerAEnabled && relaunched.configurationChanged,
-               "cold-launch establishment applies pending Planner A ON")
+        expect(!relaunched.live.plannerAEnabled && relaunched.configurationChanged,
+               "cold-launch establishment still applies an explicit pending Planner A OFF")
         expect(relaunched.invalidatedReconstructableCaches,
                "changed live configuration invalidates reconstructable caches")
         expect(LifeRouteDevelopmentConfiguration.reconstructableDerivedCacheKeys.allSatisfy {
@@ -209,6 +213,15 @@ final class PlannerAChecks {
         }, "changed configuration clears all and only derived cache slots")
         expect(protectedKeys.allSatisfy { defaults.string(forKey: $0) == "protected" },
                "relaunch invalidation preserves protected source-of-truth values")
+
+        defaults.removeObject(forKey: LifeRouteDevelopmentConfiguration.pendingPlannerAKey)
+        let acceptedRelaunch = LifeRouteDevelopmentConfiguration.establishLive(defaults: defaults)
+        expect(acceptedRelaunch.live.plannerAEnabled && acceptedRelaunch.previous == relaunched.live,
+               "unset accepted preference activates Planner A from a previous live OFF configuration")
+        expect(acceptedRelaunch.configurationChanged && acceptedRelaunch.invalidatedReconstructableCaches,
+               "previous live OFF to accepted ON retains derived-cache invalidation")
+        expect(protectedKeys.allSatisfy { defaults.string(forKey: $0) == "protected" },
+               "accepted ON relaunch preserves source-of-truth values")
         print("PASS FLAG — pending/live launch scope and cache policy")
     }
 

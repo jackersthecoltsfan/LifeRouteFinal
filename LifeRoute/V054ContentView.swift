@@ -132,6 +132,8 @@ private enum LifeRouteDebugLaunch {
 struct V054ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var themeStore: LifeRouteThemeStore
+    @EnvironmentObject private var visualActivity: LifeRouteVisualActivityCoordinator
+    @StateObject private var timerAmbientLease = LifeRouteOwnedHandle()
 
     @StateObject private var lifecycleState = AppLifecycleCore()
     @StateObject private var router = AppRouter()
@@ -156,6 +158,8 @@ struct V054ContentView: View {
         .background(Color.clear) // v0.7.0 Theme Phase 1 reveal the single root environment
         .onAppear {
             visibility.scene(scenePhase, immediate: true)
+            timerAmbientLease.reconcile(timerHero.blocksNavigation, acquire: visualActivity.acquireAmbientSuspension,
+                                        release: visualActivity.releaseAmbientSuspension)
 #if DEBUG
             if let section = LifeRouteDebugLaunch.sectionOverride {
                 router.select(section)
@@ -174,6 +178,16 @@ struct V054ContentView: View {
                 LifeRouteAppearance.refreshVisibleChrome(theme: theme)
             }
             LifeRouteThemeFeedbackSound.shared.play()
+        }
+        // Reuse the root ambient coordinator while Timer D covers the scene.
+        // Timer presentation, geometry, feedback and animation remain its owners.
+        .onChange(of: timerHero.blocksNavigation) { covered in
+            timerAmbientLease.reconcile(covered, acquire: visualActivity.acquireAmbientSuspension,
+                                        release: visualActivity.releaseAmbientSuspension)
+        }
+        .onDisappear {
+            timerAmbientLease.reconcile(false, acquire: visualActivity.acquireAmbientSuspension,
+                                        release: visualActivity.releaseAmbientSuspension)
         }
         .onOpenURL { url in
             if url.scheme?.lowercased() == "liferoute" {

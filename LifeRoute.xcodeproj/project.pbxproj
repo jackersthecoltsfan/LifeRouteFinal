@@ -63,6 +63,9 @@
 		W10000000000000000000002 /* LiveDayActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* LiveDayActivityAttributes.swift */; };
 		W10000000000000000000003 /* LifeRouteLiveActivityWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A1A100000000000000000001 /* VisualTimerOrbMotion.metal in Sources */ = {isa = PBXBuildFile; fileRef = A2A100000000000000000001 /* VisualTimerOrbMotion.metal */; };
+		A10000000000000000000061 /* LivingThemeScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000061 /* LivingThemeScene.swift */; };
+		A10000000000000000000062 /* LivingThemeEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000062 /* LivingThemeEnvironment.swift */; };
+		A10000000000000000000063 /* LivingRainforest.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000063 /* LivingRainforest.metal */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -152,6 +155,9 @@
 		W20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		W20000000000000000000003 /* LifeRouteLiveActivityWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LifeRouteLiveActivityWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2A100000000000000000001 /* VisualTimerOrbMotion.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = VisualTimerOrbMotion.metal; sourceTree = "<group>"; };
+		A20000000000000000000061 /* LivingThemeScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivingThemeScene.swift; sourceTree = "<group>"; };
+		A20000000000000000000062 /* LivingThemeEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivingThemeEnvironment.swift; sourceTree = "<group>"; };
+		A20000000000000000000063 /* LivingRainforest.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = LivingRainforest.metal; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -189,6 +195,9 @@
 				A20000000000000000000037 /* ScenicRoyalDesignSystem.swift */,
 				A20000000000000000000038 /* ScenicRoyalMaterials.swift */,
 				A20000000000000000000039 /* ScenicRoyalEnvironment.swift */,
+				A20000000000000000000063 /* LivingRainforest.metal */,
+				A20000000000000000000062 /* LivingThemeEnvironment.swift */,
+				A20000000000000000000061 /* LivingThemeScene.swift */,
 				A20000000000000000000055 /* SceneryEffectContracts.swift */,
 				A20000000000000000000056 /* ScenicRoyalEnvironmentalEffects.swift */,
 				A20000000000000000000040 /* ScenicRoyalThemeBridge.swift */,
@@ -393,6 +402,9 @@
 				A10000000000000000000037 /* ScenicRoyalDesignSystem.swift in Sources */,
 				A10000000000000000000038 /* ScenicRoyalMaterials.swift in Sources */,
 				A10000000000000000000039 /* ScenicRoyalEnvironment.swift in Sources */,
+				A10000000000000000000063 /* LivingRainforest.metal in Sources */,
+				A10000000000000000000062 /* LivingThemeEnvironment.swift in Sources */,
+				A10000000000000000000061 /* LivingThemeScene.swift in Sources */,
 				A10000000000000000000055 /* SceneryEffectContracts.swift in Sources */,
 				A10000000000000000000056 /* ScenicRoyalEnvironmentalEffects.swift in Sources */,
 				A10000000000000000000040 /* ScenicRoyalThemeBridge.swift in Sources */,

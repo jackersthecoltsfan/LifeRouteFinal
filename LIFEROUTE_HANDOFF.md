@@ -1,3 +1,17 @@
+# Living Themes V2 Phase 1 — September 10, 2026
+
+- Exact authorized remote parent: `1c59feda28106175d92d8a10663eef09b7bb5c3b`; its clean-baseline phone smoke remains deferred. This task explicitly authorizes source development from that provisional parent without claiming physical acceptance.
+- Isolated successor: `/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-v2`, branch `codex/living-themes-v2-phase1-20260910`; proved clean before edits. No other source lane, phone, release, merge, push or worker is part of this task.
+- First V2 environment: existing Rainforest — Day, stable ID `scenery.rainforest.day`. One Metal scene replaces that entry's legacy effects: downward water advection/turbulence, winding stream flow, local spray mist and restrained leaf flex. Camera, trunks and rock banks remain fixed. Other themes retain their existing paths.
+- Retained the existing theme store, root background host, foreground Scenic Royal materials, five-root navigation and Timer D presentation. Added only an ambient suspension lease while Timer D covers the scene. V2 owns one bounded renderer, serial cancellable preparation, lifecycle teardown, active-time playback, static Reduce Motion, and reduced low-power/thermal quality. See `docs/LIVING_THEMES_V2.md`.
+- Focused deterministic, real GPU-pixel and native lifecycle tests are checked in; full shell validation includes V2 policy contracts. Native profiling and later final build/artifact results are bound to the exact source in the external receipt, not inferred from this handoff.
+- Sole final receipt: `/Users/brand/Documents/LifeRouteCheckpoints/living-themes-v2-phase1-20260910/LIVING_THEMES_V2_PHASE1_RECEIPT.md`. It owns the final commit, clean-status proof, validation results, artifact identity, limitations and later phone-QA proposal. Installation must independently re-hash the signed bundle immediately before use.
+- Physical visual/motion/frame-pacing/thermal/battery acceptance remains Brandon's later gate. The current source does not establish PHYSICAL PASS or release authority.
+
+Earlier entries below are historical and do not override the explicit Phase 1 authority above.
+
+---
+
 # Clean baseline consolidation — September 10, 2026
 
 - Successor: `/Users/brand/Documents/GitHub/LifeRouteFinal-clean-baseline`, branch `codex/clean-baseline-20260910`. The existing exact-SHA fold `fd866669 -> 80f1bf8 -> 4e0c93b` is preserved; no donor was reset or edited. Final SHA and signed-artifact status belong to the sole external `clean-baseline-20260910/CLEAN_BASELINE_RECEIPT.md` checkpoint receipt.

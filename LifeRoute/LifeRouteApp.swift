@@ -3187,7 +3187,28 @@ struct LifeRouteLiveThemeEnvironment: View {
     let isActive: Bool
     let renderMode: LifeRouteAmbientRenderMode
 
+    @ViewBuilder
     var body: some View {
+        if let scene = LivingThemeScene.scene(for: theme.rawValue) {
+            ZStack {
+                LivingThemeEnvironment(scene: scene, playback: .init(
+                    isActive: isActive,
+                    isExposed: renderMode != .frozen,
+                    allowsAnimation: renderMode.plan.usesLiveClock,
+                    reduceMotion: reduceMotion,
+                    effectsEnabled: renderMode.plan.showsSceneryEffects
+                ))
+                .id(scene.themeIdentifier)
+                fixedGrade
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        } else {
+            legacyFrame
+        }
+    }
+
+    private var legacyFrame: some View {
         ZStack {
             fixedFrame
 

@@ -563,7 +563,7 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
     schedule = sources["V054ScheduleView.swift"]
     corpus = "\n".join(sources.values())
     require_count(corpus, "struct LifeRouteLiveThemeEnvironment: View", 1, "live theme environment ownership")
-    require_count(app, "TimelineView(", 1, "authoritative root animation clock")
+    require_count(app, "TimelineView(", 1, "single legacy SwiftUI environment clock; V2 dispatch is exclusive")
     visual_activity = sources["LifeRouteVisualActivityCoordinator.swift"]
     require_all(app, ["minimumInterval: 1.0 / 15.0", "paused: reduceMotion || !isActive", "renderMode: LifeRouteAmbientRenderMode", "liveEffects(at: Date(timeIntervalSinceReferenceDate: 0), plan: renderMode.plan)"], "lifecycle, suspension, and Reduce Motion clock pausing")
     require_all(environment, ["struct ScenicRoyalEnvironmentHost", "isActive: scenePhase == .active", "reduceMotion || reduceMotionOverride", "@EnvironmentObject private var visualActivityCoordinator", "return .frozen"], "persistent Scenic Royal environment and suspension host")
@@ -761,6 +761,13 @@ def validate_environment_effect_architecture(sources: dict[str, str]) -> None:
     require(".animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)" not in root, "theme changes must not invalidate the entire five-root shell")
     require("A newly selected tab can materialize a fresh UIKit container" not in root, "root paging must not recursively rewrite UIKit chrome on every selection")
     require(".animation(" not in environment, "the persistent environment host must not animate its entire content tree")
+    living = sources["LivingThemeEnvironment.swift"]
+    require_all(app, ["LivingThemeScene.scene(for: theme.rawValue)", "LivingThemeEnvironment(scene: scene", "} else {\n            legacyFrame"], "V2 and legacy renderers are mutually exclusive")
+    require_count(living, "MTKView(frame:", 1, "one native environmental surface")
+    require_all(living, ["DispatchSemaphore(value: 2)", "inFlight.wait(timeout: .now())", "surface.tearDown()", "view.isPaused = !running", "UIApplication.willResignActiveNotification", "resources = nil"], "bounded V2 driver and teardown")
+    require("TimelineView" not in living and "CADisplayLink(" not in living and "Timer(" not in living, "MTKView exclusively owns V2 scheduling")
+    require_all(root, ["timerAmbientLease.reconcile(covered", "timerAmbientLease.reconcile(false"], "Timer cover uses the existing ambient suspension coordinator")
+
 
 
 def validate_clients(sources: dict[str, str]) -> None:

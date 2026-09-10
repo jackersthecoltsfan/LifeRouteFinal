@@ -160,6 +160,8 @@ ROUTE_ENDPOINT = r'''
 
     private static func flexiblePlaceMapItems(
         for query: String,
+        from source: MKMapItem,
+        to destination: MKMapItem,
         limit: Int
     ) async throws -> [MKMapItem] {
         [try await mapItem(for: query, fallbackName: query)]

@@ -932,10 +932,11 @@ final class DayRoutePlanningCore: ObservableObject {
         value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
-    // Compare the provider's first result plus three alternatives. With the
-    // retained eight-candidate cap this bounds serial directions work at 64
-    // legs, while giving each flexible task more than a single fallback.
+    // Route-context shortlist four options before exact directions work. With
+    // the retained eight-candidate cap this bounds serial work at 64 legs.
     private static let flexiblePlaceRouteComparisonLimit = 4
+    private static let flexiblePlaceSearchMinimumSpanMeters: CLLocationDistance = 20_000
+    private static let flexiblePlaceSearchEndpointPaddingMeters: CLLocationDistance = 8_000
     // Sub-second differences are not meaningful route-quality distinctions.
     private static let routeCostTieToleranceSeconds: TimeInterval = 1
 
@@ -950,6 +951,8 @@ final class DayRoutePlanningCore: ObservableObject {
         let options = flexible
             ? try await flexiblePlaceMapItems(
                 for: candidate.address,
+                from: source,
+                to: destination,
                 limit: flexiblePlaceRouteComparisonLimit
             )
             : [try await mapItem(for: candidate.address, fallbackName: candidate.title)]
@@ -1027,6 +1030,103 @@ final class DayRoutePlanningCore: ObservableObject {
         }
     }
 
+    private static func routeContextSearchRegion(
+        from source: MKMapItem,
+        to destination: MKMapItem
+    ) -> MKCoordinateRegion? {
+        guard let sourceCoordinate = validCoordinate(for: source),
+              let destinationCoordinate = validCoordinate(for: destination) else {
+            return nil
+        }
+        let sourceLocation = CLLocation(
+            latitude: sourceCoordinate.latitude,
+            longitude: sourceCoordinate.longitude
+        )
+        let destinationLocation = CLLocation(
+            latitude: destinationCoordinate.latitude,
+            longitude: destinationCoordinate.longitude
+        )
+        let endpointDistance = sourceLocation.distance(from: destinationLocation)
+        let spanMeters = max(
+            flexiblePlaceSearchMinimumSpanMeters,
+            endpointDistance + (2 * flexiblePlaceSearchEndpointPaddingMeters)
+        )
+        return MKCoordinateRegion(
+            center: midpoint(from: sourceCoordinate, to: destinationCoordinate),
+            latitudinalMeters: spanMeters,
+            longitudinalMeters: spanMeters
+        )
+    }
+
+    private static func routeContextShortlist(
+        _ items: [MKMapItem],
+        from source: MKMapItem,
+        to destination: MKMapItem,
+        limit: Int
+    ) -> [MKMapItem] {
+        guard limit > 0,
+              let sourceCoordinate = validCoordinate(for: source),
+              let destinationCoordinate = validCoordinate(for: destination) else {
+            return Array(items.prefix(max(0, limit)))
+        }
+        let sourceLocation = CLLocation(
+            latitude: sourceCoordinate.latitude,
+            longitude: sourceCoordinate.longitude
+        )
+        let destinationLocation = CLLocation(
+            latitude: destinationCoordinate.latitude,
+            longitude: destinationCoordinate.longitude
+        )
+        return items.enumerated()
+            .map { index, item -> (index: Int, item: MKMapItem, cost: CLLocationDistance) in
+                guard let coordinate = validCoordinate(for: item) else {
+                    return (index, item, .greatestFiniteMagnitude)
+                }
+                let location = CLLocation(
+                    latitude: coordinate.latitude,
+                    longitude: coordinate.longitude
+                )
+                return (
+                    index,
+                    item,
+                    sourceLocation.distance(from: location)
+                        + location.distance(from: destinationLocation)
+                )
+            }
+            .sorted {
+                if $0.cost != $1.cost { return $0.cost < $1.cost }
+                return $0.index < $1.index
+            }
+            .prefix(limit)
+            .map(\.item)
+    }
+
+    private static func validCoordinate(for item: MKMapItem) -> CLLocationCoordinate2D? {
+        let coordinate: CLLocationCoordinate2D
+        if #available(iOS 26.0, *) {
+            coordinate = item.location.coordinate
+        } else {
+            coordinate = item.placemark.coordinate
+        }
+        return CLLocationCoordinate2DIsValid(coordinate) ? coordinate : nil
+    }
+
+    private static func midpoint(
+        from source: CLLocationCoordinate2D,
+        to destination: CLLocationCoordinate2D
+    ) -> CLLocationCoordinate2D {
+        var longitudeDelta = destination.longitude - source.longitude
+        if longitudeDelta > 180 { longitudeDelta -= 360 }
+        if longitudeDelta < -180 { longitudeDelta += 360 }
+        var longitude = source.longitude + (longitudeDelta / 2)
+        if longitude > 180 { longitude -= 360 }
+        if longitude < -180 { longitude += 360 }
+        return CLLocationCoordinate2D(
+            latitude: (source.latitude + destination.latitude) / 2,
+            longitude: longitude
+        )
+    }
+
     private static func routeDuration(
         from source: MKMapItem,
         to destination: MKMapItem,
@@ -1045,16 +1145,25 @@ final class DayRoutePlanningCore: ObservableObject {
 
     private static func flexiblePlaceMapItems(
         for query: String,
+        from source: MKMapItem,
+        to destination: MKMapItem,
         limit: Int
     ) async throws -> [MKMapItem] {
         let request = MKLocalSearch.Request()
         request.naturalLanguageQuery = LifeRouteDestinationIntent.naturalLanguageQuery(forStoredValue: query)
+        if let region = routeContextSearchRegion(from: source, to: destination) {
+            request.region = region
+        }
         let response = try await MKLocalSearch(request: request).start()
-        let items = Array(response.mapItems.prefix(limit))
-        guard !items.isEmpty else {
+        guard !response.mapItems.isEmpty else {
             throw DayRoutePlanningError.locationNotFound(query)
         }
-        return items
+        return routeContextShortlist(
+            response.mapItems,
+            from: source,
+            to: destination,
+            limit: limit
+        )
     }
 
     private static func resolvedFlexiblePlaceAddress(

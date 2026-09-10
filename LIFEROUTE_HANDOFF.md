@@ -1,3 +1,15 @@
+# Flexible-place route-context discovery — September 10, 2026
+
+- Successor: `/Users/brand/Documents/GitHub/LifeRouteFinal-flexible-place-discovery`, branch `codex/flexible-place-route-context-discovery`, from exact clean donor `80f1bf8c6e95c3875d04f9999331761fa8757d5e`.
+- Confirmed remaining seams: flexible `MKLocalSearch` had no gap-derived region, then discarded the complete result set with raw provider `prefix(4)` before any route-context comparison. Gap Filler exact routing already received the preceding and following itinerary-node addresses; Live Location did not replace those valid endpoints.
+- Flexible search now receives one region centered on the shared anchor or endpoint midpoint, with a 20 km minimum span and 8 km padding beyond each distinct endpoint. The region remains a discovery hint.
+- The complete returned MapKit result set is ranked cheaply by straight-line `origin -> option -> destination` distance. Only the best four reach the existing serial inbound/outbound directions, feasibility, and exact route-cost winner logic. Fixed locations, locationless suggestions, candidate/error/cancellation semantics, and the eight-candidate cap remain unchanged.
+- Focused route-context checks pass 36 assertions, including same-anchor, later result outside provider prefix, distinct corridor, Live Location ON/OFF, exact-routing authority, no-fit/fixed/bounded/cancellation controls, and a synthetic 24-result physical-evidence shape. Timer D 44, Timer ABC 145, Planner A 47, Day Route 177, Calendar B 34, Calendar Edit 29, Regenerate Route 18, Core Product Repair 17, preparation, and full static validation pass.
+- Dedicated native validation passed on `LifeRoute-Flexible-Context-20260910`, iPhone 17 Pro / iOS 26.5: the production-seam harness passed 36 assertions, an isolated-DerivedData Debug Simulator build succeeded, and the actual Today screen rendered without a LifeRoute crash. Physical iPhone acceptance remains required.
+- Separate future requirement, deliberately not implemented: after inserting one Gap Filler, recompute the remaining usable gap and offer `Add another filler` when another task fits.
+
+---
+
 # Flexible-place route-aware selection — September 10, 2026
 
 - Successor: `/Users/brand/Documents/GitHub/LifeRouteFinal-flexible-place-route-aware`, branch `codex/flexible-place-route-aware-selection`, from exact clean consolidated donor `fd8666690d13444d3804702362f91982e718929f`.

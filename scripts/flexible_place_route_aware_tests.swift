@@ -42,7 +42,11 @@ final class FlexiblePlaceRouteAwareChecks {
         fatalError("Controlled flexible-place endpoint did not settle")
     }
 
-    private func makeCore() async -> (
+    private func makeCore(
+        previousAddress: String = "Home Street",
+        nextAddress: String = "Office Ave",
+        currentLocation: CLLocation? = nil
+    ) async -> (
         DayRoutePlanningCore,
         LifeRouteGeneratedItinerary,
         LifeRouteUsableGap
@@ -54,7 +58,7 @@ final class FlexiblePlaceRouteAwareChecks {
                 LifeRouteRouteAppointment(
                     id: "previous",
                     title: "Previous",
-                    address: "Home Street",
+                    address: previousAddress,
                     start: date(9),
                     end: date(10),
                     isAllDay: false
@@ -62,7 +66,7 @@ final class FlexiblePlaceRouteAwareChecks {
                 LifeRouteRouteAppointment(
                     id: "next",
                     title: "Next",
-                    address: "Office Ave",
+                    address: nextAddress,
                     start: date(12),
                     end: date(13),
                     isAllDay: false
@@ -72,7 +76,7 @@ final class FlexiblePlaceRouteAwareChecks {
             afterStops: [],
             routeBufferMinutes: 10,
             homeAddress: "Home Base",
-            currentLocation: nil
+            currentLocation: currentLocation
         )
         await settle { !core.isCalculating }
         let itinerary = core.generatedItinerary!
@@ -87,6 +91,10 @@ final class FlexiblePlaceRouteAwareChecks {
         DayRoutePlanningCore.fixtureLookupFailures = [:]
         DayRoutePlanningCore.fixtureRouteFailures = [:]
         DayRoutePlanningCore.fixtureSearchResults = [:]
+        DayRoutePlanningCore.fixtureCoordinates = [:]
+        DayRoutePlanningCore.fixtureSearchRegions = []
+        DayRoutePlanningCore.fixtureSearchContexts = []
+        DayRoutePlanningCore.fixtureSearchResultCounts = []
         DayRoutePlanningCore.fixtureTravelSecondsByLeg = [:]
         DayRoutePlanningCore.fixtureTravelSeconds = 300
         DayRoutePlanningCore.fixtureSuspended = false
@@ -95,10 +103,23 @@ final class FlexiblePlaceRouteAwareChecks {
     private func setTravel(
         option: String,
         inbound: TimeInterval,
-        outbound: TimeInterval
+        outbound: TimeInterval,
+        from source: String = "Home Street",
+        to destination: String = "Office Ave"
     ) {
-        DayRoutePlanningCore.fixtureTravelSecondsByLeg["Home Street->\(option)"] = inbound
-        DayRoutePlanningCore.fixtureTravelSecondsByLeg["\(option)->Office Ave"] = outbound
+        DayRoutePlanningCore.fixtureTravelSecondsByLeg["\(source)->\(option)"] = inbound
+        DayRoutePlanningCore.fixtureTravelSecondsByLeg["\(option)->\(destination)"] = outbound
+    }
+
+    private func setCoordinate(
+        _ address: String,
+        latitude: CLLocationDegrees,
+        longitude: CLLocationDegrees
+    ) {
+        DayRoutePlanningCore.fixtureCoordinates[address] = CLLocationCoordinate2D(
+            latitude: latitude,
+            longitude: longitude
+        )
     }
 
     private func evaluate(
@@ -228,13 +249,239 @@ final class FlexiblePlaceRouteAwareChecks {
                "FP10 results beyond bounded prefix are not routed")
 
         resetEndpoints()
-        let evidenceGap = widened(gap)
+        let sameAnchor = "Shared Route Anchor"
+        let (sameCore, sameItinerary, sameGap) = await makeCore(
+            previousAddress: sameAnchor,
+            nextAddress: sameAnchor
+        )
+        setCoordinate(sameAnchor, latitude: 40, longitude: -75)
+        let sameAnchorOptions = (0..<8).map { "Same-anchor option \($0)" }
+        for (index, option) in sameAnchorOptions.enumerated() {
+            setCoordinate(
+                option,
+                latitude: 40.25 + (Double(index) * 0.01),
+                longitude: -75.25
+            )
+        }
+        setCoordinate(sameAnchorOptions[6], latitude: 40.001, longitude: -75.001)
+        DayRoutePlanningCore.fixtureSearchResults[flexible.address] = sameAnchorOptions
+        setTravel(
+            option: sameAnchorOptions[6],
+            inbound: 120,
+            outbound: 120,
+            from: sameAnchor,
+            to: sameAnchor
+        )
+        result = await evaluate(
+            sameCore,
+            gap: sameGap,
+            itinerary: sameItinerary,
+            todos: [flexible]
+        )
+        expect(result.first?.address == sameAnchorOptions[6],
+               "FD1 same-anchor gap shortlists and selects the near-anchor place")
+        expect(DayRoutePlanningCore.fixtureSearchContexts == ["\(sameAnchor)->\(sameAnchor)"],
+               "FD1 search and exact routing receive the actual shared route anchor")
+        expect(DayRoutePlanningCore.fixtureSearchRegions.count == 1,
+               "FD1 same-anchor search receives one route-derived region")
+        if let region = DayRoutePlanningCore.fixtureSearchRegions.first {
+            expect(abs(region.center.latitude - 40) < 0.001
+                    && abs(region.center.longitude + 75) < 0.001
+                    && region.span.latitudeDelta > 0.1,
+                   "FD1 search region is centered on the shared route anchor")
+        }
+
+        resetEndpoints()
+        setCoordinate("Home Street", latitude: 40, longitude: -75)
+        setCoordinate("Office Ave", latitude: 40.10, longitude: -74.90)
+        let routeContextOptions = (0..<8).map { "Route context option \($0)" }
+        for (index, option) in routeContextOptions.enumerated() {
+            setCoordinate(
+                option,
+                latitude: 41 + (Double(index) * 0.01),
+                longitude: -76
+            )
+        }
+        setCoordinate(routeContextOptions[6], latitude: 40.05, longitude: -74.95)
+        DayRoutePlanningCore.fixtureSearchResults[flexible.address] = routeContextOptions
+        setTravel(option: routeContextOptions[6], inbound: 120, outbound: 120)
+        result = await evaluate(core, gap: gap, itinerary: itinerary, todos: [flexible])
+        expect(result.first?.address == routeContextOptions[6],
+               "FD2 route-context winner outside provider prefix reaches exact routing")
+        expect(DayRoutePlanningCore.fixtureRouteQueries.contains("Home Street->\(routeContextOptions[6])"),
+               "FD2 raw provider order does not exclude the route-context winner")
+        expect(DayRoutePlanningCore.fixtureSearchResultCounts == [8]
+                && DayRoutePlanningCore.fixtureRouteQueries.count == 8,
+               "FD2 complete provider set feeds a four-option/eight-leg bound")
+        expect(DayRoutePlanningCore.fixtureSearchRegions.count == 1,
+               "FD2 distinct-endpoint search receives one route-derived region")
+        if let region = DayRoutePlanningCore.fixtureSearchRegions.first {
+            expect(abs(region.center.latitude - 40.05) < 0.001
+                    && abs(region.center.longitude + 74.95) < 0.001,
+                   "FD2 search region is centered on the endpoint midpoint")
+        }
+
+        resetEndpoints()
+        let (corridorCore, corridorItinerary, corridorGap) = await makeCore(
+            previousAddress: "Route Start",
+            nextAddress: "Route End"
+        )
+        setCoordinate("Home Base", latitude: 39, longitude: -76)
+        setCoordinate("Route Start", latitude: 41, longitude: -74)
+        setCoordinate("Route End", latitude: 41.10, longitude: -73.90)
+        let corridorOptions = (0..<8).map { "Corridor option \($0)" }
+        for (index, option) in corridorOptions.enumerated() {
+            setCoordinate(
+                option,
+                latitude: 39 + (Double(index) * 0.01),
+                longitude: -76
+            )
+        }
+        setCoordinate(corridorOptions[5], latitude: 41.05, longitude: -73.95)
+        DayRoutePlanningCore.fixtureSearchResults[flexible.address] = corridorOptions
+        setTravel(
+            option: corridorOptions[5],
+            inbound: 120,
+            outbound: 120,
+            from: "Route Start",
+            to: "Route End"
+        )
+        result = await evaluate(
+            corridorCore,
+            gap: corridorGap,
+            itinerary: corridorItinerary,
+            todos: [flexible]
+        )
+        expect(result.first?.address == corridorOptions[5],
+               "FD3 distinct-endpoint corridor place beats the provider-leading Home-biased place")
+        expect(DayRoutePlanningCore.fixtureSearchContexts == ["Route Start->Route End"],
+               "FD3 discovery uses the distinct planned route endpoints")
+
+        let (liveOnCore, liveOnItinerary, liveOnGap) = await makeCore(
+            previousAddress: "Planned Start",
+            nextAddress: "Planned End",
+            currentLocation: CLLocation(latitude: 35, longitude: -80)
+        )
+        let (liveOffCore, liveOffItinerary, liveOffGap) = await makeCore(
+            previousAddress: "Planned Start",
+            nextAddress: "Planned End",
+            currentLocation: nil
+        )
+        let liveOptions = (0..<8).map { "Live-control option \($0)" }
+
+        resetEndpoints()
+        setCoordinate("Planned Start", latitude: 42, longitude: -72)
+        setCoordinate("Planned End", latitude: 42.10, longitude: -71.90)
+        for (index, option) in liveOptions.enumerated() {
+            setCoordinate(option, latitude: 43 + (Double(index) * 0.01), longitude: -73)
+        }
+        setCoordinate(liveOptions[6], latitude: 42.05, longitude: -71.95)
+        DayRoutePlanningCore.fixtureSearchResults[flexible.address] = liveOptions
+        setTravel(
+            option: liveOptions[6],
+            inbound: 120,
+            outbound: 120,
+            from: "Planned Start",
+            to: "Planned End"
+        )
+        let liveOnResult = await evaluate(
+            liveOnCore,
+            gap: liveOnGap,
+            itinerary: liveOnItinerary,
+            todos: [flexible]
+        )
+        let liveOnRegion = DayRoutePlanningCore.fixtureSearchRegions.first
+
+        resetEndpoints()
+        setCoordinate("Planned Start", latitude: 42, longitude: -72)
+        setCoordinate("Planned End", latitude: 42.10, longitude: -71.90)
+        for (index, option) in liveOptions.enumerated() {
+            setCoordinate(option, latitude: 43 + (Double(index) * 0.01), longitude: -73)
+        }
+        setCoordinate(liveOptions[6], latitude: 42.05, longitude: -71.95)
+        DayRoutePlanningCore.fixtureSearchResults[flexible.address] = liveOptions
+        setTravel(
+            option: liveOptions[6],
+            inbound: 120,
+            outbound: 120,
+            from: "Planned Start",
+            to: "Planned End"
+        )
+        let liveOffResult = await evaluate(
+            liveOffCore,
+            gap: liveOffGap,
+            itinerary: liveOffItinerary,
+            todos: [flexible]
+        )
+        let liveOffRegion = DayRoutePlanningCore.fixtureSearchRegions.first
+        expect(liveOnResult.first?.address == liveOptions[6]
+                && liveOffResult.first?.address == liveOptions[6],
+               "FD4 Live Location ON/OFF preserves the valid planned-endpoint winner")
+        expect(DayRoutePlanningCore.fixtureSearchContexts == ["Planned Start->Planned End"],
+               "FD4 device location does not replace valid gap anchors")
+        expect(liveOnRegion?.center.latitude == liveOffRegion?.center.latitude
+                && liveOnRegion?.center.longitude == liveOffRegion?.center.longitude,
+               "FD4 route-context search region is invariant to Live Location")
+
+        resetEndpoints()
+        setCoordinate("Home Street", latitude: 40, longitude: -75)
+        setCoordinate("Office Ave", latitude: 40.10, longitude: -74.90)
+        let authorityOptions = ["Geometric best", "Exact-route best", "Authority other 2", "Authority other 3"]
+        setCoordinate(authorityOptions[0], latitude: 40.05, longitude: -74.95)
+        setCoordinate(authorityOptions[1], latitude: 40.055, longitude: -74.945)
+        setCoordinate(authorityOptions[2], latitude: 40.06, longitude: -74.94)
+        setCoordinate(authorityOptions[3], latitude: 40.07, longitude: -74.93)
+        DayRoutePlanningCore.fixtureSearchResults[flexible.address] = authorityOptions
+        setTravel(option: authorityOptions[0], inbound: 600, outbound: 600)
+        setTravel(option: authorityOptions[1], inbound: 120, outbound: 120)
+        result = await evaluate(core, gap: gap, itinerary: itinerary, todos: [flexible])
+        expect(result.first?.address == authorityOptions[1],
+               "FD6 exact route cost remains final authority over geometric shortlist order")
+
+        resetEndpoints()
+        DayRoutePlanningCore.fixtureSearchResults[flexible.address] = [
+            "Cancelled option", "Must not continue 1", "Must not continue 2", "Must not continue 3",
+        ]
+        DayRoutePlanningCore.fixtureRouteFailures["Home Street->Cancelled option"] = CancellationError()
+        result = await evaluate(core, gap: gap, itinerary: itinerary, todos: [flexible])
+        expect(result.isEmpty
+                && !DayRoutePlanningCore.fixtureRouteQueries.contains("Home Street->Must not continue 1"),
+               "FD10 cancellation remains a global abort for a flexible shortlist")
+
+        resetEndpoints()
+        setCoordinate(sameAnchor, latitude: 40, longitude: -75)
+        let evidenceGap = widened(sameGap)
         let evidenceOptions = (0..<24).map { "Evidence option \($0)" }
+        for (index, option) in evidenceOptions.enumerated() {
+            setCoordinate(
+                option,
+                latitude: 40.30 + (Double(index) * 0.005),
+                longitude: -75.30
+            )
+        }
+        setCoordinate(evidenceOptions[17], latitude: 40.001, longitude: -75.001)
         DayRoutePlanningCore.fixtureSearchResults[flexible.address] = evidenceOptions
-        setTravel(option: evidenceOptions[0], inbound: 4_125, outbound: 4_223)
-        setTravel(option: evidenceOptions[1], inbound: 600, outbound: 660)
-        setTravel(option: evidenceOptions[2], inbound: 1_200, outbound: 1_200)
-        setTravel(option: evidenceOptions[3], inbound: 1_500, outbound: 1_500)
+        setTravel(
+            option: evidenceOptions[0],
+            inbound: 4_125,
+            outbound: 4_223,
+            from: sameAnchor,
+            to: sameAnchor
+        )
+        setTravel(
+            option: evidenceOptions[1],
+            inbound: 2_100,
+            outbound: 2_160,
+            from: sameAnchor,
+            to: sameAnchor
+        )
+        setTravel(
+            option: evidenceOptions[17],
+            inbound: 120,
+            outbound: 120,
+            from: sameAnchor,
+            to: sameAnchor
+        )
         let firstFit = evidenceGap.fit(
             .located(
                 id: "evidence-first",
@@ -244,10 +491,18 @@ final class FlexiblePlaceRouteAwareChecks {
                 outboundTravelSeconds: 4_223
             )
         )
-        result = await evaluate(core, gap: evidenceGap, itinerary: itinerary, todos: [flexible])
+        result = await evaluate(
+            sameCore,
+            gap: evidenceGap,
+            itinerary: sameItinerary,
+            todos: [flexible]
+        )
         expect(firstFit.state == .fits, "REAL SHAPE first 69/70-minute result is technically feasible")
-        expect(result.first?.address == evidenceOptions[1], "REAL SHAPE lower-cost later result beats first of 24")
-        expect(DayRoutePlanningCore.fixtureRouteQueries.count == 8, "REAL SHAPE 24 results remain bounded to four evaluations")
+        expect(result.first?.address == evidenceOptions[17],
+               "FD11 adjacent later result reaches the shortlist and wins")
+        expect(DayRoutePlanningCore.fixtureSearchResultCounts == [24]
+                && DayRoutePlanningCore.fixtureRouteQueries.count == 8,
+               "FD11 complete 24-result shape remains bounded to four evaluations")
 
         print(
             "FLEXIBLE_PLACE_ROUTE_AWARE \(failures == 0 ? "PASS" : "FAIL"): "

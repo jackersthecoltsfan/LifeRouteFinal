@@ -79,6 +79,10 @@ ROUTE_ENDPOINT = r'''
     static var fixtureLookupFailures: [String: Error] = [:]
     static var fixtureRouteFailures: [String: Error] = [:]
     static var fixtureSearchResults: [String: [String]] = [:]
+    static var fixtureCoordinates: [String: CLLocationCoordinate2D] = [:]
+    static var fixtureSearchRegions: [MKCoordinateRegion] = []
+    static var fixtureSearchContexts: [String] = []
+    static var fixtureSearchResultCounts: [Int] = []
     static var fixtureTravelSecondsByLeg: [String: TimeInterval] = [:]
     static var fixtureRouteQueries: [String] = []
     static var fixtureFailures: [String] = []
@@ -127,6 +131,8 @@ ROUTE_ENDPOINT = r'''
     }
     private static func flexiblePlaceMapItems(
         for query: String,
+        from source: MKMapItem,
+        to destination: MKMapItem,
         limit: Int
     ) async throws -> [MKMapItem] {
         fixtureQueries.append(query)
@@ -139,13 +145,27 @@ ROUTE_ENDPOINT = r'''
         }
         let results = fixtureSearchResults[query] ?? [query]
         guard !results.isEmpty else { throw DayRoutePlanningError.locationNotFound(query) }
-        return results.prefix(limit).map { fixtureMapItem(address: $0, name: $0) }
+        fixtureSearchResultCounts.append(results.count)
+        fixtureSearchContexts.append(
+            "\(fixtureAddresses[ObjectIdentifier(source)] ?? "")->\(fixtureAddresses[ObjectIdentifier(destination)] ?? "")"
+        )
+        if let region = routeContextSearchRegion(from: source, to: destination) {
+            fixtureSearchRegions.append(region)
+        }
+        return routeContextShortlist(
+            results.map { fixtureMapItem(address: $0, name: $0) },
+            from: source,
+            to: destination,
+            limit: limit
+        )
     }
     private static func resolvedFlexiblePlaceAddress(_ item: MKMapItem, fallback: String) -> String {
         fixtureAddresses[ObjectIdentifier(item)] ?? fallback
     }
     private static func fixtureMapItem(address: String, name: String) -> MKMapItem {
-        let item = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: 40, longitude: -75)))
+        let coordinate = fixtureCoordinates[address]
+            ?? CLLocationCoordinate2D(latitude: 40, longitude: -75)
+        let item = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
         item.name = name
         fixtureAddresses[ObjectIdentifier(item)] = address
         return item

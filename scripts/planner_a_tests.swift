@@ -150,6 +150,10 @@ final class PlannerAChecks {
         DayRoutePlanningCore.fixtureLookupFailures = [:]
         DayRoutePlanningCore.fixtureRouteFailures = [:]
         DayRoutePlanningCore.fixtureSearchResults = [:]
+        DayRoutePlanningCore.fixtureCoordinates = [:]
+        DayRoutePlanningCore.fixtureSearchRegions = []
+        DayRoutePlanningCore.fixtureSearchContexts = []
+        DayRoutePlanningCore.fixtureSearchResultCounts = []
         DayRoutePlanningCore.fixtureTravelSecondsByLeg = [:]
         DayRoutePlanningCore.fixtureTravelSeconds = 300
         DayRoutePlanningCore.fixtureSuspended = false

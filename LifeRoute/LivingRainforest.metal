@@ -189,7 +189,17 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
     constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
     float2 uv = (in.uv - 0.5) * u.uvScale + 0.5;
     float3 original = artwork.sample(sampling, uv).rgb;
-    if (u.motion <= 0.0 || uv.y <= o.horizon) return float4(original, 1);
+    if (u.motion <= 0.0) return float4(original, 1);
+    if (uv.y <= o.horizon) {
+        LivingAtmosphereConfiguration air = {float4(o.horizon),float4(o.horizon),
+            float4(o.night, mix(17.0,31.0,o.night), o.reflectionX, 0.145),float4(0.012,0.42,0,0)};
+        float sky = 1.0 - smoothstep(o.horizon - 0.06,o.horizon - 0.012,uv.y);
+        if (o.night > 0.5) sky *= smoothstep(0.035,0.070,length((uv - float2(o.reflectionX,0.145)) * float2(0.563,1)));
+        float t = u.time * mix(LIVING_OCEAN_CALM_TIME_SCALE,LIVING_OCEAN_FULL_TIME_SCALE,u.motion);
+        float3 color = livingClouds(artwork,sampling,uv,original,sky,t,u.motion,air);
+        color = livingNightSky(color,uv,t,sky,u.atmosphere,air);
+        return float4(color,1);
+    }
     float depth = saturate((uv.y - o.horizon) / (1.0 - o.horizon));
     float wet = smoothstep(0.0, 0.032, depth);
     // Calm slows the physical sequence as well as reducing amplitude. It never
@@ -213,8 +223,13 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
         float fragments = smoothstep(0.24, 0.69, curl);
         face += ridge * e.swell * e.strength;
         normal += (-distance / e.width) * ridge * e.swell * e.strength;
-        crest += lip * e.crest * e.strength;
-        breakWater += lip * e.breaking * fragments * e.strength;
+        // Fine aerated cells fragment the spilling lip. Broad low-frequency
+        // noise alone produced pale bars in the Simulator motion capture.
+        float aeration = livingNoise(float2(uv.x * 247.0 + seed * 101.0,
+            depth * 620.0 - e.age * LIVING_OCEAN_FOAM_ADVECTION_RATE));
+        float froth = smoothstep(0.38, 0.74, aeration);
+        crest += lip * e.crest * e.strength * smoothstep(0.32, 0.72, curl) * (0.2 + 0.8 * froth);
+        breakWater += lip * e.breaking * fragments * e.strength * froth;
         // Foam remains behind the travelling front and spreads across its wake.
         // Two advecting scales erode and reform it; there is no repeating texture.
         float wakeWidth = 0.025 + 0.11 * smoothstep(LIVING_OCEAN_WAKE_SPREAD_START, LIVING_OCEAN_WAKE_SPREAD_END, e.progress);
@@ -240,7 +255,7 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
     float reflection = exp(-pow((uv.x - o.reflectionX) / reflectionWidth, 2.0)) * o.night;
     water += float3(0.10, 0.14, 0.17) * crest * amplitude * mix(0.6, 0.20 + reflection * 0.9, o.night);
     // Night's unbroken open-water swells spill sparsely; no shore is fabricated.
-    float foam = saturate(breakWater * 0.60 + wake * 0.46) * amplitude * mix(1.0, 0.44, o.night);
+    float foam = saturate(breakWater * 0.60 + wake * 0.26) * amplitude * mix(1.0, 0.44, o.night);
     float3 foamColor = mix(float3(0.68, 0.84, 0.84), float3(0.14, 0.25, 0.33) + reflection * 0.25, o.night);
     water = mix(water, foamColor, foam);
     water += float3(0.05, 0.075, 0.10) * reflection * amplitude * (normal * 0.18 + crest * 0.23);
@@ -349,4 +364,3 @@ static float3 livingNightSky(float3 color, float2 uv, float t, float sky,
     }
     return color;
 }
-

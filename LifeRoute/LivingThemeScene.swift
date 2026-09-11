@@ -54,7 +54,7 @@ struct LivingThemeRegistration: Equatable, Sendable {
         .init(themeIdentifier: "scenery.rainforest.night", family: .rainforest, variant: .night, scene: nil,
               primaryMotion: "moonlit stream flow", secondaryEffects: ["layered river mist", "regional foliage"], ambientEffects: ["sparse layered rain"]),
         .init(themeIdentifier: "scenery.ocean.day", family: .ocean, variant: .day, scene: .oceanDay,
-              primaryMotion: "finite advancing swell, crest, break and foam decay", secondaryEffects: ["surface ripples", "localized spray"], ambientEffects: []),
+              primaryMotion: "finite advancing swell, crest, break and foam decay", secondaryEffects: ["surface ripples", "localized spray", "evolving cloud layers"], ambientEffects: []),
         .init(themeIdentifier: "scenery.ocean.night", family: .ocean, variant: .night, scene: .oceanNight,
               primaryMotion: "finite advancing swell, crest, break and foam decay", secondaryEffects: ["water-bound moon reflection", "surface ripples"], ambientEffects: []),
         .init(themeIdentifier: "scenery.arctic.day", family: .arctic, variant: .day, scene: nil,

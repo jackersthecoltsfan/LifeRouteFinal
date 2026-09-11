@@ -155,7 +155,7 @@ import UniformTypeIdentifiers
             ("mid-distance water",[0.18,0.36,0.70,0.43],true),
             ("water crest",[0.56,0.49,0.76,0.53],true),
             ("shallow surface",[0.70,0.72,0.90,0.87],true),
-            ("fixed sky",[0.38,0.05,0.62,0.15],false),
+            ("evolving cloud layers",[0.38,0.05,0.62,0.15],true),
             ("fixed horizon",[0.20,0.300,0.80,0.303],false),
         ]
         let nightRegions: [(String,[Double],Bool)] = [

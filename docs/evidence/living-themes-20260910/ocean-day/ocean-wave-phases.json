@@ -1,0 +1,427 @@
+{
+  "arrivalSpacing" : 6.3000001907348633,
+  "lifetime" : 14.929082870483398,
+  "overlapSamples" : [
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : -4,
+      "earlierLifetime" : 17.634471893310547,
+      "earlierStart" : -24.501489639282227,
+      "laterEnvelope" : 1,
+      "laterID" : -3,
+      "laterLifetime" : 15.220507621765137,
+      "laterStart" : -18.032569885253906,
+      "sampleTime" : -14.988468170166016
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : -3,
+      "earlierLifetime" : 15.220507621765137,
+      "earlierStart" : -18.032569885253906,
+      "laterEnvelope" : 1,
+      "laterID" : -2,
+      "laterLifetime" : 16.875585556030273,
+      "laterStart" : -12.062939643859863,
+      "sampleTime" : -8.6878223419189453
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : -2,
+      "earlierLifetime" : 16.875585556030273,
+      "earlierStart" : -12.062939643859863,
+      "laterEnvelope" : 1,
+      "laterID" : -1,
+      "laterLifetime" : 14.359570503234863,
+      "laterStart" : -5.206787109375,
+      "sampleTime" : -2.3348729610443115
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : -1,
+      "earlierLifetime" : 14.359570503234863,
+      "earlierStart" : -5.206787109375,
+      "laterEnvelope" : 1,
+      "laterID" : 0,
+      "laterLifetime" : 14.929082870483398,
+      "laterStart" : 1.0743322372436523,
+      "sampleTime" : 4.0601491928100586
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 0,
+      "earlierLifetime" : 14.929082870483398,
+      "earlierStart" : 1.0743322372436523,
+      "laterEnvelope" : 1,
+      "laterID" : 1,
+      "laterLifetime" : 17.791027069091797,
+      "laterStart" : 7.4910845756530762,
+      "sampleTime" : 11.049289703369141
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 1,
+      "earlierLifetime" : 17.791027069091797,
+      "earlierStart" : 7.4910845756530762,
+      "laterEnvelope" : 1,
+      "laterID" : 2,
+      "laterLifetime" : 15.90053653717041,
+      "laterStart" : 13.012186050415039,
+      "sampleTime" : 16.192293167114258
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 2,
+      "earlierLifetime" : 15.90053653717041,
+      "earlierStart" : 13.012186050415039,
+      "laterEnvelope" : 1,
+      "laterID" : 3,
+      "laterLifetime" : 16.093505859375,
+      "laterStart" : 18.968690872192383,
+      "sampleTime" : 22.18739128112793
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 3,
+      "earlierLifetime" : 16.093505859375,
+      "earlierStart" : 18.968690872192383,
+      "laterEnvelope" : 1,
+      "laterID" : 4,
+      "laterLifetime" : 17.622411727905273,
+      "laterStart" : 26.700366973876953,
+      "sampleTime" : 30.224849700927734
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 4,
+      "earlierLifetime" : 17.622411727905273,
+      "earlierStart" : 26.700366973876953,
+      "laterEnvelope" : 1,
+      "laterID" : 5,
+      "laterLifetime" : 15.962695121765137,
+      "laterStart" : 32.458324432373047,
+      "sampleTime" : 35.650863647460938
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 5,
+      "earlierLifetime" : 15.962695121765137,
+      "earlierStart" : 32.458324432373047,
+      "laterEnvelope" : 1,
+      "laterID" : 6,
+      "laterLifetime" : 14.21484375,
+      "laterStart" : 39.298709869384766,
+      "sampleTime" : 42.141677856445312
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 6,
+      "earlierLifetime" : 14.21484375,
+      "earlierStart" : 39.298709869384766,
+      "laterEnvelope" : 1,
+      "laterID" : 7,
+      "laterLifetime" : 15.491406440734863,
+      "laterStart" : 45.191555023193359,
+      "sampleTime" : 48.289836883544922
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 7,
+      "earlierLifetime" : 15.491406440734863,
+      "earlierStart" : 45.191555023193359,
+      "laterEnvelope" : 1,
+      "laterID" : 8,
+      "laterLifetime" : 15.331835746765137,
+      "laterStart" : 51.511474609375,
+      "sampleTime" : 54.577842712402344
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 8,
+      "earlierLifetime" : 15.331835746765137,
+      "earlierStart" : 51.511474609375,
+      "laterEnvelope" : 1,
+      "laterID" : 9,
+      "laterLifetime" : 16.894140243530273,
+      "laterStart" : 57.948436737060547,
+      "sampleTime" : 61.327262878417969
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 9,
+      "earlierLifetime" : 16.894140243530273,
+      "earlierStart" : 57.948436737060547,
+      "laterEnvelope" : 1,
+      "laterID" : 10,
+      "laterLifetime" : 17.250738143920898,
+      "laterStart" : 64.691482543945312,
+      "sampleTime" : 68.141632080078125
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 10,
+      "earlierLifetime" : 17.250738143920898,
+      "earlierStart" : 64.691482543945312,
+      "laterEnvelope" : 1,
+      "laterID" : 11,
+      "laterLifetime" : 15.824462890625,
+      "laterStart" : 70.406837463378906,
+      "sampleTime" : 73.571731567382812
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 11,
+      "earlierLifetime" : 15.824462890625,
+      "earlierStart" : 70.406837463378906,
+      "laterEnvelope" : 1,
+      "laterID" : 12,
+      "laterLifetime" : 15.500683784484863,
+      "laterStart" : 76.137481689453125,
+      "sampleTime" : 79.237617492675781
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 12,
+      "earlierLifetime" : 15.500683784484863,
+      "earlierStart" : 76.137481689453125,
+      "laterEnvelope" : 1,
+      "laterID" : 13,
+      "laterLifetime" : 15.521093368530273,
+      "laterStart" : 83.217124938964844,
+      "sampleTime" : 86.321342468261719
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 13,
+      "earlierLifetime" : 15.521093368530273,
+      "earlierStart" : 83.217124938964844,
+      "laterEnvelope" : 1,
+      "laterID" : 14,
+      "laterLifetime" : 15.137939453125,
+      "laterStart" : 89.587066650390625,
+      "sampleTime" : 92.614654541015625
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 14,
+      "earlierLifetime" : 15.137939453125,
+      "earlierStart" : 89.587066650390625,
+      "laterEnvelope" : 1,
+      "laterID" : 15,
+      "laterLifetime" : 17.43779182434082,
+      "laterStart" : 94.9005126953125,
+      "sampleTime" : 98.388069152832031
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 15,
+      "earlierLifetime" : 17.43779182434082,
+      "earlierStart" : 94.9005126953125,
+      "laterEnvelope" : 1,
+      "laterID" : 16,
+      "laterLifetime" : 17.931346893310547,
+      "laterStart" : 102.22109985351562,
+      "sampleTime" : 105.807373046875
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 16,
+      "earlierLifetime" : 17.931346893310547,
+      "earlierStart" : 102.22109985351562,
+      "laterEnvelope" : 1,
+      "laterID" : 17,
+      "laterLifetime" : 15.93300724029541,
+      "laterStart" : 107.81802368164062,
+      "sampleTime" : 111.00462341308594
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 17,
+      "earlierLifetime" : 15.93300724029541,
+      "earlierStart" : 107.81802368164062,
+      "laterEnvelope" : 1,
+      "laterID" : 18,
+      "laterLifetime" : 14.582226753234863,
+      "laterStart" : 114.76631164550781,
+      "sampleTime" : 117.68275451660156
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 18,
+      "earlierLifetime" : 14.582226753234863,
+      "earlierStart" : 114.76631164550781,
+      "laterEnvelope" : 1,
+      "laterID" : 19,
+      "laterLifetime" : 17.046289443969727,
+      "laterStart" : 121.05966949462891,
+      "sampleTime" : 124.46892547607422
+    },
+    {
+      "earlierEnvelope" : 1,
+      "earlierID" : 19,
+      "earlierLifetime" : 17.046289443969727,
+      "earlierStart" : 121.05966949462891,
+      "laterEnvelope" : 1,
+      "laterID" : 20,
+      "laterLifetime" : 15.565625190734863,
+      "laterStart" : 127.56038665771484,
+      "sampleTime" : 130.67350769042969
+    }
+  ],
+  "phaseFractions" : [
+    -0.0099999997764825821,
+    0.14000000059604645,
+    0.29500001668930054,
+    0.44999998807907104,
+    0.59500002861022949,
+    0.72500002384185791,
+    0.90999996662139893,
+    1.0099999904632568
+  ],
+  "productionGPUValues" : [
+    [
+      -0.14929085969924927,
+      14.929082870483398,
+      0,
+      0.035000000149011612
+    ],
+    [
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0.012000000104308128,
+      1.0633409023284912,
+      0
+    ],
+    [
+      2.0900716781616211,
+      14.929082870483398,
+      0.14000000059604645,
+      0.099842846393585205
+    ],
+    [
+      0.87379968166351318,
+      0,
+      0,
+      0
+    ],
+    [
+      1,
+      0.017319999635219574,
+      1.0633409023284912,
+      0
+    ],
+    [
+      4.4040799140930176,
+      14.929082870483398,
+      0.29500001668930054,
+      0.21368409693241119
+    ],
+    [
+      1,
+      0.50000005960464478,
+      0,
+      0
+    ],
+    [
+      1,
+      0.023210000246763229,
+      1.0633409023284912,
+      0
+    ],
+    [
+      6.7180871963500977,
+      14.929082870483398,
+      0.44999998807907104,
+      0.35231959819793701
+    ],
+    [
+      1,
+      1,
+      0.5,
+      0
+    ],
+    [
+      1,
+      0.029099998995661736,
+      1.0633409023284912,
+      0
+    ],
+    [
+      8.8828048706054688,
+      14.929082870483398,
+      0.59500002861022949,
+      0.49894976615905762
+    ],
+    [
+      0.98396867513656616,
+      0.77696329355239868,
+      1,
+      0.72896939516067505
+    ],
+    [
+      1,
+      0.034609999507665634,
+      1.0633409023284912,
+      0
+    ],
+    [
+      10.823585510253906,
+      14.929082870483398,
+      0.72500002384185791,
+      0.64199841022491455
+    ],
+    [
+      0.18528088927268982,
+      0,
+      0.62384223937988281,
+      1
+    ],
+    [
+      1,
+      0.039549998939037323,
+      1.0633409023284912,
+      0
+    ],
+    [
+      13.585464477539062,
+      14.929082870483398,
+      0.90999990701675415,
+      0.86184495687484741
+    ],
+    [
+      0,
+      0,
+      0,
+      0.19679366052150726
+    ],
+    [
+      0.50000077486038208,
+      0.046579994261264801,
+      1.0633409023284912,
+      0
+    ],
+    [
+      15.078373908996582,
+      14.929082870483398,
+      1,
+      0.97500002384185791
+    ],
+    [
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0.049999997019767761,
+      1.0633409023284912,
+      0
+    ]
+  ],
+  "scene" : "scenery.ocean.day"
+}

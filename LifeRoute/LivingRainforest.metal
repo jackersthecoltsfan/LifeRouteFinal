@@ -484,3 +484,30 @@ fragment float4 livingMountainsFragment(LivingSceneVertex in [[stage_in]],
     color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
     return float4(color,1);
 }
+
+fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
+    texture2d<float> artwork [[texture(0)]], constant LivingSceneUniforms &u [[buffer(0)]],
+    constant LivingAtmosphereConfiguration &c [[buffer(2)]]) {
+    constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
+    float2 uv = (in.uv - 0.5) * u.uvScale + 0.5;
+    float3 original = artwork.sample(sampling,uv).rgb;
+    if (u.motion <= 0.0) return float4(original,1);
+    float t = u.time * mix(LIVING_CANYON_CALM_SCALE,1.0,u.motion), night = c.light.x;
+    float sky = livingSky(uv,c) * livingMoonExclusion(uv,c);
+    float3 color = livingClouds(artwork,sampling,uv,original,sky,t,u.motion,c);
+    float distanceHaze = mix(livingOval(uv,float2(0.57,0.412),float2(0.22,0.052)),
+                            livingOval(uv,float2(0.50,0.408),float2(0.18,0.055)),night);
+    color = livingFog(color,uv,t,distanceHaze,c.air.z * u.motion,c.light.y,mix(float3(0.56,0.33,0.24),float3(0.08,0.14,0.21),night));
+    // Narrow material-gated river interior, never the rock banks.
+    float y = clamp(uv.y,0.45,0.79);
+    float center = mix(0.56 + 0.044 * sin((y - 0.45) * 31.0), 0.53 - (y - 0.44) * 0.98,night);
+    float river = (1.0 - smoothstep(0.008,0.020,abs(uv.x - center)))
+        * smoothstep(0.45,0.48,uv.y) * (1.0 - smoothstep(mix(0.63,0.76,night),mix(0.65,0.79,night),uv.y));
+    float material = mix(smoothstep(0.10,0.35,min(original.r,original.g)),smoothstep(0.025,0.12,original.b),night);
+    if (river > 0.001 && u.atmosphere > 0.0) {
+        float3 water = livingAdvect(artwork,sampling,uv,float2(mix(0.002,-0.006,night),0.007) * u.motion,t,LIVING_CANYON_RIVER_RATE);
+        color = mix(color,water,river * material * u.atmosphere * 0.65);
+    }
+    color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
+    return float4(color,1);
+}

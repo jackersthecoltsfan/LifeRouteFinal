@@ -1,0 +1,18 @@
+{
+  "artworkPixels" : [
+    898,
+    1751
+  ],
+  "assertions" : 8,
+  "device" : "Apple M5",
+  "gpuMaximumMilliseconds" : 5.8224583335686475,
+  "gpuMeanMilliseconds" : 1.4483396462861546,
+  "limitation" : "Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance",
+  "regionMeanByteDifferences" : {
+    "canyon atmosphere" : 0.052382319173363952,
+    "evolving clouds" : 0.3545406010505468,
+    "fixed rock" : 0
+  },
+  "scene" : "scenery.canyon.day",
+  "textureBytes" : 6946816
+}

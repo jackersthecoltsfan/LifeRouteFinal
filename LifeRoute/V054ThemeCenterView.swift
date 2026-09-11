@@ -78,14 +78,14 @@ struct V054ThemeCenterView: View {
         switch selectedCategory {
         case .core:
             return LifeRouteTheme.phaseOneCoreGlassCatalog
-        case .dynamic:
-            return LifeRouteTheme.visibleDynamicCatalog
+        case .living:
+            return LifeRouteTheme.livingThemeCatalog
         }
     }
 
     private func category(for theme: LifeRouteTheme) -> ScenicRoyalThemeCategory {
         if theme.isPhaseOneCoreGlass { return .core }
-        if LifeRouteTheme.visibleDynamicCatalog.contains(theme) { return .dynamic }
+        if LifeRouteTheme.livingThemeCatalog.contains(theme) { return .living }
         return .core
     }
 

@@ -135,14 +135,14 @@ enum LifeRouteTheme: String, CaseIterable, Identifiable {
         Self.phaseOneCoreGlassCatalog.contains(self)
     }
 
-    // v0.7.1 reduced production theme catalog: eight distinct live Dynamic identities.
-    static let phaseTwoDynamicCatalog: [LifeRouteTheme] = [
+    // Retired Dynamic identity inventory. Never an active product catalogue.
+    static let retiredDynamicCatalog: [LifeRouteTheme] = [
         .royalCurrent, .midnightPrism, .auroraBloom, .solarPulse,
         .emeraldFlow, .oceanGlass, .obsidianSpectra, .plasmaOrchid,
     ]
 
     var isPhaseTwoDynamic: Bool {
-        Self.phaseTwoDynamicCatalog.contains(self)
+        Self.retiredDynamicCatalog.contains(self)
     }
 
     // v0.7.1 reduced production theme catalog: six scenery families × explicit Day/Night variants.
@@ -155,9 +155,8 @@ enum LifeRouteTheme: String, CaseIterable, Identifiable {
         .sceneryArcticDay, .sceneryArcticNight,
     ]
 
-    /// User-facing membership is independent of the legacy migration category
-    /// and the renderer cohorts above. Scenery keeps its own renderer/effects.
-    static let visibleDynamicCatalog = phaseTwoDynamicCatalog + phaseThreeSceneryCatalog
+    /// Twelve Living identities; motion readiness is explicit in the registry.
+    static let livingThemeCatalog = phaseThreeSceneryCatalog
 
     var isPhaseThreeScenery: Bool {
         Self.phaseThreeSceneryCatalog.contains(self)
@@ -217,24 +216,24 @@ enum LifeRouteTheme: String, CaseIterable, Identifiable {
         case .plasmaOrchid: return "Plasma Orchid"
         case .verdantMist: return "Verdant Mist"
         case .titaniumGlow: return "Titanium Glow"
-        case .sceneryMountainsDay: return "Mountains — Day"
-        case .sceneryMountainsNight: return "Mountains — Night"
-        case .sceneryOceanDay: return "Ocean — Day"
-        case .sceneryOceanNight: return "Ocean — Night"
-        case .sceneryDesertDay: return "Desert — Day"
-        case .sceneryDesertNight: return "Desert — Night"
+        case .sceneryMountainsDay: return "Mountains Day"
+        case .sceneryMountainsNight: return "Mountains Night"
+        case .sceneryOceanDay: return "Ocean Day"
+        case .sceneryOceanNight: return "Ocean Night"
+        case .sceneryDesertDay: return "Desert Day"
+        case .sceneryDesertNight: return "Desert Night"
         case .sceneryAlpineDay: return "Alpine — Day"
         case .sceneryAlpineNight: return "Alpine — Night"
-        case .sceneryRainforestDay: return "Rainforest — Day"
-        case .sceneryRainforestNight: return "Rainforest — Night"
+        case .sceneryRainforestDay: return "Rainforest Day"
+        case .sceneryRainforestNight: return "Rainforest Night"
         case .sceneryGrasslandDay: return "Grassland — Day"
         case .sceneryGrasslandNight: return "Grassland — Night"
         case .sceneryVolcanicDay: return "Volcanic — Day"
         case .sceneryVolcanicNight: return "Volcanic — Night"
-        case .sceneryCanyonDay: return "Canyon — Day"
-        case .sceneryCanyonNight: return "Canyon — Night"
-        case .sceneryArcticDay: return "Arctic — Day"
-        case .sceneryArcticNight: return "Arctic — Night"
+        case .sceneryCanyonDay: return "Canyon Day"
+        case .sceneryCanyonNight: return "Canyon Night"
+        case .sceneryArcticDay: return "Arctic Day"
+        case .sceneryArcticNight: return "Arctic Night"
         case .sceneryCoastalCliffsDay: return "Coastal Cliffs — Day"
         case .sceneryCoastalCliffsNight: return "Coastal Cliffs — Night"
         }
@@ -424,28 +423,33 @@ enum LifeRouteTheme: String, CaseIterable, Identifiable {
 final class LifeRouteThemeStore: ObservableObject {
     // v0.7.0 Theme Phase 1 persistence: one owner, stable identifiers, deterministic legacy migration.
     private static let storageKey = "liferoute.selectedTheme"
+    private let defaults: UserDefaults
 
     @Published var selectedTheme: LifeRouteTheme {
         didSet {
-            UserDefaults.standard.set(selectedTheme.rawValue, forKey: Self.storageKey)
+            selectedTheme = Self.shippingTheme(Self.resolveStoredTheme(selectedTheme.rawValue))
+            if defaults.string(forKey: Self.storageKey) != selectedTheme.rawValue {
+                defaults.set(selectedTheme.rawValue, forKey: Self.storageKey)
+            }
             // The mounted Scenic Royal root owns a live theme change. Do not
             // repaint an already-visible UIWindow fallback underneath it.
             LifeRouteAppearance.configure(theme: selectedTheme, updateVisibleWindows: false)
         }
     }
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
 #if DEBUG
         // v0.7.1 visual validation can select a theme without mutating persisted user preference.
         let savedIdentifier = LifeRouteVisualFixture.themeOverride?.rawValue
-            ?? UserDefaults.standard.string(forKey: Self.storageKey)
+            ?? defaults.string(forKey: Self.storageKey)
 #else
-        let savedIdentifier = UserDefaults.standard.string(forKey: Self.storageKey)
+        let savedIdentifier = defaults.string(forKey: Self.storageKey)
 #endif
         let theme = Self.shippingTheme(Self.resolveStoredTheme(savedIdentifier))
         selectedTheme = theme
         if savedIdentifier != theme.rawValue {
-            UserDefaults.standard.set(theme.rawValue, forKey: Self.storageKey)
+            defaults.set(theme.rawValue, forKey: Self.storageKey)
         }
         // Phase 1N first-frame protection: before the transparent SwiftUI
         // hosts mount, the window must already carry the selected scenery's
@@ -457,8 +461,9 @@ final class LifeRouteThemeStore: ObservableObject {
 
     // v0.7.1 shipping theme hold: preserve unfinished theme code while exposing only physically proven non-Core themes.
     private static func shippingTheme(_ theme: LifeRouteTheme) -> LifeRouteTheme {
-        if theme.isV071RetainedDynamic { return theme }
-        if theme.category == .dynamic { return .royalCurrent }
+        if theme.isPhaseTwoDynamic { return theme.scenicRoyalDynamicSceneryTheme }
+        // Earlier unsupported Dynamic aliases had no retained environmental identity.
+        if theme.category == .dynamic { return .sceneryRainforestDay }
         if theme.isV071RetainedScenery { return theme }
         if theme.category == .scenery { return .sceneryCanyonDay }
         return theme
@@ -468,7 +473,7 @@ final class LifeRouteThemeStore: ObservableObject {
         guard let identifier else { return .royal }
 
         // Retired Core/Metallic choices migrate to the closest approved Phase 1 still identity.
-        // Existing Dynamic/Scenery identifiers remain valid and unchanged until their own phases.
+        // Dynamic aliases resolve once, then shippingTheme retires the eight to their existing scenery.
         switch identifier {
         case "carbon", "noir", "dark", "accessible":
             return .obsidian
@@ -1176,7 +1181,7 @@ struct LifeRouteCoreGlassEnvironment: View {
 
 // v0.7.1 retained Dynamic library: seven distinct production renderers join Royal Current.
 extension LifeRouteTheme {
-    static let v071RetainedDynamicCatalog = phaseTwoDynamicCatalog
+    static let v071RetainedDynamicCatalog = retiredDynamicCatalog // compatibility only; not selectable
 
     var isV071RetainedDynamic: Bool {
         Self.v071RetainedDynamicCatalog.contains(self)
@@ -3204,31 +3209,17 @@ struct LifeRouteLiveThemeEnvironment: View {
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         } else {
-            legacyFrame
+            pendingFrame
         }
     }
 
-    private var legacyFrame: some View {
+    private var pendingFrame: some View {
         ZStack {
-            fixedFrame
-
-            if renderMode.plan.usesLiveClock {
-                // v0.7.0 Theme Phase 3 single shared root environment clock.
-                // Only localized effects and restrained Dynamic light invalidate.
-                TimelineView(
-                    .animation(
-                        minimumInterval: 1.0 / 15.0,
-                        paused: reduceMotion || !isActive
-                    )
-                ) { context in
-                    liveEffects(at: context.date, plan: renderMode.plan)
-                }
-            } else if renderMode.plan.showsStaticEffects {
-                // Suspension intentionally retains the environment's current
-                // composition while removing timeline-driven invalidation.
-                liveEffects(at: Date(timeIntervalSinceReferenceDate: 0), plan: renderMode.plan)
+            if let profile = selectedSceneryProfile {
+                LifeRouteFixedSceneryBase(scene: profile.scene)
+            } else {
+                palette.backgroundGradient
             }
-
             fixedGrade
         }
         .allowsHitTesting(false)
@@ -3236,78 +3227,17 @@ struct LifeRouteLiveThemeEnvironment: View {
     }
 
     @ViewBuilder
-    private var fixedFrame: some View {
-        if let profile = selectedSceneryProfile {
-            ZStack {
-                LifeRouteFixedSceneryBase(scene: profile.scene)
-
-                if theme.isPhaseTwoDynamic {
-                    palette.backgroundGradient
-                        .opacity(0.16)
-                        .blendMode(.color)
-
-                    if theme == .royalCurrent {
-                        Image(decorative: "DynamicRoyalCurrent")
-                            .resizable()
-                            .scaledToFill()
-                            .clipped()
-                            .opacity(0.16)
-                            .blendMode(.screen)
-                    }
-                }
-            }
-        } else {
-            palette.backgroundGradient
-        }
-    }
-
-    @ViewBuilder
     private var fixedGrade: some View {
         if let profile = selectedSceneryProfile {
-            LifeRouteFixedSceneryGrade(profile: profile, palette: selectedSceneryPalette)
+            LifeRouteFixedSceneryGrade(profile: profile, palette: theme.palette)
         }
-    }
-
-    @ViewBuilder
-    private func liveEffects(at date: Date, plan: LifeRouteAmbientRenderPlan) -> some View {
-        let time = reduceMotion ? 0 : date.timeIntervalSinceReferenceDate
-
-        ZStack {
-            if plan.showsSceneryEffects, let profile = selectedSceneryProfile {
-                LifeRouteSceneryEffectLayer(
-                    profile: profile,
-                    palette: selectedSceneryPalette,
-                    time: time,
-                    intensity: theme.isPhaseTwoDynamic ? 0.72 : 1
-                )
-            }
-
-            if plan.showsDynamicEffect, theme.isPhaseTwoDynamic {
-                let signature = theme.dynamicMotionSignature
-                LifeRouteDynamicGlassEnvironment(
-                    theme: theme,
-                    palette: palette,
-                    phase: reduceMotion ? signature.stillPhase : time * signature.speed
-                )
-            }
-        }
-    }
-
-    private var selectedSceneryTheme: LifeRouteTheme {
-        if theme.isPhaseTwoDynamic {
-            return theme.scenicRoyalDynamicSceneryTheme
-        }
-        return theme
     }
 
     private var selectedSceneryProfile: LifeRouteScenerySceneProfile? {
-        guard let scene = selectedSceneryTheme.scenerySceneID else { return nil }
+        guard let scene = theme.scenerySceneID else { return nil }
         return .profile(for: scene)
     }
 
-    private var selectedSceneryPalette: LifeRouteThemePalette {
-        selectedSceneryTheme.palette
-    }
 }
 
 #if DEBUG
@@ -3330,7 +3260,7 @@ private enum LifeRouteVisualFixture: String {
         let rawValue = arguments[valueIndex]
         let aliasedTheme = LifeRouteVisualFixture(rawValue: rawValue)?.theme
         guard let theme = aliasedTheme ?? LifeRouteTheme(rawValue: rawValue),
-              theme.isPhaseOneCoreGlass || theme.isV071RetainedDynamic || theme.isV071RetainedScenery else {
+              theme.isPhaseOneCoreGlass || theme.isV071RetainedScenery else {
             return nil
         }
 
@@ -3346,7 +3276,7 @@ private enum LifeRouteVisualFixture: String {
         let valueIndex = arguments.index(after: keyIndex)
         guard arguments.indices.contains(valueIndex),
               let theme = LifeRouteTheme(rawValue: arguments[valueIndex]),
-              theme.isPhaseOneCoreGlass || theme.isV071RetainedDynamic || theme.isV071RetainedScenery else {
+              theme.isPhaseOneCoreGlass || theme.isV071RetainedScenery else {
             return nil
         }
         return theme
@@ -3359,7 +3289,7 @@ private enum LifeRouteVisualFixture: String {
     var theme: LifeRouteTheme {
         switch self {
         case .canyonDay: return .sceneryCanyonDay
-        case .royalCurrent: return .royalCurrent
+        case .royalCurrent: return .sceneryMountainsNight
         }
     }
 }

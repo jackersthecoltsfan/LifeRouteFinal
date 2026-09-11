@@ -57,7 +57,7 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
             LifeRouteCoreGlassEnvironment(theme: theme, palette: palette)
                 .ignoresSafeArea()
                 .allowsHitTesting(false)
-        } else if theme.isPhaseTwoDynamic || theme.isPhaseThreeScenery {
+        } else if theme.isPhaseThreeScenery {
             LifeRouteLiveThemeEnvironment(
                 theme: theme,
                 palette: palette,

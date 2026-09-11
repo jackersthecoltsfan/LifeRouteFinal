@@ -37,7 +37,7 @@ scenery_names = re.findall(
 require(len(scenery_names) == 12, f"expected 12 scenery mappings, found {len(scenery_names)}")
 require(len(set(scenery_names)) == 12, "scenery mappings must have stable unique assets")
 all_names = names + scenery_names
-require(len(all_names) == 32, f"expected 32 production thumbnail identities, found {len(all_names)}")
+require(len(all_names) == 32, f"expected 32 retained thumbnail identities, found {len(all_names)}")
 require(len(set(all_names)) == 32, "production thumbnail assets must not overlap")
 require("coreArtwork" not in source and "dynamicArtwork" not in source, "procedural catalog art remains")
 require("Image(decorative: theme.thumbnailAssetName)" in source, "catalog is not image-backed")
@@ -74,4 +74,4 @@ for name in scenery_names:
     require(filenames, f"canonical scenery asset {name} has no raster")
     require(all((image_set / filename).is_file() for filename in filenames), f"canonical scenery raster missing for {name}")
 
-print("LifeRoute Theme Center thumbnail contract passed: 32 production identities, including 20 committed fixed-phase Core/Dynamic rasters")
+print("LifeRoute Theme Center thumbnail contract passed: 24 active identities plus 8 dormant Dynamic thumbnails; all retained raster assets verified")

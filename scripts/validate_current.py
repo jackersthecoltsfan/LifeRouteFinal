@@ -224,7 +224,7 @@ def validate_active_build_path() -> None:
         [
             "expected 20 core/dynamic mappings",
             "expected 12 scenery mappings",
-            "expected 32 production thumbnail identities",
+            "expected 32 retained thumbnail identities",
             "catalog contains a live renderer path",
         ],
         "Theme Center production-thumbnail fixtures",
@@ -601,18 +601,18 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
     require_all(visual_activity, ["case full", "case frozen", "case sceneryOnly", "case dynamicOnly", "case noEffects", "final class LifeRouteVisualActivityCoordinator", "private var activeRequests = Set<UUID>()", "private var themeCenterRequestID: UUID?", "func acquireAmbientSuspension() -> UUID", "func releaseAmbientSuspension(_ requestID: UUID)", "func setThemeCenterVisible(_ isVisible: Bool)", "#if DEBUG", "-LifeRouteVisualActivityMode"], "debug A/B modes and idempotent Theme Center suspension")
     require("Timer.scheduledTimer" not in app, "theme architecture must not introduce a competing Timer owner")
     core = extract_catalog(app, "static let phaseOneCoreGlassCatalog")
-    dynamic = extract_catalog(app, "static let phaseTwoDynamicCatalog")
+    dynamic = extract_catalog(app, "static let retiredDynamicCatalog")
     scenery = extract_catalog(app, "static let phaseThreeSceneryCatalog")
     require((len(core), len(dynamic), len(scenery)) == (12, 8, 12), f"renderer cohort counts changed: core={len(core)}, dynamic={len(dynamic)}, scenery={len(scenery)}")
-    require(len(set(core + dynamic + scenery)) == 32, "current user-facing theme catalogs must not overlap")
-    require_all(app, ["static let visibleDynamicCatalog = phaseTwoDynamicCatalog + phaseThreeSceneryCatalog", "static let v071RetainedDynamicCatalog = phaseTwoDynamicCatalog", "static let v071RetainedSceneryCatalog = phaseThreeSceneryCatalog"], "authoritative catalog cohorts and derived compatibility membership")
-    require('case scenery = "Scenery"' not in theme_components, "visible picker must contain only CORE and DYNAMIC")
-    require_all(theme_components, ['case core = "CORE"', 'case dynamic = "DYNAMIC"'], "two visible theme categories")
+    require(len(set(core + scenery)) == 24 and not set(dynamic) & set(core + scenery), "retired Dynamic identities must be absent from the active catalogue")
+    require_all(app, ["static let livingThemeCatalog = phaseThreeSceneryCatalog", "static let v071RetainedDynamicCatalog = retiredDynamicCatalog", "static let v071RetainedSceneryCatalog = phaseThreeSceneryCatalog"], "authoritative catalog cohorts and derived compatibility membership")
+    require('case scenery = "Scenery"' not in theme_components, "visible picker must contain only CORE and LIVING THEMES")
+    require_all(theme_components, ['case core = "CORE"', 'case living = "LIVING THEMES"'], "two visible theme categories")
     require_all(
         center,
         [
             "return LifeRouteTheme.phaseOneCoreGlassCatalog",
-            "return LifeRouteTheme.visibleDynamicCatalog",
+            "return LifeRouteTheme.livingThemeCatalog",
             "@EnvironmentObject private var themeStore: LifeRouteThemeStore",
             "themeStore.selectedTheme = theme",
             "dynamicTypeSize.isAccessibilitySize",
@@ -666,34 +666,7 @@ def validate_environment_effect_architecture(sources: dict[str, str]) -> None:
     require(not present, f"fixed base scenery must not accept time-varying camera transforms: {present}")
     require_all(fixed_base, [".scaledToFill()", ".frame(width: proxy.size.width, height: proxy.size.height)", ".clipped()"], "static aspect-fill scenery composition")
 
-    require_all(
-        app,
-        [
-            "private var fixedFrame: some View",
-            "private var fixedGrade: some View",
-            "LifeRouteFixedSceneryBase(scene: profile.scene)",
-            "LifeRouteSceneryEffectLayer(",
-            "intensity: theme.isPhaseTwoDynamic ? 0.72 : 1",
-            "minimumInterval: 1.0 / 15.0",
-            "paused: reduceMotion || !isActive",
-            "speed: 0.42, amplitude: 24",
-            "speed: 0.32, amplitude: 31",
-            ".opacity(theme == .royalCurrent ? 0.30 : 0.24)",
-        ],
-        "one-clock fixed-camera environment integration",
-    )
-    dynamic_renderers_start = app.find("private struct LifeRouteRoyalCurrentFrame: View")
-    dynamic_renderers_end = app.find("// v0.7.1 retained Scenery library", dynamic_renderers_start)
-    dynamic_renderers = app[dynamic_renderers_start:dynamic_renderers_end]
-    require(
-        ".compositingGroup()" not in dynamic_renderers,
-        "active Dynamic renderers must not force a full-screen offscreen compositing group on every environment frame",
-    )
-    require(
-        'Image(decorative: "DynamicRoyalCurrent")' not in dynamic_renderers,
-        "Royal Current's static identity artwork must remain outside the live animation clock",
-    )
-    require_count(app, 'Image(decorative: "DynamicRoyalCurrent")', 1, "static Royal Current identity artwork ownership")
+    require_all(app, ["private var pendingFrame: some View", "private var fixedGrade: some View", "LifeRouteFixedSceneryBase(scene: profile.scene)"], "fixed pending scene presentation")
     require_all(
         effects,
         [
@@ -751,18 +724,15 @@ def validate_environment_effect_architecture(sources: dict[str, str]) -> None:
     live_environment_start = app.find("struct LifeRouteLiveThemeEnvironment: View")
     live_environment_end = app.find("#if DEBUG", live_environment_start)
     live_environment = app[live_environment_start:live_environment_end]
-    fixed_frame_index = live_environment.find("fixedFrame")
-    timeline_index = live_environment.find("TimelineView(", fixed_frame_index)
-    fixed_grade_index = live_environment.find("fixedGrade", timeline_index)
-    require(
-        fixed_frame_index >= 0 and timeline_index > fixed_frame_index and fixed_grade_index > timeline_index,
-        "the static grade must remain above both fixed and masked moving artwork without entering the timeline clock",
-    )
+    require("TimelineView" not in live_environment and "LifeRouteDynamicGlassEnvironment" not in live_environment
+            and "LifeRouteSceneryEffectLayer" not in live_environment,
+            "Living scenes must never enter legacy Dynamic or generic pending-motion render paths")
+    require("fixedGrade" in live_environment, "fixed scenic grade remains above artwork")
     require(".animation(.easeInOut(duration: 0.28), value: themeStore.selectedTheme)" not in root, "theme changes must not invalidate the entire five-root shell")
     require("A newly selected tab can materialize a fresh UIKit container" not in root, "root paging must not recursively rewrite UIKit chrome on every selection")
     require(".animation(" not in environment, "the persistent environment host must not animate its entire content tree")
     living = sources["LivingThemeEnvironment.swift"]
-    require_all(app, ["LivingThemeScene.scene(for: theme.rawValue)", "LivingThemeEnvironment(scene: scene", "} else {\n            legacyFrame"], "V2 and legacy renderers are mutually exclusive")
+    require_all(app, ["LivingThemeScene.scene(for: theme.rawValue)", "LivingThemeEnvironment(scene: scene", "} else {\n            pendingFrame"], "Living motion and pending still presentation are mutually exclusive")
     require_count(living, "MTKView(frame:", 1, "one native environmental surface")
     require_all(living, ["DispatchSemaphore(value: 2)", "inFlight.wait(timeout: .now())", "surface.tearDown()", "view.isPaused = !running", "UIApplication.willResignActiveNotification", "resources = nil"], "bounded V2 driver and teardown")
     require("TimelineView" not in living and "CADisplayLink(" not in living and "Timer(" not in living, "MTKView exclusively owns V2 scheduling")

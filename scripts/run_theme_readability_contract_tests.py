@@ -38,6 +38,7 @@ for marker in ['private static func shippingTheme', 'private static func resolve
 source += '}\n'
 for name in ['ScenicRoyalThemeBridge.swift', 'ScenicRoyalDesignSystem.swift', 'SceneryEffectContracts.swift']:
     source += (ROOT / 'LifeRoute' / name).read_text() + '\n'
+source += (ROOT / 'LifeRoute/LivingThemeScene.swift').read_text() + '\n'
 source += '\n' + block((ROOT / 'LifeRoute/ScenicRoyalThemeComponents.swift').read_text(), 'enum ScenicRoyalThemeCategory:')
 source += '\nextension LifeRouteTheme {\n'
 components = (ROOT / 'LifeRoute/ScenicRoyalThemeComponents.swift').read_text()
@@ -45,9 +46,19 @@ for marker in ['var thumbnailAssetName:', 'var sceneryThumbnailAssetName:', 'var
     source += block(components, marker) + '\n'
 source += '}\n'
 
+source += '\n' + block(app, 'final class LifeRouteThemeStore:') + '\n'
+source += 'enum LifeRouteAppearance { static func configure(theme: LifeRouteTheme, updateVisibleWindows: Bool) {} }\n'
+
 harness = r'''
 import SwiftUI
 import Foundation
+final class CountingThemeDefaults: UserDefaults {
+ var selectionWrites = 0
+ override func set(_ value: Any?, forKey key: String) {
+  if key == "liferoute.selectedTheme" { selectionWrites += 1 }
+  super.set(value, forKey: key)
+ }
+}
 @main struct ThemeContracts {
  @MainActor static func main() throws {
   var count = 0
@@ -69,17 +80,17 @@ import Foundation
   }
   let expected = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]))) as! [String:Any]
   let core = LifeRouteTheme.phaseOneCoreGlassCatalog
-  let dynamic = LifeRouteTheme.phaseTwoDynamicCatalog
+  let dynamic = LifeRouteTheme.retiredDynamicCatalog
   let scenery = LifeRouteTheme.phaseThreeSceneryCatalog
-  let visible = core + LifeRouteTheme.visibleDynamicCatalog
+  let visible = core + LifeRouteTheme.livingThemeCatalog
   expect(LifeRouteTheme.allCases.count == 72, "Persistent ID inventory changed")
-  expect(ScenicRoyalThemeCategory.allCases.map(\.rawValue) == ["CORE","DYNAMIC"], "Only two visible categories")
-  expect(core.count == 12 && LifeRouteTheme.visibleDynamicCatalog.count == 20, "12 CORE / 20 DYNAMIC")
-  expect(Set(visible).count == 32, "Unique complete catalog")
+  expect(ScenicRoyalThemeCategory.allCases.map(\.rawValue) == ["CORE","LIVING THEMES"], "Only two visible categories")
+  expect(core.count == 12 && LifeRouteTheme.livingThemeCatalog.count == 12, "12 CORE / 12 LIVING THEMES")
+  expect(Set(visible).count == 24, "Unique complete catalog")
   expect(core.map(\.rawValue) == expected["core"] as! [String], "Core identities/order")
-  expect(dynamic.map(\.rawValue) == expected["dynamic"] as! [String], "Dynamic renderer cohort")
+  expect(dynamic.map(\.rawValue) == expected["retiredDynamic"] as! [String], "Dynamic renderer cohort")
   expect(scenery.map(\.rawValue) == expected["scenery"] as! [String], "Scenery renderer cohort")
-  expect(LifeRouteTheme.visibleDynamicCatalog == dynamic + scenery, "Merged visible order")
+  expect(LifeRouteTheme.livingThemeCatalog == scenery, "Living catalogue membership")
   expect(LifeRouteTheme.v071RetainedDynamicCatalog == dynamic, "Retained Dynamic alias")
   expect(LifeRouteTheme.v071RetainedSceneryCatalog == scenery, "Retained Scenery alias")
   expect(!LifeRouteTheme.arctic.scenicRoyalStyle.isBrightEnvironment, "Core Arctic native dark background requires light copy")
@@ -91,8 +102,22 @@ import Foundation
   }
   // Exercise real UserDefaults round-trips in an isolated suite, never the app's store.
   let suite = "LifeRoute.ThemeContracts.\(UUID().uuidString)"
-  let preferences = UserDefaults(suiteName: suite)!
+  let preferences = CountingThemeDefaults(suiteName: suite)!
   defer { preferences.removePersistentDomain(forName: suite) }
+  for record in expected["mapping"] as! [[String:String]] {
+   let raw = record["input"]!, output = record["output"]!
+   preferences.set(raw == "<nil>" ? nil : raw, forKey: "liferoute.selectedTheme")
+   preferences.selectionWrites = 0
+   let first = LifeRouteThemeStore(defaults: preferences)
+   expect(first.selectedTheme.rawValue == output, "actual store migrates \(raw)")
+   expect(preferences.string(forKey: "liferoute.selectedTheme") == output, "canonical identity persisted")
+   expect(preferences.selectionWrites == (raw == output ? 0 : 1), "at most one migration write")
+   preferences.selectionWrites = 0
+   let reopened = LifeRouteThemeStore(defaults: preferences)
+   expect(reopened.selectedTheme == first.selectedTheme && preferences.selectionWrites == 0, "restart has no repeat migration")
+  }
+  expect(Set(visible).isDisjoint(with: dynamic), "legacy eight absent from active catalogue")
+  expect(Set(LivingThemeRegistration.all.map(\.themeIdentifier)) == Set(scenery.map(\.rawValue)), "one registry covers exact twelve")
   var observations: [[String:Any]] = []
   for theme in visible {
    let style = theme.scenicRoyalStyle
@@ -139,7 +164,7 @@ import Foundation
   }
   let data = try JSONSerialization.data(withJSONObject:["assertions":count,"observations":observations],options:[.prettyPrinted,.sortedKeys])
   try data.write(to: URL(fileURLWithPath:CommandLine.arguments[2]))
-  print("Theme readability/catalog contracts: \(count) assertions passed; 32 visible identities; 72 raw IDs plus nil/unknown/empty/whitespace inputs. Resolved-color evidence is not composited-glass acceptance.")
+  print("Theme readability/catalog contracts: \(count) assertions passed; 24 visible identities; 72 raw IDs plus nil/unknown/empty/whitespace inputs. Resolved-color evidence is not composited-glass acceptance.")
  }
 }
 '''

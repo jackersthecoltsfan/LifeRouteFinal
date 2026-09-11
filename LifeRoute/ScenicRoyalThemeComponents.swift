@@ -2,14 +2,14 @@ import SwiftUI
 
 enum ScenicRoyalThemeCategory: String, CaseIterable, Identifiable {
     case core = "CORE"
-    case dynamic = "DYNAMIC"
+    case living = "LIVING THEMES"
 
     var id: String { rawValue }
 
     var sectionTitle: String {
         switch self {
         case .core: return "CORE"
-        case .dynamic: return "DYNAMIC"
+        case .living: return "LIVING THEMES"
         }
     }
 
@@ -17,15 +17,15 @@ enum ScenicRoyalThemeCategory: String, CaseIterable, Identifiable {
         switch self {
         case .core:
             return "12 still app-wide glass environments with no continuous ambient motion."
-        case .dynamic:
-            return "20 live environments, including cinematic Day/Night scenery. Reduce Motion preserves the selected environment and freezes ambience."
+        case .living:
+            return "12 Scenic Royal Day/Night environments. Motion readiness is shown on each scene; pending scenes retain their still presentation."
         }
     }
 
     var sectionIcon: String {
         switch self {
         case .core: return "sparkles"
-        case .dynamic: return "waveform.path"
+        case .living: return "waveform.path"
         }
     }
 }
@@ -399,7 +399,7 @@ private extension LifeRouteTheme {
     }
 
     var scenicRoyalMotionCharacter: String {
-        isPhaseOneCoreGlass ? "Still" : "Live"
+        isPhaseOneCoreGlass ? "Still" : (LivingThemeRegistration.registration(for: rawValue)?.motionStatus == .implemented ? "Living motion" : "Motion pending")
     }
 
     var scenicRoyalMotionSystemImage: String {

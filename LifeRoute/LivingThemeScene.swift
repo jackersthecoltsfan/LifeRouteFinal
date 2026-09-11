@@ -15,7 +15,43 @@ struct LivingThemeScene: Equatable, Sendable {
     )
 
     static func scene(for themeIdentifier: String) -> Self? {
-        themeIdentifier == rainforestDay.themeIdentifier ? rainforestDay : nil
+        LivingThemeRegistration.registration(for: themeIdentifier)?.scene
+    }
+}
+
+/// Product registry: inclusion in Living Themes does not imply completed motion
+/// or physical acceptance. Pending scenes keep their fixed Scenic Royal artwork.
+enum LivingThemeFamily: String, Sendable { case rainforest, ocean, arctic, mountains, canyon, desert }
+enum LivingThemeVariant: String, Sendable { case day, night }
+enum LivingThemeMotionStatus: Sendable { case implemented, pending }
+
+struct LivingThemeRegistration: Equatable, Sendable {
+    let themeIdentifier: String
+    let family: LivingThemeFamily
+    let variant: LivingThemeVariant
+    let scene: LivingThemeScene?
+    var motionStatus: LivingThemeMotionStatus { scene == nil ? .pending : .implemented }
+    // One common lifecycle and accessibility policy, owned by the native surface.
+    let lifecyclePolicy = "single surface; release when hidden; active-time playback"
+    let reduceMotionPolicy = "shared LivingSceneQuality"
+
+    static let all: [Self] = [
+        .init(themeIdentifier: "scenery.rainforest.day", family: .rainforest, variant: .day, scene: .rainforestDay),
+        .init(themeIdentifier: "scenery.rainforest.night", family: .rainforest, variant: .night, scene: nil),
+        .init(themeIdentifier: "scenery.ocean.day", family: .ocean, variant: .day, scene: nil),
+        .init(themeIdentifier: "scenery.ocean.night", family: .ocean, variant: .night, scene: nil),
+        .init(themeIdentifier: "scenery.arctic.day", family: .arctic, variant: .day, scene: nil),
+        .init(themeIdentifier: "scenery.arctic.night", family: .arctic, variant: .night, scene: nil),
+        .init(themeIdentifier: "scenery.mountains.day", family: .mountains, variant: .day, scene: nil),
+        .init(themeIdentifier: "scenery.mountains.night", family: .mountains, variant: .night, scene: nil),
+        .init(themeIdentifier: "scenery.canyon.day", family: .canyon, variant: .day, scene: nil),
+        .init(themeIdentifier: "scenery.canyon.night", family: .canyon, variant: .night, scene: nil),
+        .init(themeIdentifier: "scenery.desert.day", family: .desert, variant: .day, scene: nil),
+        .init(themeIdentifier: "scenery.desert.night", family: .desert, variant: .night, scene: nil),
+    ]
+
+    static func registration(for identifier: String) -> Self? {
+        all.first { $0.themeIdentifier == identifier }
     }
 }
 

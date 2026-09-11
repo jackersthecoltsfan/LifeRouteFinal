@@ -36,6 +36,8 @@ static float livingOval(float2 uv, float2 center, float2 radius) {
     return 1.0 - smoothstep(0.42, 1.0, dot(p, p));
 }
 
+#include "LivingSceneEvents.h"
+
 // Two advected samples hand over at zero weight before either phase wraps.
 // Texture details travel downstream continuously rather than rocking backwards.
 static float3 livingAdvect(texture2d<float> artwork, sampler sampling,
@@ -881,6 +883,7 @@ fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
         color += float3(0.11,0.055,0.018)*shafts*beamArea*(0.25+cloudShade*0.75)*u.atmosphere;
     }
     color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
+    if (night > 0.5) color=livingBat(color,uv,u.textureSize,t,u.atmosphere>0.0 && u.motion>0.5);
     return float4(color,1);
 }
 
@@ -966,4 +969,12 @@ fragment float4 livingDesertFragment(LivingSceneVertex in [[stage_in]],
     }
     color=mix(color,float3(0.68,0.44,0.23),min(dust*0.48,0.48)*c.air.w*u.motion);
     return float4(color,1);
+}
+
+// Tests query the same production state used by the scene fragment.
+kernel void livingBatEventProbe(device const float2 *requests [[buffer(0)]],
+    device float4 *results [[buffer(1)]], uint id [[thread_position_in_grid]]) {
+    LivingFlightEvent e=livingBatEvent(requests[id].x,requests[id].y>0.5);
+    results[id*2]=float4(e.position,e.state,e.eventStart);
+    results[id*2+1]=float4(e.tangent,e.wingPhase,e.cycle);
 }

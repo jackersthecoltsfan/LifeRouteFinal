@@ -148,7 +148,7 @@ struct LivingThemeQAViewer: View {
         }
     }
 
-    private static let sourceCommit: String = {
+    static let sourceCommit: String = {
         guard let url = Bundle.main.url(forResource: "LifeRouteSourceCommit", withExtension: "txt"),
               let text = try? String(contentsOf: url, encoding: .utf8) else { return "unavailable" }
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -156,6 +156,12 @@ struct LivingThemeQAViewer: View {
     }()
 
     private func snapshot() -> [String: Any] {
+        var state = Self.productionSnapshot()
+        state["preferencesUnchanged"] = controller.preferencesUnchanged
+        return state
+    }
+
+    static func productionSnapshot() -> [String: Any] {
         var surfaces: [LivingEnvironmentSurface] = []
         var productRoots = 0
         func inspect(_ view: UIView) {
@@ -179,7 +185,9 @@ struct LivingThemeQAViewer: View {
                 "running": renderers.filter(\.debugIsRunning).count,
                 "fps": renderer?.debugQuality.framesPerSecond ?? 0,
                 "frames": renderer?.debugFrameCount ?? 0, "elapsed": renderer?.debugElapsed ?? 0,
-                "preferencesUnchanged": controller.preferencesUnchanged]
+                "rendererIdentity": renderer?.debugIdentity ?? "none",
+                "timing": renderer?.debugTiming ?? [:],
+                "fallbacks": surfaces.filter(\.debugShowsFallback).count]
     }
 
     private func updateSnapshot() {
@@ -197,4 +205,32 @@ struct LivingThemeQAViewer: View {
         fflush(stdout)
     }
 }
+
+/// Opt-in DEBUG continuity evidence only; absent from ordinary launches and
+/// Release. It observes the real surface without owning or driving rendering.
+struct LivingThemeContinuityProbe: View {
+    @EnvironmentObject private var visualActivity: LifeRouteVisualActivityCoordinator
+    @State private var value = "{}"
+
+    var body: some View {
+        Text("Living renderer evidence")
+            .font(.system(size: 1))
+            .frame(width: 1, height: 1)
+            .clipped()
+            .accessibilityIdentifier("livingAudit.state")
+            .accessibilityValue(value)
+            .allowsHitTesting(false)
+            .task {
+                while !Task.isCancelled {
+                    var state = LivingThemeQAViewer.productionSnapshot()
+                    state["savedTheme"] = UserDefaults.standard.string(forKey: "liferoute.selectedTheme") ?? "unset"
+                    state["foregroundRequests"] = visualActivity.ambientSuspensionCount
+                    if let data = try? JSONSerialization.data(withJSONObject: state, options: [.sortedKeys]),
+                       let json = String(data: data, encoding: .utf8) { value = json }
+                    do { try await Task.sleep(nanoseconds: 100_000_000) } catch { return }
+                }
+            }
+    }
+}
+
 #endif

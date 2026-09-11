@@ -45,6 +45,14 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
                     )
                 }
             }
+#if DEBUG
+            .overlay(alignment: .topLeading) {
+                if ProcessInfo.processInfo.arguments.contains("-LifeRouteLivingDiagnostics") {
+                    LivingThemeContinuityProbe()
+                        .environmentObject(visualActivityCoordinator)
+                }
+            }
+#endif
         .environment(\.scenicRoyalThemeStyle, style)
         .environment(\.defaultMinListRowHeight, 52)
         .tint(style.nativeControlTint)

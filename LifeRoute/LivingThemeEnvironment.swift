@@ -447,6 +447,8 @@ final class LivingSceneRenderer: NSObject, MTKViewDelegate {
     var debugFrameCount: Int { diagnostics.frameCount }
     var debugIsRunning: Bool { clock.isRunning }
     var debugElapsed: TimeInterval { clock.elapsed }
+    var debugIdentity: String { diagnostics.id }
+    var debugTiming: [String: Double] { diagnostics.timing }
 #endif
 
     func tearDown() {
@@ -470,7 +472,7 @@ final class LivingSceneRenderer: NSObject, MTKViewDelegate {
 private final class LivingSceneDiagnostics: @unchecked Sendable {
     private static let enabled = ProcessInfo.processInfo.arguments.contains("-LifeRouteLivingDiagnostics")
     private let lock = NSLock()
-    private let id = UUID().uuidString
+    let id = UUID().uuidString
     private var frames = 0
     private var cpuTotal = 0.0
     private var gpuTotal = 0.0
@@ -484,6 +486,13 @@ private final class LivingSceneDiagnostics: @unchecked Sendable {
     var frameCount: Int {
         lock.lock(); defer { lock.unlock() }
         return frames
+    }
+
+    var timing: [String: Double] {
+        lock.lock(); defer { lock.unlock() }
+        return ["cpuMeanMs": cpuTotal / Double(max(1, frames)),
+                "gpuMeanMs": gpuTotal / Double(max(1, gpuCount)),
+                "maxIntervalMs": maximumInterval * 1000]
     }
 
     func frame(at timestamp: Double, cpuMilliseconds: Double) {

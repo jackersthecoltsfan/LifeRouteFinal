@@ -163,4 +163,108 @@ final class NativeUI: XCTestCase {
         app.launch(); assertNormalProduct(app); app.terminate()
         print("LIVING_QA_RELEASE_PASS: QA launch flags ignored, normal product and five roots, no QA surface")
     }
+
+    @MainActor private func audit(_ app: XCUIApplication, scene: String? = nil, fps: Int = 30) -> [String: Any] {
+        var latest: [String: Any] = [:]
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline {
+            if let raw = app.staticTexts["livingAudit.state"].value as? String,
+               let data = raw.data(using: .utf8),
+               let state = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                latest = state
+                if state["renderers"] as? Int == 1, state["resources"] as? Int == 1,
+                   state["surfaces"] as? Int == 1, state["running"] as? Int == 1,
+                   state["fallbacks"] as? Int == 0, state["fps"] as? Int == fps,
+                   (state["elapsed"] as? Double ?? 0) >= 2,
+                   scene == nil || state["scene"] as? String == scene { return state }
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        attachTree(app, "Continuity audit failed")
+        XCTFail("Actual production renderer did not satisfy foreground contract: \(latest)")
+        return latest
+    }
+
+    @MainActor private func continued(_ app: XCUIApplication, from before: [String: Any], label: String,
+                                      scene: String? = nil) -> [String: Any] {
+        Thread.sleep(forTimeInterval: 1.0)
+        let after = audit(app, scene: scene)
+        XCTAssertEqual(after["rendererIdentity"] as? String, before["rendererIdentity"] as? String, label)
+        XCTAssertGreaterThan(after["elapsed"] as? Double ?? 0, (before["elapsed"] as? Double ?? 0) + 0.6, label)
+        XCTAssertGreaterThan(after["frames"] as? Int ?? 0, (before["frames"] as? Int ?? 0) + 15, label)
+        let data = try! JSONSerialization.data(withJSONObject: ["label": label, "before": before, "after": after], options: [.sortedKeys])
+        let json = String(data: data, encoding: .utf8)!
+        let attachment = XCTAttachment(string: json); attachment.name = label; attachment.lifetime = .keepAlways; add(attachment)
+        print("LIVING_CONTINUITY_SAMPLE " + json)
+        return after
+    }
+
+    @MainActor private func openThemeCenter(_ app: XCUIApplication) {
+        app.buttons["Setup"].tap()
+        let entry = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Theme Center")).firstMatch
+        for _ in 0..<6 { if entry.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(entry.isHittable); entry.tap()
+        XCTAssertTrue(app.navigationBars["Themes"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor func testLivingQAContinuity() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication(bundleIdentifier: bundle)
+        app.launchArguments = ["-LifeRouteSectionOverride", "today", "-LifeRouteThemeOverride", "scenery.ocean.day", "-LifeRouteLivingDiagnostics"]
+        app.launch()
+        var prior = audit(app, scene: "scenery.ocean.day")
+        openThemeCenter(app)
+        prior = continued(app, from: prior, label: "Theme Center remains open and alive")
+        let card = app.buttons["Ocean Night, LIVING THEMES theme, Living motion"].firstMatch
+        for _ in 0..<8 {
+            if card.isHittable && card.frame.minY > 130 && card.frame.maxY < 830 { break }
+            if card.exists && card.frame.minY < 130 { app.swipeDown() } else { app.swipeUp() }
+        }
+        XCTAssertTrue(card.isHittable); card.tap()
+        prior = continued(app, from: prior, label: "Selected Ocean Night lives before selector dismissal", scene: "scenery.ocean.night")
+        XCTAssertTrue(app.navigationBars["Themes"].exists)
+        Thread.sleep(forTimeInterval: 3)
+        app.navigationBars["Themes"].buttons["Setup"].tap()
+        prior = continued(app, from: prior, label: "Selector dismissal retains the same clock")
+        for root in ["Today", "Calendar", "Tools"] {
+            app.buttons[root].tap()
+            XCTAssertEqual(app.buttons[root].value as? String, "Selected")
+            prior = continued(app, from: prior, label: "Root switch to " + root)
+        }
+        Thread.sleep(forTimeInterval: 3)
+        print("LIVING_QA_CONTINUITY_PASS: selector selection while open, dismissal and three normal root switches; one renderer, continuing nonzero clock; continuous video required")
+        app.terminate()
+    }
+
+    @MainActor func testLivingQASystemmotion() throws {
+        continueAfterFailure = false
+        let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        settings.launch()
+        let accessibility = settings.staticTexts["Accessibility"].firstMatch
+        for _ in 0..<8 { if accessibility.isHittable { break }; settings.swipeUp() }
+        attachTree(settings, "Actual Simulator Accessibility settings")
+        XCTAssertTrue(accessibility.isHittable); accessibility.tap()
+        let motion = settings.staticTexts["Motion"].firstMatch
+        for _ in 0..<6 { if motion.isHittable { break }; settings.swipeUp() }
+        XCTAssertTrue(motion.isHittable); motion.tap()
+        let reduce = settings.switches["Reduce Motion"].firstMatch
+        XCTAssertTrue(reduce.waitForExistence(timeout: 5))
+        let initial = reduce.value as? String
+        if initial != "1" { reduce.tap() }
+        XCTAssertEqual(reduce.value as? String, "1")
+        let app = XCUIApplication(bundleIdentifier: bundle)
+        app.launchArguments = ["-LifeRouteThemeOverride", "scenery.ocean.night", "-LifeRouteLivingDiagnostics"]
+        app.launch()
+        let reduced = audit(app, scene: "scenery.ocean.night", fps: 15)
+        attachTree(app, "Actual system Reduce Motion selects calm production policy")
+        settings.activate()
+        if reduce.value as? String == "1" { reduce.tap() }
+        app.activate()
+        _ = audit(app, scene: "scenery.ocean.night", fps: 30)
+        settings.activate()
+        if initial == "1" { reduce.tap() }
+        print("LIVING_QA_SYSTEMMOTION_PASS: actual Settings Reduce Motion feeds production environment and is restored; reduced frames \(reduced["frames"] ?? 0)")
+        app.terminate()
+    }
+
 }

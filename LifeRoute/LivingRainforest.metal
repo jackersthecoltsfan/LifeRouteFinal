@@ -607,16 +607,7 @@ fragment float4 livingArcticNightFragment(LivingSceneVertex in [[stage_in]],
         color += reflected.light*ice*u.atmosphere*0.32;
     }
     color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
-    // Each photographed star receives its own1.5-4s period and phase.
-    // Rise/fall together occupy20% of a cycle; no shared sky-wide pulse.
-    float2 starCell = floor(uv*float2(530,920));
-    float starSeed = livingHash(starCell+17.0);
-    float starPhase = fract(t/(1.5+starSeed*2.5)+livingHash(starCell+61.0));
-    float twinkle = smoothstep(0.0,0.10,starPhase)*(1.0-smoothstep(0.20,0.30,starPhase));
-    float star = smoothstep(0.12,0.40,max(original.r,max(original.g,original.b)))
-        * sky*(1.0-aurora);
-    color *= 1.0-star*twinkle*0.35*u.atmosphere;
-
+    // Preserve the accepted star field pending isolated star-object refinement.
     if (u.atmosphere > 0.0) color += float3(0.20,0.29,0.36) * livingPrecipitation(uv,t,c.light.y,true) * haze * c.air.w;
     return float4(color,1);
 }
@@ -794,7 +785,6 @@ fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
         color = mix(color,float3(0.025,0.041,0.069),bank*livingSky(uv,c)*0.70*u.atmosphere);
         // Moonlit and dark water share the full actual channel, not a diagonal
         // strip through the canyon wall. Its two banks stay at fixed pixels.
-        float cloudCover = livingFractal(float2(c.light.z*7.5-t*c.air.x,c.light.w*15.0+c.light.y),t);
         float moonTransmission = 1.0 - moonBank*0.70;
         if (uv.y > 0.45) {
             const float2 shore[] = {float2(0.375,0.451),float2(0.42,0.465),float2(0.45,0.472),float2(0.51,0.483),

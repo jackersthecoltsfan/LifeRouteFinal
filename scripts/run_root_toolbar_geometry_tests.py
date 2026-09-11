@@ -15,7 +15,7 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-THEMES = ["royal", "dynamic.royalCurrent", "scenery.mountains.day", "scenery.mountains.night"]
+THEMES = ["royal", "scenery.ocean.day", "scenery.mountains.day", "scenery.mountains.night"]
 ROOTS = ["today", "schedule", "tools", "resources", "setup"]
 PREFIX = "LIFEROUTE_ROOT_GEOMETRY "
 

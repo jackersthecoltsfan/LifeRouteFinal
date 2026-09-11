@@ -81,13 +81,13 @@ for theme in "${SCENERY_THEMES[@]}"; do
   xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/${filename}.png"
 done
 
-# Verify both the restrained Dynamic treatment and its Reduce Motion state.
+# Verify Living Ocean motion and its Reduce Motion policy.
 xcrun simctl launch --terminate-running-process "$DEVICE_ID" "$BUNDLE_ID" \
-  -LifeRouteVisualFixture royal-current
+  -LifeRouteVisualFixture scenery.ocean.day
 sleep 2
-xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/theme-dynamic-motion.png"
+xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/theme-living-motion.png"
 xcrun simctl launch --terminate-running-process "$DEVICE_ID" "$BUNDLE_ID" \
-  -LifeRouteVisualFixture royal-current -LifeRouteFixtureReduceMotion
+  -LifeRouteVisualFixture scenery.ocean.day -LifeRouteFixtureReduceMotion
 sleep 2
 xcrun simctl io "$DEVICE_ID" screenshot "$OUTPUT_DIRECTORY/theme-reduce-motion.png"
 

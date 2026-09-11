@@ -1,3 +1,17 @@
+# Living Themes Phase 2A — September 10, 2026
+
+- Exact physically accepted Rainforest parent: `9494e81c814d6cbe958dc190263d8fec141cdb27`, accepted by Brandon on iPhone 17 Pro / iOS 27.0. This supersedes the older Phase 1 pending-acceptance text below.
+- Isolated successor: `/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-phase2a-ocean`, branch `codex/living-themes-phase2a-ocean-20260910`; original and Phase 1 worktrees preserved. One source-changing owner.
+- Living Themes now names the twelve Scenic Royal entries. The eight legacy Dynamic selections migrate once to their existing Scenic companions and are absent from active catalogue/UI/rendering. Dormant implementation/assets remain for Phase 2D reconciliation.
+- Rainforest Day normal-motion shader and captured output remain unchanged. Ocean Day/Night share one configured fixed-camera water program; nine other scenes explicitly retain still presentations with motion pending. One native surface owns settled 250 ms activation, cancellation, hidden-resource release, active-time resume and common calm/constrained policy.
+- No Timer behavior, navigation foundation, Session Note, Calendar B, planner, global readability/accent or release changes. No physical installation, TestFlight, merge or Phase 2B initiation.
+- See `docs/LIVING_THEMES_V2.md` for architecture, exact migration, dormant debt and validation commands. Sole final receipt and authority for actual test/build/native outcomes, commit sequence, clean status, signed artifact and canonical hash: `/Users/brand/Documents/LifeRouteCheckpoints/living-themes-phase2a-ocean-20260910/LIVING_THEMES_PHASE2A_RECEIPT.md`.
+- Ocean perceptual quality and candidate-specific physical acceptance remain Brandon's gate. Later installer must rehash immediately before installation. The empty phone matrix must not be filled from remote evidence.
+
+Earlier entries below are historical and do not override this explicit Phase 2A scope.
+
+---
+
 # Living Themes V2 Phase 1 — September 10, 2026
 
 - Exact authorized remote parent: `1c59feda28106175d92d8a10663eef09b7bb5c3b`; its clean-baseline phone smoke remains deferred. This task explicitly authorizes source development from that provisional parent without claiming physical acceptance.

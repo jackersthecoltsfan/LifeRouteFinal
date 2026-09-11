@@ -7,4 +7,5 @@
 // Freeze externally after the first passing family scene; do not retune to pass tests.
 #define LIVING_CANYON_CALM_SCALE 0.42f
 #define LIVING_CANYON_RIVER_RATE 0.29f
+#define LIVING_CANYON_SURFACE_RATE 1.7f
 #endif

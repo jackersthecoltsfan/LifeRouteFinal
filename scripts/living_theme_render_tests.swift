@@ -241,7 +241,9 @@ import CryptoKit
             return ["pixels":Double(pixels.count),"movingPixels":Double(moving.count),"spread":Double(moving.count)/Double(pixels.count),"movingMedian255":median]
         }
         let primaryTemporal = temporalStats(primaryPixels), staticTemporal = temporalStats(staticPixels)
-        let temporalEvidence: [String:Any] = ["primary":primaryTemporal,"static":staticTemporal,"seconds":seconds]
+        let additionalPrimary = (sceneROI["additional_primary"] as? [[[Double]]]).map { temporalStats(roiPixels($0)) }
+        var temporalEvidence: [String:Any] = ["primary":primaryTemporal,"static":staticTemporal,"seconds":seconds]
+        if let additionalPrimary { temporalEvidence["additionalPrimary"] = additionalPrimary }
         try JSONSerialization.data(withJSONObject:temporalEvidence,options:[.prettyPrinted,.sortedKeys])
             .write(to:output.appendingPathComponent("temporal-roi.json"))
         var maskAudit = first
@@ -251,6 +253,11 @@ import CryptoKit
         expect(primaryTemporal["movingMedian255"]! >= (roiContract["minimum_moving_median_255"] as! Double),"primary moving-pixel magnitude >=3/255")
         expect(primaryTemporal["spread"]! >= (sceneROI["minimum_spread"] as! Double),"primary motion spread >=25%, or40% for Ocean")
         expect(staticTemporal["spread"]! <= (roiContract["maximum_static_spread"] as! Double),"fixed-control moving spread <=5%")
+        if let additionalPrimary {
+            expect(additionalPrimary["pixels"]! > 0,"additional artwork-traced primary ROI is nonempty")
+            expect(additionalPrimary["movingMedian255"]! >= (roiContract["minimum_moving_median_255"] as! Double),"complete artwork-traced primary magnitude >=3/255")
+            expect(additionalPrimary["spread"]! >= (sceneROI["minimum_spread"] as! Double),"complete artwork-traced primary meets unchanged spatial floor")
+        }
         if scene == .rainforestDay {
         let mistOn = render(time: 0.3), mistOff = render(time: 0.3, atmosphere: 0)
         expect(difference(mistOn,mistOff,box:[0.56,0.51,0.61,0.55]) > 0.2, "mist has localized visible contribution")
@@ -266,6 +273,17 @@ import CryptoKit
         let calmA = render(time: 0.3, motion: 0.25, atmosphere: 0)
         let calmB = render(time: 1.3, motion: 0.25, atmosphere: 0)
         expect(difference(calmA,calmB,box:regions[0].1) > 0, "calm retains primary environmental motion")
+        if scene == .canyonDay {
+            let waterA = render(time:1,atmosphere:0), waterB = render(time:8,atmosphere:0)
+            expect(difference(waterA,waterB,box:[0.435,0.54,0.495,0.552]) > 1,
+                "Canyon Day broad left river bend flows independently of atmosphere")
+            expect(difference(waterA,waterB,box:[0.58,0.607,0.63,0.62]) > 1,
+                "Canyon Day foreground channel continues the river flow")
+            expect(difference(render(time:1,motion:0.25,atmosphere:0),render(time:8,motion:0.25,atmosphere:0),box:[0.435,0.54,0.495,0.552]) > 0.25,
+                "Canyon Day calm retains primary water")
+            expect(difference(waterA,waterB,box:[0.545,0.549,0.56,0.555]) == 0,
+                "River flow excludes the right bank inside the winding bend")
+        }
         if scene == .mountainsDay {
             let waterA = render(time:1,atmosphere:0), waterB = render(time:8,atmosphere:0)
             expect(difference(waterA,waterB,box:[0.59,0.485,0.70,0.51]) > 1,

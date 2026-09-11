@@ -597,6 +597,27 @@ fragment float4 livingMountainsFragment(LivingSceneVertex in [[stage_in]],
     return float4(color,1);
 }
 
+// Distance along the actual winding channel, lateral offset and local tangent.
+// Flow changes direction at bends instead of translating water on a global UV axis.
+static float4 livingRiverCoordinates(float2 uv, thread const float2 *path, int count, float aspect) {
+    float best = 100.0, distanceAlong = 0.0, traversed = 0.0, across = 0.0;
+    float2 tangent = float2(0,1), metric = float2(aspect,1);
+    for (int i = 1; i < count; ++i) {
+        float2 a = path[i-1] * metric, edge = (path[i]-path[i-1]) * metric;
+        float lengthAlong = length(edge), unitScale = max(lengthAlong,0.00001);
+        float u = clamp(dot(uv * metric-a,edge) / (unitScale * unitScale),0.0,1.0);
+        float2 separation = uv * metric-a-edge*u;
+        float d = dot(separation,separation);
+        if (d < best) {
+            best = d; distanceAlong = traversed + lengthAlong*u;
+            across = dot(separation,float2(-edge.y,edge.x)/unitScale);
+            tangent = normalize(path[i]-path[i-1]);
+        }
+        traversed += lengthAlong;
+    }
+    return float4(distanceAlong,across,tangent);
+}
+
 fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
     texture2d<float> artwork [[texture(0)]], constant LivingSceneUniforms &u [[buffer(0)]],
     constant LivingAtmosphereConfiguration &c [[buffer(2)]]) {
@@ -610,15 +631,62 @@ fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
     float distanceHaze = mix(livingOval(uv,float2(0.57,0.412),float2(0.22,0.052)),
                             livingOval(uv,float2(0.50,0.408),float2(0.18,0.055)),night);
     color = livingFog(color,uv,t,distanceHaze,c.air.z * u.motion,c.light.y,mix(float3(0.56,0.33,0.24),float3(0.08,0.14,0.21),night));
-    // Narrow material-gated river interior, never the rock banks.
-    float y = clamp(uv.y,0.45,0.79);
-    float center = mix(0.56 + 0.044 * sin((y - 0.45) * 31.0), 0.53 - (y - 0.44) * 0.98,night);
-    float river = (1.0 - smoothstep(0.008,0.020,abs(uv.x - center)))
-        * smoothstep(0.45,0.48,uv.y) * (1.0 - smoothstep(mix(0.63,0.76,night),mix(0.65,0.79,night),uv.y));
-    float material = mix(smoothstep(0.10,0.35,min(original.r,original.g)),smoothstep(0.025,0.12,original.b),night);
-    if (river > 0.001 && u.atmosphere > 0.0) {
-        float3 water = livingAdvect(artwork,sampling,uv,float2(mix(0.002,-0.006,night),0.007) * u.motion,t,LIVING_CANYON_RIVER_RATE);
-        color = mix(color,water,river * material * u.atmosphere * 0.65);
+    if (night > 0.5) {
+        // Narrow material-gated river interior, never the rock banks.
+        float y = clamp(uv.y,0.45,0.79);
+        float center = mix(0.56 + 0.044 * sin((y - 0.45) * 31.0), 0.53 - (y - 0.44) * 0.98,night);
+        float river = (1.0 - smoothstep(0.008,0.020,abs(uv.x - center)))
+            * smoothstep(0.45,0.48,uv.y) * (1.0 - smoothstep(mix(0.63,0.76,night),mix(0.65,0.79,night),uv.y));
+        float material = mix(smoothstep(0.10,0.35,min(original.r,original.g)),smoothstep(0.025,0.12,original.b),night);
+        if (river > 0.001 && u.atmosphere > 0.0) {
+            float3 water = livingAdvect(artwork,sampling,uv,float2(mix(0.002,-0.006,night),0.007) * u.motion,t,LIVING_CANYON_RIVER_RATE);
+            color = mix(color,water,river * material * u.atmosphere * 0.65);
+        }
+    } else if (uv.y > 0.422 && uv.y < 0.647) {
+        // Both photographed banks, including the broad left bend, are traced
+        // independently of the old approximate QA/renderer centerline.
+        const float2 shore[] = {float2(0.548,0.424),float2(0.577,0.43),float2(0.573,0.433),float2(0.606,0.438),
+                float2(0.635,0.443),float2(0.618,0.448),float2(0.576,0.454),float2(0.547,0.461),
+                float2(0.551,0.466),float2(0.545,0.47),float2(0.557,0.474),float2(0.6,0.48),
+                float2(0.648,0.489),float2(0.66,0.499),float2(0.658,0.509),float2(0.643,0.515),
+                float2(0.606,0.524),float2(0.562,0.534),float2(0.531,0.543),float2(0.522,0.55),
+                float2(0.524,0.556),float2(0.557,0.571),float2(0.605,0.585),float2(0.647,0.599),
+                float2(0.678,0.612),float2(0.715,0.628),float2(0.725,0.633),float2(0.703,0.635),
+                float2(0.672,0.636),float2(0.622,0.638),float2(0.608,0.645),float2(0.595,0.645),
+                float2(0.58,0.634),float2(0.565,0.629),float2(0.552,0.616),float2(0.538,0.607),
+                float2(0.535,0.6),float2(0.52,0.59),float2(0.51,0.584),float2(0.505,0.576),
+                float2(0.487,0.57),float2(0.46,0.561),float2(0.433,0.555),float2(0.422,0.549),
+                float2(0.423,0.542),float2(0.438,0.534),float2(0.477,0.522),float2(0.518,0.512),
+                float2(0.55,0.503),float2(0.56,0.498),float2(0.555,0.493),float2(0.536,0.486),
+                float2(0.499,0.481),float2(0.47,0.477),float2(0.451,0.471),float2(0.475,0.464),
+                float2(0.502,0.458),float2(0.54,0.453),float2(0.575,0.449),float2(0.604,0.444),
+                float2(0.592,0.44),float2(0.559,0.433),float2(0.569,0.43),float2(0.548,0.426)};
+        float river = livingWaterInterior(uv,shore,64);
+        if (river > 0.001) {
+            const float2 channel[] = {float2(0.551,0.425),float2(0.57,0.433),float2(0.619,0.443),
+                float2(0.57,0.452),float2(0.506,0.467),float2(0.549,0.48),float2(0.613,0.501),
+                float2(0.558,0.520),float2(0.472,0.544),float2(0.493,0.56),float2(0.544,0.58),
+                float2(0.587,0.603),float2(0.641,0.625),float2(0.62,0.64)};
+            float4 flow = livingRiverCoordinates(uv,channel,14,u.textureSize.x/u.textureSize.y);
+            float phase = t * LIVING_CANYON_SURFACE_RATE;
+            float eddies = livingFractal(float2(flow.x*72.0-phase*0.08,flow.y*160.0+c.light.y),t);
+            float riffle = sin(flow.x*710.0-phase+eddies*11.0+flow.y*93.0);
+            float cross = sin(flow.x*1070.0-phase*1.31+eddies*17.0-flow.y*125.0);
+            float2 drift = flow.zw * (0.006 + saturate((uv.y-0.43)/0.20)*0.007) * u.motion;
+            float3 water = livingAdvect(artwork,sampling,uv,drift,t,LIVING_CANYON_RIVER_RATE);
+            water *= 1.0 + u.motion*(riffle*0.075+cross*0.035)*(0.4+eddies*0.6);
+            color += (water-original)*river;
+        }
+    }
+    if (night < 0.5 && u.atmosphere > 0.0) {
+        // Anchored sunset shafts breathe with the same drifting cloud field.
+        // Only air over the distant gorge is lit; no global exposure pulse.
+        float beamArea = livingOval(uv,float2(0.58,0.43),float2(0.22,0.053));
+        float beamCoordinate = uv.x + (uv.y-0.30)*1.65;
+        float shafts = exp(-pow((beamCoordinate-0.81)/0.035,2.0))
+            + exp(-pow((beamCoordinate-0.90)/0.025,2.0))*0.65;
+        float cloudShade = livingFractal(float2(uv.x*7.5-t*c.air.x,uv.y*15.0+c.light.y),t);
+        color += float3(0.11,0.055,0.018)*shafts*beamArea*(0.25+cloudShade*0.75)*u.atmosphere;
     }
     color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
     return float4(color,1);

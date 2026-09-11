@@ -171,6 +171,7 @@ import UniformTypeIdentifiers
             "scenery.arctic.day": [("broad drifting weather",[0.27,0.39,0.61,0.45],true),("sky cloud layers",[0.20,0.05,0.65,0.20],true),("fixed ice face",[0.78,0.67,0.90,0.82],false)],
             "scenery.arctic.night": [("aurora curtain",[0.49,0.22,0.85,0.31],true),("fixed mountain",[0.77,0.42,0.89,0.50],false),("fixed foreground",[0.02,0.86,0.14,0.95],false)],
             "scenery.mountains.day": [("evolving high cloud",[0.26,0.035,0.73,0.19],true),("valley atmosphere",[0.60,0.44,0.72,0.48],true),("fixed foreground rock",[0.20,0.80,0.40,0.90],false)],
+            "scenery.mountains.night": [("evolving high cloud",[0.43,0.03,0.78,0.17],true),("rolling valley fog",[0.40,0.46,0.70,0.49],true),("fixed mountain",[0.05,0.33,0.14,0.42],false)],
         ]
         let regions = scene == .rainforestDay ? rainforestRegions : (scene == .oceanDay ? dayRegions : (scene == .oceanNight ? nightRegions : otherRegions[scene.themeIdentifier]!))
         var measured: [String:Double] = [:]

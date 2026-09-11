@@ -1,0 +1,18 @@
+{
+  "artworkPixels" : [
+    941,
+    1672
+  ],
+  "assertions" : 8,
+  "device" : "Apple M5",
+  "gpuMaximumMilliseconds" : 3.9506249995611142,
+  "gpuMeanMilliseconds" : 1.6360732322459397,
+  "limitation" : "Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance",
+  "regionMeanByteDifferences" : {
+    "evolving high cloud" : 0.25157820902501754,
+    "fixed mountain" : 0,
+    "rolling valley fog" : 0.48349881796690308
+  },
+  "scene" : "scenery.mountains.night",
+  "textureBytes" : 6701056
+}

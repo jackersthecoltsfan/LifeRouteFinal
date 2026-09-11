@@ -372,7 +372,7 @@ static float livingPrecipitation(float2 uv, float t, float seed, bool snow, floa
         // Keep every existing caller bit-equivalent at the default density.
         // Arctic Day uses ten times the eligible snow cells, retaining the same
         // direction, depth planes and falling/swaying particle shape.
-        float threshold = snow ? (density == 1.0 ? 0.965 : 1.0 - 0.035*density) : 0.981;
+        float threshold = snow ? (density == 1.0 ? 0.965 : 1.0 - 0.035*density) : (density == 1.0 ? 0.981 : 1.0 - 0.019*density);
         if (random < threshold) continue;
         local.x += snow ? sin(t * (LIVING_AIR_SNOW_SWAY_BASE + d * LIVING_AIR_SNOW_SWAY_DEPTH) + random * 80.0) * 0.14 : local.y * 0.10;
         float2 radius = snow ? float2(0.027 + d * 0.012) : float2(0.019, 0.20);
@@ -468,24 +468,37 @@ fragment float4 livingRainforestNightFragment(LivingSceneVertex in [[stage_in]],
     // Material and moon exclusions keep the photographed trunks/moon stationary.
     float opening = livingOval(uv,float2(0.53,0.23),float2(0.12,0.115))
         * livingMoonExclusion(uv,c) * smoothstep(0.01,0.04,original.b-original.g);
-    if (u.atmosphere > 0.0) color += livingClouds(artwork,sampling,uv,original,opening,t,u.motion,c)-original;
+    if (u.atmosphere > 0.0) {
+        color += livingClouds(artwork,sampling,uv,original,opening,t,u.motion,c)-original;
+        color = livingPhysicalClouds(color,uv,opening,t,60.0,u.atmosphere,1.0,c.light.y);
+    }
     float leaf = max(max(livingOval(uv,float2(0.16,0.74),float2(0.15,0.07)),
                          livingOval(uv,float2(0.34,0.86),float2(0.13,0.07))),
                     max(livingOval(uv,float2(0.44,0.29),float2(0.07,0.035)),
                          livingOval(uv,float2(0.73,0.33),float2(0.09,0.045))));
+    leaf = max(leaf,max(livingOval(uv,float2(0.24,0.30),float2(0.20,0.16)),
+                        livingOval(uv,float2(0.79,0.23),float2(0.15,0.17))));
+    // The foreground left trunk and diagonal right limb occlude rain and
+    // canopy travel. Leaf colour alone also occurs on wet bark.
+    float trunkClear = mix(smoothstep(0.20,0.235,uv.x)
+        * smoothstep(0.070,0.105,abs(uv.x-(0.52+uv.y))),1.0,smoothstep(0.58,0.66,uv.y));
+    leaf *= trunkClear;
     float foliage = smoothstep(0.002,0.017,original.g-original.r)
         * (1.0-smoothstep(0.002,0.012,original.b-original.g));
     if (leaf * foliage > 0.001 && u.atmosphere > 0.0) {
         float gust = smoothstep(0.1,0.9,sin(t*LIVING_RF_LEAF_SWAY_RATE*0.47+uv.x*4.0));
-        float2 offset = float2(sin(t*LIVING_RF_LEAF_SWAY_RATE+uv.y*17.0+uv.x*29.0),
-            sin(t*LIVING_RF_LEAF_CROSS_RATE+uv.x*19.0)*0.45);
-        offset *= colorAmount*(0.65+gust*1.85)*leaf*foliage;
+        float2 offset = float2(sin(t*1.8+uv.y*17.0+uv.x*29.0),
+            sin(t*2.3+uv.x*19.0)*0.45);
+        offset *= colorAmount*(5.0+gust*5.0)*leaf*foliage;
         color += (artwork.sample(sampling,uv+offset/u.textureSize).rgb-original)*leaf*foliage*u.atmosphere;
     }
     float mist = livingOval(uv, float2(0.49,0.545),float2(0.28,0.045));
-    color = livingFog(color, uv, t, mist, c.air.z * u.atmosphere, c.light.y, float3(0.055,0.15,0.18));
-    float air = livingOval(uv, float2(0.49,0.39),float2(0.14,0.12));
-    if (u.atmosphere > 0.0) color += float3(0.10,0.18,0.21) * livingPrecipitation(uv,t,c.light.y,false) * air * c.air.w;
+    color = livingFog(color, uv, t*4.0, mist, c.air.z * u.atmosphere, c.light.y, float3(0.055,0.15,0.18));
+    // Rain spans the environment at three depths. Small short streaks are
+    // composited over it; the physically accepted water computation is intact.
+    float air = smoothstep(0.04,0.16,uv.y) * (1.0-smoothstep(0.91,1.0,uv.y));
+    if (u.atmosphere > 0.0) color += float3(0.20,0.31,0.38)
+        * livingPrecipitation(uv,t,c.light.y,false,8.0) * air * trunkClear * livingMoonExclusion(uv,c) * u.atmosphere;
     return float4(color, 1);
 }
 

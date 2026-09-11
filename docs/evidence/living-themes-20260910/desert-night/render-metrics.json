@@ -1,0 +1,18 @@
+{
+  "artworkPixels" : [
+    941,
+    1672
+  ],
+  "assertions" : 8,
+  "device" : "Apple M5",
+  "gpuMaximumMilliseconds" : 5.8441250002942979,
+  "gpuMeanMilliseconds" : 1.3394886364682925,
+  "limitation" : "Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance",
+  "regionMeanByteDifferences" : {
+    "evolving night atmosphere" : 0.21627221292533269,
+    "fixed arch" : 0,
+    "fixed dune" : 0
+  },
+  "scene" : "scenery.desert.night",
+  "textureBytes" : 6701056
+}

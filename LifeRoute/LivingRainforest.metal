@@ -885,8 +885,9 @@ fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
                            livingOval(uv,float2(0.74,0.918),float2(0.18,0.055)));
         shrubs = max(shrubs,livingOval(uv,float2(0.34,0.855),float2(0.13,0.072)));
         shrubs *= smoothstep(0.675,0.690,uv.y);
-        float leaf = smoothstep(0.015,0.070,original.g-original.b)
-            * (1.0-smoothstep(0.09,0.18,original.r-original.g));
+        // Sunset foliage is amber, not green. Bound motion spatially and
+        // retain the blue-poor vegetation gate without rejecting warm leaves.
+        float leaf = smoothstep(0.015,0.070,original.g-original.b);
         float sway = sin(t*1.8+uv.x*31.0+uv.y*17.0)*(5.5+2.5*sin(t*0.61+uv.x*9.0));
         float2 offset = float2(sway,sway*0.18)*shrubs*leaf*u.motion/u.textureSize;
         color += (artwork.sample(sampling,uv+offset).rgb-original)*shrubs*leaf*u.atmosphere;

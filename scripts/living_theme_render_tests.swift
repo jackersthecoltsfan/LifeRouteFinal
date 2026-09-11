@@ -280,6 +280,17 @@ import CryptoKit
         let calmA = render(time: 0.3, motion: 0.25, atmosphere: 0)
         let calmB = render(time: 1.3, motion: 0.25, atmosphere: 0)
         expect(difference(calmA,calmB,box:regions[0].1) > 0, "calm retains primary environmental motion")
+        if scene == .arcticNight {
+            let auroraA = render(time:1,atmosphere:0), auroraB = render(time:12,atmosphere:0)
+            for (name,box) in [("lower",[0.20,0.31,0.32,0.36]),("middle",[0.44,0.265,0.57,0.30]),("upper",[0.75,0.17,0.88,0.215])] {
+                expect(difference(auroraA,auroraB,box:box) > 1,
+                    "Arctic Night \(name) aurora evolves independently of optional weather")
+            }
+            expect(difference(auroraA,auroraB,box:[0.32,0.63,0.68,0.79]) == 0,
+                "Frozen lake cracks do not deform with aurora motion")
+            expect(difference(first,next,box:[0.275,0.424,0.289,0.44]) == 0,
+                "Arctic moon remains fixed while aurora and clouds evolve")
+        }
         if scene == .arcticDay {
             let waterA = render(time:1,atmosphere:0), waterB = render(time:8,atmosphere:0)
             expect(difference(waterA,waterB,box:[0.12,0.67,0.40,0.75]) > 1,

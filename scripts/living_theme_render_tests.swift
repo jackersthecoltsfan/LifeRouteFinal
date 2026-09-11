@@ -163,7 +163,7 @@ import UniformTypeIdentifiers
             ("moonlit water",[0.25,0.40,0.45,0.54],true),
             ("foreground wave",[0.56,0.59,0.80,0.69],true),
             ("fixed moon",[0.322,0.129,0.367,0.160],false),
-            ("fixed sky",[0.72,0.04,0.92,0.12],false),
+            ("evolving night atmosphere",[0.72,0.04,0.92,0.12],true),
             ("fixed horizon",[0.50,0.331,0.90,0.334],false),
         ]
         let otherRegions: [String: [(String,[Double],Bool)]] = [:]

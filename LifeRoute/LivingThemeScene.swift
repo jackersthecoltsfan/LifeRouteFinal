@@ -56,7 +56,7 @@ struct LivingThemeRegistration: Equatable, Sendable {
         .init(themeIdentifier: "scenery.ocean.day", family: .ocean, variant: .day, scene: .oceanDay,
               primaryMotion: "finite advancing swell, crest, break and foam decay", secondaryEffects: ["surface ripples", "localized spray", "evolving cloud layers"], ambientEffects: []),
         .init(themeIdentifier: "scenery.ocean.night", family: .ocean, variant: .night, scene: .oceanNight,
-              primaryMotion: "finite advancing swell, crest, break and foam decay", secondaryEffects: ["water-bound moon reflection", "surface ripples"], ambientEffects: []),
+              primaryMotion: "finite advancing swell, crest, break and foam decay", secondaryEffects: ["water-bound moon reflection", "surface ripples", "evolving night cloud"], ambientEffects: ["stars", "rare shooting stars"]),
         .init(themeIdentifier: "scenery.arctic.day", family: .arctic, variant: .day, scene: nil,
               primaryMotion: "broad advecting spindrift and weather banks", secondaryEffects: ["layered haze", "water-channel ripples"], ambientEffects: ["three-depth snow"]),
         .init(themeIdentifier: "scenery.arctic.night", family: .arctic, variant: .night, scene: nil,

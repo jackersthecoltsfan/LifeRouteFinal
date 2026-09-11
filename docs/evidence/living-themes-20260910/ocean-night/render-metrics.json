@@ -1,0 +1,21 @@
+{
+  "artworkPixels" : [
+    941,
+    1672
+  ],
+  "assertions" : 194,
+  "device" : "Apple M5",
+  "gpuMaximumMilliseconds" : 9.6284999999625143,
+  "gpuMeanMilliseconds" : 4.1840412543186378,
+  "limitation" : "Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance",
+  "regionMeanByteDifferences" : {
+    "evolving night atmosphere" : 0.24497194876680428,
+    "fixed horizon" : 0,
+    "fixed moon" : 0,
+    "foreground wave" : 1.4737339480331373,
+    "moonlit water" : 8.0760441292356191,
+    "water outside moonlight" : 1.7584864391951005
+  },
+  "scene" : "scenery.ocean.night",
+  "textureBytes" : 6701056
+}

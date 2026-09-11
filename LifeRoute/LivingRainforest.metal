@@ -581,7 +581,7 @@ static LivingAuroraSample livingAuroraCurtains(float2 uv, float t) {
 }
 
 fragment float4 livingArcticNightFragment(LivingSceneVertex in [[stage_in]],
-    texture2d<float> artwork [[texture(0)]], constant LivingSceneUniforms &u [[buffer(0)]],
+    texture2d<float> artwork [[texture(0)]], texture2d<float> objectMask [[texture(3)]], constant LivingSceneUniforms &u [[buffer(0)]],
     constant LivingAtmosphereConfiguration &c [[buffer(2)]]) {
     constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
     float2 uv = (in.uv - 0.5) * u.uvScale + 0.5;
@@ -609,7 +609,13 @@ fragment float4 livingArcticNightFragment(LivingSceneVertex in [[stage_in]],
         color += reflected.light*ice*u.atmosphere*0.32;
     }
     color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
-    // Preserve the accepted star field pending isolated star-object refinement.
+    // Each photographed connected star core shares one fixed phase/period.
+    // Nearest sampling preserves object identity; alpha is zero on sky/aurora.
+    constexpr sampler objectSampling(coord::normalized,address::clamp_to_edge,filter::nearest);
+    float4 star=objectMask.sample(objectSampling,uv);
+    float starPhase=fract(t/(1.5+star.g*2.5)+star.r);
+    float twinkle=smoothstep(0.0,0.10,starPhase)*(1.0-smoothstep(0.20,0.30,starPhase));
+    color-=float3(star.b*star.b)*twinkle*0.65*star.a*u.atmosphere;
     if (u.atmosphere > 0.0) color += float3(0.20,0.29,0.36) * livingPrecipitation(uv,t,c.light.y,true) * haze * c.air.w;
     return float4(color,1);
 }

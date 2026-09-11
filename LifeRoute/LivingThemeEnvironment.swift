@@ -307,8 +307,10 @@ final class LivingSceneResources: @unchecked Sendable {
                 .textureUsage: MTLTextureUsage.shaderRead.rawValue,
                 .textureStorageMode: MTLStorageMode.private.rawValue,
             ])
-        if scene == .canyonDay {
-            objectMask = try MTKTextureLoader(device: device).newTexture(name: "LivingCanyonDayFoliageMask",
+        let objectMaskName = scene == .canyonDay ? "LivingCanyonDayFoliageMask"
+            : (scene == .arcticNight ? "LivingArcticNightStarMask" : nil)
+        if let objectMaskName {
+            objectMask = try MTKTextureLoader(device: device).newTexture(name: objectMaskName,
                 scaleFactor: 1, bundle: .main, options: [.SRGB: false, .generateMipmaps: false,
                     .textureUsage: MTLTextureUsage.shaderRead.rawValue, .textureStorageMode: MTLStorageMode.private.rawValue])
         } else {

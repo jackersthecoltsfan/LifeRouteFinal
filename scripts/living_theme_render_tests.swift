@@ -25,9 +25,10 @@ import CryptoKit
         let pipeline = try device.makeRenderPipelineState(descriptor: pipelineDescription)
         let texture = try MTKTextureLoader(device: device).newTexture(URL: URL(fileURLWithPath: args[2]), options: [.SRGB:true, .generateMipmaps:false])
         var objectMask: MTLTexture? = nil
-        if scene == .canyonDay {
+        if scene == .canyonDay || scene == .arcticNight {
+            let name=scene == .canyonDay ? "LivingCanyonDayFoliageMask" : "LivingArcticNightStarMask"
             let path=URL(fileURLWithPath:args[2]).deletingLastPathComponent().deletingLastPathComponent()
-                .appendingPathComponent("LivingCanyonDayFoliageMask.imageset/mask.png")
+                .appendingPathComponent(name+".imageset/mask.png")
             objectMask=try MTKTextureLoader(device:device).newTexture(URL:path,options:[.SRGB:false,.generateMipmaps:false])
         }
         let queue = device.makeCommandQueue()!
@@ -37,7 +38,7 @@ import CryptoKit
         descriptor.storageMode = .shared
         let target = device.makeTexture(descriptor: descriptor)!
         var durations: [Double] = []
-        func render(time: Float, motion: Float = 1, atmosphere: Float = 1, weatherAmount: Float? = nil) -> [UInt8] {
+        func render(time: Float, motion: Float = 1, atmosphere: Float = 1, weatherAmount: Float? = nil, objectEffects: Bool = true) -> [UInt8] {
             let pass = MTLRenderPassDescriptor()
             pass.colorAttachments[0].texture = target
             pass.colorAttachments[0].loadAction = .dontCare
@@ -47,7 +48,14 @@ import CryptoKit
             let encoder = command.makeRenderCommandEncoder(descriptor: pass)!
             encoder.setRenderPipelineState(pipeline)
             encoder.setFragmentTexture(texture, index: 0)
-            encoder.setFragmentTexture(objectMask ?? texture, index: 3)
+            if objectEffects {
+                encoder.setFragmentTexture(objectMask ?? texture, index: 3)
+            } else {
+                let emptyDescriptor=MTLTextureDescriptor.texture2DDescriptor(pixelFormat:.rgba8Unorm,width:1,height:1,mipmapped:false)
+                let empty=device.makeTexture(descriptor:emptyDescriptor)!
+                var zero:UInt32=0;empty.replace(region:MTLRegionMake2D(0,0,1,1),mipmapLevel:0,withBytes:&zero,bytesPerRow:4)
+                encoder.setFragmentTexture(empty,index:3)
+            }
             encoder.setFragmentBytes(&uniforms, length: MemoryLayout<LivingSceneUniforms>.stride, index: 0)
             if var ocean = scene.ocean {
                 encoder.setFragmentBytes(&ocean, length: MemoryLayout<LivingOceanConfiguration>.stride, index: 1)
@@ -309,6 +317,12 @@ import CryptoKit
         let calmB = render(time: 1.3, motion: 0.25, atmosphere: 0)
         expect(difference(calmA,calmB,box:regions[0].1) > 0, "calm retains primary environmental motion")
         if scene == .arcticNight {
+            let starsOn=render(time:2),starsOff=render(time:2,objectEffects:false)
+            expect(difference(starsOn,starsOff,box:[0.02,0.30,0.98,0.98]) == 0,
+                "Star effect changes no aurora moon land or lake pixels below the star catalogue")
+            expect(difference(starsOn,starsOff,box:[0.12,0.03,0.88,0.20]) > 0,
+                "Photographed upper-sky star cores independently change brightness")
+
             let auroraA = render(time:1,atmosphere:0), auroraB = render(time:12,atmosphere:0)
             for (name,box) in [("lower",[0.20,0.31,0.32,0.36]),("middle",[0.44,0.265,0.57,0.30]),("upper",[0.75,0.17,0.88,0.215])] {
                 expect(difference(auroraA,auroraB,box:box) > 1,

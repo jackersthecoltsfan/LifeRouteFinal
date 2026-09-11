@@ -352,8 +352,12 @@ import CryptoKit
                 "Canyon Night calm retains primary river motion")
             expect(difference(waterA,waterB,box:[0.54,0.466,0.56,0.474]) == 0,
                 "River excludes the upper wall traversed by the old approximate strip")
-            expect(difference(first,next,box:[0.187,0.125,0.205,0.14]) == 0,
-                "Cloud and reflected-light response leave the moon itself fixed")
+            expect(difference(waterA,waterB,box:[0.187,0.125,0.205,0.14]) == 0,
+                "Moon geometry is fixed when atmospheric occlusion is removed")
+            for cycle: Float in [0,32] {
+                expect(difference(render(time:cycle+2),render(time:cycle+18),box:[0.187,0.125,0.205,0.14]) > 8,
+                    "An advancing cloud crosses and then clears the moon each32second cycle")
+            }
         }
         if scene == .mountainsDay {
             let waterA = render(time:1,atmosphere:0), waterB = render(time:8,atmosphere:0)

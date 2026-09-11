@@ -771,10 +771,20 @@ fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
                             livingOval(uv,float2(0.50,0.408),float2(0.18,0.055)),night);
     color = livingFog(color,uv,t,distanceHaze,c.air.z * u.motion,c.light.y,mix(float3(0.56,0.33,0.24),float3(0.08,0.14,0.21),night));
     if (night > 0.5) {
+        // A cloud bank crosses the actual moon every32scene seconds. Its
+        // bounded track is already visibly travelling before the crossing.
+        float cloudX = -0.30 + fract((t+8.0)/32.0)*1.60;
+        float cloudY = c.light.w + sin(t*0.09)*0.012;
+        float bank = exp(-pow((uv.x-cloudX)/0.18,2.0))
+            * exp(-pow((uv.y-cloudY)/0.047,2.0));
+        float moonBank = exp(-pow((c.light.z-cloudX)/0.18,2.0))
+            * exp(-pow((c.light.w-cloudY)/0.047,2.0));
+        color = livingPhysicalClouds(color,uv,sky,t,40.0,u.atmosphere,1.0,c.light.y);
+        color = mix(color,float3(0.025,0.041,0.069),bank*livingSky(uv,c)*0.70*u.atmosphere);
         // Moonlit and dark water share the full actual channel, not a diagonal
         // strip through the canyon wall. Its two banks stay at fixed pixels.
         float cloudCover = livingFractal(float2(c.light.z*7.5-t*c.air.x,c.light.w*15.0+c.light.y),t);
-        float moonTransmission = 1.0 - cloudCover*0.35;
+        float moonTransmission = 1.0 - moonBank*0.70;
         if (uv.y > 0.45) {
             const float2 shore[] = {float2(0.375,0.451),float2(0.42,0.465),float2(0.45,0.472),float2(0.51,0.483),
                 float2(0.508,0.489),float2(0.54,0.495),float2(0.573,0.502),float2(0.58,0.509),
@@ -802,12 +812,13 @@ fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
                     float2(0.34,0.69),float2(0.304,0.733),float2(0.26,0.777),float2(0.198,0.822),
                     float2(0.116,0.868),float2(0.049,0.92),float2(0.01,0.964)};
                 float4 flow = livingRiverCoordinates(uv,channel,18,u.textureSize.x/u.textureSize.y);
-                float phase = t * LIVING_CANYON_SURFACE_RATE;
-                float eddies = livingFractal(float2(flow.x*49.0-phase*0.06,flow.y*110.0+c.light.y),t);
+                float waterTime = t * 1.6;
+                float phase = waterTime * LIVING_CANYON_SURFACE_RATE;
+                float eddies = livingFractal(float2(flow.x*49.0-phase*0.06,flow.y*110.0+c.light.y),waterTime);
                 float riffle = sin(flow.x*540.0-phase+eddies*11.0+flow.y*77.0);
                 float cross = sin(flow.x*830.0-phase*1.31+eddies*17.0-flow.y*103.0);
                 float2 drift = flow.zw*(0.004+saturate((uv.y-0.48)/0.36)*0.003)*u.motion;
-                float3 water = livingAdvect(artwork,sampling,uv,drift,t,LIVING_CANYON_RIVER_RATE);
+                float3 water = livingAdvect(artwork,sampling,uv,drift,waterTime,LIVING_CANYON_RIVER_RATE);
                 water *= 1.0 + u.motion*(riffle*0.11+cross*0.055)*(0.4+eddies*0.6);
                 // The cloud field modulates photographed reflection locally;
                 // optional atmosphere never gates the underlying river flow.

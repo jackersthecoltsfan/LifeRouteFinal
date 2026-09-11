@@ -279,6 +279,13 @@ import CryptoKit
                     "Ocean primary motion reaches each depth without removable atmosphere")
             }
         }
+        if scene == .oceanNight {
+            let waterA=render(time:2,atmosphere:0),waterB=render(time:5,atmosphere:0)
+            expect(difference(waterA,waterB,box:[0.27,0.39,0.43,0.72])>2,
+                "Ocean Night current fragments the photographed moon trail without ambient garnish")
+            expect(difference(waterA,waterB,box:[0.65,0.55,0.90,0.85])>1,
+                "Ocean Night dark water participates away from reflected moonlight")
+        }
         if scene == .rainforestDay {
         let mistOn = render(time: 0.3), mistOff = render(time: 0.3, atmosphere: 0)
         expect(difference(mistOn,mistOff,box:[0.56,0.51,0.61,0.55]) > 0.2, "mist has localized visible contribution")

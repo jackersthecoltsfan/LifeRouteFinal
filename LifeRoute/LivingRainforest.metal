@@ -192,11 +192,11 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
     float2 uv = (in.uv - 0.5) * u.uvScale + 0.5;
     float3 original = artwork.sample(sampling, uv).rgb;
     if (u.motion <= 0.0) return float4(original, 1);
-    bool broadWater = o.night < 0.5;
+    bool broadWater = true;
     if (uv.y <= o.horizon) {
         LivingAtmosphereConfiguration air = {float4(o.horizon),float4(o.horizon),
             float4(o.night, mix(17.0,31.0,o.night), o.reflectionX, 0.145),float4(0.012,0.42,0,0)};
-        if (broadWater) air.air = float4(0.046,0.82,0,0);
+        if (broadWater) air.air = o.night > 0.5 ? float4(0.042,0.80,0,0) : float4(0.046,0.82,0,0);
         float sky = 1.0 - smoothstep(o.horizon - 0.06,o.horizon - 0.012,uv.y);
         if (o.night > 0.5) sky *= smoothstep(0.035,0.070,length((uv - float2(o.reflectionX,0.145)) * float2(0.563,1)));
         float t = u.time * mix(LIVING_OCEAN_CALM_TIME_SCALE,LIVING_OCEAN_FULL_TIME_SCALE,u.motion);
@@ -278,7 +278,18 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
     water *= 1.0 + amplitude * (normal * 0.13 - face * 0.12 + ripple * 0.013);
     if (broadWater) water *= 1.0+amplitude*(broadSlope*0.075+crossSlope*0.035);
     float reflectionWidth = 0.035 + depth * 0.19;
-    float reflection = exp(-pow((uv.x - o.reflectionX) / reflectionWidth, 2.0)) * o.night;
+    float reflectionCenter = o.reflectionX;
+    if (o.night > 0.5) reflectionCenter += crossSlope*depth*0.028;
+    float reflection = exp(-pow((uv.x - reflectionCenter) / reflectionWidth, 2.0)) * o.night;
+    if (o.night > 0.5) {
+        // The photographed moon trail bends with the same current as dark water.
+        // Crossing slopes break and reform its light across broad moving faces.
+        float fragments=0.5+0.5*sin(log(1.0+depth*7.0)*77.0+uv.x*29.0
+            -t*LIVING_OCEAN_RIPPLE_RATE+crossSlope*2.4);
+        water *= 1.0 + reflection*amplitude*(fragments-0.5)*0.20;
+        water += float3(0.035,0.052,0.072)*reflection*amplitude
+            *max(0.0,broadSlope)*(0.25+0.75*fragments);
+    }
     if (broadWater) crest *= 0.48;
     water += float3(0.10, 0.14, 0.17) * crest * amplitude * mix(0.6, 0.20 + reflection * 0.9, o.night);
     // Night's unbroken open-water swells spill sparsely; no shore is fabricated.

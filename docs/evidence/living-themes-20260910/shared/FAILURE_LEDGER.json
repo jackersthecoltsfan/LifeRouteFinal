@@ -1,0 +1,44 @@
+[
+  {
+    "id": "VALIDATOR-PREFIX-001",
+    "status": "resolved before family freeze",
+    "cause": "New Rainforest preservation guard initially hashed a 6456-byte prefix including an extra separator newline against the 6455-byte accepted-file hash.",
+    "evidence": "Current and authority shader begin with all 6455 accepted bytes exactly; source identical to accepted ancestor. Corrected guard extent; no source semantics or frozen authority changed.",
+    "classification": "Resolved validator wiring; exact accepted-source comparison and Rainforest 13 GPU assertions pass. Shared native 534 assertions and unrelated Arctic Day 8 GPU assertions pass."
+  },
+  {
+    "id": "VALIDATOR-IMPORT-002",
+    "status": "resolved before family freeze",
+    "cause": "Swift did not expose the Rainforest macro via a compiler implicit include.",
+    "resolution": "Added a declaration-only family umbrella header, imported directly by Swift tests. The frozen Ocean file/hash/event consumers remain unchanged.",
+    "evidence": "continued-render-ocean-day-import-fixed.log; continued-render-catalogue.log"
+  },
+  {
+    "id": "EVIDENCE-STAGING-003",
+    "status": "resolved",
+    "cause": "External staged-source export initially omitted the unchanged Ocean header.",
+    "resolution": "Copied the exact frozen authority header into the external export. No repository source change.",
+    "evidence": "shared-staged-validation-complete.log"
+  },
+  {
+    "id": "OCEAN-VISUAL-001",
+    "status": "resolved; staged GPU and refined Simulator evidence PASS",
+    "cause": "Initial Simulator capture showed broad pale segments along the breaking lip.",
+    "resolution": "Aeration at fine spatial scale now breaks the lip into foam cells, using existing frozen foam rates. No timing retune.",
+    "isolation": "Shared native 534 assertions; Rainforest Day 13 and Arctic Day 8 GPU controls pass. Issue isolated to Ocean foam appearance.",
+    "evidence": "initial-ocean-captures (retained diagnostic); committed refined Ocean Day/Night videos and 193/194 GPU assertions"
+  },
+  {
+    "id": "NATIVE-UI-CAPTURE-004",
+    "status": "resolved using native XCTest",
+    "cause": "Desktop CUA failed to start its screen-capture stream.",
+    "resolution": "Xcode native UI tests independently exercised real controls; direct Simulator videos were unaffected.",
+    "evidence": "native-ui/initial.xcresult and native-ui/catalogue.xcresult"
+  },
+  {
+    "id": "CAPTURE-LOG-SEAL-005",
+    "status": "resolved",
+    "cause": "Final capture app emitted background teardown after its video was sealed.",
+    "resolution": "Final shared commit retains that teardown evidence; capture runner now terminates its process before sealing logs. No video or scene motion change."
+  }
+]

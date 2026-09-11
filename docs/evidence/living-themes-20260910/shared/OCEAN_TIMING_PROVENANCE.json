@@ -1,0 +1,15 @@
+{
+  "currentProductionAndValidationAgree": true,
+  "currentHead": "15b42662210652599f9d85c35b6907ed284d451a",
+  "currentEngineeringAuthority": "existing <=18 lifetime, 6.3 nominal spacing + up to 1.7 jitter, staggered substantial overlap",
+  "productionLifetime": [
+    14.2,
+    18.0
+  ],
+  "testLifetimeMaximum": 18.0,
+  "testOverlapSampleProgress": 0.2,
+  "precedingChange": "a88aea6 -> 15b4266 changed 18.0+hash*3.8 to 14.2+hash*3.8 and replaced invalid lifetime>18.9 proxy with direct GPU event overlap tests",
+  "currentConflicts": [],
+  "historicalConflict": "a88 allowed lifetimes below its >18.9 test threshold; obsolete at current HEAD",
+  "interpretation": "Extracted tuning is current engineering authority; the product requirement remains semantic environmental motion, not a permanently prescribed lifetime."
+}

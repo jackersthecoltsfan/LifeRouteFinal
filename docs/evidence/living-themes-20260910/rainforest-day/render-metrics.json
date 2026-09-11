@@ -1,0 +1,21 @@
+{
+  "artworkPixels" : [
+    941,
+    1672
+  ],
+  "assertions" : 13,
+  "device" : "Apple M5",
+  "gpuMaximumMilliseconds" : 6.926333335286472,
+  "gpuMeanMilliseconds" : 1.0053952265806605,
+  "limitation" : "Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance",
+  "regionMeanByteDifferences" : {
+    "falling water" : 14.144742063492064,
+    "fixed canopy" : 0,
+    "fixed rock bank" : 0,
+    "fixed trunk" : 0,
+    "leaf cluster" : 14.925080479953175,
+    "stream surface" : 2.5101694915254238
+  },
+  "scene" : "scenery.rainforest.day",
+  "textureBytes" : 6701056
+}

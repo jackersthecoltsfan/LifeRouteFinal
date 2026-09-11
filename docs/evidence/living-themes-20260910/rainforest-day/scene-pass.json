@@ -1,0 +1,14 @@
+{
+  "scene": "Rainforest Day",
+  "engineeringStatus": "PASS",
+  "sceneAuthoritySHA": "9494e81c814d6cbe958dc190263d8fec141cdb27",
+  "acceptedShaderBytes": 6455,
+  "acceptedShaderSHA256": "acca8a9813c0a2fbfcbf460b83482af74627484ba9eecfe002dda582335477fd",
+  "acceptedBytesUnchanged": true,
+  "parentRenderImagesExactlyIdentical": 94,
+  "parentRenderPath": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/parent-rainforest-render",
+  "focusedGPUAssertions": 13,
+  "nativeSharedAssertions": 534,
+  "evidence": "motion.mp4",
+  "physicalAcceptance": "Existing Brandon PHYSICAL PASS at 9494e81 remains authoritative. No new physical result inferred."
+}

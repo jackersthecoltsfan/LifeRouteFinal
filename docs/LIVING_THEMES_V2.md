@@ -1,19 +1,45 @@
-# Living Themes — Phase 2A
+# Living Themes — complete twelve-scene engineering catalogue
 
-The current product family is **Living Themes**: twelve Scenic Royal identities.
-Rainforest Day, Ocean Day and Ocean Night have implemented environmental motion.
-The remaining nine are explicitly **Motion pending** and keep fixed scenery.
-Implementation/GPU evidence is not physical acceptance. Brandon accepted the
-Rainforest Day parent `9494e81c814d6cbe958dc190263d8fec141cdb27` on iPhone 17 Pro /
-iOS 27.0; the Phase 2A candidate requires his new regression and Ocean review.
+All twelve Scenic Royal Living identities now have environmental programs. The camera stays fixed; local water, weather, cloud, fog, aurora and heat systems move through artwork-calibrated regions. Engineering validation and Simulator recordings do not establish physical acceptance. Rainforest Day at `9494e81c814d6cbe958dc190263d8fec141cdb27` retains Brandon's accepted status; the complete candidate awaits phone audition.
 
-## Registry and retirement
+## Registry and family programs
 
-`LivingThemeRegistration.all` records each exact persisted identity, family,
-Day/Night variant, selected program (or pending status) and common policies.
-`LifeRouteTheme.livingThemeCatalog` exposes the twelve; Core retains its twelve
-still choices. Theme Center shows individual motion readiness without claiming
-that the whole catalogue has completed Living motion.
+`LivingThemeRegistration.all` is the explicit twelve-scene registry: identity, family, Day/Night variant, selected fragment, primary motion, secondary/ambient effects and shared quality/lifecycle policies. All entries are implemented. Core still has its twelve static choices. No Living identity uses the retired Dynamic renderer.
+
+| Scene | Primary motion | Secondary / ambient |
+| --- | --- | --- |
+| Rainforest Day | Accepted waterfall and winding stream | Spray; four local leaf clusters |
+| Rainforest Night | Artwork-supported moonlit stream | River mist, local foliage, sparse layered rain |
+| Ocean Day | Overlapping arriving swell, travelling crest, break, foam and dissipation | Surface ripples, localized spray, evolving clouds |
+| Ocean Night | Same finite wave physics with scene geometry and light | Moving moon reflection, clouds, stars, rare meteor |
+| Arctic Day | Broad travelling spindrift/weather banks | Cloud/haze layers, channel ripple, three-depth snow |
+| Arctic Night | Evolving visible aurora curtains | Lake reflection, cold haze, sparse snow, stars/meteor |
+| Mountains Day | Reforming clouds and valley fog | Near haze, lake ripple |
+| Mountains Night | Rolling valley fog and high cloud | Lake ripple, stars/meteor |
+| Canyon Day | Evolving clouds and broad canyon atmosphere | Narrow material-gated river flow, distance haze |
+| Canyon Night | Night cloud and canyon mist | River flow, stars/meteor |
+| Desert Day | Basin-local heat refraction and warm haze | High clouds, restrained distant dust |
+| Desert Night | Evolving atmosphere inside the rock-arch opening | Cool haze, stars/meteor |
+
+Ocean's canonical timing contract was extracted from agreeing committed production/tests at `15b4266` in `919d99af`. It bounds wave lifetime at 14.2–18 seconds and nominal starts at 6.3 seconds plus 0–1.7 seconds of seed variation. These are current engineering values, not owner-specified perceptual timing. GPU probes exercise developed later swells overlapping older crests/break/foam, monotonic travel and complete event dissipation. Five bounded event slots and independently varied lifetime/strength/curvature prevent one uniform displacement cycle. Fine aerated lip texture replaces the initial broad pale segments. No shoreline is fabricated.
+
+Day/Night share a family program where geometry supports it. Mountains, Canyon and Desert use common fragments with separate typed artwork descriptors. Ocean shares event physics with separate water geometry/light. Rainforest Night uses a separate stream topology because its photograph has no distinct waterfall. Arctic's day spindrift and night aurora use separate fragments, sharing weather infrastructure and a family rate authority. Eight fragment programs use one accepted renderer; there are no twelve independent engines.
+
+`LivingMotionContracts.h` imports the family headers for Swift tests; Metal reads those headers directly. Scene geometry, light, seeds and cloud/weather amounts are typed `LivingAtmosphereConfiguration` values bound once at buffer(2). Existing primary uniforms stay 32 bytes and Ocean geometry stays 32 bytes. See `LIVING_FAMILY_MOTION_CONTRACTS.md` for the externally frozen authority pattern.
+
+Clouds combine photographed cloud material with multiple evolving depth fields; fog combines far/near billows in local regions. Weather uses depth-dependent rates and spatial density. Night sky motion excludes fixed moons and terrain. The common meteor envelope is short and uncommon, with scene-seeded offsets. Secondary effects never substitute for the scene's primary system.
+
+## Ownership, framing and quality
+
+`LifeRouteThemeStore` remains the selection/persistence authority. The existing backdrop host owns one `LivingEnvironmentSurface`, which releases old resources, cancels stale work, waits a cancellable 250 ms settling interval and prepares only the final exposed scene. No frame updates a SwiftUI/root publisher. Native lifecycle, active-time clock, teardown and two-buffer submission ownership are unchanged.
+
+Background, inactive state, detachment, Theme Center and Timer D exposure suspension release heavy scene ownership. Resume retains active time; hidden time never advances the simulation. Camera framing remains centered aspect-fill and never depends on time, gyro or accelerometer.
+
+Normal rendering uses 30 fps and a maximum drawable dimension of 1280. Reduce Motion uses 15 fps, 960 pixels, quarter amplitude and no secondary/ambient detail while preserving recognizable primary motion. Low Power/serious thermal use 20 fps, 960 pixels and reduced primary amplitude with secondary/ambient detail removed. Critical thermal or disabled effects shows the still artwork without continuous submissions. These mechanical policies are not physical thermal acceptance.
+
+Rainforest Day's entire accepted 6,455-byte shader remains unchanged. All 94 comparable parent render images are byte-identical. Waterfall, stream, spray and foliage tests pass; fixed trunk/canopy/rock regions are exactly stationary.
+
+## Retirement and retained debt
 
 The original eight Dynamic Themes are retired. Their fixed Scenic companions
 already used by the accepted parent define the migration:
@@ -49,100 +75,16 @@ branch invokes Dynamic or historical generic scenery motion. DEBUG fixtures no
 longer admit retired Dynamic raw identities; the historical `royal-current`
 fixture names its migrated Mountains Night scenery.
 
-## Environmental programs
 
-Both programs use one opaque Metal triangle over the existing fixed artwork.
-The accepted Rainforest shader remains byte-for-byte unchanged: descending
-waterfall advection, winding downstream flow, local spray and four gently flexing
-leaf clusters. Fixed trunks, rock banks and camera retain their exact normal-mode
-pixels. No new fog/rain refinement was added.
+## Evidence and reproduction
 
-The Ocean photographs are both 941 × 1672 and show open water without exposed
-shore, rocks or buildings. Day's horizon is approximately y=.303; Night's is .335.
-The shared `livingOceanFragment` uses configured horizons, crest slope/position,
-shallow-water attenuation and night reflection position. Perspective-compressed
-wave phases propagate toward the viewer, with crossing ripples, small local
-refraction and crest heave. Day preserves recognizable seabed forms with
-subpixel foreground refraction and modulates existing bright crest material.
-Night moves water outside the moonlit corridor as well as the reflected light
-on that same surface. Sky, moon and horizon remain fixed. No stars/particles are
-needed, and no beach surf is invented where the artwork has none.
+Use process-local `DEVELOPER_DIR=/Users/brand/Downloads/Xcode.app/Contents/Developer`. Host Swift uses that toolchain's MacOSX27 SDK; Simulator/device commands unset inherited SDKROOT.
 
-Both fragments reside in the existing `LivingRainforest.metal` compilation unit;
-the original Rainforest prefix and 32-byte primary uniform ABI are preserved.
-Ocean alone uses its explicit 32-byte geometry/lighting buffer. Day/Night share
-the physical model rather than independent engines.
+- Run `scripts/check_living_family_contracts.py --checkpoint <run-checkpoint>` before each validation/finalization step. It checks the external Ocean hash and every frozen family header/descriptor.
+- `scripts/check_ocean_timing_authority.py` checks the canonical header, its event consumers, shared test import and divergence negative controls.
+- `scripts/run_living_theme_render_tests.sh <external-output> <scene-id>` renders the actual production program: event phases for Ocean, fixed/moving pixels, still/calm identity, longer-time evolution and 90-frame sequences.
+- `scripts/run_living_theme_native_tests.py --simulator <booted-UDID> --app <Simulator-app> --output <new-external-directory>` exercises the full paired catalogue sweep, lifecycle, rapid settling, constraints and repeated release using the production surface.
+- `scripts/capture_living_scene.py` records a privacy-empty Simulator host of that same surface. Passing scene commits include `docs/evidence/living-themes-20260910/<scene>/motion.mp4`, validation metrics and source manifests.
+- Full validation, actual theme-store migration, Timer ABC/D and native foreground integration remain independent gates. The external native XCTest project exercises real toolbar taps, all twelve Theme Center selections and Timer fullscreen/resume.
 
-## Ownership and lifecycle
-
-`LifeRouteApp` → `LifeRouteThemeStore` remains the selection authority.
-`lifeRouteChrome` → `ScenicRoyalEnvironmentHost` remains the single backdrop owner.
-Foreground geometry, navigation, materials/readability, accent colors and Timer D
-behavior are unchanged. No scene frame updates SwiftUI state or root publishers.
-
-One persistent `LivingEnvironmentSurface` immediately changes its still image,
-releases the previous renderer and cancels its pending activation. A cancellable
-250 ms task waits for the final exposed selection before allocating Metal.
-Serial preparation checks cancellation before and after pipeline/texture work;
-publication also verifies the current scene. There is no obsolete allocation
-queue or overlapping scene cache. Theme Center feedback and haptics stay immediate.
-
-Detachment, inactive scene, application background and ambient cover release the
-renderer, textures and drawable ownership. Already submitted GPU work is bounded
-to two buffers and can finish; debug resource counts measure application ownership,
-not instantaneous driver memory. Re-entry prepares one scene and resumes retained
-active time. Scene changes reset only the environmental clock. Hidden time never
-advances it, and a hitch advances at most 0.1 seconds with no catch-up loop.
-A static image covers settling or GPU failure without an automatic retry loop.
-Timer D and Theme Center use the unchanged reference-counted ambient suspension
-coordinator. No Timer behavior was modified.
-
-Normal policy remains 30 fps / 1280-pixel maximum drawable dimension. Low Power
-Mode or serious thermal state removes secondary detail and uses 20 fps / 960.
-Reduce Motion shares one calm policy across both families: 15 fps / 960, primary
-amplitude .25, no secondary foam/spray. Disabled effects or critical thermal state
-retain a still photograph with no continuous submissions. A pending policy redraw
-may complete after the driver pauses; steady-state tests sample after that turn.
-
-There is no app-level user motion control. A future small persisted **Full / Calm /
-Still** preference should feed this existing quality policy independently of the
-system Reduce Motion setting. Phase 2A adds no such control or Theme Center redesign.
-
-## Reproducible validation
-
-Use `DEVELOPER_DIR=/Users/brand/Downloads/Xcode.app/Contents/Developer` (Xcode 27).
-Host Swift tests also use that toolchain's `MacOSX27.0.sdk` as `SDKROOT`; Simulator
-and device builds select their own SDK with inherited SDKROOT unset.
-
-- `scripts/run_living_theme_tests.sh`: registry, shared quality, active-time,
-  visibility and fixed framing contracts; included in full validation.
-- `scripts/run_theme_readability_contract_tests.py`: actual store migration,
-  persistence/no-repeat, canonical selection publication and unchanged palette /
-  readability contracts. All historical raw IDs remain covered.
-- `scripts/run_living_theme_render_tests.sh <external-output> [scene-id]`:
-  production shader, moving/fixed regions, deterministic output, still/calm,
-  90-frame sequence and host GPU cost. Run all three implemented scenes.
-- `scripts/run_living_theme_native_tests.py --simulator <booted-UDID> --app
-  <built-Simulator-app> --output <new-external-directory>`: production surface,
-  seven-entry transition sequence covering all six directed pairs, actual Metal,
-  lifecycle notifications, constrained/calm policy, rapid settling, stale identity
-  rejection and nine cycles returning ownership counts to zero. Its Timer check
-  proves the exposure contract; actual Timer UI remains a separate integration test.
-- `-LifeRouteLivingDiagnostics`: opt-in DEBUG aggregate frame CPU/GPU and lifecycle
-  evidence. No per-frame production logging or user data.
-
-The external checkpoint contains the untouched-parent Rainforest build, native
-and GPU baseline; the same external instrumented harness for before/after CPU,
-GPU, interval distribution and resident memory; exact rendered preservation;
-regression logs, native integration, source and signing receipts, canonical bundle
-hash, and an empty phone checklist. Baseline source is captured before any shared
-renderer edit. Measurements are Simulator/host evidence, not phone pacing,
-perceptual quality, thermal or battery acceptance.
-
-Sole Phase 2A receipt:
-`/Users/brand/Documents/LifeRouteCheckpoints/living-themes-phase2a-ocean-20260910/LIVING_THEMES_PHASE2A_RECEIPT.md`.
-Later installation must independently rehash the signed bundle and stop on mismatch.
-
-Future waves are recorded only: Phase 2B Rainforest Night and Arctic pair; Phase 2C
-Mountains and Canyon pairs; Phase 2D Desert pair, all-twelve sweep and final legacy
-retirement/deletion decision. Each waits for judgment of the preceding proof.
+The sole detailed receipt is `/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/LIVING_THEMES_FULL_EXPANSION_RECEIPT.md`. It owns final source identity, signed artifact/hash, actual native/performance results and the empty physical QA matrix. No physical install, TestFlight or release is authorized by this implementation.

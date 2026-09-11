@@ -1,0 +1,177 @@
+{
+  "parent": {
+    "scenes": {
+      "scenery.rainforest.day": {
+        "episodes": 2,
+        "cadenceFPS": 29.983717647382544,
+        "cpuMeanMs": 0.14514774523066287,
+        "gpuMeanMs": 0.11283630009863455,
+        "intervalP50Ms": 33.33437499895808,
+        "intervalP95Ms": 34.906374999991385,
+        "intervalP99Ms": 34.95108333481767,
+        "intervalMaxMs": 34.97433333359368,
+        "intervalOver50Ms": 0,
+        "intervalOver100Ms": 0,
+        "activeRSSMiB": 171.6875
+      }
+    },
+    "episodes": 11,
+    "allReleased": true,
+    "releaseRSSMiB": [
+      171.16,
+      171.64,
+      171.72,
+      171.75,
+      171.75,
+      171.77,
+      171.52,
+      171.67,
+      171.69,
+      171.69,
+      171.47
+    ],
+    "initialRSSMiB": 151.0
+  },
+  "candidate": {
+    "scenes": {
+      "scenery.arctic.day": {
+        "episodes": 2,
+        "cadenceFPS": 29.97612054413817,
+        "cpuMeanMs": 0.20325196655919195,
+        "gpuMeanMs": 0.10320576001659718,
+        "intervalP50Ms": 33.33204166483483,
+        "intervalP95Ms": 33.370375000231434,
+        "intervalP99Ms": 33.398874998965766,
+        "intervalMaxMs": 33.5175000000163,
+        "intervalOver50Ms": 0,
+        "intervalOver100Ms": 0,
+        "activeRSSMiB": 302.140625
+      },
+      "scenery.desert.day": {
+        "episodes": 2,
+        "cadenceFPS": 29.991169869541125,
+        "cpuMeanMs": 0.19937894975931292,
+        "gpuMeanMs": 0.10180330625547157,
+        "intervalP50Ms": 33.33220833155792,
+        "intervalP95Ms": 33.373000002029585,
+        "intervalP99Ms": 33.39229166522273,
+        "intervalMaxMs": 33.469833331764676,
+        "intervalOver50Ms": 0,
+        "intervalOver100Ms": 0,
+        "activeRSSMiB": 302.25
+      },
+      "scenery.mountains.night": {
+        "episodes": 2,
+        "cadenceFPS": 30.005574389258097,
+        "cpuMeanMs": 0.2039521877566939,
+        "gpuMeanMs": 0.1008065592028172,
+        "intervalP50Ms": 33.33295833363081,
+        "intervalP95Ms": 33.368458334734896,
+        "intervalP99Ms": 33.40354166721227,
+        "intervalMaxMs": 33.84899999946356,
+        "intervalOver50Ms": 0,
+        "intervalOver100Ms": 0,
+        "activeRSSMiB": 302.140625
+      },
+      "scenery.ocean.day": {
+        "episodes": 2,
+        "cadenceFPS": 30.008927293447567,
+        "cpuMeanMs": 0.20111349536000162,
+        "gpuMeanMs": 0.10653269810555249,
+        "intervalP50Ms": 33.3331250003539,
+        "intervalP95Ms": 33.9337916666409,
+        "intervalP99Ms": 33.98008333533653,
+        "intervalMaxMs": 34.01375000248663,
+        "intervalOver50Ms": 0,
+        "intervalOver100Ms": 0,
+        "activeRSSMiB": 302.109375
+      },
+      "scenery.ocean.night": {
+        "episodes": 2,
+        "cadenceFPS": 30.002159653010533,
+        "cpuMeanMs": 0.20937486859725213,
+        "gpuMeanMs": 0.1071503569386151,
+        "intervalP50Ms": 33.331541664665565,
+        "intervalP95Ms": 33.39525000046706,
+        "intervalP99Ms": 33.97687499818858,
+        "intervalMaxMs": 34.004333334451076,
+        "intervalOver50Ms": 0,
+        "intervalOver100Ms": 0,
+        "activeRSSMiB": 302.09375
+      },
+      "scenery.rainforest.day": {
+        "episodes": 2,
+        "cadenceFPS": 30.013122622836487,
+        "cpuMeanMs": 0.1952954153191504,
+        "gpuMeanMs": 0.10247234487788212,
+        "intervalP50Ms": 33.33329166707699,
+        "intervalP95Ms": 33.90225000111968,
+        "intervalP99Ms": 33.97225000298931,
+        "intervalMaxMs": 36.60600000148406,
+        "intervalOver50Ms": 0,
+        "intervalOver100Ms": 0,
+        "activeRSSMiB": 302.25
+      }
+    },
+    "episodes": 21,
+    "allReleased": true,
+    "releaseRSSMiB": [
+      269.08,
+      275.91,
+      282.5,
+      289.33,
+      295.95,
+      302.2,
+      302.2,
+      302.06,
+      302.05,
+      302.09,
+      302.09,
+      301.45,
+      301.45,
+      301.45,
+      298.58,
+      293.02,
+      292.73,
+      292.73,
+      292.75,
+      292.75,
+      292.75
+    ],
+    "initialRSSMiB": 223.296875
+  },
+  "candidateRainforestOnlyControl": {
+    "scenes": {
+      "scenery.rainforest.day": {
+        "episodes": 2,
+        "cadenceFPS": 29.981560173180497,
+        "cpuMeanMs": 0.19162038495180034,
+        "gpuMeanMs": 0.12163034016684601,
+        "intervalP50Ms": 33.3334166680288,
+        "intervalP95Ms": 33.95387500131619,
+        "intervalP99Ms": 33.992499997111736,
+        "intervalMaxMs": 34.388250001939014,
+        "intervalOver50Ms": 0,
+        "intervalOver100Ms": 0,
+        "activeRSSMiB": 164.328125
+      }
+    },
+    "episodes": 11,
+    "allReleased": true,
+    "releaseRSSMiB": [
+      164.78,
+      155.67,
+      149.55,
+      147.75,
+      130.31,
+      113.41,
+      108.3,
+      108.3,
+      98.08,
+      94.64,
+      91.16
+    ],
+    "initialRSSMiB": 152.609375
+  },
+  "boundary": "Same production-surface harness and dedicated iOS 27 Simulator. Host Simulator numbers are not physical iPhone thermal/battery/finger-pacing acceptance."
+}

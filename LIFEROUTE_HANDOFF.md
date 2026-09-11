@@ -1,3 +1,17 @@
+# Living Themes full expansion — twelve-scene engineering catalogue, September 10, 2026
+
+- Original development parent: `f89a6c189500f5a22e9fed7ecf0b3a95c350ad8e`; continued from `15b42662210652599f9d85c35b6907ed284d451a`. The original eight-file dirty draft remains byte-exact in `/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion`, with its hashed recovery patch outside Git. No source history was rewritten.
+- Frozen Ocean timing authority: `919d99afc7580b4e2f0288452a4df7896848046e`; current production and tests agreed before extraction. No later Ocean timing values changed. Family contracts and artwork descriptors freeze externally at each first passing scene commit.
+- Active continuation: `/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued`, branch `codex/living-themes-full-expansion-continued-20260910`. One source owner; no second worker. Eleven new scene-specific passing commits retain focused GPU tests and Simulator videos. Rainforest Day retains accepted authority `9494e81c814d6cbe958dc190263d8fec141cdb27`; all 94 comparable parent render images and its entire accepted shader are unchanged.
+- Exactly twelve Living scenes are implemented. Ocean has finite overlapping arriving/travelling/crest/break/foam/dissipation events; the other families implement local stream, snow/weather, aurora, cloud/fog and heat systems. The initial Ocean pale segmented lip was refined into fine aerated foam without changing timing. Eight family/scene fragments share the accepted fixed-camera renderer and lifecycle. Active legacy Dynamic retirement/migration remains intact.
+- Full catalogue GPU checks, 534 native ownership/lifecycle assertions, broader regressions, actual twelve-card Theme Center selections, two five-root sweeps, background/foreground and Timer fullscreen/resume passed remotely. Six-scene profiling remains near 30 fps, with bounded release and no measured >50 ms long frames in the representative windows. Physical appearance, finger interaction, sustained device warmth/battery and new Ocean acceptance remain unverified.
+- No Session Note, Calendar B, Timer semantics, planner, navigation foundation, readability/accent, TestFlight or release source changes. No physical installation. All Simulator data/evidence is isolated from the phone.
+- Detailed scene ledger, family hashes, failure history, native test results, performance, final clean SHA, signed artifact/hash and empty phone matrix belong to `/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/LIVING_THEMES_FULL_EXPANSION_RECEIPT.md`. Final artifact status is established only by that exact-source build/sign/seal receipt. See `docs/LIVING_THEMES_V2.md` and `docs/evidence/living-themes-20260910/` for committed architecture and per-scene evidence.
+
+Earlier stopped entries below are historical checkpoints; they do not override this continuation's authority or evidence.
+
+---
+
 # Living Themes full expansion — stopped September 10, 2026
 
 - Exact parent: `f89a6c189500f5a22e9fed7ecf0b3a95c350ad8e`. Brandon explicitly authorized descendant source development before Ocean physical acceptance. Rainforest Day at `9494e81c814d6cbe958dc190263d8fec141cdb27` remains physically accepted.

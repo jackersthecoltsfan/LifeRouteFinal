@@ -10,20 +10,28 @@ import CoreGraphics
         }
         let scene = LivingThemeScene.scene(for: "scenery.rainforest.day")
         expect(scene == .rainforestDay, "existing persisted rainforest ID selects V2")
-        for id in ["royal", "dynamic.emeraldFlow", "scenery.rainforest.night", "unknown"] {
-            expect(LivingThemeScene.scene(for: id) == nil, "pending and retired scenes never select a motion program")
+        for id in ["royal", "dynamic.emeraldFlow", "unknown"] {
+            expect(LivingThemeScene.scene(for: id) == nil, "Core and retired scenes never select a motion program")
         }
         expect(LivingThemeScene.scene(for: "scenery.ocean.day") == .oceanDay, "Ocean Day registered")
         expect(LivingThemeScene.scene(for: "scenery.ocean.night") == .oceanNight, "Ocean Night registered")
         expect(LivingThemeRegistration.all.count == 12, "exact twelve-scene product registry")
-        expect(LivingThemeRegistration.all.filter { $0.motionStatus == .implemented }.count == 3, "only three implemented motion scenes")
-        expect(LivingThemeRegistration.all.filter { $0.motionStatus == .pending }.count == 9, "nine explicitly pending")
+        expect(LivingThemeRegistration.all.filter { $0.motionStatus == .implemented }.count == 12, "all twelve have implemented environmental programs")
+        expect(LivingThemeRegistration.all.filter { $0.motionStatus == .pending }.count == 0, "no pending active scenes")
         expect(Set(LivingThemeRegistration.all.map(\.themeIdentifier)).count == 12, "unique stable scene identity")
         expect(LivingThemeScene.oceanDay.fragmentFunction == LivingThemeScene.oceanNight.fragmentFunction, "Ocean shares physical motion model")
         expect(LivingThemeScene.oceanDay.artworkName != LivingThemeScene.oceanNight.artworkName, "Day and Night are distinct photographs")
         expect(LivingOceanConfiguration.day != .night, "geometry and lighting have explicit variants")
         expect(LivingOceanConfiguration.day.horizon < LivingOceanConfiguration.night.horizon, "observed horizon ordering")
         expect(MemoryLayout<LivingOceanConfiguration>.stride == 32, "Ocean Swift Metal ABI")
+        expect(MemoryLayout<LivingAtmosphereConfiguration>.stride == 64, "family configuration Swift/Metal ABI")
+        for entry in LivingThemeRegistration.all {
+            expect(entry.scene?.themeIdentifier == entry.themeIdentifier, "registration selects its exact scene")
+            expect(!entry.primaryMotion.isEmpty && entry.environmentalProgram != nil, "primary program exists")
+            expect(!entry.reduceMotionPolicy.isEmpty && !entry.constrainedPolicy.isEmpty, "every scene declares accessibility and quality policy")
+        }
+        expect(Set(LivingThemeRegistration.all.compactMap { $0.scene?.fragmentFunction }).count == 8, "shared infrastructure supports eight distinct family programs")
+        expect(Set(LivingThemeRegistration.all.compactMap { $0.scene?.atmosphere?.light.y }).count == 9, "atmospheric scenes have distinct seed and geometry records")
         let full = LivingSceneQuality.resolve(reduceMotion: false, lowPower: false, thermal: .nominal, effectsEnabled: true)
         expect(full.framesPerSecond == 30, "bounded full frame rate")
         expect(full.maximumDrawableDimension == 1280, "bounded full drawable")

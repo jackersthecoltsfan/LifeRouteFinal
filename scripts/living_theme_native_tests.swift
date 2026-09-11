@@ -42,15 +42,20 @@ final class LivingThemeTestScene: UIResponder, UIWindowSceneDelegate {
                 let counts = LivingSceneDebugOwnership.shared.counts
                 expect(counts.renderers == 1 && counts.resources == 1, "one active renderer and one scene resource owner")
             }
-            // A-G: enter/exit all three plus the explicit six directed transitions.
-            let sequence: [LivingThemeScene] = [.rainforestDay, .oceanDay, .oceanNight, .oceanDay, .rainforestDay, .oceanNight, .rainforestDay]
+            // Enter/exit every scene, both directions of every Day/Night pair,
+            // and the six adjacent cross-family transitions, then repeat release.
+            let catalogue = LivingThemeRegistration.all.compactMap(\.scene)
+            var sequence: [LivingThemeScene] = []
+            for family in 0..<6 { sequence += [catalogue[family * 2], catalogue[family * 2 + 1], catalogue[family * 2]] }
+            sequence.append(.rainforestDay)
+            var lifecycleChecked = Set<String>()
             for (index, selected) in sequence.enumerated() {
                 surface!.update(scene: selected, playback: active)
                 if index > 0 { expect(surface!.debugRenderer == nil, "selection immediately releases old renderer") }
                 try await ready()
                 expect(surface!.debugRenderer!.debugSceneIdentifier == selected.themeIdentifier, "settled resources match selected scene")
                 print("LIVING_TRANSITION \(index) \(selected.themeIdentifier)"); fflush(stdout)
-                if index > 2 { continue }
+                if !lifecycleChecked.insert(selected.themeIdentifier).inserted { continue }
                 // Timer D / Theme Center use this exact shared exposure contract.
                 let elapsed = surface!.debugRenderer!.debugElapsed
                 weak var oldRenderer = surface!.debugRenderer
@@ -95,7 +100,7 @@ final class LivingThemeTestScene: UIResponder, UIWindowSceneDelegate {
                 try await ready()
             }
             // L: changes faster than the settling deadline never publish stale work.
-            for index in 0..<24 {
+            for index in 0..<36 {
                 surface!.update(scene: sequence[(index + 1) % sequence.count], playback: active)
                 expect(surface!.debugRenderer == nil, "rapid selection has no obsolete allocation")
                 try await Task.sleep(nanoseconds: 20_000_000)
@@ -110,8 +115,8 @@ final class LivingThemeTestScene: UIResponder, UIWindowSceneDelegate {
             expect(surface!.debugRenderer!.debugSceneIdentifier == "scenery.ocean.night", "no stale scene published after rapid selection")
             expect(LivingEnvironmentSurface.activationDelayNanoseconds == 250_000_000, "bounded 250 ms policy")
             // M: bounded repeated cross-family cycles each return to zero.
-            for index in 0..<9 {
-                surface!.update(scene: sequence[index % 3], playback: active)
+            for index in 0..<24 {
+                surface!.update(scene: catalogue[index % catalogue.count], playback: active)
                 try await ready()
                 weak var oldRenderer = surface!.debugRenderer
                 surface!.removeFromSuperview()
@@ -126,7 +131,7 @@ final class LivingThemeTestScene: UIResponder, UIWindowSceneDelegate {
             try await Task.sleep(nanoseconds: 300_000_000)
             expect(weakSurface == nil, "surface, observers and pending activation release")
             expect(LivingSceneDebugOwnership.shared.counts.renderers == 0 && LivingSceneDebugOwnership.shared.counts.resources == 0, "final ownership baseline")
-            print("LIVING_NATIVE_PASS \(assertions) assertions; real Metal, seven transitions, lifecycle, calm/constrained, debounce and bounded release")
+            print("LIVING_NATIVE_PASS \(assertions) assertions; real Metal, full catalogue and paired transitions, lifecycle, calm/constrained, debounce and bounded release")
             fflush(stdout)
           } catch {
             print("LIVING_NATIVE_FAIL interrupted test: \(error)"); fflush(stdout)

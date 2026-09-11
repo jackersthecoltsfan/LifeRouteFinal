@@ -1,0 +1,207 @@
+[
+  {
+    "scene": "Rainforest Day",
+    "sha": "9494e81c814d6cbe958dc190263d8fec141cdb27",
+    "status": "PASS",
+    "primaryMotion": "waterfall and winding stream",
+    "secondaryAmbient": [
+      "localized spray",
+      "leaf flex"
+    ],
+    "evidence": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued/docs/evidence/living-themes-20260910/rainforest-day",
+    "focusedValidation": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/continued-render-catalogue.log",
+    "simulatorMotion": "motion.mp4",
+    "secondaryMotion": [
+      "localized spray",
+      "leaf flex"
+    ],
+    "ambientMotion": [],
+    "sceneCommitSHA": "9494e81c814d6cbe958dc190263d8fec141cdb27"
+  },
+  {
+    "scene": "Rainforest Night",
+    "sha": "8547eae57b4fe86ce9dfa4cbffec71f2547a8a15",
+    "status": "PASS",
+    "primaryMotion": "moonlit stream flow",
+    "evidence": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued/docs/evidence/living-themes-20260910/rainforest-night",
+    "focusedValidation": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/staged-rainforest-night.log",
+    "simulatorMotion": "motion.mp4",
+    "secondaryMotion": [
+      "layered river mist",
+      "regional foliage"
+    ],
+    "ambientMotion": [
+      "sparse layered rain"
+    ],
+    "sceneCommitSHA": "8547eae57b4fe86ce9dfa4cbffec71f2547a8a15"
+  },
+  {
+    "scene": "Ocean Day",
+    "sha": "fc3d9951463144a7dae48f10038ae4bd88647686",
+    "status": "PASS",
+    "primaryMotion": "finite advancing swell, crest, break and foam decay",
+    "evidence": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued/docs/evidence/living-themes-20260910/ocean-day",
+    "focusedValidation": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/staged-ocean-day.log",
+    "simulatorMotion": "motion.mp4",
+    "secondaryMotion": [
+      "surface ripples",
+      "localized spray",
+      "evolving cloud layers"
+    ],
+    "ambientMotion": [],
+    "sceneCommitSHA": "fc3d9951463144a7dae48f10038ae4bd88647686"
+  },
+  {
+    "scene": "Ocean Night",
+    "sha": "e7d8dce4bc8e2b14b79e2802d6c8fac8e6bc0ae8",
+    "status": "PASS",
+    "primaryMotion": "finite advancing swell, crest, break and foam decay",
+    "evidence": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued/docs/evidence/living-themes-20260910/ocean-night",
+    "focusedValidation": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/staged-ocean-night.log",
+    "simulatorMotion": "motion.mp4",
+    "secondaryMotion": [
+      "water-bound moon reflection",
+      "surface ripples",
+      "evolving night cloud"
+    ],
+    "ambientMotion": [
+      "stars",
+      "rare shooting stars"
+    ],
+    "sceneCommitSHA": "e7d8dce4bc8e2b14b79e2802d6c8fac8e6bc0ae8"
+  },
+  {
+    "scene": "Arctic Day",
+    "sha": "34387b6a535c3a990e7b240e99ee9707c15f66db",
+    "status": "PASS",
+    "primaryMotion": "broad advecting spindrift and weather banks",
+    "evidence": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued/docs/evidence/living-themes-20260910/arctic-day",
+    "focusedValidation": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/staged-arctic-day.log",
+    "simulatorMotion": "motion.mp4",
+    "secondaryMotion": [
+      "layered haze",
+      "water-channel ripples"
+    ],
+    "ambientMotion": [
+      "three-depth snow"
+    ],
+    "sceneCommitSHA": "34387b6a535c3a990e7b240e99ee9707c15f66db"
+  },
+  {
+    "scene": "Arctic Night",
+    "sha": "6b74c8e9f82444a926682069db2b3b2d705e7e00",
+    "status": "PASS",
+    "primaryMotion": "evolving aurora curtains",
+    "evidence": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued/docs/evidence/living-themes-20260910/arctic-night",
+    "focusedValidation": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/staged-arctic-night.log",
+    "simulatorMotion": "motion.mp4",
+    "secondaryMotion": [
+      "cold haze",
+      "lake reflection"
+    ],
+    "ambientMotion": [
+      "sparse snow",
+      "stars",
+      "rare shooting stars"
+    ],
+    "sceneCommitSHA": "6b74c8e9f82444a926682069db2b3b2d705e7e00"
+  },
+  {
+    "scene": "Mountains Day",
+    "sha": "5d97682a4a4c2950694e0045fdfe4d58dea406a7",
+    "status": "PASS",
+    "primaryMotion": "advecting reforming clouds and valley fog",
+    "evidence": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued/docs/evidence/living-themes-20260910/mountains-day",
+    "focusedValidation": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/staged-mountains-day.log",
+    "simulatorMotion": "motion.mp4",
+    "secondaryMotion": [
+      "depth haze",
+      "lake ripples"
+    ],
+    "ambientMotion": [],
+    "sceneCommitSHA": "5d97682a4a4c2950694e0045fdfe4d58dea406a7"
+  },
+  {
+    "scene": "Mountains Night",
+    "sha": "d09d64cfd5cb8cc0ef862622c9e8e19e1c0b0fcf",
+    "status": "PASS",
+    "primaryMotion": "rolling valley fog and evolving high cloud",
+    "evidence": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued/docs/evidence/living-themes-20260910/mountains-night",
+    "focusedValidation": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/staged-mountains-night.log",
+    "simulatorMotion": "motion.mp4",
+    "secondaryMotion": [
+      "lake ripples",
+      "night haze"
+    ],
+    "ambientMotion": [
+      "stars",
+      "rare shooting stars"
+    ],
+    "sceneCommitSHA": "d09d64cfd5cb8cc0ef862622c9e8e19e1c0b0fcf"
+  },
+  {
+    "scene": "Canyon Day",
+    "sha": "f4b7f9be596bbee3e31dd0d5c704e35c406883dd",
+    "status": "PASS",
+    "primaryMotion": "evolving sky clouds and broad canyon haze",
+    "evidence": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued/docs/evidence/living-themes-20260910/canyon-day",
+    "focusedValidation": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/staged-canyon-day.log",
+    "simulatorMotion": "motion.mp4",
+    "secondaryMotion": [
+      "directional river flow",
+      "distance haze"
+    ],
+    "ambientMotion": [],
+    "sceneCommitSHA": "f4b7f9be596bbee3e31dd0d5c704e35c406883dd"
+  },
+  {
+    "scene": "Canyon Night",
+    "sha": "e3f89f0a9202ec2b51443908473e001bbf44a2e0",
+    "status": "PASS",
+    "primaryMotion": "evolving cloud and canyon mist",
+    "evidence": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued/docs/evidence/living-themes-20260910/canyon-night",
+    "focusedValidation": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/staged-canyon-night.log",
+    "simulatorMotion": "motion.mp4",
+    "secondaryMotion": [
+      "directional river flow"
+    ],
+    "ambientMotion": [
+      "stars",
+      "rare shooting stars"
+    ],
+    "sceneCommitSHA": "e3f89f0a9202ec2b51443908473e001bbf44a2e0"
+  },
+  {
+    "scene": "Desert Day",
+    "sha": "9766d1c27876c9fc5c496d2e01f3f718c4e99e05",
+    "status": "PASS",
+    "primaryMotion": "local heat refraction and moving warm haze",
+    "evidence": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued/docs/evidence/living-themes-20260910/desert-day",
+    "focusedValidation": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/staged-desert-day.log",
+    "simulatorMotion": "motion.mp4",
+    "secondaryMotion": [
+      "high cloud evolution"
+    ],
+    "ambientMotion": [
+      "restrained distant dust"
+    ],
+    "sceneCommitSHA": "9766d1c27876c9fc5c496d2e01f3f718c4e99e05"
+  },
+  {
+    "scene": "Desert Night",
+    "sha": "e873bffed1e7499d247aa9fe862fa7b7386864ef",
+    "status": "PASS",
+    "primaryMotion": "evolving night haze within the rock-arch opening",
+    "evidence": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued/docs/evidence/living-themes-20260910/desert-night",
+    "focusedValidation": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/staged-desert-night.log",
+    "simulatorMotion": "motion.mp4",
+    "secondaryMotion": [
+      "distant cool haze"
+    ],
+    "ambientMotion": [
+      "stars",
+      "rare shooting stars"
+    ],
+    "sceneCommitSHA": "e873bffed1e7499d247aa9fe862fa7b7386864ef"
+  }
+]

@@ -85,6 +85,9 @@ assert not raw.exists()
 video.rename(raw)
 video_validation=run([str(a.checkpoint/'compress-video'),str(raw),str(video)]).strip()
 run(['xcrun','simctl','io',a.simulator,'screenshot',str(a.evidence/'scene.png')])
+run(['xcrun','simctl','terminate',a.simulator,'local.liferoute.LivingCapture'])
+# Close the process before sealing its log; later Simulator work must not append
+# lifecycle output to a scene evidence file after that scene has been committed.
 payload={'scene':a.scene,'source_manifest':manifest,'duration_requested_seconds':a.seconds,
          'readiness':terminal[-1],'video_sha256':hashlib.sha256(video.read_bytes()).hexdigest(),
          'raw_video_sha256':hashlib.sha256(raw.read_bytes()).hexdigest(),'video_validation':video_validation,

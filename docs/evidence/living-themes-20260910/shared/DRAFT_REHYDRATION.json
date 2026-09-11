@@ -1,0 +1,57 @@
+{
+  "authorityCommit": "919d99afc7580b4e2f0288452a4df7896848046e",
+  "continuationWorktree": "/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion-continued",
+  "branch": "codex/living-themes-full-expansion-continued-20260910",
+  "patchSHA256": "7f860a13ff3e2aa5d06753a598b21bfaab42218c3bf468e7f7499caf14e13e68",
+  "conflicts": [
+    {
+      "file": "LifeRoute/LivingRainforest.metal",
+      "classification": "mechanical API/include adaptation",
+      "resolution": "Keep timing include and draft atmosphere declarations. Bind added Ocean sky calm scale to the same canonical constants."
+    }
+  ],
+  "comparisonNormalization": "Expand canonical macros, strip comments/whitespace, normalize the sole introduced multiplication by spray speed 1.0",
+  "shaderSemanticTokensEqual": true,
+  "files": [
+    {
+      "file": "LifeRoute/LivingRainforest.metal",
+      "draftByteIdentical": false,
+      "adaptation": "retain shared timing authority references/import alongside draft additions"
+    },
+    {
+      "file": "LifeRoute/LivingThemeEnvironment.swift",
+      "draftByteIdentical": true,
+      "adaptation": null
+    },
+    {
+      "file": "LifeRoute/LivingThemeScene.swift",
+      "draftByteIdentical": true,
+      "adaptation": null
+    },
+    {
+      "file": "scripts/living_theme_native_tests.swift",
+      "draftByteIdentical": true,
+      "adaptation": null
+    },
+    {
+      "file": "scripts/living_theme_render_tests.swift",
+      "draftByteIdentical": false,
+      "adaptation": "retain shared timing authority references/import alongside draft additions"
+    },
+    {
+      "file": "scripts/living_theme_tests.swift",
+      "draftByteIdentical": true,
+      "adaptation": null
+    },
+    {
+      "file": "scripts/run_living_theme_native_tests.py",
+      "draftByteIdentical": true,
+      "adaptation": null
+    },
+    {
+      "file": "scripts/run_living_theme_render_tests.sh",
+      "draftByteIdentical": false,
+      "adaptation": "retain shared timing authority references/import alongside draft additions"
+    }
+  ]
+}

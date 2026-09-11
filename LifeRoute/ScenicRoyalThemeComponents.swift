@@ -18,7 +18,7 @@ enum ScenicRoyalThemeCategory: String, CaseIterable, Identifiable {
         case .core:
             return "12 still app-wide glass environments with no continuous ambient motion."
         case .living:
-            return "12 Scenic Royal Day/Night environments. Motion readiness is shown on each scene; pending scenes retain their still presentation."
+            return "12 Scenic Royal Day/Night environments with flowing water, evolving weather, and a fixed camera."
         }
     }
 

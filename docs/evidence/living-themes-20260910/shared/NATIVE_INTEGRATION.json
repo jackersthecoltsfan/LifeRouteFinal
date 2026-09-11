@@ -1,0 +1,18 @@
+{
+  "toolchain": "Xcode 27.0 / iOS 27 Simulator / Swift 6.4",
+  "nativeSurfaceAssertions": 534,
+  "fiveRootSweeps": 2,
+  "themeCenterSelections": 12,
+  "legacyDynamicCategoryAbsent": true,
+  "motionPendingCardsAbsent": true,
+  "backgroundForeground": "PASS",
+  "timerFullscreenResume": "PASS",
+  "nativeXCTestResult": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/native-ui/catalogue.xcresult",
+  "sharedNativeResult": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/continued-native/stdout.log",
+  "reduceMotion": "Active production playback/quality transition in native surface harness; primary rendered GPU motion survives calm mode.",
+  "limitations": [
+    "No physical phone interaction",
+    "No system Settings Reduce Motion UI audition",
+    "No sustained physical thermal/battery observation"
+  ]
+}

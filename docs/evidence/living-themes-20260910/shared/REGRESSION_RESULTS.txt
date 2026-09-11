@@ -1,0 +1,33 @@
+PASS: external Ocean and established family hashes match
+LifeRoute canonical v0.9.1 fast validation passed.
+LifeRoute fast validation complete.
+PASS: external Ocean and established family hashes match
+LifeRoute canonical v0.9.1 full validation passed.
+Day route executable contract fixtures passed (177 assertions).
+Calendar Edit executable contract fixtures passed (29 assertions).
+Calendar B cross-provider deduplication fixtures passed (34 assertions).
+Session Note production photo-removal / role call-path assertions passed (12 assertions).
+Frozen donor assertions: 472; new final-prose assertions: 110.
+Original assertions: 162; added assertions: 420.
+Session Note executable contract fixtures passed (582 assertions).
+Visual Timer feedback executable contract fixtures passed (155 assertions).
+Native Orb region fixtures passed (513 assertions).
+Accepted V04 material fixtures passed (25 assertions). SHA256=6c3458b3421b3c57e0b19cf444c597d2a60a9d17deba4643a7e60bba4b8f6b16
+Timer ownership controls passed: duplicate root, modal, extra window and missing owner rejected; accepted Timer D passed.
+Visual Timer presentation fixtures passed (115 assertions); production core/state, platform audio/UI doubles.
+Runtime feedback executable contract fixtures passed (32 assertions).
+Visual activity executable contract fixtures passed (32 assertions).
+Scenery effect executable contract fixtures passed (54 assertions).
+PASS: Living Themes V2 147 deterministic assertions
+PASS: permanent-root structural contracts; native behavior requires production-controller and app qualification
+LifeRoute Today full-route action contract passed: Today and Day Route share the canonical complete-route pathway
+LifeRoute Theme Center thumbnail contract passed: 24 active identities plus 8 dormant Dynamic thumbnails; all retained raster assets verified
+LifeRoute full validation complete.
+PASS: external Ocean and established family hashes match
+PASS Timer D: exactly 3 focused groups; 44 assertions
+PASS: external Ocean and established family hashes match
+PASS exactly 3 focused logical timer groups; 145 assertions
+PASS: external Ocean and established family hashes match
+Theme readability/catalog contracts: 1288 assertions passed; 24 visible identities; 72 raw IDs plus nil/unknown/empty/whitespace inputs. Resolved-color evidence is not composited-glass acceptance.
+Secondary enabled/disabled/pressed/Reduce Motion and shared appearance wiring passed; native focused/disabled appearance remains a capture gate.
+FULL_REGRESSION_PASS

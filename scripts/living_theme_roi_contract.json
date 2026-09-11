@@ -415,7 +415,77 @@
       ],
       "minimum_spread": 0.25,
       "seconds": 12,
-      "artwork_sha256": "a4f95767814d475743e00ea17420a81e481bf2aa61ccff601ee3a1764fd66c18"
+      "artwork_sha256": "a4f95767814d475743e00ea17420a81e481bf2aa61ccff601ee3a1764fd66c18",
+      "additional_primary": [
+        [
+          [
+            0.44,
+            0.389
+          ],
+          [
+            0.52,
+            0.392
+          ],
+          [
+            0.54,
+            0.484
+          ],
+          [
+            0.439,
+            0.486
+          ],
+          [
+            0.447,
+            0.614
+          ],
+          [
+            0.42,
+            0.74
+          ],
+          [
+            0.29,
+            0.792
+          ],
+          [
+            0.04,
+            0.868
+          ],
+          [
+            0.04,
+            0.571
+          ],
+          [
+            0.14,
+            0.518
+          ],
+          [
+            0.34,
+            0.458
+          ]
+        ]
+      ],
+      "additional_primary_description": "Independent water motion floor using the unchanged baseline secondary-water polygon; weather cannot substitute for water.",
+      "additional_static": [
+        [
+          [
+            0.388,
+            0.814
+          ],
+          [
+            0.4,
+            0.814
+          ],
+          [
+            0.4,
+            0.817
+          ],
+          [
+            0.388,
+            0.817
+          ]
+        ]
+      ],
+      "additional_static_description": "Fixed near edge of the foreground ice shelf; added after artwork audit caught a Day-only mask overrun."
     },
     "scenery.arctic.night": {
       "primary": [

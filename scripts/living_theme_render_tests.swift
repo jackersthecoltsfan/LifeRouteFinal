@@ -31,7 +31,7 @@ import CryptoKit
         descriptor.storageMode = .shared
         let target = device.makeTexture(descriptor: descriptor)!
         var durations: [Double] = []
-        func render(time: Float, motion: Float = 1, atmosphere: Float = 1) -> [UInt8] {
+        func render(time: Float, motion: Float = 1, atmosphere: Float = 1, weatherAmount: Float? = nil) -> [UInt8] {
             let pass = MTLRenderPassDescriptor()
             pass.colorAttachments[0].texture = target
             pass.colorAttachments[0].loadAction = .dontCare
@@ -46,6 +46,7 @@ import CryptoKit
                 encoder.setFragmentBytes(&ocean, length: MemoryLayout<LivingOceanConfiguration>.stride, index: 1)
             }
             if var atmosphere = scene.atmosphere {
+                if let weatherAmount { atmosphere.air.w = weatherAmount }
                 encoder.setFragmentBytes(&atmosphere, length: MemoryLayout<LivingAtmosphereConfiguration>.stride, index: 2)
             }
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
@@ -242,8 +243,10 @@ import CryptoKit
         }
         let primaryTemporal = temporalStats(primaryPixels), staticTemporal = temporalStats(staticPixels)
         let additionalPrimary = (sceneROI["additional_primary"] as? [[[Double]]]).map { temporalStats(roiPixels($0)) }
+        let additionalStatic = (sceneROI["additional_static"] as? [[[Double]]]).map { temporalStats(roiPixels($0)) }
         var temporalEvidence: [String:Any] = ["primary":primaryTemporal,"static":staticTemporal,"seconds":seconds]
         if let additionalPrimary { temporalEvidence["additionalPrimary"] = additionalPrimary }
+        if let additionalStatic { temporalEvidence["additionalStatic"] = additionalStatic }
         try JSONSerialization.data(withJSONObject:temporalEvidence,options:[.prettyPrinted,.sortedKeys])
             .write(to:output.appendingPathComponent("temporal-roi.json"))
         var maskAudit = first
@@ -257,6 +260,10 @@ import CryptoKit
             expect(additionalPrimary["pixels"]! > 0,"additional artwork-traced primary ROI is nonempty")
             expect(additionalPrimary["movingMedian255"]! >= (roiContract["minimum_moving_median_255"] as! Double),"complete artwork-traced primary magnitude >=3/255")
             expect(additionalPrimary["spread"]! >= (sceneROI["minimum_spread"] as! Double),"complete artwork-traced primary meets unchanged spatial floor")
+        }
+        if let additionalStatic {
+            expect(additionalStatic["pixels"]! > 0,"additional fixed artwork control is nonempty")
+            expect(additionalStatic["spread"]! <= (roiContract["maximum_static_spread"] as! Double),"additional fixed geometry change <=5%")
         }
         if scene == .rainforestDay {
         let mistOn = render(time: 0.3), mistOff = render(time: 0.3, atmosphere: 0)
@@ -273,6 +280,17 @@ import CryptoKit
         let calmA = render(time: 0.3, motion: 0.25, atmosphere: 0)
         let calmB = render(time: 1.3, motion: 0.25, atmosphere: 0)
         expect(difference(calmA,calmB,box:regions[0].1) > 0, "calm retains primary environmental motion")
+        if scene == .arcticDay {
+            let waterA = render(time:1,atmosphere:0), waterB = render(time:8,atmosphere:0)
+            expect(difference(waterA,waterB,box:[0.12,0.67,0.40,0.75]) > 1,
+                "Arctic Day channel water moves where distance spindrift is absent and atmosphere disabled")
+            expect(difference(render(time:1,motion:0.25,atmosphere:0),render(time:8,motion:0.25,atmosphere:0),box:[0.12,0.67,0.40,0.75]) > 0.25,
+                "Arctic Day calm retains slow water motion")
+            expect(difference(waterA,waterB,box:[0.70,0.72,0.87,0.80]) == 0,
+                "Arctic foreground ice face stays fixed despite expanded water motion")
+            expect(difference(render(time:3),render(time:3,weatherAmount:0),box:[0.10,0.09,0.88,0.25]) > 0.01,
+                "Denser depth-layered snowfall contributes visible pixels in the open sky")
+        }
         if scene == .rainforestNight {
             expect(difference(first,next,box:[0.51,0.247,0.57,0.267]) > 0.1,
                 "Rainforest Night clouds travel through the actual canopy opening")

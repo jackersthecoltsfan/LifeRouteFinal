@@ -140,6 +140,7 @@ struct LivingAtmosphereConfiguration {
     float4 skyA, skyB, light, air;
 };
 static float3 livingClouds(texture2d<float>, sampler, float2, float3, float, float, float, LivingAtmosphereConfiguration);
+static float livingWaterInterior(float2, thread const float2 *, int);
 static float3 livingNightSky(float3, float2, float, float, float, LivingAtmosphereConfiguration,
     float = LIVING_AIR_METEOR_SLOT, float = LIVING_AIR_METEOR_START_MIN, float = LIVING_AIR_METEOR_START_RANGE);
 
@@ -323,7 +324,7 @@ static float3 livingFog(float3 color, float2 uv, float t, float mask,
 }
 
 // Sparse deterministic depth layers; no emitters, allocations or extra clocks.
-static float livingPrecipitation(float2 uv, float t, float seed, bool snow) {
+static float livingPrecipitation(float2 uv, float t, float seed, bool snow, float density = 1.0) {
     float sum = 0;
     for (int layer = 0; layer < 3; ++layer) {
         float d = float(layer);
@@ -331,7 +332,11 @@ static float livingPrecipitation(float2 uv, float t, float seed, bool snow) {
         p -= float2(t * (snow ? LIVING_AIR_SNOW_DRIFT_BASE + d * LIVING_AIR_SNOW_DRIFT_DEPTH : LIVING_AIR_RAIN_DRIFT), t * (snow ? LIVING_AIR_SNOW_FALL_BASE + d * LIVING_AIR_SNOW_FALL_DEPTH : LIVING_AIR_RAIN_FALL_BASE + d * LIVING_AIR_RAIN_FALL_DEPTH));
         float2 cell = floor(p), local = fract(p) - 0.5;
         float random = livingHash(cell + seed + d * 37.0);
-        if (random < (snow ? 0.965 : 0.981)) continue;
+        // Keep every existing caller bit-equivalent at the default density.
+        // Arctic Day uses ten times the eligible snow cells, retaining the same
+        // direction, depth planes and falling/swaying particle shape.
+        float threshold = snow ? (density == 1.0 ? 0.965 : 1.0 - 0.035*density) : 0.981;
+        if (random < threshold) continue;
         local.x += snow ? sin(t * (LIVING_AIR_SNOW_SWAY_BASE + d * LIVING_AIR_SNOW_SWAY_DEPTH) + random * 80.0) * 0.14 : local.y * 0.10;
         float2 radius = snow ? float2(0.027 + d * 0.012) : float2(0.019, 0.20);
         float dotSize = dot(local / radius, local / radius);
@@ -445,13 +450,30 @@ fragment float4 livingArcticDayFragment(LivingSceneVertex in [[stage_in]],
     float rolling = smoothstep(0.30,0.73,drift);
     color = mix(color,float3(0.74,0.83,0.90), bank * rolling * 0.34 * u.motion);
     color = livingFog(color,uv,t,bank,c.air.z * u.atmosphere,c.light.y,float3(0.66,0.76,0.84));
-    float water = livingOval(uv,float2(0.37,0.69),float2(0.13,0.11));
-    if (water > 0.001) {
-        float wave = sin(uv.y * 700.0 + uv.x * 19.0 - t * LIVING_ARCTIC_CHANNEL_RATE);
-        float3 flow = artwork.sample(sampling,uv + float2(wave * 0.4,wave * 0.3) / u.textureSize * u.motion).rgb;
-        color = mix(color,flow,water * 0.7 * u.atmosphere);
+    if (uv.y > 0.389 && uv.y < 0.917) {
+        const float2 shore[] = {float2(0.44,0.389),float2(0.53,0.395),float2(0.542,0.421),
+            float2(0.588,0.452),float2(1,0.480),float2(1,0.489),float2(0.80,0.490),
+            float2(0.60,0.490),float2(0.448,0.506),float2(0.442,0.525),float2(0.475,0.572),
+            float2(0.553,0.619),float2(0.540,0.724),float2(0.550,0.762),float2(0.50,0.780),
+            float2(0.46,0.790),float2(0.40,0.803),float2(0.37,0.811),float2(0.33,0.824),
+            float2(0.25,0.847),float2(0.20,0.864),float2(0.15,0.881),float2(0.10,0.891),
+            float2(0,0.917),float2(0,0.568),
+            float2(0.14,0.522),float2(0.34,0.464),float2(0.427,0.438)};
+        float water = livingWaterInterior(uv,shore,28);
+        float phase = t * LIVING_ARCTIC_CHANNEL_RATE;
+        float depth = saturate((uv.y-0.40)/0.47);
+        float folds = livingFractal(uv*float2(13,34)+float2(-phase*0.02,0),t);
+        float wave = sin(uv.y*330.0+uv.x*19.0-phase+folds*7.0);
+        float cross = sin(uv.y*497.0-uv.x*37.0-phase*0.71+folds*11.0);
+        float2 displacement = float2(wave*1.2+cross*0.45,wave*0.70+cross*0.32)
+            * mix(0.30,1.0,depth)*water*u.motion;
+        float3 flow = artwork.sample(sampling,uv+displacement/u.textureSize).rgb;
+        flow *= 1.0+u.motion*(wave*0.07+cross*0.035);
+        // Keep spindrift already composited above while water/floating fragments
+        // respond slowly underneath it. Foreground shelf faces remain fixed.
+        color += (flow-original)*water;
     }
-    if (u.atmosphere > 0.0) color += float3(0.56,0.63,0.70) * livingPrecipitation(uv,t,c.light.y,true) * max(bank,sky * 0.3) * c.air.w;
+    if (u.atmosphere > 0.0) color += float3(0.56,0.63,0.70) * livingPrecipitation(uv,t,c.light.y,true,10.0) * max(bank,sky * 0.65) * c.air.w;
     return float4(color,1);
 }
 

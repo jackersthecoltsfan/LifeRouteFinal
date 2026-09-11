@@ -855,20 +855,35 @@ fragment float4 livingDesertFragment(LivingSceneVertex in [[stage_in]],
         return float4(color,1);
     }
     float3 color = livingClouds(artwork,sampling,uv,original,sky,t,u.motion,c);
-    // Rising refractive cells cross the distant basin. Foreground dunes, ridge
-    // silhouettes and all foreground SwiftUI controls have zero displacement.
-    float heat = livingOval(uv,float2(0.52,0.265),float2(0.30,0.055));
-    if (heat > 0.001) {
-        float cells = livingFractal(uv * float2(45,105) + float2(t * LIVING_DESERT_AIR_DRIFT_RATE,-t * LIVING_DESERT_HEAT_RISE_RATE),t);
-        float fine = sin(uv.y * 390.0 - t * LIVING_DESERT_HEAT_REFRACTION_RATE + cells * 5.0);
-        float2 offset = float2((cells - 0.5) * 3.2,fine * 0.85) / u.textureSize * heat * u.motion;
-        color = artwork.sample(sampling,uv + offset).rgb;
+    // Preserve the original far-basin heat character, with independently phased
+    // zones at progressively nearer depths. Foreground dunes never move.
+    const float4 zones[4]={float4(0.52,0.265,0.30,0.055),float4(0.28,0.294,0.14,0.022),
+        float4(0.58,0.334,0.20,0.032),float4(0.79,0.393,0.13,0.040)};
+    float2 refraction=0;
+    for (int layer=0;layer<4;++layer) {
+        float d=float(layer),heat=livingOval(uv,zones[layer].xy,zones[layer].zw);
+        float cells=livingFractal(uv*float2(45.0+d*7.0,105.0-d*12.0)
+            +float2(t*LIVING_DESERT_AIR_DRIFT_RATE,-t*LIVING_DESERT_HEAT_RISE_RATE*(1.0+d*0.23)),t+d*4.3);
+        float fine=sin(uv.y*(390.0-d*39.0)-t*LIVING_DESERT_HEAT_REFRACTION_RATE*(1.0+d*0.17)+cells*5.0+d*7.0);
+        refraction+=float2((cells-0.5)*(4.3+d*1.3),fine*(1.2+d*0.3))*heat;
     }
-    float haze = livingOval(uv,float2(0.56,0.29),float2(0.29,0.05));
-    color = livingFog(color,uv,t,haze,c.air.z * u.motion,c.light.y,float3(0.62,0.39,0.21));
-    if (u.atmosphere > 0.0) {
-        float dust = livingFractal(uv * float2(11,57) + float2(-t * LIVING_DESERT_AIR_DRIFT_RATE,8.4),t);
-        color = mix(color,float3(0.53,0.32,0.17),haze * smoothstep(0.50,0.80,dust) * c.air.w * u.atmosphere);
+    float3 refracted=artwork.sample(sampling,uv+refraction*u.motion/u.textureSize).rgb;
+    color += refracted-original;
+    float haze=livingOval(uv,float2(0.56,0.29),float2(0.29,0.05));
+    color=livingFog(color,uv,t,haze,c.air.z*u.motion,c.light.y,float3(0.62,0.39,0.21));
+    // Separate drifting dust sheets lift from the basin and settle between
+    // gusts. Soft volumes retain the photographed ridges and dune crests.
+    const float4 gustZones[3]={float4(0.44,0.29,0.29,0.027),float4(0.60,0.338,0.20,0.034),float4(0.79,0.393,0.13,0.037)};
+    float dust=0;
+    for (int layer=0;layer<3;++layer) {
+        float d=float(layer),phase=t/LIVING_DESERT_GUST_PERIOD+d*0.29;
+        float gust=pow(max(0.0,sin(phase*2.0*M_PI_F)),2.0);
+        float2 center=gustZones[layer].xy+float2(0,-gust*0.009);
+        float area=livingOval(uv,center,gustZones[layer].zw);
+        float cells=livingFractal(uv*float2(19.0+d*6.0,82.0-d*13.0)
+            +float2(-t*LIVING_DESERT_AIR_DRIFT_RATE*(1.5+d*0.7),d*7.1),t+d*5.0);
+        dust+=area*gust*smoothstep(0.22,0.82,cells);
     }
+    color=mix(color,float3(0.68,0.44,0.23),min(dust*0.48,0.48)*c.air.w*u.motion);
     return float4(color,1);
 }

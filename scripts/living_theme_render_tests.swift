@@ -347,6 +347,14 @@ import CryptoKit
             expect(difference(waterA,waterB,box:[0.20,0.925,0.34,0.955]) > 0.1,
                 "Material-gated foreground grass responds to wind")
         }
+        if scene == .desertDay {
+            let heatA=render(time:1,atmosphere:0,weatherAmount:0), heatB=render(time:8,atmosphere:0,weatherAmount:0)
+            for box in [[0.48,0.255,0.59,0.275],[0.23,0.285,0.32,0.302],[0.51,0.32,0.65,0.346],[0.73,0.37,0.84,0.408]] {
+                expect(difference(heatA,heatB,box:box)>0.5,"Each Desert Day depth zone retains independent heat shimmer")
+            }
+            expect(difference(render(time:2),render(time:2,weatherAmount:0),box:[0.46,0.30,0.68,0.35])>0.1,
+                "Desert Day sand gusts contribute beyond heat refraction")
+        }
         if scene == .desertNight {
             let meteorProbe = try device.makeComputePipelineState(function: library.makeFunction(name: "livingDesertMeteorProbe")!)
             let requests = (0..<32).map { SIMD2(Float($0),scene.atmosphere!.light.y) }

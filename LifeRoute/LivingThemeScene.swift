@@ -137,7 +137,7 @@ struct LivingAtmosphereConfiguration: Equatable, Sendable {
     static let canyonNight = Self(skyA: SIMD4(0.25, 0.28, 0.31, 0.32), skyB: SIMD4(0.29, 0.23, 0.16, 0.13),
         light: SIMD4(1, 79, 0.197, 0.13), air: SIMD4(0.032, 0.78, 0.65, 0))
     static let desertDay = Self(skyA: SIMD4(0.16, 0.16, 0.19, 0.2), skyB: SIMD4(0.2, 0.21, 0.2, 0.17),
-        light: SIMD4(0, 89, -1, -1), air: SIMD4(0.009, 0.3, 0.65, 0.07))
+        light: SIMD4(0, 89, -1, -1), air: SIMD4(0.04, 0.82, 0.65, 0.82))
     static let desertNight = Self(skyA: SIMD4(0.35, 0.37, 0.42, 0.44), skyB: SIMD4(0.46, 0.44, 0.4, 0.33),
         light: SIMD4(1, 103, 0.68, 0.247), air: SIMD4(0.012, 0.4, 0.45, 0))
 }

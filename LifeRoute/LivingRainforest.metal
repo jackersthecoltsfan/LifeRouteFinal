@@ -144,7 +144,8 @@ struct LivingWaveEvent {
 static LivingWaveEvent livingOceanEvent(float time, float eventID) {
     float seed = livingHash(float2(eventID, 19.73));
     float start = eventID * 6.3 + seed * 1.7;
-    float life = 18.0 + livingHash(float2(eventID, 71.1)) * 3.8;
+    // Bounded to 18 seconds; arrival spacing, not a longer lifetime, supplies overlap.
+    float life = 14.2 + livingHash(float2(eventID, 71.1)) * 3.8;
     float age = time - start;
     float p = saturate(age / life);
     float envelope = smoothstep(0.0, 0.09, p) * (1.0 - smoothstep(0.82, 1.0, p));
@@ -159,9 +160,9 @@ static LivingWaveEvent livingOceanEvent(float time, float eventID) {
 
 // Independent GPU tests read the actual temporal model used by the fragment.
 // This kernel is never dispatched by the application.
-kernel void livingOceanWaveProbe(device const float *times [[buffer(0)]],
+kernel void livingOceanWaveProbe(device const float2 *requests [[buffer(0)]],
                                  device float4 *values [[buffer(1)]], uint id [[thread_position_in_grid]]) {
-    LivingWaveEvent e = livingOceanEvent(times[id], 0);
+    LivingWaveEvent e = livingOceanEvent(requests[id].x, requests[id].y);
     values[id * 3] = float4(e.age, e.lifetime, e.progress, e.front);
     values[id * 3 + 1] = float4(e.swell, e.crest, e.breaking, e.foam);
     values[id * 3 + 2] = float4(e.envelope, e.width, e.strength, 0);

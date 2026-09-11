@@ -766,6 +766,7 @@ fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
     float t = u.time * mix(LIVING_CANYON_CALM_SCALE,1.0,u.motion), night = c.light.x;
     float sky = livingSky(uv,c) * livingMoonExclusion(uv,c);
     float3 color = livingClouds(artwork,sampling,uv,original,sky,t,u.motion,c);
+    if (night < 0.5) color = livingPhysicalClouds(color,uv,sky,t,42.0,u.motion,0.0,c.light.y);
     float distanceHaze = mix(livingOval(uv,float2(0.57,0.412),float2(0.22,0.052)),
                             livingOval(uv,float2(0.50,0.408),float2(0.18,0.055)),night);
     color = livingFog(color,uv,t,distanceHaze,c.air.z * u.motion,c.light.y,mix(float3(0.56,0.33,0.24),float3(0.08,0.14,0.21),night));
@@ -856,6 +857,18 @@ fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
         }
     }
     if (night < 0.5 && u.atmosphere > 0.0) {
+        // Main foreground shrub plus smaller near-slope clusters. Warm stone
+        // fails the green/yellow leaf material gate, so ledges remain grounded.
+        float shrubs = max(livingOval(uv,float2(0.12,0.707),float2(0.12,0.047)),
+                           livingOval(uv,float2(0.74,0.918),float2(0.18,0.055)));
+        shrubs = max(shrubs,livingOval(uv,float2(0.34,0.855),float2(0.13,0.072)));
+        shrubs *= smoothstep(0.675,0.690,uv.y);
+        float leaf = smoothstep(0.015,0.070,original.g-original.b)
+            * (1.0-smoothstep(0.09,0.18,original.r-original.g));
+        float sway = sin(t*1.8+uv.x*31.0+uv.y*17.0)*(5.5+2.5*sin(t*0.61+uv.x*9.0));
+        float2 offset = float2(sway,sway*0.18)*shrubs*leaf*u.motion/u.textureSize;
+        color += (artwork.sample(sampling,uv+offset).rgb-original)*shrubs*leaf*u.atmosphere;
+
         // Anchored sunset shafts breathe with the same drifting cloud field.
         // Only air over the distant gorge is lit; no global exposure pulse.
         float beamArea = livingOval(uv,float2(0.58,0.43),float2(0.22,0.053));

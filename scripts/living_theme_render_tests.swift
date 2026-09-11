@@ -284,6 +284,19 @@ import CryptoKit
             expect(difference(waterA,waterB,box:[0.545,0.549,0.56,0.555]) == 0,
                 "River flow excludes the right bank inside the winding bend")
         }
+        if scene == .canyonNight {
+            let waterA = render(time:1,atmosphere:0), waterB = render(time:8,atmosphere:0)
+            expect(difference(waterA,waterB,box:[0.315,0.643,0.36,0.679]) > 1,
+                "Canyon Night moonlit channel flows without secondary atmosphere")
+            expect(difference(waterA,waterB,box:[0.35,0.65,0.395,0.684]) > 0.5,
+                "Canyon Night flow includes darker water beside the moonlit run")
+            expect(difference(render(time:1,motion:0.25,atmosphere:0),render(time:8,motion:0.25,atmosphere:0),box:[0.315,0.643,0.36,0.679]) > 0.25,
+                "Canyon Night calm retains primary river motion")
+            expect(difference(waterA,waterB,box:[0.54,0.466,0.56,0.474]) == 0,
+                "River excludes the upper wall traversed by the old approximate strip")
+            expect(difference(first,next,box:[0.187,0.125,0.205,0.14]) == 0,
+                "Cloud and reflected-light response leave the moon itself fixed")
+        }
         if scene == .mountainsDay {
             let waterA = render(time:1,atmosphere:0), waterB = render(time:8,atmosphere:0)
             expect(difference(waterA,waterB,box:[0.59,0.485,0.70,0.51]) > 1,

@@ -1,0 +1,18 @@
+{
+  "artworkPixels" : [
+    941,
+    1672
+  ],
+  "assertions" : 8,
+  "device" : "Apple M5",
+  "gpuMaximumMilliseconds" : 5.9677499993995298,
+  "gpuMeanMilliseconds" : 1.2713695286212823,
+  "limitation" : "Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance",
+  "regionMeanByteDifferences" : {
+    "canyon mist" : 0.25840933607923899,
+    "evolving night cloud" : 0.19721954070542499,
+    "fixed rock" : 0
+  },
+  "scene" : "scenery.canyon.night",
+  "textureBytes" : 6701056
+}

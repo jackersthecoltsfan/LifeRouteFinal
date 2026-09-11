@@ -1,0 +1,16 @@
+{
+  "scene": "scenery.canyon.night",
+  "source_manifest": {
+    "LifeRoute/LivingThemeScene.swift": "977e250d9865fbc005a1f2f4fda6649db4d5f7c76028f011c65b4342120df90f",
+    "LifeRoute/LivingThemeEnvironment.swift": "8657b2540b08bcb51b734f64479d3b64aa8dd42a58ee3c824255ad3f99ea9d1d",
+    "scripts/living_scene_capture.swift": "39c1e55af8a0842b03d62eb9de702a1bbba0572b2a0d6403316a808e6264e336",
+    "Assets.car": "c8528924dfda702e351964025d887111cdcdb31d9d98c96b1d4deb0b93165684",
+    "default.metallib": "c1278020f3367bc23034536b96b1d1e8f40e1e82637734b5bf64a1939651cd3a"
+  },
+  "duration_requested_seconds": 18,
+  "readiness": "CAPTURE_READY scene=scenery.canyon.night program=livingCanyonFragment rendererCount=1 resourceCount=1",
+  "video_sha256": "71dadb63e3f2841e44e02797757ebf092c4d273b07e5356974a7e4841d655a81",
+  "raw_video_sha256": "6ec3fb400c1467c218f4696f8de62dbdaa69387954721948b6435ffd7ff445d8",
+  "video_validation": "VIDEO_VERIFIED duration=17.868333333333332",
+  "boundary": "Simulator engineering evidence. Empty production surface harness, no user data. Physical acceptance unverified."
+}

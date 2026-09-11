@@ -332,6 +332,11 @@ import CryptoKit
                 "Preserved Rainforest Night water remains independent of added air and foliage")
         }
         if scene == .canyonDay {
+            expect(difference(render(time:1),render(time:8),box:[0.30,0.84,0.36,0.87]) == 0,
+                "Canyon Day bare foreground rock stays fixed under the breeze")
+            expect(difference(render(time:1),render(time:8),box:[0.37,0.83,0.40,0.87]) == 0,
+                "Canyon Day adjacent warm rock never receives foliage deformation")
+
             let waterA = render(time:1,atmosphere:0), waterB = render(time:8,atmosphere:0)
             expect(difference(waterA,waterB,box:[0.435,0.54,0.495,0.552]) > 1,
                 "Canyon Day broad left river bend flows independently of atmosphere")

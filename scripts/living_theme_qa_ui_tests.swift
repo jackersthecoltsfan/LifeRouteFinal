@@ -266,19 +266,23 @@ final class NativeUI: XCTestCase {
         let reduce = settings.switches["Reduce Motion"].firstMatch
         XCTAssertTrue(reduce.waitForExistence(timeout: 5))
         let initial = reduce.value as? String
-        if initial != "1" { reduce.tap() }
-        XCTAssertEqual(reduce.value as? String, "1")
+        if initial != "1" { reduce.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+        let toggled = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "1"), object: reduce)
+        XCTAssertEqual(XCTWaiter.wait(for: [toggled], timeout: 3), .completed)
         let app = XCUIApplication(bundleIdentifier: bundle)
         app.launchArguments = ["-LifeRouteThemeOverride", "scenery.ocean.night", "-LifeRouteLivingDiagnostics"]
         app.launch()
         let reduced = audit(app, scene: "scenery.ocean.night", fps: 15)
         attachTree(app, "Actual system Reduce Motion selects calm production policy")
         settings.activate()
-        if reduce.value as? String == "1" { reduce.tap() }
+        XCTAssertTrue(settings.wait(for: .runningForeground, timeout: 5))
+        if reduce.value as? String == "1" { reduce.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
+        let restored = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "0"), object: reduce)
+        XCTAssertEqual(XCTWaiter.wait(for: [restored], timeout: 3), .completed)
         app.activate()
         _ = audit(app, scene: "scenery.ocean.night", fps: 30)
         settings.activate()
-        if initial == "1" { reduce.tap() }
+        if initial == "1" { reduce.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap() }
         print("LIVING_QA_SYSTEMMOTION_PASS: actual Settings Reduce Motion feeds production environment and is restored; reduced frames \(reduced["frames"] ?? 0)")
         app.terminate()
     }

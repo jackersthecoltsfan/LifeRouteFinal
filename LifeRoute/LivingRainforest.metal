@@ -140,7 +140,7 @@ struct LivingAtmosphereConfiguration {
     float4 skyA, skyB, light, air;
 };
 static float3 livingClouds(texture2d<float>, sampler, float2, float3, float, float, float, LivingAtmosphereConfiguration);
-static float livingWaterInterior(float2, thread const float2 *, int);
+static float livingWaterInterior(float2, thread const float2 *, int, float = 0.0007, float = 0.0035);
 static float3 livingNightSky(float3, float2, float, float, float, LivingAtmosphereConfiguration,
     float = LIVING_AIR_METEOR_SLOT, float = LIVING_AIR_METEOR_START_MIN, float = LIVING_AIR_METEOR_START_RANGE);
 
@@ -359,6 +359,14 @@ kernel void livingMountainsMeteorProbe(device const float2 *requests [[buffer(0)
         - seed * LIVING_AIR_METEOR_SEED_SCALE, livingHash(float2(slot,seed)));
 }
 
+kernel void livingDesertMeteorProbe(device const float2 *requests [[buffer(0)]],
+    device float2 *events [[buffer(1)]], uint id [[thread_position_in_grid]]) {
+    float slot = requests[id].x, seed = requests[id].y;
+    events[id] = float2(slot * LIVING_DESERT_METEOR_PERIOD
+        + livingMeteorOffset(slot,seed,LIVING_DESERT_METEOR_OFFSET,LIVING_DESERT_METEOR_JITTER)
+        - seed * LIVING_AIR_METEOR_SEED_SCALE, livingHash(float2(slot,seed)));
+}
+
 static float3 livingNightSky(float3 color, float2 uv, float t, float sky,
                             float amount, LivingAtmosphereConfiguration c,
                             float meteorPeriod, float meteorMinimum, float meteorJitter) {
@@ -542,7 +550,7 @@ fragment float4 livingArcticNightFragment(LivingSceneVertex in [[stage_in]],
 
 // Artwork-space water boundary. Feather only inside the photographed shoreline;
 // no displacement or animated opacity reaches the surrounding fixed geometry.
-static float livingWaterInterior(float2 uv, thread const float2 *points, int count) {
+static float livingWaterInterior(float2 uv, thread const float2 *points, int count, float edgeStart, float edgeEnd) {
     bool inside = false;
     float distanceSquared = 1.0;
     for (int i = 0, j = count - 1; i < count; j = i++) {
@@ -554,7 +562,7 @@ static float livingWaterInterior(float2 uv, thread const float2 *points, int cou
             if (uv.x < (b.x - a.x) * (uv.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
         }
     }
-    return inside ? smoothstep(0.0007, 0.0035, sqrt(distanceSquared)) : 0.0;
+    return inside ? smoothstep(edgeStart, edgeEnd, sqrt(distanceSquared)) : 0.0;
 }
 
 fragment float4 livingMountainsFragment(LivingSceneVertex in [[stage_in]],
@@ -810,8 +818,40 @@ fragment float4 livingDesertFragment(LivingSceneVertex in [[stage_in]],
         // moving any part of the arch, foreground sand or distant silhouettes.
         sky *= livingOval(uv,float2(0.60,0.29),float2(0.30,0.19));
         float3 color = livingClouds(artwork,sampling,uv,original,sky,t,u.motion,c);
+        // Move only the fine photographed star signal; retain the broad sky
+        // gradient, moon and arch in their original coordinates.
+        float2 drift = float2(sin(t*LIVING_DESERT_STAR_DRIFT_RATE)*18.0,
+            (cos(t*LIVING_DESERT_STAR_DRIFT_RATE*0.73)-1.0)*9.0) / u.textureSize;
+        float3 points[2];
+        for (int sampleIndex=0;sampleIndex<2;++sampleIndex) {
+            float2 location = uv + drift*float(sampleIndex);
+            float2 dx=float2(2.0,0.0)/u.textureSize, dy=float2(0.0,2.0)/u.textureSize;
+            float3 center=artwork.sample(sampling,location).rgb;
+            float3 surround=(artwork.sample(sampling,location+dx).rgb+artwork.sample(sampling,location-dx).rgb
+                +artwork.sample(sampling,location+dy).rgb+artwork.sample(sampling,location-dy).rgb)*0.25;
+            points[sampleIndex]=max(float3(0),center-surround)*smoothstep(0.015,0.07,max(center.r,max(center.g,center.b)));
+        }
+        color += (points[1]-points[0])*sky*u.atmosphere;
         color = livingFog(color,uv,t,sky,c.air.z * u.motion,c.light.y,float3(0.035,0.055,0.105));
-        color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
+        // Layered low dust occupies the distant basin, clear of the near arch
+        // and the fixed foreground dune. It remains primary motion when optional
+        // celestial atmosphere is removed. Each gust lifts, travels and settles.
+        const float2 basin[8]={float2(0.35,0.495),float2(0.82,0.495),float2(0.79,0.54),float2(0.73,0.57),
+            float2(0.63,0.60),float2(0.55,0.626),float2(0.40,0.626),float2(0.40,0.594)};
+        float basinMask=livingWaterInterior(uv,basin,8,0.004,0.035);
+        float dust=0;
+        for (int layer=0;layer<3;++layer) {
+            float d=float(layer), phase=t/LIVING_DESERT_GUST_PERIOD+d*0.31;
+            float gust=0.25+0.75*pow(0.5+0.5*sin(phase*2.0*M_PI_F),2.0);
+            float height=0.515+d*0.034-gust*0.008;
+            float depth=exp(-pow((uv.y-height)/(0.020+d*0.008),2.0));
+            float cells=livingFractal(uv*float2(15.0+d*4.0,74.0-d*12.0)
+                +float2(-t*LIVING_DESERT_AIR_DRIFT_RATE*(1.0+d*0.6),d*7.9),t+d*3.0);
+            dust += depth*(0.10+0.90*smoothstep(0.2,0.8,cells))*gust;
+        }
+        color=mix(color,float3(0.13,0.16,0.25),basinMask*min(dust*0.38,0.52)*u.motion);
+        color = livingNightSky(color,uv,t,sky,u.atmosphere,c,LIVING_DESERT_METEOR_PERIOD,
+            LIVING_DESERT_METEOR_OFFSET,LIVING_DESERT_METEOR_JITTER);
         return float4(color,1);
     }
     float3 color = livingClouds(artwork,sampling,uv,original,sky,t,u.motion,c);

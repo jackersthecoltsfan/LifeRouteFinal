@@ -347,6 +347,28 @@ import CryptoKit
             expect(difference(waterA,waterB,box:[0.20,0.925,0.34,0.955]) > 0.1,
                 "Material-gated foreground grass responds to wind")
         }
+        if scene == .desertNight {
+            let meteorProbe = try device.makeComputePipelineState(function: library.makeFunction(name: "livingDesertMeteorProbe")!)
+            let requests = (0..<32).map { SIMD2(Float($0),scene.atmosphere!.light.y) }
+            let requestBuffer = device.makeBuffer(bytes:requests,length:requests.count * 8,options:.storageModeShared)!
+            let resultBuffer = device.makeBuffer(length:requests.count * 8,options:.storageModeShared)!
+            let command = queue.makeCommandBuffer()!, encoder = command.makeComputeCommandEncoder()!
+            encoder.setComputePipelineState(meteorProbe)
+            encoder.setBuffer(requestBuffer,offset:0,index:0); encoder.setBuffer(resultBuffer,offset:0,index:1)
+            encoder.dispatchThreads(MTLSize(width:requests.count,height:1,depth:1),threadsPerThreadgroup:MTLSize(width:1,height:1,depth:1))
+            encoder.endEncoding();command.commit();command.waitUntilCompleted()
+            expect(command.status == .completed,"production Desert meteor timing probe executes")
+            let events = Array(UnsafeBufferPointer(start:resultBuffer.contents().assumingMemoryBound(to:SIMD2<Float>.self),count:requests.count))
+            let intervals = zip(events.dropFirst(),events).map { $0.0.x - $0.1.x }
+            expect(intervals.allSatisfy { $0 >= 8 && $0 <= 15 },"Desert shooting-star arrivals stay within8–15seconds")
+            expect(Set(events.map(\.y)).count > 28,"successive meteor paths and phases vary")
+            expect(difference(render(time:1,atmosphere:0),render(time:8,atmosphere:0),box:[0.44,0.53,0.65,0.59]) > 1,
+                "Desert Night primary low haze evolves independently of celestial atmosphere")
+            expect(difference(render(time:1,motion:0.25,atmosphere:0),render(time:8,motion:0.25,atmosphere:0),box:[0.44,0.53,0.65,0.59]) > 0.15,
+                "Desert Night calm retains low haze")
+            expect(difference(first,next,box:[0.67,0.23,0.69,0.26]) == 0,
+                "Star drift and cloud masks leave the crescent fixed")
+        }
         if scene == .mountainsNight {
             let meteorProbe = try device.makeComputePipelineState(function: library.makeFunction(name: "livingMountainsMeteorProbe")!)
             let requests = (0..<32).map { SIMD2(Float($0),scene.atmosphere!.light.y) }

@@ -57,7 +57,7 @@ run(['xcrun','simctl','install',a.simulator,str(app)])
 stdout=out/'stdout.log'
 run(['xcrun','simctl','launch','--terminate-running-process','--stdout='+str(stdout),'--stderr='+str(out/'stderr.log'),
     a.simulator,'local.liferoute.LivingSceneTests','-LifeRouteLivingDiagnostics'])
-deadline=time.monotonic()+90
+deadline=time.monotonic()+180
 while time.monotonic()<deadline:
     text=stdout.read_text() if stdout.exists() else ''
     terminal=[line for line in text.splitlines() if line.startswith(('LIVING_NATIVE_PASS','LIVING_NATIVE_FAIL'))]

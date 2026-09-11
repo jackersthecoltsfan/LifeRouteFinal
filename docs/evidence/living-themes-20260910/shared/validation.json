@@ -1,0 +1,11 @@
+{
+  "authorityCommit": "919d99afc7580b4e2f0288452a4df7896848046e",
+  "oceanAuthoritySHA256": "988ac4b4cc79c3a76fee2a4317496e7897bf5a5a45c0551c80b53b9b217d053a",
+  "sharedNativeAssertions": 534,
+  "sharedNativeLog": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/continued-native/stdout.log",
+  "stagedShaderAndSwiftCompile": "PASS",
+  "stagedOceanGPUAssertions": 193,
+  "stagedRainforestGPUAssertions": 13,
+  "stagedLog": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/shared-staged-validation-complete.log",
+  "scope": "No new scene fragment programs in this shared commit. Native ownership exercised using the full draft fixture; cumulative staged Metal/Swift and existing Ocean/Rainforest programs independently compiled and rendered."
+}

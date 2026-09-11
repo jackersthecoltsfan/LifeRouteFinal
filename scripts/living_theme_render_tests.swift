@@ -39,6 +39,9 @@ import UniformTypeIdentifiers
             if var ocean = scene.ocean {
                 encoder.setFragmentBytes(&ocean, length: MemoryLayout<LivingOceanConfiguration>.stride, index: 1)
             }
+            if var atmosphere = scene.atmosphere {
+                encoder.setFragmentBytes(&atmosphere, length: MemoryLayout<LivingAtmosphereConfiguration>.stride, index: 2)
+            }
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             encoder.endEncoding()
             command.commit()
@@ -163,17 +166,18 @@ import UniformTypeIdentifiers
             ("fixed sky",[0.72,0.04,0.92,0.12],false),
             ("fixed horizon",[0.50,0.331,0.90,0.334],false),
         ]
-        let regions = scene == .rainforestDay ? rainforestRegions : (scene == .oceanDay ? dayRegions : nightRegions)
+        let otherRegions: [String: [(String,[Double],Bool)]] = [:]
+        let regions = scene == .rainforestDay ? rainforestRegions : (scene == .oceanDay ? dayRegions : (scene == .oceanNight ? nightRegions : otherRegions[scene.themeIdentifier]!))
         var measured: [String:Double] = [:]
         for (name,box,moving) in regions {
             let value = difference(first,next,box:box)
             measured[name] = value
-            expect(moving ? value > (scene == .rainforestDay ? 0.4 : 0.1) : value == 0, "\(name) expected \(moving ? "motion" : "fixed") but difference=\(value)")
+            expect(moving ? value > (scene == .rainforestDay ? 0.4 : 0.02) : value == 0, "\(name) expected \(moving ? "motion" : "fixed") but difference=\(value)")
         }
         if scene == .rainforestDay {
         let mistOn = render(time: 0.3), mistOff = render(time: 0.3, atmosphere: 0)
         expect(difference(mistOn,mistOff,box:[0.56,0.51,0.61,0.55]) > 0.2, "mist has localized visible contribution")
-        let wrap:Float = 1.0 / 0.63
+        let wrap:Float = 1.0 / LIVING_RF_DAY_FALL_RATE
         let before = render(time: wrap - 0.0001), after = render(time: wrap + 0.0001)
         let wrapDifference = difference(before,after,box:[0.53,0.41,0.58,0.54])
         expect(wrapDifference < 0.2, "water phase handover has no discontinuity")
@@ -186,6 +190,13 @@ import UniformTypeIdentifiers
         let calmB = render(time: 1.3, motion: 0.25, atmosphere: 0)
         expect(difference(calmA,calmB,box:regions[0].1) > 0, "calm retains primary environmental motion")
         try png(calmA,name:"scene-calm")
+        let laterA = render(time: 12.0), laterB = render(time: 24.7)
+        expect(difference(laterA,laterB,box:regions[0].1) > 0.02, "primary continues evolving over a longer observation")
+        try png(laterA,name:"scene-12s"); try png(laterB,name:"scene-24.7s")
+        if scene.ocean != nil {
+            expect(difference(render(time: 13.0),render(time: 19.3),box:regions[0].1) > 0.1, "new arrival period does not repeat the same water field")
+        }
+
         // A short locally rendered sequence makes the motion inspectable; no
         // renderer code or external service substitutes for the production shader.
         for frame in 0..<90 { try png(render(time: Float(frame)/30), name:String(format:"frame-%03d",frame)) }

@@ -129,6 +129,18 @@ fragment float4 livingRainforestFragment(LivingSceneVertex in [[stage_in]],
 }
 
 #include "LivingOceanTiming.h"
+#include "LivingRainforestMotion.h"
+#include "LivingArcticMotion.h"
+#include "LivingMountainsMotion.h"
+#include "LivingCanyonMotion.h"
+#include "LivingDesertMotion.h"
+#include "LivingAtmosphereMotion.h"
+
+struct LivingAtmosphereConfiguration {
+    float4 skyA, skyB, light, air;
+};
+static float3 livingClouds(texture2d<float>, sampler, float2, float3, float, float, float, LivingAtmosphereConfiguration);
+static float3 livingNightSky(float3, float2, float, float, float, LivingAtmosphereConfiguration);
 
 // Ocean is a train of finite, independently shaped wave events. A wave enters,
 // grows a face, crests, spills, leaves an expanding foam wake, then dissipates.
@@ -238,3 +250,103 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
     }
     return float4(mix(original, water, wet), 1);
 }
+
+// Supplemental configuration is only bound for the new family programs. The
+// accepted Rainforest Day prefix and its primary uniform layout stay unchanged.
+
+static float livingSky(float2 uv, LivingAtmosphereConfiguration c) {
+    float x = clamp(uv.x, 0.0, 0.9999) * 7.0;
+    int i = int(floor(x));
+    float a = i < 4 ? c.skyA[i] : c.skyB[i - 4];
+    int j = i + 1;
+    float b = j < 4 ? c.skyA[j] : c.skyB[j - 4];
+    float edge = mix(a, b, fract(x));
+    return 1.0 - smoothstep(edge - 0.045, edge - 0.012, uv.y);
+}
+
+static float livingMoonExclusion(float2 uv, LivingAtmosphereConfiguration c) {
+    return smoothstep(0.045, 0.080, length((uv - c.light.zw) * float2(0.563, 1.0)));
+}
+
+static float livingFractal(float2 p, float t) {
+    float2 warp = float2(livingNoise(p * 0.43 + float2(t * LIVING_AIR_WARP_X, 4.7)),
+                        livingNoise(p * 0.51 + float2(9.2, -t * LIVING_AIR_WARP_Y))) - 0.5;
+    return livingNoise(p + warp * 1.3) * 0.57
+        + livingNoise(p * 2.07 - warp + float2(3.1, t * LIVING_AIR_FINE_DRIFT)) * 0.29
+        + livingNoise(p * 4.13 + float2(-t * LIVING_AIR_FINE_REFORM, 7.8)) * 0.14;
+}
+
+// Different velocities and independently evolving domain warps create depth.
+// Existing cloud material is advected locally; the sky mask excludes terrain.
+static float3 livingClouds(texture2d<float> art, sampler sampling, float2 uv,
+                          float3 original, float sky, float t, float amount,
+                          LivingAtmosphereConfiguration c) {
+    if (sky < 0.001 || amount <= 0.0 || c.air.y <= 0.0) return original;
+    float night = c.light.x;
+    float material = mix(smoothstep(0.05, 0.28, min(original.r, original.g)),
+                         smoothstep(0.012, 0.075, dot(original, float3(0.21,0.72,0.07))), night);
+    float2 flow = float2(c.air.x * 1.8, c.air.x * 0.25);
+    float3 advected = livingAdvect(art, sampling, uv, flow, t, LIVING_AIR_CLOUD_ADVECTION);
+    float farLayer = livingFractal(uv * float2(7.5, 15.0) + float2(-t * c.air.x, c.light.y), t);
+    float nearLayer = livingFractal(uv * float2(12.5, 24.0) + float2(t * c.air.x * 1.7, -t * LIVING_AIR_CLOUD_VERTICAL), t + c.light.y);
+    float structure = smoothstep(0.36, 0.74, farLayer * 0.62 + nearLayer * 0.38);
+    float coverage = sky * amount * c.air.y;
+    float3 cloud = mix(original, advected, material * coverage * 0.85);
+    float3 tint = mix(float3(0.80, 0.86, 0.91), float3(0.08, 0.13, 0.20), night);
+    return mix(cloud, tint, structure * coverage * mix(0.19, 0.27, night));
+}
+
+// Mist moves through a bounded depth region, not through a translating image.
+static float3 livingFog(float3 color, float2 uv, float t, float mask,
+                       float amount, float seed, float3 tint) {
+    if (mask <= 0.001 || amount <= 0.0) return color;
+    float back = livingFractal(uv * float2(9.0, 26.0) + float2(-t * LIVING_AIR_FOG_FAR, seed), t);
+    float front = livingFractal(uv * float2(15.0, 39.0) + float2(t * LIVING_AIR_FOG_NEAR, -t * LIVING_AIR_FINE_DRIFT), t + seed);
+    float billow = smoothstep(0.22, 0.79, back * 0.6 + front * 0.4);
+    return mix(color, tint, mask * amount * (0.025 + 0.26 * billow));
+}
+
+// Sparse deterministic depth layers; no emitters, allocations or extra clocks.
+static float livingPrecipitation(float2 uv, float t, float seed, bool snow) {
+    float sum = 0;
+    for (int layer = 0; layer < 3; ++layer) {
+        float d = float(layer);
+        float2 p = uv * float2(72.0 - d * 15.0, 68.0 - d * 12.0);
+        p -= float2(t * (snow ? LIVING_AIR_SNOW_DRIFT_BASE + d * LIVING_AIR_SNOW_DRIFT_DEPTH : LIVING_AIR_RAIN_DRIFT), t * (snow ? LIVING_AIR_SNOW_FALL_BASE + d * LIVING_AIR_SNOW_FALL_DEPTH : LIVING_AIR_RAIN_FALL_BASE + d * LIVING_AIR_RAIN_FALL_DEPTH));
+        float2 cell = floor(p), local = fract(p) - 0.5;
+        float random = livingHash(cell + seed + d * 37.0);
+        if (random < (snow ? 0.965 : 0.981)) continue;
+        local.x += snow ? sin(t * (LIVING_AIR_SNOW_SWAY_BASE + d * LIVING_AIR_SNOW_SWAY_DEPTH) + random * 80.0) * 0.14 : local.y * 0.10;
+        float2 radius = snow ? float2(0.027 + d * 0.012) : float2(0.019, 0.20);
+        float dotSize = dot(local / radius, local / radius);
+        sum += exp(-dotSize) * (0.24 + d * 0.13);
+    }
+    return sum;
+}
+
+static float3 livingNightSky(float3 color, float2 uv, float t, float sky,
+                            float amount, LivingAtmosphereConfiguration c) {
+    if (sky < 0.001 || amount <= 0.0 || c.light.x < 0.5) return color;
+    float seed = c.light.y;
+    // Existing photographed stars vary faintly; no global brightness oscillation.
+    float starMaterial = smoothstep(0.12, 0.45, max(color.r, max(color.g, color.b)));
+    color += color * starMaterial * sin(t * LIVING_AIR_STAR_RATE + livingHash(floor(uv * 800.0)) * 30.0) * 0.08 * sky * amount;
+    // One 0.75-second meteor in a scene-seeded 71-second slot, with varied
+    // start, origin and slope each time. Separate scenes never synchronize.
+    float slot = floor((t + seed * LIVING_AIR_METEOR_SEED_SCALE) / LIVING_AIR_METEOR_SLOT);
+    float random = livingHash(float2(slot, seed));
+    float age = t + seed * LIVING_AIR_METEOR_SEED_SCALE - slot * LIVING_AIR_METEOR_SLOT - (LIVING_AIR_METEOR_START_MIN + random * LIVING_AIR_METEOR_START_RANGE);
+    if (age > 0.0 && age < LIVING_AIR_METEOR_DURATION) {
+        float2 origin = float2(0.28 + random * 0.37, 0.10 + livingHash(float2(seed, slot)) * 0.16);
+        float2 direction = normalize(float2(1.0, 0.36 + random * 0.28));
+        float2 head = origin + direction * age * LIVING_AIR_METEOR_TRAVEL_RATE;
+        float2 delta = uv - head;
+        float along = dot(delta, direction), across = abs(delta.x * direction.y - delta.y * direction.x);
+        float streak = (1.0 - smoothstep(0.0004, 0.0017, across))
+            * smoothstep(-0.08, -0.003, along) * (1.0 - smoothstep(0.0, 0.003, along));
+        float envelope = sin(age / LIVING_AIR_METEOR_DURATION * M_PI_F);
+        color += float3(0.20, 0.26, 0.34) * streak * envelope * sky * amount;
+    }
+    return color;
+}
+

@@ -44,7 +44,10 @@ if __name__ == '__main__':
     assert not verify(header, shader.replace('floor(t / LIVING_OCEAN_ARRIVAL_SPACING)', 'floor(t / 19.0)', 1), pin)[0]
     tests = (ROOT/'scripts/living_theme_render_tests.swift').read_text()
     runner = (ROOT/'scripts/run_living_theme_render_tests.sh').read_text()
-    assert '-import-objc-header "$ROOT/LifeRoute/LivingOceanTiming.h"' in runner
+    assert '-import-objc-header "$ROOT/LifeRoute/LivingMotionContracts.h"' in runner
+    imports = (ROOT/'LifeRoute/LivingMotionContracts.h').read_text()
+    assert '#include "LivingOceanTiming.h"' in imports
+    assert not re.search(r'#\s*(define|undef)\s+LIVING_OCEAN_', imports)
     assert 'earlierLife <= LIVING_OCEAN_LIFETIME_MAX' in tests
     assert 'laterLife * LIVING_OCEAN_OVERLAP_SWELL_PROGRESS' in tests
     assert 'life > 3 * 6.3' not in tests

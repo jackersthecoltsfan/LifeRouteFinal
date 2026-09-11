@@ -266,11 +266,13 @@ final class LivingSceneResources: @unchecked Sendable {
     let pipeline: MTLRenderPipelineState
     let artwork: MTLTexture
     let ocean: LivingOceanConfiguration?
+    let atmosphere: LivingAtmosphereConfiguration?
     let sceneIdentifier: String
 
     init(device: MTLDevice, scene: LivingThemeScene) throws {
         self.device = device
         ocean = scene.ocean
+        atmosphere = scene.atmosphere
         sceneIdentifier = scene.themeIdentifier
         guard let queue = device.makeCommandQueue(),
               let library = device.makeDefaultLibrary(),
@@ -385,6 +387,9 @@ final class LivingSceneRenderer: NSObject, MTKViewDelegate {
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<LivingSceneUniforms>.stride, index: 0)
         if var ocean = resources.ocean {
             encoder.setFragmentBytes(&ocean, length: MemoryLayout<LivingOceanConfiguration>.stride, index: 1)
+        }
+        if var atmosphere = resources.atmosphere {
+            encoder.setFragmentBytes(&atmosphere, length: MemoryLayout<LivingAtmosphereConfiguration>.stride, index: 2)
         }
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()

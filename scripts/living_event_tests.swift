@@ -47,7 +47,7 @@ import Metal
             let fraction=Double(stride(from:0,to:rows.count,by:2).filter{rows[$0].z==0}.count)/Double(times.count)
             expect(fraction>0.60 && fraction<0.80,"more runtime roosting than flying")
             expect(Set(starts.enumerated().map{Int(($0.element-Float($0.offset)*cycleLength)*100)}).count>10,"departure timing varies")
-            expect(stride(from:0,to:rows.count,by:2).allSatisfy{rows[$0].x>=0.12 && rows[$0].x<=0.85 && rows[$0].y>=(bird ? 0.30 : 0.20) && rows[$0].y<=(bird ? 0.66 : 0.42)},"path stays inside bounded photographed canyon region")
+            expect(stride(from:0,to:rows.count,by:2).allSatisfy{rows[$0].x>=0.12 && rows[$0].x<=(bird ? 0.90 : 0.85) && rows[$0].y>=(bird ? 0.30 : 0.20) && rows[$0].y<=(bird ? 0.66 : 0.42)},"path stays inside bounded photographed canyon region")
             let calm=probe(times.map{SIMD2($0,0)})
             expect(stride(from:0,to:calm.count,by:2).allSatisfy{calm[$0].z==0 && calm[$0].x==calm[0].x && calm[$0].y==calm[0].y},"Reduce Motion remains at fixed rest")
             report["restingFraction"]=fraction;report["eventStarts"]=starts;report["roostDurations"]=rests

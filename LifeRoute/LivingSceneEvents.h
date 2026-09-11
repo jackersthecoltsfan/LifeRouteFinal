@@ -93,14 +93,14 @@ static LivingFlightEvent livingBirdEvent(float t,bool active) {
     float cycle=floor(max(t,0.0)/38.0),local=max(t,0.0)-cycle*38.0;
     float start=18.0+livingHash(float2(cycle,113.0))*7.0;
     bool reverse=fmod(cycle,2.0)>0.5;
-    float2 left=float2(0.155,0.655),right=float2(0.842,0.508);
+    float2 left=float2(0.155,0.655),right=float2(800.0/898.0,875.0/1751.0);
     float2 from=reverse?right:left,to=reverse?left:right;
     float direction=reverse?-1.0:1.0;
     LivingFlightEvent e={from,float2(direction,0),0,0,cycle,cycle*38.0+start};
     if (!active) return {left,float2(1,0),0,0,0,0};
     float age=local-start;
     if (age<0.0) return e;
-    if (age>=10.0) {e.position=to;return e;}
+    if (age>=10.0) {e.position=to;e.tangent=float2(-direction,0);return e;}
     float2 depart=from+float2(direction*0.035,-0.04);
     float2 approach=to-float2(direction*0.03,0.04);
     if (age<1.5) {
@@ -123,6 +123,12 @@ static float3 livingBird(float3 color,float2 uv,float2 textureSize,float t,bool 
     float2 local=(uv-e.position)*textureSize/8.0;
     if (dot(local,local)>3.0) return color;
     float2 heading=normalize(e.tangent*textureSize);
+    float age=t-e.eventStart;
+    float direction=fmod(e.cycle,2.0)>0.5?-1.0:1.0;
+    float angle=atan2(heading.y,heading.x);
+    if (e.state==1) angle=mix(direction>0?0.0:-M_PI_F,angle,smoothstep(0.0,0.35,age));
+    if (e.state==3) angle=mix(angle,direction>0?M_PI_F:0.0,smoothstep(9.4,10.0,age));
+    heading=float2(cos(angle),sin(angle));
     float2 q=float2(dot(local,heading),dot(local,float2(-heading.y,heading.x)));
     if (e.state==0) q=float2(local.x*e.tangent.x,local.y);
     float body=livingOval(q,float2(0,0),float2(0.33,0.17));

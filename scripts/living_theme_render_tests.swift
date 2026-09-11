@@ -149,6 +149,23 @@ import CryptoKit
                 "overlapSamples": overlaps, "phaseFractions": phases, "productionGPUValues": samples.map { [$0.x, $0.y, $0.z, $0.w] }]
             try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]).write(to: output.appendingPathComponent("ocean-wave-phases.json"))
         }
+        let eventProbe: String? = scene == .canyonDay ? "livingBirdEventProbe" : scene == .canyonNight ? "livingBatEventProbe" : nil
+        if let eventProbe {
+            let statePipeline=try device.makeComputePipelineState(function:library.makeFunction(name:eventProbe)!)
+            var request=SIMD2<Float>(0,1)
+            let input=device.makeBuffer(bytes:&request,length:8,options:.storageModeShared)!
+            let result=device.makeBuffer(length:32,options:.storageModeShared)!
+            let command=queue.makeCommandBuffer()!,encoder=command.makeComputeCommandEncoder()!
+            encoder.setComputePipelineState(statePipeline);encoder.setBuffer(input,offset:0,index:0);encoder.setBuffer(result,offset:0,index:1)
+            encoder.dispatchThreads(MTLSize(width:1,height:1,depth:1),threadsPerThreadgroup:MTLSize(width:1,height:1,depth:1))
+            encoder.endEncoding();command.commit();command.waitUntilCompleted()
+            precondition(command.status == .completed)
+            let start=result.contents().assumingMemoryBound(to:SIMD4<Float>.self).pointee.w
+            let ages:[Float]=[-1,0.5,2,4,6,8,9.5,12]
+            for (i,age) in ages.enumerated() {try png(render(time:start+age),name:"event-\(i)")}
+            let manifest:[String:Any]=["eventProbe":eventProbe,"productionEventStart":start,"ages":ages,"times":ages.map{start+$0}]
+            try JSONSerialization.data(withJSONObject:manifest,options:[.prettyPrinted,.sortedKeys]).write(to:output.appendingPathComponent("event-frames.json"))
+        }
         let still = render(time: 0, motion: 0)
         expect(still == render(time: 900, motion: 0), "Still is exactly static at any time")
         let first = render(time: 0.3)

@@ -1,0 +1,18 @@
+{
+  "artworkPixels" : [
+    941,
+    1672
+  ],
+  "assertions" : 8,
+  "device" : "Apple M5",
+  "gpuMaximumMilliseconds" : 5.0520000004325993,
+  "gpuMeanMilliseconds" : 1.4078964644924248,
+  "limitation" : "Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance",
+  "regionMeanByteDifferences" : {
+    "evolving high cloud" : 0.46192281486399134,
+    "fixed foreground rock" : 0,
+    "valley atmosphere" : 0.67463567120151458
+  },
+  "scene" : "scenery.mountains.day",
+  "textureBytes" : 6701056
+}

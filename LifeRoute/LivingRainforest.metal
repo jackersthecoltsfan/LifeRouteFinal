@@ -457,3 +457,30 @@ fragment float4 livingArcticNightFragment(LivingSceneVertex in [[stage_in]],
     if (u.atmosphere > 0.0) color += float3(0.20,0.29,0.36) * livingPrecipitation(uv,t,c.light.y,true) * haze * c.air.w;
     return float4(color,1);
 }
+
+fragment float4 livingMountainsFragment(LivingSceneVertex in [[stage_in]],
+    texture2d<float> artwork [[texture(0)]], constant LivingSceneUniforms &u [[buffer(0)]],
+    constant LivingAtmosphereConfiguration &c [[buffer(2)]]) {
+    constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
+    float2 uv = (in.uv - 0.5) * u.uvScale + 0.5;
+    float3 original = artwork.sample(sampling,uv).rgb;
+    if (u.motion <= 0.0) return float4(original,1);
+    float t = u.time * mix(LIVING_MOUNTAINS_CALM_SCALE,1.0,u.motion), night = c.light.x;
+    float sky = livingSky(uv,c) * livingMoonExclusion(uv,c);
+    float3 color = livingClouds(artwork,sampling,uv,original,sky,t,u.motion,c);
+    // Separate valley and lake depth planes, calibrated to each photograph.
+    float valley = mix(livingOval(uv,float2(0.66,0.465),float2(0.20,0.055)),
+                       livingOval(uv,float2(0.56,0.475),float2(0.36,0.065)),night);
+    float near = mix(livingOval(uv,float2(0.63,0.56),float2(0.19,0.06)),
+                     livingOval(uv,float2(0.45,0.59),float2(0.25,0.045)),night);
+    color = livingFog(color,uv,t,valley,c.air.z * u.motion,c.light.y,mix(float3(0.43,0.57,0.65),float3(0.065,0.12,0.19),night));
+    color = livingFog(color,uv,t * LIVING_MOUNTAINS_NEAR_FOG_SCALE,near,c.air.z * u.atmosphere * 0.55,c.light.y + 13.0,mix(float3(0.40,0.53,0.59),float3(0.055,0.10,0.16),night));
+    float lake = mix(livingOval(uv,float2(0.65,0.52),float2(0.095,0.023)),
+                     livingOval(uv,float2(0.48,0.66),float2(0.20,0.09)),night);
+    if (lake > 0.001 && u.atmosphere > 0.0) {
+        float wave = sin(uv.y * 740.0 - t * LIVING_MOUNTAINS_LAKE_RATE + uv.x * 27.0);
+        color = mix(color,artwork.sample(sampling,uv + float2(wave * 0.45,wave * 0.2) / u.textureSize * u.motion).rgb,lake * 0.5);
+    }
+    color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
+    return float4(color,1);
+}

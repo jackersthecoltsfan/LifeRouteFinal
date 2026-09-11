@@ -1,0 +1,16 @@
+{
+  "scene": "Mountains Day",
+  "engineeringStatus": "PASS",
+  "focusedGPUAssertions": 8,
+  "stagedRenderImagesExactlyMatchFullFixture": 96,
+  "stagedValidationLog": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/staged-mountains-day.log",
+  "sharedNativeAssertions": 534,
+  "sharedNativeEvidence": "/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/continued-native/stdout.log",
+  "acceptedRainforestControl": "13 GPU assertions; exact accepted source bytes",
+  "unrelatedControl": "Arctic Day: 8 GPU assertions, fixed ice and evolving weather",
+  "simulatorEvidence": "motion.mp4",
+  "videoDuration": "VIDEO_VERIFIED duration=17.933333333333334",
+  "visualInspection": "Correct artwork, environmental movement and fixed framing inspected in Simulator frames; Ocean refined foam avoids the initial broad pale segments. Physical appearance remains unverified.",
+  "authorityCommit": "919d99afc7580b4e2f0288452a4df7896848046e",
+  "scope": "This cumulative scene program and configuration compiled and rendered from the staged index; Simulator capture used the same program/config in the full draft fixture."
+}

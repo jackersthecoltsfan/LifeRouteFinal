@@ -34,7 +34,17 @@ final class LivingEnvironmentSurface: UIView {
     private var scene: LivingThemeScene
     // The first production frame is mid-cycle; subsequent selections retain the
     // same active-time clock. No shader rate, Ocean envelope or quality changes.
-    private var retainedClock = LivingSceneClock(initialElapsed: 2)
+    private var retainedClock = LivingSceneClock(initialElapsed: {
+#if DEBUG
+        let args=ProcessInfo.processInfo.arguments
+        if args.contains("-LifeRouteLivingThemeQAViewer"),
+           let i=args.firstIndex(of:"-LifeRouteLivingThemeQAStartAt"),args.indices.contains(i+1),
+           let value=Double(args[i+1]),value.isFinite {
+            return min(300,max(2,value))
+        }
+#endif
+        return 2
+    }())
     private var preparationFailed = false
     private var preparation: Task<Void, Never>?
 #if DEBUG

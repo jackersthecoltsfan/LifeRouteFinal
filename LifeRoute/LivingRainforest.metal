@@ -425,3 +425,35 @@ fragment float4 livingArcticDayFragment(LivingSceneVertex in [[stage_in]],
     if (u.atmosphere > 0.0) color += float3(0.56,0.63,0.70) * livingPrecipitation(uv,t,c.light.y,true) * max(bank,sky * 0.3) * c.air.w;
     return float4(color,1);
 }
+
+fragment float4 livingArcticNightFragment(LivingSceneVertex in [[stage_in]],
+    texture2d<float> artwork [[texture(0)]], constant LivingSceneUniforms &u [[buffer(0)]],
+    constant LivingAtmosphereConfiguration &c [[buffer(2)]]) {
+    constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
+    float2 uv = (in.uv - 0.5) * u.uvScale + 0.5;
+    float3 original = artwork.sample(sampling,uv).rgb;
+    if (u.motion <= 0.0) return float4(original,1);
+    float t = u.time * mix(LIVING_ARCTIC_NIGHT_CALM_SCALE,1.0,u.motion);
+    float sky = livingSky(uv,c) * livingMoonExclusion(uv,c);
+    // Animate the visible aurora itself. Its green/cyan material gate excludes
+    // stars, baked clouds, moon, glacier and mountain silhouettes.
+    float aurora = sky * smoothstep(0.004,0.035,original.g - original.r)
+        * (1.0 - smoothstep(0.02,0.08,original.r));
+    float fold = sin(uv.x * 10.0 - t * LIVING_ARCTIC_AURORA_FOLD_RATE + sin(uv.x * 17.0 + t * LIVING_ARCTIC_AURORA_REFORM_RATE));
+    float curtain = sin(uv.x * 86.0 + fold * 2.4 - t * LIVING_ARCTIC_AURORA_CURTAIN_RATE);
+    float2 offset = float2(fold * 2.5, sin(uv.x * 7.0 + t * LIVING_ARCTIC_AURORA_VERTICAL_RATE) * 7.0 + curtain * 1.2) / u.textureSize * u.motion;
+    float3 ribbon = artwork.sample(sampling,uv + offset).rgb;
+    ribbon *= 1.0 + u.motion * (fold * 0.12 + curtain * 0.10);
+    float3 color = mix(original,ribbon,aurora);
+    float haze = livingOval(uv,float2(0.48,0.51),float2(0.27,0.04));
+    color = livingFog(color,uv,t,haze,c.air.z * u.atmosphere,c.light.y,float3(0.06,0.14,0.20));
+    float lake = livingOval(uv,float2(0.48,0.72),float2(0.24,0.12));
+    if (lake > 0.001 && u.atmosphere > 0.0) {
+        float wave = sin(uv.y * 630.0 - t * LIVING_ARCTIC_LAKE_RATE + sin(uv.x * 41.0));
+        float3 reflection = artwork.sample(sampling,uv + float2(wave * 0.8,wave * 0.24) / u.textureSize * u.motion).rgb;
+        color = mix(color,reflection,lake * u.atmosphere);
+    }
+    color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
+    if (u.atmosphere > 0.0) color += float3(0.20,0.29,0.36) * livingPrecipitation(uv,t,c.light.y,true) * haze * c.air.w;
+    return float4(color,1);
+}

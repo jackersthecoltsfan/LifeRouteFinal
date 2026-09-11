@@ -1,0 +1,18 @@
+{
+  "artworkPixels" : [
+    941,
+    1672
+  ],
+  "assertions" : 8,
+  "device" : "Apple M5",
+  "gpuMaximumMilliseconds" : 3.2345416693715379,
+  "gpuMeanMilliseconds" : 0.94924915810215593,
+  "limitation" : "Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance",
+  "regionMeanByteDifferences" : {
+    "aurora curtain" : 2.0242499052993193,
+    "fixed foreground" : 0,
+    "fixed mountain" : 0
+  },
+  "scene" : "scenery.arctic.night",
+  "textureBytes" : 6701056
+}

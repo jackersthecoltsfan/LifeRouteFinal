@@ -364,3 +364,36 @@ static float3 livingNightSky(float3 color, float2 uv, float t, float sky,
     }
     return color;
 }
+
+fragment float4 livingRainforestNightFragment(LivingSceneVertex in [[stage_in]],
+    texture2d<float> artwork [[texture(0)]], constant LivingSceneUniforms &u [[buffer(0)]],
+    constant LivingAtmosphereConfiguration &c [[buffer(2)]]) {
+    constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
+    float2 uv = (in.uv - 0.5) * u.uvScale + 0.5;
+    float3 original = artwork.sample(sampling, uv).rgb;
+    if (u.motion <= 0.0) return float4(original, 1);
+    float t = u.time * mix(LIVING_RF_CALM_SCALE, 1.0, u.motion), colorAmount = u.motion;
+    // This photograph has a stream and pool, not a distinct waterfall.
+    float y = saturate((uv.y - 0.51) / 0.29);
+    float center = 0.49 - 0.055 * sin(y * 4.1);
+    float stream = (1.0 - smoothstep(0.12, 0.24, abs(uv.x - center)))
+        * smoothstep(0.50, 0.55, uv.y) * (1.0 - smoothstep(0.75, 0.82, uv.y));
+    float material = smoothstep(0.003, 0.025, original.b - original.r)
+        * (1.0 - smoothstep(0.01, 0.04, original.g - original.b));
+    float ripple = sin(uv.y * 560.0 - t * LIVING_RF_STREAM_RIPPLE_RATE + sin(uv.x * 77.0 + t * LIVING_RF_STREAM_VARIATION_RATE));
+    float2 flow = float2(0.007 + y * 0.012, 0.004 + y * 0.015) * u.motion;
+    float3 moving = livingAdvect(artwork, sampling, uv + float2(ripple * 0.5, ripple * 0.18) / u.textureSize * u.motion, flow, t, LIVING_RF_STREAM_ADVECTION_RATE);
+    moving *= 1.0 + ripple * 0.04 * u.motion;
+    float3 color = mix(original, moving, stream * material * 0.94);
+    float leaf = max(livingOval(uv, float2(0.22,0.82),float2(0.17,0.06)),
+                     livingOval(uv, float2(0.87,0.56),float2(0.11,0.07)));
+    if (leaf > 0.001 && u.atmosphere > 0.0) {
+        float2 offset = float2(sin(t * LIVING_RF_LEAF_SWAY_RATE + uv.y * 11.0), sin(t * LIVING_RF_LEAF_CROSS_RATE + uv.x * 19.0) * 0.5);
+        color = mix(color, artwork.sample(sampling, uv + offset / u.textureSize * colorAmount).rgb, leaf * u.atmosphere);
+    }
+    float mist = livingOval(uv, float2(0.49,0.545),float2(0.28,0.045));
+    color = livingFog(color, uv, t, mist, c.air.z * u.atmosphere, c.light.y, float3(0.055,0.15,0.18));
+    float air = livingOval(uv, float2(0.49,0.39),float2(0.14,0.12));
+    if (u.atmosphere > 0.0) color += float3(0.10,0.18,0.21) * livingPrecipitation(uv,t,c.light.y,false) * air * c.air.w;
+    return float4(color, 1);
+}

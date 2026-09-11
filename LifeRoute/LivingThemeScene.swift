@@ -21,6 +21,8 @@ struct LivingThemeScene: Equatable, Sendable {
     static let oceanNight = Self(themeIdentifier: "scenery.ocean.night", artworkName: "SceneryOceanNight",
                                  fragmentFunction: "livingOceanFragment", ocean: .night)
 
+    static let rainforestNight = Self(themeIdentifier: "scenery.rainforest.night", artworkName: "SceneryRainforestNight",
+        fragmentFunction: "livingRainforestNightFragment", atmosphere: .rainforestNight)
 
     static func scene(for themeIdentifier: String) -> Self? {
         LivingThemeRegistration.registration(for: themeIdentifier)?.scene
@@ -51,7 +53,7 @@ struct LivingThemeRegistration: Equatable, Sendable {
     static let all: [Self] = [
         .init(themeIdentifier: "scenery.rainforest.day", family: .rainforest, variant: .day, scene: .rainforestDay,
               primaryMotion: "waterfall and winding stream", secondaryEffects: ["localized spray", "leaf flex"], ambientEffects: []),
-        .init(themeIdentifier: "scenery.rainforest.night", family: .rainforest, variant: .night, scene: nil,
+        .init(themeIdentifier: "scenery.rainforest.night", family: .rainforest, variant: .night, scene: .rainforestNight,
               primaryMotion: "moonlit stream flow", secondaryEffects: ["layered river mist", "regional foliage"], ambientEffects: ["sparse layered rain"]),
         .init(themeIdentifier: "scenery.ocean.day", family: .ocean, variant: .day, scene: .oceanDay,
               primaryMotion: "finite advancing swell, crest, break and foam decay", secondaryEffects: ["surface ripples", "localized spray", "evolving cloud layers"], ambientEffects: []),

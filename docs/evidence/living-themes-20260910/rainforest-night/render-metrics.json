@@ -1,0 +1,18 @@
+{
+  "artworkPixels" : [
+    941,
+    1672
+  ],
+  "assertions" : 8,
+  "device" : "Apple M5",
+  "gpuMaximumMilliseconds" : 5.7182916643796489,
+  "gpuMeanMilliseconds" : 1.129409511839075,
+  "limitation" : "Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance",
+  "regionMeanByteDifferences" : {
+    "fixed moon" : 0,
+    "fixed trunk" : 0,
+    "stream flow" : 5.7095491803278691
+  },
+  "scene" : "scenery.rainforest.night",
+  "textureBytes" : 6701056
+}

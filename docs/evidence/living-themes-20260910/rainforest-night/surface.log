@@ -1,0 +1,3 @@
+LIVING_SCENE created id=5D018619-F7E9-40FF-8124-D98900927FE7
+LIVING_SCENE resume id=5D018619-F7E9-40FF-8124-D98900927FE7 frames=1 elapsed=0.0 cpuMeanMs=1.3001666666241363 gpuMeanMs=0.0 maxIntervalMs=0.0
+CAPTURE_READY scene=scenery.rainforest.night program=livingRainforestNightFragment rendererCount=1 resourceCount=1

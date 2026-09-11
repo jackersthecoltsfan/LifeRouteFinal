@@ -168,6 +168,7 @@ import UniformTypeIdentifiers
         ]
         let otherRegions: [String: [(String,[Double],Bool)]] = [
             "scenery.rainforest.night": [("stream flow",[0.40,0.56,0.53,0.68],true),("fixed trunk",[0.03,0.12,0.10,0.39],false),("fixed moon",[0.52,0.163,0.55,0.18],false)],
+            "scenery.arctic.day": [("broad drifting weather",[0.27,0.39,0.61,0.45],true),("sky cloud layers",[0.20,0.05,0.65,0.20],true),("fixed ice face",[0.78,0.67,0.90,0.82],false)],
         ]
         let regions = scene == .rainforestDay ? rainforestRegions : (scene == .oceanDay ? dayRegions : (scene == .oceanNight ? nightRegions : otherRegions[scene.themeIdentifier]!))
         var measured: [String:Double] = [:]

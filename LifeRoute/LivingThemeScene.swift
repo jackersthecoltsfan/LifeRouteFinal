@@ -23,6 +23,8 @@ struct LivingThemeScene: Equatable, Sendable {
 
     static let rainforestNight = Self(themeIdentifier: "scenery.rainforest.night", artworkName: "SceneryRainforestNight",
         fragmentFunction: "livingRainforestNightFragment", atmosphere: .rainforestNight)
+    static let arcticDay = Self(themeIdentifier: "scenery.arctic.day", artworkName: "SceneryArcticDay",
+        fragmentFunction: "livingArcticDayFragment", atmosphere: .arcticDay)
 
     static func scene(for themeIdentifier: String) -> Self? {
         LivingThemeRegistration.registration(for: themeIdentifier)?.scene
@@ -59,7 +61,7 @@ struct LivingThemeRegistration: Equatable, Sendable {
               primaryMotion: "finite advancing swell, crest, break and foam decay", secondaryEffects: ["surface ripples", "localized spray", "evolving cloud layers"], ambientEffects: []),
         .init(themeIdentifier: "scenery.ocean.night", family: .ocean, variant: .night, scene: .oceanNight,
               primaryMotion: "finite advancing swell, crest, break and foam decay", secondaryEffects: ["water-bound moon reflection", "surface ripples", "evolving night cloud"], ambientEffects: ["stars", "rare shooting stars"]),
-        .init(themeIdentifier: "scenery.arctic.day", family: .arctic, variant: .day, scene: nil,
+        .init(themeIdentifier: "scenery.arctic.day", family: .arctic, variant: .day, scene: .arcticDay,
               primaryMotion: "broad advecting spindrift and weather banks", secondaryEffects: ["layered haze", "water-channel ripples"], ambientEffects: ["three-depth snow"]),
         .init(themeIdentifier: "scenery.arctic.night", family: .arctic, variant: .night, scene: nil,
               primaryMotion: "evolving aurora curtains", secondaryEffects: ["cold haze", "lake reflection"], ambientEffects: ["sparse snow", "stars", "rare shooting stars"]),

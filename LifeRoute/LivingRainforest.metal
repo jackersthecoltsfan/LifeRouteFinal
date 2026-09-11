@@ -397,3 +397,31 @@ fragment float4 livingRainforestNightFragment(LivingSceneVertex in [[stage_in]],
     if (u.atmosphere > 0.0) color += float3(0.10,0.18,0.21) * livingPrecipitation(uv,t,c.light.y,false) * air * c.air.w;
     return float4(color, 1);
 }
+
+fragment float4 livingArcticDayFragment(LivingSceneVertex in [[stage_in]],
+    texture2d<float> artwork [[texture(0)]], constant LivingSceneUniforms &u [[buffer(0)]],
+    constant LivingAtmosphereConfiguration &c [[buffer(2)]]) {
+    constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
+    float2 uv = (in.uv - 0.5) * u.uvScale + 0.5;
+    float3 original = artwork.sample(sampling, uv).rgb;
+    if (u.motion <= 0.0) return float4(original, 1);
+    float t = u.time * mix(LIVING_ARCTIC_DAY_CALM_SCALE,1.0,u.motion);
+    float sky = livingSky(uv,c);
+    float3 color = livingClouds(artwork,sampling,uv,original,sky,t,u.motion,c);
+    // Spindrift travels over the channel and along existing ice-shelf planes.
+    // The foreground ice face and mountain skyline receive no displacement.
+    float bank = max(livingOval(uv,float2(0.48,0.405),float2(0.55,0.065)),
+                     livingOval(uv,float2(0.35,0.55),float2(0.35,0.10)));
+    float drift = livingFractal(uv * float2(9,48) + float2(-t * LIVING_ARCTIC_SNOW_BANK_RATE, t * LIVING_ARCTIC_SNOW_ROLL_RATE), t + 23.0);
+    float rolling = smoothstep(0.30,0.73,drift);
+    color = mix(color,float3(0.74,0.83,0.90), bank * rolling * 0.34 * u.motion);
+    color = livingFog(color,uv,t,bank,c.air.z * u.atmosphere,c.light.y,float3(0.66,0.76,0.84));
+    float water = livingOval(uv,float2(0.37,0.69),float2(0.13,0.11));
+    if (water > 0.001) {
+        float wave = sin(uv.y * 700.0 + uv.x * 19.0 - t * LIVING_ARCTIC_CHANNEL_RATE);
+        float3 flow = artwork.sample(sampling,uv + float2(wave * 0.4,wave * 0.3) / u.textureSize * u.motion).rgb;
+        color = mix(color,flow,water * 0.7 * u.atmosphere);
+    }
+    if (u.atmosphere > 0.0) color += float3(0.56,0.63,0.70) * livingPrecipitation(uv,t,c.light.y,true) * max(bank,sky * 0.3) * c.air.w;
+    return float4(color,1);
+}

@@ -1,0 +1,18 @@
+{
+  "artworkPixels" : [
+    941,
+    1672
+  ],
+  "assertions" : 8,
+  "device" : "Apple M5",
+  "gpuMaximumMilliseconds" : 7.0663750011590309,
+  "gpuMeanMilliseconds" : 2.693666666685874,
+  "limitation" : "Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance",
+  "regionMeanByteDifferences" : {
+    "broad drifting weather" : 2.9838958333333334,
+    "fixed ice face" : 0,
+    "sky cloud layers" : 0.2325701135568051
+  },
+  "scene" : "scenery.arctic.day",
+  "textureBytes" : 6701056
+}

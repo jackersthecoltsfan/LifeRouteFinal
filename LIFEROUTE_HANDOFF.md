@@ -1,3 +1,18 @@
+# Living Themes physical refinement — Phase 2 candidate, September 11, 2026
+
+- Continue only in `/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-physical-refinement`, branch `codex/living-themes-physical-refinement-20260911`, descendant of exact parent `a769f67abdca97b3e289ffe1487095add4da6f74`. SOURCE-CHANGING OWNERS = 1. Review helpers are read-only.
+- Frozen E1 `9a202ecac316920a4cbad33804e7d83f84cd03a9` was built, signed, sealed, installed and launched successfully. Preserve that commit, detached QA worktree and artifact unchanged. Phase 2 does not depend on continued phone availability or asynchronous physical feedback.
+- Shared foreground continuity and all six environmental refinements remain. Canyon foliage now uses an inward-feathered mask over three identified plants, with independent broader-crown ROI and bare-rock controls. Arctic twinkle operates on detected photographed star cores with independent encoded phases/periods. Failed E1 foliage/star experiments remain historical evidence, not active source.
+- Canyon bird and bat use the production scene clock for alternating perches/roosts, takeoff, bounded flight and landing; they rest more than they fly. Arctic Day adds a 5-second gust and 1.5-second settle every26–38 seconds using integrated horizontal snow travel. Reduce Motion keeps animals at rest and suppresses gust weather. The one renderer and resource authority remain.
+- `ARCTIC_NIGHT_WOLF_SCENE_FAIL`: a bounded custom-vector draft passed state mechanics but failed photographic integration; review also found an in-place turn pose discontinuity. The complete draft/patch and rendered evidence are retained externally under `phase2/wolf-failed-draft` and `phase2/wolf-gpu`. No wolf draft is active; aurora and star gains remain. Final shared tests must establish failure locality.
+- Theme View: DEFERRED BY OWNER AFTER TWO NON-CONVERGING ISOLATION ATTEMPTS. No new product QA entry, event button or persistence change. The existing DEBUG direct-launch harness may start its real production clock at a bounded nonzero time for controlled event evidence; normal product and Release paths use their existing phase strategy.
+- Final qualification and artifact authority belong to `/Users/brand/Documents/LifeRouteCheckpoints/living-themes-physical-refinement-20260911/LIVING_THEMES_PHYSICAL_REFINEMENT_RECEIPT.md` and `final/ARTIFACT_VERIFICATION.json`. Do not infer successful sealing from this source handoff; those external exact-SHA records own the result. The final source is to be clean, Development-signed and sealed without another physical install.
+- Ocean timing/artwork/visual intensity and the six unflagged scenes are preserved. Pixel metrics are comparators, not physical acceptance. Brandon retains visual, finger-interaction, sustained warmth/battery/thermal authority. No Session Note feature work, Calendar B feature work, TestFlight, release, hosted CI, push, merge or history rewrite.
+
+Earlier entries below describe their own frozen checkpoints and do not override this continuation.
+
+---
+
 # INTERIM ENVIRONMENT PHYSICAL-QA CANDIDATE — September 11, 2026
 
 - Current isolated lineage: `/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-physical-refinement`, branch `codex/living-themes-physical-refinement-20260911`, exact parent `a769f67abdca97b3e289ffe1487095add4da6f74`. One source-changing owner. Protected installed-parent worktree remains unchanged.

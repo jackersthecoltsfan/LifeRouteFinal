@@ -384,6 +384,12 @@ static float livingPrecipitation(float2 uv, float t, float seed, bool snow, floa
     return sum;
 }
 
+static float livingSnowfallWithGust(float2 uv,float t,float seed) {
+    LivingGustEvent gust=livingGustEvent(t);
+    return livingPrecipitation(uv-float2(gust.travel,0),t,seed,true,17.5)
+        * (1.0+0.15*gust.strength);
+}
+
 // Owner-requested physical refinements only. Existing callers retain their
 // original air system. Travel is in artwork widths, independent of camera UV.
 static float3 livingPhysicalClouds(float3 color, float2 uv, float sky, float t,
@@ -546,7 +552,7 @@ fragment float4 livingArcticDayFragment(LivingSceneVertex in [[stage_in]],
         // respond slowly underneath it. Foreground shelf faces remain fixed.
         color += (flow-original)*water;
     }
-    if (u.atmosphere > 0.0) color += float3(0.56,0.63,0.70) * livingPrecipitation(uv,t,c.light.y,true,17.5) * max(bank,sky * 0.65) * c.air.w;
+    if (u.atmosphere > 0.0) color += float3(0.56,0.63,0.70) * livingSnowfallWithGust(uv,t,c.light.y) * max(bank,sky * 0.65) * c.air.w;
     return float4(color,1);
 }
 
@@ -989,4 +995,12 @@ kernel void livingBatEventProbe(device const float2 *requests [[buffer(0)]],
     LivingFlightEvent e=livingBatEvent(requests[id].x,requests[id].y>0.5);
     results[id*2]=float4(e.position,e.state,e.eventStart);
     results[id*2+1]=float4(e.tangent,e.wingPhase,e.cycle);
+}
+
+kernel void livingGustEventProbe(device const float2 *requests [[buffer(0)]],
+    device float4 *results [[buffer(1)]], uint id [[thread_position_in_grid]]) {
+    LivingGustEvent e=livingGustEvent(requests[id].x);
+    if (requests[id].y<0.5) e={0,0,0,0};
+    results[id*2]=float4(e.strength,e.travel,e.state,e.eventStart);
+    results[id*2+1]=float4(0);
 }

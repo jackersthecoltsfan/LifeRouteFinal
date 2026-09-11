@@ -25,7 +25,7 @@ if a.kind=='river':
     expression=(time.group()+'\n' if time else '')+phase+'\n result[id] = phase;'
 else:
     section=text.split('fragment float4 livingArcticDayFragment',1)[1].split('struct LivingAuroraSample',1)[0]
-    call=re.search(r'livingPrecipitation\(uv,t,c.light.y,true,[0-9.]+\)',section).group()
+    call=re.search(r'livingSnowfallWithGust\(uv,t,c.light.y\)|livingPrecipitation\(uv,t,c.light.y,true,[0-9.]+\)',section).group()
     scene=(a.source/'LifeRoute/LivingThemeScene.swift').read_text()
     descriptor=re.search(r'static let arcticDay = Self\(skyA:.*?light: SIMD4\(([^)]+)\)',scene,re.S).group(1)
     expression='LivingAtmosphereConfiguration c; c.light = float4('+descriptor+');\n result[id] = '+call+';'

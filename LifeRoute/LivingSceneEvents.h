@@ -84,4 +84,24 @@ static float3 livingBat(float3 color,float2 uv,float2 textureSize,float t,bool a
     }
     return mix(color,float3(0.008,0.012,0.019),body*0.88);
 }
+
+struct LivingGustEvent { float strength; float travel; float state; float eventStart; };
+static LivingGustEvent livingGustEvent(float t) {
+    float cycle=floor(max(0.0,t)/32.0),local=max(0.0,t)-cycle*32.0;
+    float start=7.0+livingHash(float2(cycle,194.0))*6.0,age=local-start;
+    float strength=0,integral=0,state=0;
+    if (age>=0.0 && age<1.0) {
+        strength=smoothstep(0.0,1.0,age);
+        integral=age*age*age-0.5*age*age*age*age;state=1;
+    } else if (age>=1.0 && age<5.0) {
+        strength=1;integral=age-0.5;state=1;
+    } else if (age>=5.0 && age<6.5) {
+        float x=age-5.0;
+        strength=1.0-smoothstep(0.0,1.5,x);
+        integral=4.5+x-x*x*x/2.25+0.5*x*x*x*x/3.375;state=2;
+    } else if (age>=6.5) integral=5.25;
+    // Integrate the velocity envelope instead of multiplying time by a gust.
+    // Particle positions never jump backward as the wind settles or wraps.
+    return {strength,(cycle*5.25+integral)*0.035,state,cycle*32.0+start};
+}
 #endif

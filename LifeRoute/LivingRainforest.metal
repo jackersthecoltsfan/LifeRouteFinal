@@ -902,6 +902,7 @@ fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
     }
     color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
     if (night > 0.5) color=livingBat(color,uv,u.textureSize,t,u.atmosphere>0.0 && u.motion>0.5);
+    else color=livingBird(color,uv,u.textureSize,t,u.atmosphere>0.0 && u.motion>0.5);
     return float4(color,1);
 }
 
@@ -1003,4 +1004,11 @@ kernel void livingGustEventProbe(device const float2 *requests [[buffer(0)]],
     if (requests[id].y<0.5) e={0,0,0,0};
     results[id*2]=float4(e.strength,e.travel,e.state,e.eventStart);
     results[id*2+1]=float4(0);
+}
+
+kernel void livingBirdEventProbe(device const float2 *requests [[buffer(0)]],
+    device float4 *results [[buffer(1)]], uint id [[thread_position_in_grid]]) {
+    LivingFlightEvent e=livingBirdEvent(requests[id].x,requests[id].y>0.5);
+    results[id*2]=float4(e.position,e.state,e.eventStart);
+    results[id*2+1]=float4(e.tangent,e.wingPhase,e.cycle);
 }

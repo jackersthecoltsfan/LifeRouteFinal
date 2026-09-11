@@ -265,6 +265,20 @@ import CryptoKit
             expect(additionalStatic["pixels"]! > 0,"additional fixed artwork control is nonempty")
             expect(additionalStatic["spread"]! <= (roiContract["maximum_static_spread"] as! Double),"additional fixed geometry change <=5%")
         }
+        if let depthRegions = sceneROI["depth_regions"] as? [String:[[[Double]]]] {
+            var depths=[String:[String:Double]]()
+            for name in depthRegions.keys.sorted() {
+                let values=temporalStats(roiPixels(depthRegions[name]!));depths[name]=values
+                expect(values["movingMedian255"]! >= 3,"Ocean \(name) depth has perceptible primary magnitude")
+                expect(values["spread"]! >= 0.40,"Ocean \(name) depth participates across at least40percent")
+            }
+            try JSONSerialization.data(withJSONObject:depths,options:[.prettyPrinted,.sortedKeys])
+                .write(to:output.appendingPathComponent("ocean-depth-roi.json"))
+            for box in [[0.2,0.36,0.8,0.46],[0.15,0.53,0.85,0.69],[0.15,0.79,0.85,0.94]] {
+                expect(difference(render(time:3,atmosphere:0),render(time:6,atmosphere:0),box:box)>1,
+                    "Ocean primary motion reaches each depth without removable atmosphere")
+            }
+        }
         if scene == .rainforestDay {
         let mistOn = render(time: 0.3), mistOff = render(time: 0.3, atmosphere: 0)
         expect(difference(mistOn,mistOff,box:[0.56,0.51,0.61,0.55]) > 0.2, "mist has localized visible contribution")

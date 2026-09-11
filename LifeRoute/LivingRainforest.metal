@@ -192,9 +192,11 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
     float2 uv = (in.uv - 0.5) * u.uvScale + 0.5;
     float3 original = artwork.sample(sampling, uv).rgb;
     if (u.motion <= 0.0) return float4(original, 1);
+    bool broadWater = o.night < 0.5;
     if (uv.y <= o.horizon) {
         LivingAtmosphereConfiguration air = {float4(o.horizon),float4(o.horizon),
             float4(o.night, mix(17.0,31.0,o.night), o.reflectionX, 0.145),float4(0.012,0.42,0,0)};
+        if (broadWater) air.air = float4(0.046,0.82,0,0);
         float sky = 1.0 - smoothstep(o.horizon - 0.06,o.horizon - 0.012,uv.y);
         if (o.night > 0.5) sky *= smoothstep(0.035,0.070,length((uv - float2(o.reflectionX,0.145)) * float2(0.563,1)));
         float t = u.time * mix(LIVING_OCEAN_CALM_TIME_SCALE,LIVING_OCEAN_FULL_TIME_SCALE,u.motion);
@@ -218,28 +220,36 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
         // crest fragmentation and lifetime vary independently for each arrival.
         float bend = (uv.x - 0.5) * o.crestSlope * 0.64
             + sin(uv.x * (5.0 + seed * 4.0) + seed * 20.0) * 0.018 * e.progress;
+        if (broadWater) bend += sin(uv.x*(19.0+seed*8.0)+seed*31.0)*0.025*e.progress;
         float distance = depth - e.front - bend;
-        float ridge = exp(-pow(distance / e.width, 2.0));
-        float lip = exp(-pow((distance + e.width * 0.24) / (e.width * 0.21), 2.0));
+        float width = broadWater ? e.width*(2.8+seed*0.7) : e.width;
+        float ridge = exp(-pow(distance / width, 2.0));
+        float lip = exp(-pow((distance + width * 0.24) / (width * (broadWater ? 0.34 : 0.21)), 2.0));
         float curl = livingNoise(float2(uv.x * 32.0 + seed * 47.0, distance * 65.0 - e.age * LIVING_OCEAN_CURL_RATE));
         float fragments = smoothstep(0.24, 0.69, curl);
         face += ridge * e.swell * e.strength;
-        normal += (-distance / e.width) * ridge * e.swell * e.strength;
+        normal += (-distance / width) * ridge * e.swell * e.strength;
         // Fine aerated cells fragment the spilling lip. Broad low-frequency
         // noise alone produced pale bars in the Simulator motion capture.
         float aeration = livingNoise(float2(uv.x * 247.0 + seed * 101.0,
             depth * 620.0 - e.age * LIVING_OCEAN_FOAM_ADVECTION_RATE));
         float froth = smoothstep(0.38, 0.74, aeration);
+        // At the breaking phase the old threshold filled entire noise cells,
+        // exposing a stippled grid when the wave face widened. Thin continuous
+        // contours form irregular foam filaments instead of filled cell patches.
+        if (broadWater) froth = exp(-abs(aeration-0.54)*38.0);
         crest += lip * e.crest * e.strength * smoothstep(0.32, 0.72, curl) * (0.2 + 0.8 * froth);
         breakWater += lip * e.breaking * fragments * e.strength * froth;
         // Foam remains behind the travelling front and spreads across its wake.
         // Two advecting scales erode and reform it; there is no repeating texture.
         float wakeWidth = 0.025 + 0.11 * smoothstep(LIVING_OCEAN_WAKE_SPREAD_START, LIVING_OCEAN_WAKE_SPREAD_END, e.progress);
+        if (broadWater) wakeWidth *= 1.6;
         float wakeRegion = smoothstep(-wakeWidth, -wakeWidth * 0.2, distance)
             * (1.0 - smoothstep(-0.004, 0.012, distance));
-        float lace = livingNoise(float2(uv.x * 113.0 + seed * 101.0, depth * 245.0 - e.age * LIVING_OCEAN_FOAM_ADVECTION_RATE));
-        lace = 0.62 * lace + 0.38 * livingNoise(float2(uv.x * 247.0 - e.age * LIVING_OCEAN_FOAM_CROSS_RATE, depth * 397.0 + seed * 13.0));
-        wake += wakeRegion * e.foam * smoothstep(0.43, 0.73, lace) * (0.55 + 0.45 * fragments);
+        float lace = livingNoise(float2(uv.x * (broadWater ? 401.0 : 113.0) + seed * 101.0, depth * (broadWater ? 751.0 : 245.0) - e.age * LIVING_OCEAN_FOAM_ADVECTION_RATE));
+        lace = 0.62 * lace + 0.38 * livingNoise(float2(uv.x * (broadWater ? 653.0 : 247.0) - e.age * LIVING_OCEAN_FOAM_CROSS_RATE, depth * (broadWater ? 953.0 : 397.0) + seed * 13.0));
+        float foamLace = broadWater ? exp(-abs(lace-0.53)*34.0) : smoothstep(0.43,0.73,lace);
+        wake += wakeRegion * e.foam * foamLace * (0.55 + 0.45 * fragments);
     }
     float amplitude = wet * u.motion * o.swellAmplitude;
     float shallows = o.shallow * smoothstep(0.42, 0.82, depth);
@@ -247,17 +257,33 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
         + livingNoise(uv * 29.0 + t * LIVING_OCEAN_RIPPLE_EVOLUTION_RATE));
     float2 offset = float2(-o.crestSlope * normal, normal) * mix(7.0, 0.5, shallows);
     offset += float2(ripple * 0.20, ripple * 0.34);
+    float broadSlope=0, crossSlope=0;
+    if (broadWater) {
+        // Irregular perspective-scaled surface waves remain active between
+        // arriving event fronts. This bends local water geometry, never camera
+        // or horizon, and keeps translucent shallows gently refractive.
+        float perspective=log(1.0+depth*7.0);
+        float wind=livingNoise(float2(uv.x*8.0-t*LIVING_OCEAN_RIPPLE_EVOLUTION_RATE,depth*13.0));
+        float phase=perspective*35.0+uv.x*13.0-t*LIVING_OCEAN_RIPPLE_RATE+wind*3.0;
+        float crossing=perspective*51.0-uv.x*21.0-t*LIVING_OCEAN_CURL_RATE+wind*2.0;
+        broadSlope=sin(phase)*0.65+sin(crossing)*0.35;
+        crossSlope=cos(phase+uv.x*5.0)*0.55+sin(crossing+depth*17.0)*0.45;
+        offset += float2(crossSlope*4.5,broadSlope*7.5)*mix(0.55,1.0,sqrt(depth))*mix(1.0,0.24,shallows);
+    }
     float2 sampleUV = uv + offset * amplitude / u.textureSize;
     sampleUV.y = max(o.horizon, sampleUV.y);
     float3 water = artwork.sample(sampling, sampleUV).rgb;
     // A travelling shaded wave face and narrowing illuminated lip supply shape,
     // rather than uniform oscillation or shimmer. Existing water remains visible.
     water *= 1.0 + amplitude * (normal * 0.13 - face * 0.12 + ripple * 0.013);
+    if (broadWater) water *= 1.0+amplitude*(broadSlope*0.075+crossSlope*0.035);
     float reflectionWidth = 0.035 + depth * 0.19;
     float reflection = exp(-pow((uv.x - o.reflectionX) / reflectionWidth, 2.0)) * o.night;
+    if (broadWater) crest *= 0.48;
     water += float3(0.10, 0.14, 0.17) * crest * amplitude * mix(0.6, 0.20 + reflection * 0.9, o.night);
     // Night's unbroken open-water swells spill sparsely; no shore is fabricated.
     float foam = saturate(breakWater * 0.60 + wake * 0.26) * amplitude * mix(1.0, 0.44, o.night);
+    if (broadWater) foam *= 0.45;
     float3 foamColor = mix(float3(0.68, 0.84, 0.84), float3(0.14, 0.25, 0.33) + reflection * 0.25, o.night);
     water = mix(water, foamColor, foam);
     water += float3(0.05, 0.075, 0.10) * reflection * amplitude * (normal * 0.18 + crest * 0.23);

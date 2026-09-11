@@ -1,3 +1,14 @@
+# INTERIM ENVIRONMENT PHYSICAL-QA CANDIDATE — September 11, 2026
+
+- Current isolated lineage: `/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-physical-refinement`, branch `codex/living-themes-physical-refinement-20260911`, exact parent `a769f67abdca97b3e289ffe1487095add4da6f74`. One source-changing owner. Protected installed-parent worktree remains unchanged.
+- Owner now requests an interim clean Development build/install before any fauna or event work. This checkpoint is NOT final Living Themes acceptance. Exact frozen SHA, native evidence, signing/hash, device/install identity and clean fingerprints belong to `/Users/brand/Documents/LifeRouteCheckpoints/living-themes-physical-refinement-20260911/interim-environment/INTERIM_ENVIRONMENT_RECEIPT.md`.
+- Foreground continuity survives selector/root/sheet interactions through existing one-renderer ownership and retained nonzero active clock. Ocean phase-insensitive scores and cadence are preserved. Theme View: DEFERRED BY OWNER AFTER TWO NON-CONVERGING ISOLATION ATTEMPTS. No new product QA entry is present.
+- Six environment changes cover Mountains Day lake/clouds/grass; Rainforest Night rain/mist/canopy with original stream computation; Canyon Day clouds/amber foliage; Canyon Night1.6x river phase and32s moon cloud banks; Arctic Day1.767x measured snow-field occupancy and slow channel advection; Arctic Night stronger evolving aurora. Unflagged scene paths, artwork and frozen timing authorities remain preserved.
+- Environmental native clips and reproducible object ROI measurements are retained. Pixel activity is an engineering comparator, not physical appearance acceptance. The grid-based Arctic star experiment produced square speckling and was removed while retaining aurora gains. Independent star refinement, bird, bat, wolf and gust remain incomplete. No fauna/event implementation has begun.
+- After successful exact checkpoint install, owner authorizes continued work on a descendant without rewriting this frozen commit. Physical feedback may proceed in parallel. No TestFlight, release, hosted CI, push, merge, Session Note feature work or Calendar B feature work is authorized.
+
+---
+
 # Living Themes motion refinement — final engineering checkpoint, September 11, 2026
 
 - Worktree `/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-motion-refinement`, branch `codex/living-themes-motion-refinement-20260910`, original parent `f1f67fbe83f4f36d84b4759e9c2933ffc26b67e5`. All source, evidence and signed-artifact identities are recorded in the external checkpoint receipt named below.

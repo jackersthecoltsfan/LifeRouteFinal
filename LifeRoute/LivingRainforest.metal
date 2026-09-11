@@ -382,6 +382,18 @@ static float livingPrecipitation(float2 uv, float t, float seed, bool snow, floa
     return sum;
 }
 
+// Owner-requested physical refinements only. Existing callers retain their
+// original air system. Travel is in artwork widths, independent of camera UV.
+static float3 livingPhysicalClouds(float3 color, float2 uv, float sky, float t,
+                                  float crossing, float amount, float night, float seed) {
+    float2 travel = float2(uv.x - t / crossing, uv.y);
+    float broad = livingFractal(travel * float2(7.5,15.0) + float2(seed,0), t * 0.35);
+    float detail = livingFractal(travel * float2(15.0,27.0) + float2(0,seed), t * 0.53);
+    float mass = smoothstep(0.35,0.69,broad*0.72+detail*0.28);
+    float3 tint = mix(float3(0.83,0.87,0.90),float3(0.028,0.047,0.078),night);
+    return mix(color,tint,mass*sky*amount*mix(0.30,0.55,night));
+}
+
 static float livingMeteorOffset(float slot, float seed, float minimum, float jitter) {
     return minimum + livingHash(float2(slot,seed)) * jitter;
 }
@@ -612,6 +624,7 @@ fragment float4 livingMountainsFragment(LivingSceneVertex in [[stage_in]],
     float t = u.time * mix(LIVING_MOUNTAINS_CALM_SCALE,1.0,u.motion), night = c.light.x;
     float sky = livingSky(uv,c) * livingMoonExclusion(uv,c);
     float3 color = livingClouds(artwork,sampling,uv,original,sky,t,u.motion,c);
+    if (night < 0.5) color = livingPhysicalClouds(color,uv,sky,t,35.0,u.motion,0.0,c.light.y);
     // Separate valley and lake depth planes, calibrated to each photograph.
     float valley = mix(livingOval(uv,float2(0.66,0.465),float2(0.20,0.055)),
                        livingOval(uv,float2(0.56,0.475),float2(0.36,0.065)),night);
@@ -670,17 +683,17 @@ fragment float4 livingMountainsFragment(LivingSceneVertex in [[stage_in]],
                 float2(0.603,0.520),float2(0.597,0.515),float2(0.587,0.512),float2(0.60,0.508),
                 float2(0.584,0.501),float2(0.564,0.493)};
             float lake = livingWaterInterior(uv,shore,29);
-            float travel = t * LIVING_MOUNTAINS_LAKE_RATE;
+            float travel = t * 3.0;
             float bend = livingFractal(uv * float2(26,73) + float2(-travel * 0.02,0),t);
             float windPatch = livingFractal(uv * float2(53,141) + float2(travel * 0.035,3.7),t);
             float wave = sin(uv.y * 1850.0 + uv.x * 65.0 - travel
                 + bend * 12.0 + sin(uv.x * 19.0 + travel * 0.31));
             float cross = sin(uv.y * 2810.0 - uv.x * 43.0 - travel * 1.23 + bend * 19.0);
             float rippleStrength = 0.35 + windPatch * 0.65;
-            float2 displacement = float2(wave * 1.15 + cross * 0.42,wave * 0.38 + cross * 0.21)
+            float2 displacement = float2(wave * 2.3 + cross * 0.84,wave * 0.76 + cross * 0.42)
                 * lake * rippleStrength * u.motion;
             float3 water = artwork.sample(sampling,uv + displacement / u.textureSize).rgb;
-            water *= 1.0 + u.motion * rippleStrength * (wave * 0.085 + cross * 0.045);
+            water *= 1.0 + u.motion * rippleStrength * (wave * 0.13 + cross * 0.065);
             color += (water - original) * lake;
         }
         // Restrict wind to photographed grass clumps, with stems anchored at
@@ -694,7 +707,9 @@ fragment float4 livingMountainsFragment(LivingSceneVertex in [[stage_in]],
             * (1.0 - smoothstep(0.09,0.18,original.r - original.g));
         float gust = smoothstep(0.05,0.85,sin(t * LIVING_MOUNTAINS_NEAR_FOG_SCALE * 0.47 + uv.x * 3.0));
         float blades = sin(t * LIVING_MOUNTAINS_LAKE_RATE + uv.x * 73.0 + uv.y * 29.0);
-        float sway = grass * vegetation * u.motion * (0.45 + gust * 1.15) * blades;
+        // 3.14s dominant period; 8-12.8 artwork-pixel tip travel across
+        // 120-350px clumps (~4-8% for the dominant foreground clusters).
+        float sway = grass * vegetation * u.motion * (8.0 + gust * 4.8) * blades;
         color += (artwork.sample(sampling,uv + float2(sway,sway * 0.12) / u.textureSize).rgb - original)
             * grass * vegetation;
     }

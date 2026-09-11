@@ -571,9 +571,9 @@ static LivingAuroraSample livingAuroraCurtains(float2 uv, float t) {
         float life = 0.55+0.45*sin(uv.x*(3.0+d)+t*LIVING_ARCTIC_AURORA_REFORM_RATE*(1.0+d*0.31)+seed);
         float hue = 0.5+0.5*sin(t*LIVING_ARCTIC_AURORA_REFORM_RATE+uv.x*2.5+seed);
         float3 tint = mix(float3(0.015,0.33,0.19),float3(0.035,0.18,0.35),hue);
-        result.offset += float2(fold*(3.0+d*1.5),fold*(8.0+d*3.0)+striation*2.0)*band;
-        result.light += tint*band*(0.035+striation*0.11)*life;
-        result.modulation += fold*band*(0.08+striation*0.10);
+        result.offset += float2(fold*(5.25+d*2.625),fold*(14.0+d*5.25)+striation*3.5)*band;
+        result.light += tint*band*(0.05775+striation*0.1815)*life;
+        result.modulation += fold*band*(0.12+striation*0.15);
     }
     return result;
 }
@@ -591,7 +591,7 @@ fragment float4 livingArcticNightFragment(LivingSceneVertex in [[stage_in]],
     // stars, baked clouds, moon, glacier and mountain silhouettes.
     float aurora = sky * smoothstep(0.004,0.035,original.g - original.r)
         * (1.0 - smoothstep(0.02,0.08,original.r));
-    LivingAuroraSample curtains = livingAuroraCurtains(uv,t);
+    LivingAuroraSample curtains = livingAuroraCurtains(uv,t*1.6);
     float3 ribbon = artwork.sample(sampling,uv+curtains.offset/u.textureSize*u.motion).rgb;
     ribbon *= 1.0+curtains.modulation*u.motion;
     float3 color = livingClouds(artwork,sampling,uv,original,sky*(1.0-aurora),t,u.motion,c);
@@ -603,10 +603,20 @@ fragment float4 livingArcticNightFragment(LivingSceneVertex in [[stage_in]],
     float ice = livingOval(uv,float2(0.48,0.665),float2(0.36,0.115))
         * smoothstep(0.012,0.07,original.b-original.r);
     if (ice > 0.001 && u.atmosphere > 0.0) {
-        LivingAuroraSample reflected = livingAuroraCurtains(float2(uv.x,0.408-uv.x*0.245),t);
+        LivingAuroraSample reflected = livingAuroraCurtains(float2(uv.x,0.408-uv.x*0.245),t*1.6);
         color += reflected.light*ice*u.atmosphere*0.32;
     }
     color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
+    // Each photographed star receives its own1.5-4s period and phase.
+    // Rise/fall together occupy20% of a cycle; no shared sky-wide pulse.
+    float2 starCell = floor(uv*float2(530,920));
+    float starSeed = livingHash(starCell+17.0);
+    float starPhase = fract(t/(1.5+starSeed*2.5)+livingHash(starCell+61.0));
+    float twinkle = smoothstep(0.0,0.10,starPhase)*(1.0-smoothstep(0.20,0.30,starPhase));
+    float star = smoothstep(0.12,0.40,max(original.r,max(original.g,original.b)))
+        * sky*(1.0-aurora);
+    color *= 1.0-star*twinkle*0.35*u.atmosphere;
+
     if (u.atmosphere > 0.0) color += float3(0.20,0.29,0.36) * livingPrecipitation(uv,t,c.light.y,true) * haze * c.air.w;
     return float4(color,1);
 }

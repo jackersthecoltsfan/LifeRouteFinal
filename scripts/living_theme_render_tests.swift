@@ -199,6 +199,36 @@ import UniformTypeIdentifiers
         let calmA = render(time: 0.3, motion: 0.25, atmosphere: 0)
         let calmB = render(time: 1.3, motion: 0.25, atmosphere: 0)
         expect(difference(calmA,calmB,box:regions[0].1) > 0, "calm retains primary environmental motion")
+        if scene == .mountainsNight {
+            let meteorProbe = try device.makeComputePipelineState(function: library.makeFunction(name: "livingMountainsMeteorProbe")!)
+            let requests = (0..<32).map { SIMD2(Float($0),scene.atmosphere!.light.y) }
+            let requestBuffer = device.makeBuffer(bytes:requests,length:requests.count * 8,options:.storageModeShared)!
+            let resultBuffer = device.makeBuffer(length:requests.count * 8,options:.storageModeShared)!
+            let command = queue.makeCommandBuffer()!, encoder = command.makeComputeCommandEncoder()!
+            encoder.setComputePipelineState(meteorProbe)
+            encoder.setBuffer(requestBuffer,offset:0,index:0); encoder.setBuffer(resultBuffer,offset:0,index:1)
+            encoder.dispatchThreads(MTLSize(width:requests.count,height:1,depth:1),threadsPerThreadgroup:MTLSize(width:1,height:1,depth:1))
+            encoder.endEncoding();command.commit();command.waitUntilCompleted()
+            expect(command.status == .completed,"production Mountains meteor timing probe executes")
+            let events = Array(UnsafeBufferPointer(start:resultBuffer.contents().assumingMemoryBound(to:SIMD2<Float>.self),count:requests.count))
+            let intervals = zip(events.dropFirst(),events).map { $0.0.x - $0.1.x }
+            expect(intervals.allSatisfy { $0 >= 20 && $0 <= 30 },"Mountains shooting-star arrivals stay within20–30seconds")
+            expect(Set(events.map(\.y)).count > 28,"successive meteor paths and phases vary")
+            // These are water checks, independent of the older cloud/fog
+            // contribution probes. Full primary-ROI perceptibility is measured
+            // from the unobstructed native capture with the frozen ROI contract.
+            let waterBounds = [0.12,0.615,0.88,0.745]
+            let waterA = render(time: 1, atmosphere: 0)
+            let waterB = render(time: 8, atmosphere: 0)
+            expect(difference(waterA,waterB,box:waterBounds) > 1.0,
+                   "Mountains Night primary lake flows with secondary atmosphere removed")
+            let calmWaterA = render(time: 1,motion:0.25,atmosphere:0)
+            let calmWaterB = render(time: 8,motion:0.25,atmosphere:0)
+            expect(difference(calmWaterA,calmWaterB,box:waterBounds) > 0.25,
+                   "Mountains Night calm retains water independently of atmosphere")
+            expect(difference(waterA,waterB,box:[0.30,0.37,0.34,0.42]) == 0,
+                   "Water changes never move the fixed mountain control")
+        }
         try png(calmA,name:"scene-calm")
         let laterA = render(time: 12.0), laterB = render(time: 24.7)
         expect(difference(laterA,laterB,box:regions[0].1) > 0.02, "primary continues evolving over a longer observation")

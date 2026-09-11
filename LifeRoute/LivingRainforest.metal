@@ -140,7 +140,8 @@ struct LivingAtmosphereConfiguration {
     float4 skyA, skyB, light, air;
 };
 static float3 livingClouds(texture2d<float>, sampler, float2, float3, float, float, float, LivingAtmosphereConfiguration);
-static float3 livingNightSky(float3, float2, float, float, float, LivingAtmosphereConfiguration);
+static float3 livingNightSky(float3, float2, float, float, float, LivingAtmosphereConfiguration,
+    float = LIVING_AIR_METEOR_SLOT, float = LIVING_AIR_METEOR_START_MIN, float = LIVING_AIR_METEOR_START_RANGE);
 
 // Ocean is a train of finite, independently shaped wave events. A wave enters,
 // grows a face, crests, spills, leaves an expanding foam wake, then dissipates.
@@ -339,18 +340,34 @@ static float livingPrecipitation(float2 uv, float t, float seed, bool snow) {
     return sum;
 }
 
+static float livingMeteorOffset(float slot, float seed, float minimum, float jitter) {
+    return minimum + livingHash(float2(slot,seed)) * jitter;
+}
+
+// The test probes the same event offsets used below; application rendering never
+// dispatches this kernel. Arrival bounds belong to the family timing contract.
+kernel void livingMountainsMeteorProbe(device const float2 *requests [[buffer(0)]],
+    device float2 *events [[buffer(1)]], uint id [[thread_position_in_grid]]) {
+    float slot = requests[id].x, seed = requests[id].y;
+    events[id] = float2(slot * LIVING_MOUNTAINS_METEOR_PERIOD
+        + livingMeteorOffset(slot,seed,LIVING_MOUNTAINS_METEOR_OFFSET,LIVING_MOUNTAINS_METEOR_JITTER)
+        - seed * LIVING_AIR_METEOR_SEED_SCALE, livingHash(float2(slot,seed)));
+}
+
 static float3 livingNightSky(float3 color, float2 uv, float t, float sky,
-                            float amount, LivingAtmosphereConfiguration c) {
+                            float amount, LivingAtmosphereConfiguration c,
+                            float meteorPeriod, float meteorMinimum, float meteorJitter) {
     if (sky < 0.001 || amount <= 0.0 || c.light.x < 0.5) return color;
     float seed = c.light.y;
     // Existing photographed stars vary faintly; no global brightness oscillation.
     float starMaterial = smoothstep(0.12, 0.45, max(color.r, max(color.g, color.b)));
     color += color * starMaterial * sin(t * LIVING_AIR_STAR_RATE + livingHash(floor(uv * 800.0)) * 30.0) * 0.08 * sky * amount;
-    // One 0.75-second meteor in a scene-seeded 71-second slot, with varied
-    // start, origin and slope each time. Separate scenes never synchronize.
-    float slot = floor((t + seed * LIVING_AIR_METEOR_SEED_SCALE) / LIVING_AIR_METEOR_SLOT);
+    // Family-selected arrival cadence; legacy callers retain their original
+    // defaults. Start, origin and slope vary independently for each event.
+    float slot = floor((t + seed * LIVING_AIR_METEOR_SEED_SCALE) / meteorPeriod);
     float random = livingHash(float2(slot, seed));
-    float age = t + seed * LIVING_AIR_METEOR_SEED_SCALE - slot * LIVING_AIR_METEOR_SLOT - (LIVING_AIR_METEOR_START_MIN + random * LIVING_AIR_METEOR_START_RANGE);
+    float age = t + seed * LIVING_AIR_METEOR_SEED_SCALE - slot * meteorPeriod
+        - livingMeteorOffset(slot,seed,meteorMinimum,meteorJitter);
     if (age > 0.0 && age < LIVING_AIR_METEOR_DURATION) {
         float2 origin = float2(0.28 + random * 0.37, 0.10 + livingHash(float2(seed, slot)) * 0.16);
         float2 direction = normalize(float2(1.0, 0.36 + random * 0.28));
@@ -458,6 +475,23 @@ fragment float4 livingArcticNightFragment(LivingSceneVertex in [[stage_in]],
     return float4(color,1);
 }
 
+// Artwork-space water boundary. Feather only inside the photographed shoreline;
+// no displacement or animated opacity reaches the surrounding fixed geometry.
+static float livingWaterInterior(float2 uv, thread const float2 *points, int count) {
+    bool inside = false;
+    float distanceSquared = 1.0;
+    for (int i = 0, j = count - 1; i < count; j = i++) {
+        float2 a = points[j], b = points[i], edge = b - a;
+        float along = clamp(dot(uv - a, edge) / max(dot(edge, edge), 0.0000001), 0.0, 1.0);
+        float2 separation = uv - a - edge * along;
+        distanceSquared = min(distanceSquared, dot(separation, separation));
+        if ((a.y > uv.y) != (b.y > uv.y)) {
+            if (uv.x < (b.x - a.x) * (uv.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+        }
+    }
+    return inside ? smoothstep(0.0007, 0.0035, sqrt(distanceSquared)) : 0.0;
+}
+
 fragment float4 livingMountainsFragment(LivingSceneVertex in [[stage_in]],
     texture2d<float> artwork [[texture(0)]], constant LivingSceneUniforms &u [[buffer(0)]],
     constant LivingAtmosphereConfiguration &c [[buffer(2)]]) {
@@ -475,13 +509,56 @@ fragment float4 livingMountainsFragment(LivingSceneVertex in [[stage_in]],
                      livingOval(uv,float2(0.45,0.59),float2(0.25,0.045)),night);
     color = livingFog(color,uv,t,valley,c.air.z * u.motion,c.light.y,mix(float3(0.43,0.57,0.65),float3(0.065,0.12,0.19),night));
     color = livingFog(color,uv,t * LIVING_MOUNTAINS_NEAR_FOG_SCALE,near,c.air.z * u.atmosphere * 0.55,c.light.y + 13.0,mix(float3(0.40,0.53,0.59),float3(0.055,0.10,0.16),night));
-    float lake = mix(livingOval(uv,float2(0.65,0.52),float2(0.095,0.023)),
-                     livingOval(uv,float2(0.48,0.66),float2(0.20,0.09)),night);
-    if (lake > 0.001 && u.atmosphere > 0.0) {
-        float wave = sin(uv.y * 740.0 - t * LIVING_MOUNTAINS_LAKE_RATE + uv.x * 27.0);
-        color = mix(color,artwork.sample(sampling,uv + float2(wave * 0.45,wave * 0.2) / u.textureSize * u.motion).rgb,lake * 0.5);
+    if (night > 0.5) {
+        // Full lake from the distant shore to the foreground rock silhouette.
+        // This matte follows visible water, rather than a central oval. Water is
+        // primary environment motion and remains when secondary air is removed.
+        if (uv.y > 0.57 && uv.y < 0.881) {
+            const float2 shore[] = {float2(0,0.578),float2(0.28,0.579),float2(0.48,0.575),
+                float2(0.79,0.570),float2(1,0.574),float2(1,0.742),float2(0.9,0.766),
+                float2(0.78,0.781),float2(0.75,0.850),float2(0.58,0.881),float2(0.40,0.852),
+                float2(0.32,0.873),float2(0.20,0.850),float2(0,0.804)};
+            float lake = livingWaterInterior(uv, shore, 14);
+            float depth = saturate((uv.y - 0.575) / 0.29);
+            float travel = t * LIVING_MOUNTAINS_LAKE_RATE;
+            float wave = sin(uv.y * 425.0 + uv.x * 29.0 - travel
+                + sin(uv.x * 13.0 + travel * 0.31) * 1.7);
+            float cross = sin(uv.y * 713.0 - uv.x * 43.0 - travel * 1.23);
+            float2 displacement = float2(wave * 2.4 + cross * 0.75, wave * 0.75 + cross * 0.42)
+                * mix(0.45,1.0,depth) * lake * u.motion;
+            float3 water = artwork.sample(sampling,uv + displacement / u.textureSize).rgb;
+            water *= 1.0 + u.motion * (wave * 0.065 + cross * 0.035);
+            // Preserve already-composited valley mist while the underlying
+            // reflection and water surface evolve. Camera/shore never move.
+            color += (water - original) * lake;
+        }
+        float wisps = livingOval(uv,float2(0.49,0.625),float2(0.47,0.072));
+        color = livingFog(color,uv,t * LIVING_MOUNTAINS_NEAR_FOG_SCALE * 2.4,wisps,
+            c.air.z * u.atmosphere * 0.65,c.light.y + 29.0,float3(0.075,0.14,0.20));
+        float nearWisps = livingOval(uv,float2(0.55,0.73),float2(0.34,0.056));
+        color = livingFog(color,uv,t * LIVING_MOUNTAINS_NEAR_FOG_SCALE * 3.1,nearWisps,
+            c.air.z * u.atmosphere * 0.32,c.light.y + 47.0,float3(0.065,0.12,0.17));
+        // Wind lifts sparse snow from the distant snowy ridge. Transposed air
+        // coordinates make this travel laterally with the wisps, not fall as a
+        // full-screen snow storm. The ridge texture itself remains stationary.
+        float snowEdge = livingOval(uv,float2(0.63,0.455),float2(0.24,0.035))
+            * smoothstep(0.035,0.12,dot(original,float3(0.21,0.72,0.07)));
+        float snowDrift = livingPrecipitation(float2(uv.y * 1.8,-uv.x),
+            t * LIVING_MOUNTAINS_NEAR_FOG_SCALE,c.light.y,true);
+        color += float3(0.30,0.40,0.48) * snowDrift * snowEdge * u.atmosphere * 0.35;
+    } else {
+        float lake = livingOval(uv,float2(0.65,0.52),float2(0.095,0.023));
+        if (lake > 0.001 && u.atmosphere > 0.0) {
+            float wave = sin(uv.y * 740.0 - t * LIVING_MOUNTAINS_LAKE_RATE + uv.x * 27.0);
+            color = mix(color,artwork.sample(sampling,uv + float2(wave * 0.45,wave * 0.2) / u.textureSize * u.motion).rgb,lake * 0.5);
+        }
     }
-    color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
+    if (night > 0.5) {
+        color = livingNightSky(color,uv,t,sky,u.atmosphere,c,LIVING_MOUNTAINS_METEOR_PERIOD,
+            LIVING_MOUNTAINS_METEOR_OFFSET,LIVING_MOUNTAINS_METEOR_JITTER);
+    } else {
+        color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
+    }
     return float4(color,1);
 }
 

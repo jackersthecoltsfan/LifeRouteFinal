@@ -8,4 +8,9 @@
 #define LIVING_MOUNTAINS_CALM_SCALE 0.42f
 #define LIVING_MOUNTAINS_NEAR_FOG_SCALE 1.31f
 #define LIVING_MOUNTAINS_LAKE_RATE 2.0f
+// Independent event starts in a 25-second slot with five seconds of jitter
+// produce successive arrivals between 20 and 30 seconds apart.
+#define LIVING_MOUNTAINS_METEOR_PERIOD 25.0f
+#define LIVING_MOUNTAINS_METEOR_OFFSET 4.0f
+#define LIVING_MOUNTAINS_METEOR_JITTER 5.0f
 #endif

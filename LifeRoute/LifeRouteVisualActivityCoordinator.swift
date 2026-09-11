@@ -45,10 +45,26 @@ final class LifeRouteVisualActivityCoordinator: ObservableObject {
     @Published private(set) var ambientSuspensionCount = 0
 
     private var activeRequests = Set<UUID>()
+    private var foregroundRequests = Set<UUID>()
     private var themeCenterRequestID: UUID?
 
     var ambientRenderingIsActive: Bool {
         activeRequests.isEmpty
+    }
+
+    /// Living scenery remains exposed during selector and root interactions.
+    /// Opaque coverage (including Timer D) still releases the scene renderer.
+    var livingEnvironmentRenderingIsActive: Bool {
+        activeRequests.subtracting(foregroundRequests).isEmpty
+    }
+
+    @discardableResult
+    func acquireForegroundInteraction() -> UUID {
+        let requestID = UUID()
+        foregroundRequests.insert(requestID)
+        activeRequests.insert(requestID)
+        publishStateIfNeeded()
+        return requestID
     }
 
     @discardableResult
@@ -61,6 +77,7 @@ final class LifeRouteVisualActivityCoordinator: ObservableObject {
 
     func releaseAmbientSuspension(_ requestID: UUID) {
         guard activeRequests.remove(requestID) != nil else { return }
+        foregroundRequests.remove(requestID)
         publishStateIfNeeded()
     }
 
@@ -69,7 +86,7 @@ final class LifeRouteVisualActivityCoordinator: ObservableObject {
     func setThemeCenterVisible(_ isVisible: Bool) {
         if isVisible {
             guard themeCenterRequestID == nil else { return }
-            themeCenterRequestID = acquireAmbientSuspension()
+            themeCenterRequestID = acquireForegroundInteraction()
         } else {
             guard let requestID = themeCenterRequestID else { return }
             releaseAmbientSuspension(requestID)

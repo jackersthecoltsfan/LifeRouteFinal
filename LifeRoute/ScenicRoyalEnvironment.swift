@@ -75,7 +75,7 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
     }
 
     private var effectiveRenderMode: LifeRouteAmbientRenderMode {
-        guard visualActivityCoordinator.ambientRenderingIsActive else {
+        guard visualActivityCoordinator.livingEnvironmentRenderingIsActive else {
             return .frozen
         }
 

@@ -184,6 +184,10 @@ struct LivingSceneClock {
     private(set) var isRunning = false
     private var lastSample: TimeInterval?
 
+    init(initialElapsed: TimeInterval = 0) {
+        elapsed = initialElapsed.isFinite ? max(0, initialElapsed) : 0
+    }
+
     mutating func setRunning(_ running: Bool) {
         guard isRunning != running else { return }
         isRunning = running

@@ -32,9 +32,10 @@ final class LivingEnvironmentSurface: UIView {
     private var observations: [NSObjectProtocol] = []
     private var tornDown = false
     private var scene: LivingThemeScene
-    private var retainedClock = LivingSceneClock()
+    // The first production frame is mid-cycle; subsequent selections retain the
+    // same active-time clock. No shader rate, Ocean envelope or quality changes.
+    private var retainedClock = LivingSceneClock(initialElapsed: 2)
     private var preparationFailed = false
-    static let activationDelayNanoseconds: UInt64 = 250_000_000
     private var preparation: Task<Void, Never>?
 #if DEBUG
     private var testConstraints: (lowPower: Bool, thermal: LivingSceneQuality.Thermal)?
@@ -96,12 +97,16 @@ final class LivingEnvironmentSurface: UIView {
     func update(scene: LivingThemeScene? = nil, playback: LivingScenePlayback) {
         guard !tornDown else { return }
         if let scene, scene != self.scene {
-            releaseRenderer()
+            preparation?.cancel()
+            preparation = nil
             self.scene = scene
-            retainedClock = LivingSceneClock()
             preparationFailed = false
-            fallback.image = UIImage(named: scene.artworkName)
-            fallback.isHidden = false
+            // Keep the preceding scene alive until the requested production
+            // resources are ready. Never reveal a selected still then wake it.
+            if renderer == nil {
+                fallback.image = UIImage(named: scene.artworkName)
+                fallback.isHidden = false
+            }
         }
         self.playback = playback
         reconcile()
@@ -113,11 +118,6 @@ final class LivingEnvironmentSurface: UIView {
         // Pipeline compilation and asset upload cannot delay theme selection,
         // toolbar construction or root layout. Only one preparation is in flight.
         preparation = Task { [weak self] in
-            // Cancellation occurs before allocating Metal resources. Picker feedback
-            // and the static photograph change immediately, while only the final
-            // exposed selection can acquire the single renderer after 250 ms.
-            do { try await Task.sleep(nanoseconds: Self.activationDelayNanoseconds) }
-            catch { return }
             guard !Task.isCancelled, let device = MTLCreateSystemDefaultDevice() else { return }
             let resources = try? await LivingScenePreparation.shared.prepare(device: device, scene: scene)
             guard !Task.isCancelled, let self, !self.tornDown, self.scene == scene else { return }
@@ -126,6 +126,15 @@ final class LivingEnvironmentSurface: UIView {
                 self.preparationFailed = true
                 Logger(subsystem: "Com.Brandongood.LifeRoute", category: "LivingTheme")
                     .error("Living scene unavailable; retaining static scenery")
+                return
+            }
+            if let renderer = self.renderer, let view = self.metalView {
+                // One renderer and one clock survive selection. The serial
+                // preparation actor permits only one candidate resource set;
+                // submitted GPU work retains its own old resources until done.
+                renderer.replaceResources(resources)
+                self.reconcile()
+                view.draw()
                 return
             }
             let view = MTKView(frame: self.bounds, device: device)
@@ -180,6 +189,9 @@ final class LivingEnvironmentSurface: UIView {
             prepareRenderer()
             return
         }
+        if renderer.sceneIdentifier != scene.themeIdentifier {
+            prepareRenderer()
+        }
         let thermal: LivingSceneQuality.Thermal
         switch ProcessInfo.processInfo.thermalState {
         case .nominal: thermal = .nominal
@@ -201,6 +213,7 @@ final class LivingEnvironmentSurface: UIView {
 
 #if DEBUG
     var debugRenderer: LivingSceneRenderer? { renderer }
+    var debugRequestedSceneIdentifier: String { scene.themeIdentifier }
     var debugShowsFallback: Bool { !fallback.isHidden }
 #endif
 
@@ -331,6 +344,13 @@ final class LivingSceneRenderer: NSObject, MTKViewDelegate {
     deinit { tearDown() }
 
     var playbackClock: LivingSceneClock { clock }
+    var sceneIdentifier: String? { resources?.sceneIdentifier }
+
+    func replaceResources(_ resources: LivingSceneResources) {
+        guard !tornDown else { return }
+        self.resources = resources
+        needsFirstFrame = true
+    }
 
     func configure(view: MTKView, playback: LivingScenePlayback, attached: Bool,
                    applicationActive: Bool, quality: LivingSceneQuality) {

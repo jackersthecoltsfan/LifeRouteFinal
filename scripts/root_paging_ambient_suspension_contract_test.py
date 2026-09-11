@@ -38,7 +38,7 @@ require("id == generation" in pager and "request.generation == requestGeneration
 scroll = pager.split("    func scrollViewDidScroll",1)[1].split("    func scrollViewDidEndDragging",1)[0]
 require("router.select" not in scroll and "@Published" not in scroll, "per-pixel progress remains in UIKit")
 require("completeGesture(id)" in pager and "router.select(section)" in pager, "selection commits once at settling")
-require("visualActivity.acquireAmbientSuspension()" in pager and "visualActivity.releaseAmbientSuspension(request)" in pager, "same coordinator and exact paging request")
+require("visualActivity.acquireForegroundInteraction()" in pager and "visualActivity.releaseAmbientSuspension(request)" in pager, "same coordinator and exact paging request")
 require("environment.scenePhase != .active" in pager and "cancelInteraction()" in pager, "background interruption releases transient ownership")
 require("settleDelayNanoseconds" not in CONTENT, "actual UIKit settling replaces the former time estimate")
 require("host.view.accessibilityElementsHidden = !(settledInput && current.accessibility)" in pager, "root accessibility closes synchronously during motion")

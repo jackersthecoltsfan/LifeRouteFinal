@@ -34,7 +34,9 @@ final class LivingThemeTestScene: UIResponder, UIWindowSceneDelegate {
             controller.view.addSubview(surface!)
             func ready() async throws {
                 for _ in 0..<120 {
-                    if surface!.debugRenderer?.debugFrameCount ?? 0 > 5 { break }
+                    if surface!.debugRenderer?.debugFrameCount ?? 0 > 5,
+                       surface!.debugRenderer?.debugSceneIdentifier == surface!.debugRequestedSceneIdentifier,
+                       LivingSceneDebugOwnership.shared.counts.resources == 1 { break }
                     try await Task.sleep(nanoseconds: 50_000_000)
                 }
                 expect(surface!.debugRenderer?.debugIsRunning == true, "visible scene runs")
@@ -50,13 +52,20 @@ final class LivingThemeTestScene: UIResponder, UIWindowSceneDelegate {
             sequence.append(.rainforestDay)
             var lifecycleChecked = Set<String>()
             for (index, selected) in sequence.enumerated() {
+                weak var previousRenderer = surface!.debugRenderer
+                let previousElapsed = previousRenderer?.debugElapsed ?? 0
                 surface!.update(scene: selected, playback: active)
-                if index > 0 { expect(surface!.debugRenderer == nil, "selection immediately releases old renderer") }
+                if index > 0 {
+                    expect(surface!.debugRenderer === previousRenderer, "selection retains the one foreground renderer")
+                    expect(!surface!.debugShowsFallback, "selection does not reveal a static fallback")
+                }
                 try await ready()
+                expect(surface!.debugRenderer!.debugElapsed >= max(2, previousElapsed), "first and selected frames use continuing nonzero phase")
                 expect(surface!.debugRenderer!.debugSceneIdentifier == selected.themeIdentifier, "settled resources match selected scene")
                 print("LIVING_TRANSITION \(index) \(selected.themeIdentifier)"); fflush(stdout)
                 if !lifecycleChecked.insert(selected.themeIdentifier).inserted { continue }
-                // Timer D / Theme Center use this exact shared exposure contract.
+                // Actual opaque coverage such as Timer D uses this exposure contract.
+                // Theme Center and root interaction no longer withdraw exposure.
                 let elapsed = surface!.debugRenderer!.debugElapsed
                 weak var oldRenderer = surface!.debugRenderer
                 surface!.update(playback: covered)
@@ -99,21 +108,22 @@ final class LivingThemeTestScene: UIResponder, UIWindowSceneDelegate {
                 surface!.update(playback: active)
                 try await ready()
             }
-            // L: changes faster than the settling deadline never publish stale work.
+            // L: rapidly superseded preparations cannot replace the final scene;
+            // the one renderer remains active throughout selection work.
+            weak var switchingRenderer = surface!.debugRenderer
+            let switchingElapsed = switchingRenderer!.debugElapsed
             for index in 0..<36 {
                 surface!.update(scene: sequence[(index + 1) % sequence.count], playback: active)
-                expect(surface!.debugRenderer == nil, "rapid selection has no obsolete allocation")
+                expect(surface!.debugRenderer === switchingRenderer, "rapid selection keeps one renderer authority")
+                expect(surface!.debugRenderer!.debugIsRunning && !surface!.debugShowsFallback, "preceding scene stays alive while preparing")
+                expect(LivingSceneDebugOwnership.shared.counts.resources <= 2, "only active and one preparing resource set")
                 try await Task.sleep(nanoseconds: 20_000_000)
             }
             surface!.update(scene: .oceanNight, playback: active)
-            let selectedAt = CACurrentMediaTime()
-            try await Task.sleep(nanoseconds: 180_000_000)
-            if CACurrentMediaTime() - selectedAt < 0.25 {
-                expect(surface!.debugRenderer == nil, "no heavy renderer before 250 ms")
-            }
             try await ready()
             expect(surface!.debugRenderer!.debugSceneIdentifier == "scenery.ocean.night", "no stale scene published after rapid selection")
-            expect(LivingEnvironmentSurface.activationDelayNanoseconds == 250_000_000, "bounded 250 ms policy")
+            expect(surface!.debugRenderer === switchingRenderer, "final selection retains renderer identity")
+            expect(surface!.debugRenderer!.debugElapsed > switchingElapsed, "selection preparation never pauses the foreground clock")
             // M: bounded repeated cross-family cycles each return to zero.
             for index in 0..<24 {
                 surface!.update(scene: catalogue[index % catalogue.count], playback: active)
@@ -131,7 +141,7 @@ final class LivingThemeTestScene: UIResponder, UIWindowSceneDelegate {
             try await Task.sleep(nanoseconds: 300_000_000)
             expect(weakSurface == nil, "surface, observers and pending activation release")
             expect(LivingSceneDebugOwnership.shared.counts.renderers == 0 && LivingSceneDebugOwnership.shared.counts.resources == 0, "final ownership baseline")
-            print("LIVING_NATIVE_PASS \(assertions) assertions; real Metal, full catalogue and paired transitions, lifecycle, calm/constrained, debounce and bounded release")
+            print("LIVING_NATIVE_PASS \(assertions) assertions; real Metal, full catalogue and paired transitions, lifecycle, calm/constrained, cancellation, foreground continuity and bounded release")
             fflush(stdout)
           } catch {
             print("LIVING_NATIVE_FAIL interrupted test: \(error)"); fflush(stdout)

@@ -566,7 +566,7 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
     require_count(app, "TimelineView(", 0, "Living scheduling belongs exclusively to the native renderer; pending scenes stay still")
     visual_activity = sources["LifeRouteVisualActivityCoordinator.swift"]
     require_all(app, ["var allowsAnimation = true", "isExposed: renderMode != .frozen", "allowsAnimation: allowsAnimation && renderMode.plan.usesLiveClock", "reduceMotion: reduceMotion"], "normal animation default and shared lifecycle/Reduce Motion inputs")
-    require_all(sources["LivingThemeEnvironment.swift"], ["playback.isActive, playback.isExposed", "releaseRenderer()", "activationDelayNanoseconds: UInt64 = 250_000_000", "Task.isCancelled", "self.scene == scene"], "hidden resource release and cancelled settled activation")
+    require_all(sources["LivingThemeEnvironment.swift"], ["playback.isActive, playback.isExposed", "releaseRenderer()", "renderer.replaceResources(resources)", "LivingSceneClock(initialElapsed: 2)", "Task.isCancelled", "self.scene == scene"], "hidden resource release and cancelled preparation and active scene replacement")
     require_all(environment, ["struct ScenicRoyalEnvironmentHost", "isActive: scenePhase == .active", "reduceMotion || reduceMotionOverride", "@EnvironmentObject private var visualActivityCoordinator", "return .frozen"], "persistent Scenic Royal environment and suspension host")
     require_all(
         app,
@@ -932,7 +932,7 @@ def validate_setup_and_address(sources: dict[str, str]) -> None:
             'title: "Privacy"',
             '@EnvironmentObject private var themeStore: LifeRouteThemeStore',
             '@EnvironmentObject private var suspensionCoordinator: LifeRouteVisualActivityCoordinator',
-            "themeLease.reconcile(isVisible, acquire: suspensionCoordinator.acquireAmbientSuspension, release: suspensionCoordinator.releaseAmbientSuspension)",
+            "themeLease.reconcile(isVisible, acquire: suspensionCoordinator.acquireForegroundInteraction, release: suspensionCoordinator.releaseAmbientSuspension)",
             '@ObservedObject var routingState: RoutingLocationCore',
             '@AppStorage("liferoute.rbtProfile.name")',
             '@AppStorage("liferoute.preferredNavigationApp")',

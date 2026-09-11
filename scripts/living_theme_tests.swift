@@ -71,6 +71,10 @@ import CoreGraphics
                 }
             }
         }
+        var started = LivingSceneClock(initialElapsed: 2)
+        started.setRunning(true)
+        expect(started.sample(at: 100) == 2, "production starts at a bounded nonzero phase")
+        expect(abs(started.sample(at: 100.04) - 2.04) < 0.00001, "phase offset does not change pace")
         var clock = LivingSceneClock()
         expect(clock.sample(at: 100) == 0, "unattached scene has no clock work")
         clock.setRunning(true)

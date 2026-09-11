@@ -296,7 +296,7 @@ struct V054SetupView: View {
     private var themeCard: some View {
         NavigationLink {
             V054ThemeCenterView { isVisible in
-                themeLease.reconcile(isVisible, acquire: suspensionCoordinator.acquireAmbientSuspension, release: suspensionCoordinator.releaseAmbientSuspension)
+                themeLease.reconcile(isVisible, acquire: suspensionCoordinator.acquireForegroundInteraction, release: suspensionCoordinator.releaseAmbientSuspension)
             }
                 .lifeRouteDeepDestination()
         } label: {

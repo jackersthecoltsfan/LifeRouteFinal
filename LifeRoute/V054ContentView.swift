@@ -730,7 +730,7 @@ private final class LifeRouteRootPagerController: UIViewController, UIScrollView
         transitionOrigin = settledSelection
         publishVisibility()
         if router.shouldShowBottomToolbar, ambientRequest == nil {
-            ambientRequest = visualActivity.acquireAmbientSuspension()
+            ambientRequest = visualActivity.acquireForegroundInteraction()
         }
         updateInteraction()
         trace("drag.begin")

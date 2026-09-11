@@ -79,7 +79,10 @@ private struct LifeRouteRootGeometryTrace: ViewModifier {
             for child in view.subviews { inspect(child) }
         }
         if sample.role == "root" { inspect(window) }
+        let livingOwnership = LivingSceneDebugOwnership.shared.counts
         let data: [String: Any] = [
+            "livingRendererOwners": livingOwnership.renderers,
+            "livingResourceOwners": livingOwnership.resources,
             "schema": 1, "uptime": ProcessInfo.processInfo.systemUptime,
             "pid": ProcessInfo.processInfo.processIdentifier,
             "role": sample.role, "theme": sample.theme, "root": sample.root,

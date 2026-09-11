@@ -565,7 +565,7 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
     require_count(corpus, "struct LifeRouteLiveThemeEnvironment: View", 1, "live theme environment ownership")
     require_count(app, "TimelineView(", 0, "Living scheduling belongs exclusively to the native renderer; pending scenes stay still")
     visual_activity = sources["LifeRouteVisualActivityCoordinator.swift"]
-    require_all(app, ["isExposed: renderMode != .frozen", "allowsAnimation: renderMode.plan.usesLiveClock", "reduceMotion: reduceMotion"], "shared lifecycle and Reduce Motion inputs")
+    require_all(app, ["var allowsAnimation = true", "isExposed: renderMode != .frozen", "allowsAnimation: allowsAnimation && renderMode.plan.usesLiveClock", "reduceMotion: reduceMotion"], "normal animation default and shared lifecycle/Reduce Motion inputs")
     require_all(sources["LivingThemeEnvironment.swift"], ["playback.isActive, playback.isExposed", "releaseRenderer()", "activationDelayNanoseconds: UInt64 = 250_000_000", "Task.isCancelled", "self.scene == scene"], "hidden resource release and cancelled settled activation")
     require_all(environment, ["struct ScenicRoyalEnvironmentHost", "isActive: scenePhase == .active", "reduceMotion || reduceMotionOverride", "@EnvironmentObject private var visualActivityCoordinator", "return .frozen"], "persistent Scenic Royal environment and suspension host")
     require_all(

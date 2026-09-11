@@ -3193,6 +3193,7 @@ struct LifeRouteLiveThemeEnvironment: View {
     let reduceMotion: Bool
     let isActive: Bool
     let renderMode: LifeRouteAmbientRenderMode
+    var allowsAnimation = true
 
     @ViewBuilder
     var body: some View {
@@ -3201,7 +3202,7 @@ struct LifeRouteLiveThemeEnvironment: View {
                 LivingThemeEnvironment(scene: scene, playback: .init(
                     isActive: isActive,
                     isExposed: renderMode != .frozen,
-                    allowsAnimation: renderMode.plan.usesLiveClock,
+                    allowsAnimation: allowsAnimation && renderMode.plan.usesLiveClock,
                     reduceMotion: reduceMotion,
                     effectsEnabled: renderMode.plan.showsSceneryEffects
                 ))
@@ -3622,7 +3623,9 @@ struct LifeRouteApp: App {
     var body: some Scene {
         WindowGroup {
 #if DEBUG
-            if let glassLab = LifeRouteGlassLabLaunch.current {
+            if LivingThemeQALaunch.isEnabled {
+                LivingThemeQAViewer()
+            } else if let glassLab = LifeRouteGlassLabLaunch.current {
                 LifeRouteGlassLabView(
                     initialScene: glassLab.scene
                 )

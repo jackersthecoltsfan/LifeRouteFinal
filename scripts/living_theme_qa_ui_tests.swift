@@ -176,7 +176,7 @@ final class NativeUI: XCTestCase {
                    state["surfaces"] as? Int == 1, state["running"] as? Int == 1,
                    state["fallbacks"] as? Int == 0, state["fps"] as? Int == fps,
                    (state["elapsed"] as? Double ?? 0) >= 2,
-                   scene == nil || state["scene"] as? String == scene { return state }
+                   scene == nil || (state["scene"] as? String == scene && state["completedScene"] as? String == scene) { return state }
             }
             Thread.sleep(forTimeInterval: 0.1)
         }
@@ -231,6 +231,22 @@ final class NativeUI: XCTestCase {
             XCTAssertEqual(app.buttons[root].value as? String, "Selected")
             prior = continued(app, from: prior, label: "Root switch to " + root)
         }
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.55))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.55))
+        print("LIVING_ACTION swipe.begin uptime=\(ProcessInfo.processInfo.systemUptime)")
+        start.press(forDuration: 0.2, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
+        XCTAssertEqual(app.buttons["Calendar"].value as? String, "Selected")
+        prior = continued(app, from: prior, label: "Slow root swipe retains live clock")
+        let shortEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.26, dy: 0.55))
+        start.press(forDuration: 0.2, thenDragTo: shortEnd, withVelocity: .slow, thenHoldForDuration: 0.4)
+        XCTAssertEqual(app.buttons["Calendar"].value as? String, "Selected")
+        prior = continued(app, from: prior, label: "Cancelled root swipe retains live clock")
+        print("LIVING_ACTION sheet.begin uptime=\(ProcessInfo.processInfo.systemUptime)")
+        app.buttons["Choose date"].tap()
+        XCTAssertTrue(app.navigationBars["Choose Date"].waitForExistence(timeout: 5))
+        Thread.sleep(forTimeInterval: 3)
+        app.navigationBars["Choose Date"].buttons["Done"].tap()
+        prior = continued(app, from: prior, label: "Ordinary foreground date sheet retains renderer and clock")
         Thread.sleep(forTimeInterval: 3)
         print("LIVING_QA_CONTINUITY_PASS: selector selection while open, dismissal and three normal root switches; one renderer, continuing nonzero clock; continuous video required")
         app.terminate()

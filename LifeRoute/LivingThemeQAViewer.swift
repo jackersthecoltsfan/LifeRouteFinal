@@ -187,6 +187,8 @@ struct LivingThemeQAViewer: View {
                 "frames": renderer?.debugFrameCount ?? 0, "elapsed": renderer?.debugElapsed ?? 0,
                 "rendererIdentity": renderer?.debugIdentity ?? "none",
                 "timing": renderer?.debugTiming ?? [:],
+                "gaps": renderer?.debugGaps ?? [],
+                "completedScene": renderer?.debugCompletedScene ?? "none",
                 "fallbacks": surfaces.filter(\.debugShowsFallback).count]
     }
 

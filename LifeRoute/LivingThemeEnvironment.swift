@@ -418,13 +418,14 @@ final class LivingSceneRenderer: NSObject, MTKViewDelegate {
         let wasFirstFrame = needsFirstFrame
         needsFirstFrame = false
 #if DEBUG
-        diagnostics.frame(at: started, cpuMilliseconds: (CACurrentMediaTime() - started) * 1000)
+        diagnostics.frame(at: started, elapsed: elapsed, cpuMilliseconds: (CACurrentMediaTime() - started) * 1000)
         let diagnostics = diagnostics
 #endif
         command.addCompletedHandler { [weak self] buffer in
             semaphore.signal()
 #if DEBUG
-            diagnostics.gpu(milliseconds: max(0, buffer.gpuEndTime - buffer.gpuStartTime) * 1000)
+            diagnostics.gpu(milliseconds: max(0, buffer.gpuEndTime - buffer.gpuStartTime) * 1000,
+                            completedScene: buffer.status == .completed ? resources.sceneIdentifier : nil)
 #endif
             if wasFirstFrame || buffer.status == .error {
                 DispatchQueue.main.async { [weak self] in
@@ -449,6 +450,8 @@ final class LivingSceneRenderer: NSObject, MTKViewDelegate {
     var debugElapsed: TimeInterval { clock.elapsed }
     var debugIdentity: String { diagnostics.id }
     var debugTiming: [String: Double] { diagnostics.timing }
+    var debugGaps: [[String: Double]] { diagnostics.gaps }
+    var debugCompletedScene: String? { diagnostics.completedScene }
 #endif
 
     func tearDown() {
@@ -478,6 +481,8 @@ private final class LivingSceneDiagnostics: @unchecked Sendable {
     private var gpuTotal = 0.0
     private var gpuCount = 0
     private var maximumInterval = 0.0
+    private var intervalGaps: [[String: Double]] = []
+    private var lastCompletedScene: String?
     private var lastFrame: Double?
 
     init() { if Self.enabled { print("LIVING_SCENE created id=\(id)"); fflush(stdout) } }
@@ -495,20 +500,31 @@ private final class LivingSceneDiagnostics: @unchecked Sendable {
                 "maxIntervalMs": maximumInterval * 1000]
     }
 
-    func frame(at timestamp: Double, cpuMilliseconds: Double) {
+    var gaps: [[String: Double]] { lock.lock(); defer { lock.unlock() }; return intervalGaps }
+    var completedScene: String? { lock.lock(); defer { lock.unlock() }; return lastCompletedScene }
+
+    func frame(at timestamp: Double, elapsed: Double, cpuMilliseconds: Double) {
         guard Self.enabled else { return }
         lock.lock(); defer { lock.unlock() }
         frames += 1
         cpuTotal += cpuMilliseconds
-        if let lastFrame { maximumInterval = max(maximumInterval, timestamp - lastFrame) }
+        if let lastFrame {
+            let interval = timestamp - lastFrame
+            maximumInterval = max(maximumInterval, interval)
+            if interval > 0.1 && intervalGaps.count < 64 {
+                intervalGaps.append(["startUptime": lastFrame, "endUptime": timestamp,
+                    "intervalMs": interval * 1000, "frame": Double(frames), "elapsed": elapsed])
+            }
+        }
         lastFrame = timestamp
     }
 
-    func gpu(milliseconds: Double) {
+    func gpu(milliseconds: Double, completedScene: String?) {
         guard Self.enabled else { return }
         lock.lock(); defer { lock.unlock() }
         gpuTotal += milliseconds
         gpuCount += 1
+        if let completedScene { lastCompletedScene = completedScene }
     }
 
     func report(event: String, elapsed: Double) {

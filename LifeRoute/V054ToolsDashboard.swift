@@ -8,6 +8,7 @@ struct V054ToolsDashboard: View {
     @ObservedObject var router: AppRouter
     @ObservedObject var toolsState: SessionToolsCore
     @ObservedObject var clientState: ClientProfileCore
+    @ObservedObject var sessionNoteRuntime: AISessionNoteRuntimeModel
 
     @StateObject private var visualState = ClientVisualSupportCore()
 
@@ -102,7 +103,11 @@ struct V054ToolsDashboard: View {
                         .buttonStyle(.plain)
 
                         NavigationLink {
-                            AISessionNoteGeneratorView(clientState: clientState, toolsState: toolsState)
+                            AISessionNoteGeneratorView(
+                                clientState: clientState,
+                                toolsState: toolsState,
+                                runtime: sessionNoteRuntime
+                            )
                                 .lifeRouteDeepDestination()
                         } label: {
                             ScenicRoyalToolTile(

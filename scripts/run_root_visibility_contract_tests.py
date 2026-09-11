@@ -40,6 +40,7 @@ def main():
     navigation = (ROOT/'LifeRoute/AppNavigation.swift').read_text()
     coordinator = (ROOT/'LifeRoute/LifeRouteVisualActivityCoordinator.swift').read_text()
     note = (ROOT/'LifeRoute/AIClinicalToolsViews.swift').read_text()
+    persistence = (ROOT/'LifeRoute/PersistenceCore.swift').read_text()
     core = (ROOT/'LifeRoute/LifeRouteIntelligenceCore.swift').read_text()
     theme = (ROOT/'LifeRoute/V054ThemeCenterView.swift').read_text()
     media = (ROOT/'LifeRoute/SessionToolsViews.swift').read_text()
@@ -48,6 +49,9 @@ def main():
         'navigation': navigation[:navigation.index('// Checkpoint 06:')],
         'ambient': coordinator[:coordinator.index('#if DEBUG')],
         'contracts': (ROOT/'LifeRoute/SessionNoteContracts.swift').read_text(),
+        'draft_persistence_contract': persistence.split(
+            '// BEGIN SESSION NOTE DRAFT PERSISTENCE CONTRACT', 1
+        )[1].split('// END SESSION NOTE DRAFT PERSISTENCE CONTRACT', 1)[0],
         'core_declarations': core[core.index('// BEGIN SESSION NOTE PRODUCTION INSTRUCTIONS'):core.index('enum LifeRouteIntelligenceCore {')],
         'note_protocol': note[note.index('enum SessionNoteGenerationState:'):note.index('@MainActor\nfinal class FoundationModelSessionNoteGenerator')],
         'note_runtime': note[note.index('@MainActor\nfinal class AISessionNoteRuntimeModel:'):note.index('#if DEBUG\n@MainActor\nprivate final class SessionNoteFixtureGenerator')],
@@ -69,7 +73,8 @@ def main():
         + '    func inputChanged() { media.update(inputSignature) }\n}\n')
     sources = ['LifeRoute/AppNavigation.swift','LifeRoute/LifeRouteVisualActivityCoordinator.swift',
                'LifeRoute/SessionNoteContracts.swift','LifeRoute/LifeRouteIntelligenceCore.swift',
-               'LifeRoute/AIClinicalToolsViews.swift','LifeRoute/V054ThemeCenterView.swift',
+               'LifeRoute/AIClinicalToolsViews.swift','LifeRoute/PersistenceCore.swift',
+               'LifeRoute/V054ThemeCenterView.swift',
                'LifeRoute/SessionToolsViews.swift','scripts/root_visibility_contract_tests.swift',
                'scripts/run_root_visibility_contract_tests.py']
     manifest = {

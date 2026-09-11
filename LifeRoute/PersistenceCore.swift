@@ -1,5 +1,29 @@
 import Foundation
 
+// BEGIN SESSION NOTE DRAFT PERSISTENCE CONTRACT
+struct SessionNoteDraft: Codable, Equatable, Sendable {
+    var selectedClientCode: String
+    var sessionFacts: String
+    var generatedDraft: String
+
+    static let empty = SessionNoteDraft(
+        selectedClientCode: "",
+        sessionFacts: "",
+        generatedDraft: ""
+    )
+
+    var isEmpty: Bool {
+        selectedClientCode.isEmpty && sessionFacts.isEmpty && generatedDraft.isEmpty
+    }
+}
+
+@MainActor
+protocol SessionNoteDraftPersisting: AnyObject {
+    func loadSessionNoteDraft() -> SessionNoteDraft
+    func saveSessionNoteDraft(_ draft: SessionNoteDraft)
+}
+// END SESSION NOTE DRAFT PERSISTENCE CONTRACT
+
 struct RestoredClientVisualSupportState {
     var icons: [ClientVisualIcon]
     var choiceBoards: [ClientChoiceBoard]
@@ -25,7 +49,7 @@ struct RestoredRoutingPersistenceState {
 }
 
 @MainActor
-final class LifeRoutePersistenceStore {
+final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
     static let shared = LifeRoutePersistenceStore()
 
     // This stable owner mirrors the General/no-client visual library in
@@ -140,9 +164,10 @@ final class LifeRoutePersistenceStore {
         var routeBufferMinutes: Int
         var manualCalendarEvents: [LifeRouteCalendarEvent]
         var providerCalendarEvents: [LifeRouteCalendarEvent]
+        var sessionNoteDraft: SessionNoteDraft
 
         init(
-            schemaVersion: Int = 6,
+            schemaVersion: Int = 7,
             clients: [LifeRouteClientProfile] = [],
             visualIcons: [PersistedVisualIcon] = [],
             choiceBoards: [PersistedChoiceBoard] = [],
@@ -153,7 +178,8 @@ final class LifeRoutePersistenceStore {
             dayStops: [LifeRouteDayStop] = [],
             routeBufferMinutes: Int = 10,
             manualCalendarEvents: [LifeRouteCalendarEvent] = [],
-            providerCalendarEvents: [LifeRouteCalendarEvent] = []
+            providerCalendarEvents: [LifeRouteCalendarEvent] = [],
+            sessionNoteDraft: SessionNoteDraft = .empty
         ) {
             self.schemaVersion = schemaVersion
             self.clients = clients
@@ -167,6 +193,7 @@ final class LifeRoutePersistenceStore {
             self.routeBufferMinutes = max(0, min(180, routeBufferMinutes))
             self.manualCalendarEvents = manualCalendarEvents
             self.providerCalendarEvents = providerCalendarEvents
+            self.sessionNoteDraft = sessionNoteDraft
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -182,6 +209,7 @@ final class LifeRoutePersistenceStore {
             case routeBufferMinutes
             case manualCalendarEvents
             case providerCalendarEvents
+            case sessionNoteDraft
         }
 
         init(from decoder: Decoder) throws {
@@ -201,6 +229,7 @@ final class LifeRoutePersistenceStore {
             )
             manualCalendarEvents = try container.decodeIfPresent([LifeRouteCalendarEvent].self, forKey: .manualCalendarEvents) ?? []
             providerCalendarEvents = try container.decodeIfPresent([LifeRouteCalendarEvent].self, forKey: .providerCalendarEvents) ?? []
+            sessionNoteDraft = try container.decodeIfPresent(SessionNoteDraft.self, forKey: .sessionNoteDraft) ?? .empty
         }
     }
 
@@ -287,7 +316,10 @@ final class LifeRoutePersistenceStore {
     private var persistenceTask: Task<Void, Never>?
     private(set) var recoveryMessage: String?
 
-    private init(fileManager: FileManager = .default) {
+    init(
+        fileManager: FileManager = .default,
+        applicationSupportDirectory: URL? = nil
+    ) {
         self.fileManager = fileManager
         self.fileURL = nil
         self.imageDirectoryURL = nil
@@ -298,12 +330,18 @@ final class LifeRoutePersistenceStore {
         self.persistenceTask = nil
         self.recoveryMessage = nil
 
-        guard let applicationSupport = fileManager.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first else {
-            self.recoveryMessage = "Application Support is unavailable; native data will remain in memory."
-            return
+        let applicationSupport: URL
+        if let applicationSupportDirectory {
+            applicationSupport = applicationSupportDirectory
+        } else {
+            guard let resolvedApplicationSupport = fileManager.urls(
+                for: .applicationSupportDirectory,
+                in: .userDomainMask
+            ).first else {
+                self.recoveryMessage = "Application Support is unavailable; native data will remain in memory."
+                return
+            }
+            applicationSupport = resolvedApplicationSupport
         }
 
         let directory = applicationSupport
@@ -510,6 +548,17 @@ final class LifeRoutePersistenceStore {
         persist()
     }
 
+    func loadSessionNoteDraft() -> SessionNoteDraft {
+        state.sessionNoteDraft
+    }
+
+    func saveSessionNoteDraft(_ draft: SessionNoteDraft) {
+        var next = state
+        next.sessionNoteDraft = draft
+        state = Self.sanitized(next)
+        persist()
+    }
+
     private func persist() {
         guard let snapshotWriter else { return }
         persistenceRevision &+= 1
@@ -603,7 +652,7 @@ final class LifeRoutePersistenceStore {
         let providerCalendarEvents = sanitizedProviderCalendarEvents(input.providerCalendarEvents)
 
         return NativeState(
-            schemaVersion: max(6, input.schemaVersion),
+            schemaVersion: max(7, input.schemaVersion),
             clients: clients,
             visualIcons: icons,
             choiceBoards: boards,
@@ -614,7 +663,8 @@ final class LifeRoutePersistenceStore {
             dayStops: dayStops,
             routeBufferMinutes: max(0, min(180, input.routeBufferMinutes)),
             manualCalendarEvents: manualCalendarEvents,
-            providerCalendarEvents: providerCalendarEvents
+            providerCalendarEvents: providerCalendarEvents,
+            sessionNoteDraft: input.sessionNoteDraft
         )
     }
 

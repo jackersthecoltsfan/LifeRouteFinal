@@ -3,14 +3,14 @@ import Foundation
 // Shared evidence and style policy is composed into every production stage.
 enum SessionNoteClinicalInstructions {
     static let sharedConstraints = """
-    Use person-first, objective third-person wording and role-based identity only: the client, RBT, LBS, BCBA, BHT, and caregiver relationship roles. Preserve supplied chronology and attribute caregiver reports to the reporting caregiver; never turn a report into direct observation.
-    Preserve every clinically relevant supplied fact, including location, attendees, pairing, targets, transitions, prompting, reinforcement, behaviors of concern, intervention, observable outcome, caregiver collaboration, and LBS/BCBA instruction when present. Include a behavior of concern only when evidence says it occurred. Say “behaviors of concern.”
+    Use person-first, objective third-person wording and role-based identity only: the client, RBT, LBS, BCBA, BHT, and caregiver relationship roles. Keep caregiver reports attributed to the exact supplied relationship role and keep each report adjacent to the reported fact; never turn a report into direct observation or replace a supplied mother, father, grandmother, parent, or caregiver role with another role.
+    Preserve every clinically relevant supplied fact exactly once unless the evidence clearly describes distinct repeated occurrences. This includes location, attendees, pairing, targets, transitions, prompting, reinforcement, behaviors of concern, intervention, observable outcome, caregiver collaboration, and LBS/BCBA instruction when present. Include a behavior of concern only when evidence says it occurred. Say “behaviors of concern.”
     Integrate every clear current-session measurement exactly once beside its matching target or behavior. Preserve target association, measurement type, numeric value, unit, prompt level, and attribution. Exclude administrative screenshot content. Saved terminology is context only, never session evidence.
-    Never infer function, intent, emotion, cause, progress, training, supervision, treatment changes, recommendations, effectiveness, or causal relationships. Do not add unsupported clinical facts.
-    Improve grammar, possessives, role clarity, sentence structure, transitions, and organization while preserving the supplied meaning and order. Expand unambiguous abbreviations, such as functional communication training (FCT). Retain qualifications and attribution; clinical terminology is not a reason to remove a supplied fact.
+    Never invent function, intent, emotion, cause, progress, training, supervision, treatment changes, recommendations, effectiveness, or causal relationships. Preserve explicitly supplied conclusions with their attribution and qualifications. Conservative synthesis may group preferred play explicitly used to build rapport as pairing, consolidate repeated teaching or modelling of communication requests as FCT, and describe explicitly supported movement between activities as transition support. Such synthesis must retain the actual activities, communication modality, prompting, and actors; it never establishes an outcome or treatment effect.
+    Improve grammar, possessives, role clarity, sentence structure, transitions, and organization while preserving supplied meaning. Use chronology only when supported by explicit sequence words, times, or stated before/after relationships. A fact ledger's display order is bookkeeping, not timeline evidence. When order is unknown, group related facts coherently without adding first/then/after/later relationships or while/as/when/where/throughout relationships. Expand unambiguous abbreviations, such as functional communication training (FCT). Retain qualifications and attribution; clinical terminology is not a reason to remove a supplied fact.
     Write natural, useful prose with detail proportional to the evidence. Sparse evidence may be one short cohesive paragraph, with no minimum word, sentence, or paragraph count. Develop richer evidence into substantive paragraphs: make setting, participants, and the beginning clear; connect supplied interventions, activities, transitions, and community work in order; describe supplied behaviors, responses, reinforcement, and the session ending in context. Use these groups only where the facts exist and chronology allows; never require a fixed paragraph count. Expand shorthand into complete professional sentences and meaningfully connect related events instead of compressing a rich session into a few short sentences or converting each bullet mechanically. Do not repeat facts or add generic sentences to fill space.
-    A supplied “client responded well” may remain that response; it does not establish engagement, participation throughout the session, independent performance, improvement, or successful transitions. Do not invent prompting, reinforcement, redirection, caregiver involvement beyond presence, treatment-plan compliance, or future plans. Include these only when explicitly supplied, with their original qualifications and attribution. End when the supplied facts have been expressed; no mandatory summary or future-treatment-plan close.
-    Return the session BODY only, without a closing sentence or writer credential. LifeRoute adds its authorized standard closing separately after body acceptance. Finish every body sentence within the response budget; do not sacrifice the ending to lengthen the prose. Return editable narrative paragraphs only, without headings, lists, markdown, template language, disclaimers, or commentary.
+    A supplied “client responded well” may remain that response; it does not establish engagement, participation throughout the session, independent performance, improvement, or successful transitions. Do not invent prompting, reinforcement, redirection, caregiver involvement beyond presence, treatment-plan compliance, future plans, missing-data claims, or statements that no measurements or outcomes were recorded. Include these only when explicitly supplied, with their original qualifications and attribution. End when the supplied facts have been expressed; no mandatory summary or future-treatment-plan close.
+    Use complete professional sentences, periods instead of semicolon chains, and varied sentence openings. Separate distinct session topics into readable paragraphs at supported changes in activity or focus; preserve related reports and their attribution together. Do not force a paragraph count or headings. Retain supplied session conclusions and closing activities, including observations raised to the BCBA. Return the complete session narrative only, without a standard closing sentence or writer credential. Finish every sentence within the response budget; do not sacrifice the ending to lengthen the prose. Return editable narrative paragraphs only, without headings, lists, markdown, fact IDs, template language, disclaimers, or commentary.
     """
 }
 
@@ -488,26 +488,42 @@ struct SessionNoteEvidencePacket {
         let measurementLines = structuredMeasurements
             .map(\.promptLine)
             .joined(separator: "\n")
-        return """
-        RAW FACTUAL SOURCE MATERIAL — reconstruct into professional ABA prose; do not preserve its wording or sentence structure:
-        \(typedFacts.isEmpty ? "none" : typedFacts)
-
-        CLEAR CURRENT-SESSION MEASUREMENTS — integrate every entry and keep each target, type, value, unit, and prompt level associated exactly:
-        \(measurementLines.isEmpty ? "none" : measurementLines)
-
-        OTHER CLEAR QUANTITATIVE OCR — supporting evidence only; never use administrative screenshot content:
-        \(quantitativeOCR.isEmpty ? "none" : quantitativeOCR)
-
-        NEUTRAL TERMINOLOGY CONTEXT — never evidence that an event occurred:
-        \(context.isEmpty ? "none" : String(context.prefix(280)))
-
+        var sections = [
+            """
+            REQUIRED FACT LEDGER — reconstruct every F-ID as supplied factual evidence. IDs and display order are not chronology and must not appear in the note:
+            \(SessionNoteEvidenceNormalizer.factLedger(from: typedFacts))
+            """
+        ]
+        if !measurementLines.isEmpty {
+            sections.append("""
+            CLEAR CURRENT-SESSION MEASUREMENTS — integrate every entry and keep each target, type, value, unit, and prompt level associated exactly:
+            \(measurementLines)
+            """)
+        }
+        if !quantitativeOCR.isEmpty {
+            sections.append("""
+            OTHER CLEAR QUANTITATIVE OCR — supporting evidence only; never use administrative screenshot content:
+            \(quantitativeOCR)
+            """)
+        }
+        if !context.isEmpty {
+            sections.append("""
+            NEUTRAL TERMINOLOGY CONTEXT — never evidence that an event occurred:
+            \(String(context.prefix(280)))
+            """)
+        }
+        sections.append("""
         PROFESSIONAL RECONSTRUCTION REQUIREMENTS:
-        - Do not copy conversational transitions or preserve the source clause structure.
-        - Rebuild each event with its supplied actor in objective ABA documentation language. Express generic work only as instructional activities or a work period; do not invent its content.
-        - Preserve the supplied event order instead of regrouping events by target. Connect the opening, transitions, later activities, behavior/intervention/outcome sequence, reinforcement, and collaboration chronologically when supplied.
+        - Silently account for every F-ID before drafting. Express every material fact once, while retaining distinct repeated occurrences when the evidence distinguishes them. Do not output IDs or an accounting list.
+        - Preserve each reporting relationship exactly and keep the report attribution in the same sentence as the reported fact. Do not generalize a supplied mother, father, grandmother, parent, or caregiver into a different role.
+        - Do not copy conversational transitions or preserve the source clause structure. Rebuild each event with its supplied actor in objective ABA documentation language. Express generic work only as instructional activities or a work period; do not invent its content.
+        - Reorder only from explicit sequence words, times, or stated before/after relationships inside the facts. Fact-ID order alone proves nothing. If exact order is unknown, use non-temporal grouping and do not add first, then, after, following, later, beginning, ending, while, as, when, where, or throughout claims.
+        - Connect supported opening, setting, reports, activities, interventions, observable responses, transitions, and closing events into a natural session flow. Do not create a missing event merely to bridge two supplied facts.
         - Use the shared evidence-proportional style guidance; a concise single paragraph is acceptable. Integrate each measurement in the sentence about its matching target or behavior; never append a detached data list.
-        - End after the supplied facts. Do not append generic participation, session-continuation, or future-plan sentences.
-        """
+        - Empty evidence categories are omitted from this request. Do not mention absent, unavailable, unrecorded, or nonexistent measurements, data, interventions, outcomes, or behaviors unless an F-ID explicitly states that absence.
+        - End after the supplied facts. Do not append generic participation, session-continuation, unsupported summary, treatment-plan, or future-plan sentences. Retain supplied conclusions and closing activities with their original qualifications and attribution.
+        """)
+        return sections.joined(separator: "\n\n")
     }
 }
 
@@ -731,27 +747,23 @@ enum SessionNotePipelineError: LocalizedError, Equatable {
 }
 
 enum SessionNoteGenerationPipeline {
-    // Product entry point. The existing pipeline accepts BODY evidence first,
+    // Product entry point. The existing pipeline accepts the evidence-bound narrative,
     // including raw-output boundaries, deterministic repair, one model repair,
-    // and safe fallback/rejection. Nothing appends to the current editable draft.
+    // and safe fallback/rejection. Nothing appends unsupported boilerplate.
     static func generateNote(
         packet: SessionNoteEvidencePacket,
-        writerRole: SessionNoteWriterRole,
+        writerRole _: SessionNoteWriterRole,
         request: @escaping (SessionNotePipelineStage) async throws -> String,
         progress: @escaping (SessionNotePipelineEvent) async -> Void = { _ in },
         diagnostic: @escaping (SessionNotePipelineDiagnosticEvent) -> Void = { _ in }
     ) async throws -> SessionNoteGenerationResult {
-        let body = try await generate(
-            packet: packet, request: request, progress: progress, diagnostic: diagnostic
+        let narrative = try await generate(
+            packet: packet, request: request, progress: progress, diagnostic: diagnostic,
+            enforceMaterialCoverage: true
         )
         try Task.checkCancellation()
-        try SessionNoteOutputBoundary.validate(body.draft)
-        return SessionNoteGenerationResult(
-            draft: body.draft + "\n\n" + SessionNoteStandardClosing.sentence(for: writerRole),
-            outcome: body.outcome, issueCodes: body.issueCodes,
-            diagnostics: body.diagnostics, extractionSummary: body.extractionSummary,
-            completeness: body.completeness
-        )
+        try SessionNoteOutputBoundary.validate(narrative.draft)
+        return narrative
     }
 
     static func run(
@@ -772,7 +784,8 @@ enum SessionNoteGenerationPipeline {
         packet: SessionNoteEvidencePacket,
         request: @escaping (SessionNotePipelineStage) async throws -> String,
         progress: @escaping (SessionNotePipelineEvent) async -> Void = { _ in },
-        diagnostic: @escaping (SessionNotePipelineDiagnosticEvent) -> Void = { _ in }
+        diagnostic: @escaping (SessionNotePipelineDiagnosticEvent) -> Void = { _ in },
+        enforceMaterialCoverage: Bool = false
     ) async throws -> SessionNoteGenerationResult {
         var diagnosticEvents: [SessionNotePipelineDiagnosticEvent] = []
         func record(_ event: SessionNotePipelineDiagnosticEvent) {
@@ -802,7 +815,7 @@ enum SessionNoteGenerationPipeline {
             firstRawDraft,
             scrubber: packet.scrubber
         )
-        let firstValidation = SessionNoteOutputValidator.validate(firstSanitization.draft, evidence: packet)
+        let firstValidation = SessionNoteOutputValidator.validate(firstSanitization.draft, evidence: packet, requireMaterialCoverage: enforceMaterialCoverage)
         record(.initialIssueCodes(firstValidation.issueCodes))
         let firstRepair = SessionNoteDeterministicRepairer.repair(
             firstValidation.draft,
@@ -812,7 +825,7 @@ enum SessionNoteGenerationPipeline {
         record(.deterministicRepairCodes(
             Array(Set(firstSanitization.appliedIssueCodes + firstRepair.appliedIssueCodes)).sorted()
         ))
-        let normalizedValidation = SessionNoteOutputValidator.validate(firstRepair.draft, evidence: packet)
+        let normalizedValidation = SessionNoteOutputValidator.validate(firstRepair.draft, evidence: packet, requireMaterialCoverage: enforceMaterialCoverage)
         record(.remainingHardBlockerCodes(normalizedValidation.hardBlockerCodes))
         record(.candidateAssessment(SessionNoteCandidateDiagnostics.make(
             pass: .initial,
@@ -838,7 +851,7 @@ enum SessionNoteGenerationPipeline {
             repairedRawDraft,
             scrubber: packet.scrubber
         )
-        let repairedInitialValidation = SessionNoteOutputValidator.validate(repairedSanitization.draft, evidence: packet)
+        let repairedInitialValidation = SessionNoteOutputValidator.validate(repairedSanitization.draft, evidence: packet, requireMaterialCoverage: enforceMaterialCoverage)
         let repairedDeterministic = SessionNoteDeterministicRepairer.repair(
             repairedInitialValidation.draft,
             validation: repairedInitialValidation,
@@ -847,7 +860,7 @@ enum SessionNoteGenerationPipeline {
         record(.deterministicRepairCodes(
             Array(Set(repairedSanitization.appliedIssueCodes + repairedDeterministic.appliedIssueCodes)).sorted()
         ))
-        let repairedValidation = SessionNoteOutputValidator.validate(repairedDeterministic.draft, evidence: packet)
+        let repairedValidation = SessionNoteOutputValidator.validate(repairedDeterministic.draft, evidence: packet, requireMaterialCoverage: enforceMaterialCoverage)
         record(.repairPassIssueCodes(repairedValidation.issueCodes))
         record(.candidateAssessment(SessionNoteCandidateDiagnostics.make(
             pass: .repair,
@@ -866,7 +879,7 @@ enum SessionNoteGenerationPipeline {
             )
         }
 
-        if let fallback = SessionNoteConservativeFallback.make(from: packet) {
+        if let fallback = SessionNoteConservativeFallback.make(from: packet, requireMaterialCoverage: enforceMaterialCoverage) {
             record(.fallback(.succeeded))
             record(.finalOutcome(.fallback))
             return SessionNoteGenerationResult(
@@ -1268,6 +1281,34 @@ struct SessionNoteIdentifierScrubber {
 }
 
 enum SessionNoteEvidenceNormalizer {
+    static func factLedger(from value: String) -> String {
+        let units = distinctFactUnits(from: value)
+        guard !units.isEmpty else { return "[no factual entries supplied]" }
+        return units.enumerated().map { index, unit in
+            String(format: "F%02d | %@", index + 1, unit)
+        }.joined(separator: "\n")
+    }
+
+    static func deduplicatedFacts(from value: String) -> String {
+        distinctFactUnits(from: value).joined(separator: "\n")
+    }
+
+    static func distinctFactUnits(from value: String) -> [String] {
+        let units = value
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .split(whereSeparator: \.isNewline)
+            .flatMap { SessionNoteMaterialCoverage.clauses(String($0)) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        var previous: String?
+        return units.filter { unit in
+            let key = unit.lowercased()
+            defer { previous = key }
+            return key != previous
+        }
+    }
+
     static func typedFacts(_ value: String) -> String {
         let normalized = normalizeLines(value, removeAmbiguousOCR: false)
         return ABATerminologyNormalizer.normalize(normalized)
@@ -1494,6 +1535,164 @@ enum SessionNoteEvidenceNormalizer {
     }
 }
 
+// A bounded omission screen over the same fact units sent to the model. It is
+// deliberately not a semantic proof: aliases allow ordinary paraphrase, local
+// anchors protect attribution/modality, and uncertain coverage uses the existing
+// single repair path. Every presented draft still requires human fact review.
+struct SessionNoteMaterialCoverage {
+    let factCount: Int
+    let missingFactIDs: [String]
+
+    static func assess(_ draft: String, evidence: SessionNoteEvidencePacket) -> Self {
+        let facts = SessionNoteEvidenceNormalizer.distinctFactUnits(from: evidence.typedFacts)
+        let sentences = draft.components(separatedBy: "\n\n").flatMap { clauses($0) + [""] }
+        var candidates = sentences
+        for (first, second) in zip(sentences, sentences.dropFirst()) {
+            // Only explicit continuation can inherit a subject/report. Do not
+            // allow an unrelated sentence to supply the missing attribution.
+            if second.range(of: #"(?i)^(?:these|this|such|the same|the RBT used .*these|the client also)\b"#, options: .regularExpression) != nil {
+                candidates.append(first + " " + second)
+            }
+        }
+        let staffRoles: Set<String> = ["rbt", "bcba", "lbs", "bht"]
+        var precedingStaff: Set<String> = []
+        let targetTokens = candidates.map { candidate -> Set<String> in
+            if candidate.isEmpty { precedingStaff = []; return [] }
+            var result = tokens(candidate)
+            let explicitActor = candidate.range(of: #"(?i)^(?:the\s+)?(?:client|mother|father|grandmother|grandfather|caregiver|parent|sibling|brother|sister)\b"#, options: .regularExpression) != nil
+            let anotherActor = !result.intersection(["mother", "father", "grandmother", "grandfather", "caregiver", "parent", "sibling", "brother", "sister"]).isEmpty
+                || matches(#"\bby (?:the )?client\b"#, in: candidate)
+            let explicitStaff = result.intersection(staffRoles)
+            if explicitStaff.isEmpty, precedingStaff.count == 1, !result.contains("report"), !explicitActor, !anotherActor {
+                result.formUnion(precedingStaff)
+            }
+            if explicitActor || anotherActor { precedingStaff = [] }
+            if !explicitStaff.isEmpty { precedingStaff = explicitStaff }
+            return result
+        }
+        let missing = facts.enumerated().compactMap { index, fact -> String? in
+            let required = tokens(fact)
+            guard !required.isEmpty else { return nil }
+            let anchors = required.intersection(protectedTokens).union(required.filter { Double($0) != nil })
+            // An opening attendee list may naturally become a context sentence
+            // followed by a family-presence sentence. This exception supplies no
+            // actor/action evidence and never applies to intervention or reports.
+            if matches(#"\bpresent\b"#, in: fact),
+               !matches(#"\b(?:reported|modelled|modeled|provided|used|left|arrived|before|after)\b"#, in: fact) {
+                let opening = tokens(draft.components(separatedBy: "\n\n").first ?? "")
+                if anchors.isSubset(of: opening), required.subtracting(protectedTokens).isSubset(of: opening) {
+                    return nil
+                }
+            }
+            let covered = targetTokens.contains { candidate in
+                guard anchors.isSubset(of: candidate) else { return false }
+                // A negation or a need/assessment claim cannot substitute for an
+                // observed occurrence, even if all the activity words remain.
+                for qualifier in ["not", "need", "conclude"] {
+                    if required.contains(qualifier) != candidate.contains(qualifier) { return false }
+                }
+                let common = required.intersection(candidate)
+                let content = required.subtracting(protectedTokens)
+                let contentMatches = content.intersection(candidate)
+                return Double(common.count) / Double(required.count) >= 0.65
+                    && (content.isEmpty || Double(contentMatches.count) / Double(content.count) >= 0.6)
+            }
+            return covered ? nil : String(format: "F%02d", index + 1)
+        }
+        return Self(factCount: facts.count, missingFactIDs: missing)
+    }
+
+    static func clauses(_ value: String) -> [String] {
+        let normalized = SessionNoteOutputSanitizer.normalizeSemicolons(value)
+        let independentSubject = #"(?:,\s*)?\band\s+(?=(?:the\s+)?(?:client|RBT|BCBA|LBS|BHT|mother|father|grandmother|grandfather|caregiver|parent|sibling)\b\s+(?:reported|stated|shared|modelled|modeled|used|provided|needed|required|requested|selected|delivered|offered|engaged|transitioned|returned|completed|practiced|blocked|supported|responded|concluded|discussed|raised)\b)"#
+        return SessionNoteOutputSanitizer.splitSentences(normalized).flatMap { sentence -> [String] in
+            let split = sentence.replacingOccurrences(of: independentSubject, with: "\n", options: [.regularExpression, .caseInsensitive])
+            return split.components(separatedBy: "\n").flatMap { clause -> [String] in
+                // Split shorthand measurement/activity lists only when no report
+                // or conclusion attribution would be detached from a fragment.
+                if !matches(#"\b(?:reported|stated|shared|according to|concluded)\b"#, in: clause) {
+                    return clause.components(separatedBy: ";")
+                }
+                return [clause]
+            }.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        }
+    }
+
+    static func supportsPairing(_ value: String) -> Bool {
+        clauses(value).contains { clause in
+            !matches(#"\b(?:not|no|never|will|planned|proposed|discussed)\b"#, in: clause)
+                && matches(#"\b(?:build|building|built) rapport\b|\brapport[- ]building\b|\bpairing\b"#, in: clause)
+                && matches(#"\b(?:play|preferred|activities|activity|pairing)\b"#, in: clause)
+        }
+    }
+
+    static func supportsCommunicationTeaching(_ value: String) -> Bool {
+        if matches(#"\b(?:FCT|functional communication training)\b"#, in: value) { return true }
+        return clauses(value).contains {
+            !matches(#"\b(?:not|no|never|didn't|will|planned|proposed|discussed|recommend(?:ed)?)\b"#, in: $0)
+                && matches(#"\b(?:model(?:led|ed|ling|ing)?|demonstrat(?:ed|ing)|taught|teach(?:ing)?)\b"#, in: $0)
+                && matches(#"\b(?:request(?:s|ed|ing)?|communicat(?:ion|ing))\b"#, in: $0)
+                && matches(#"\b(?:AAC|ASL|speech|sign(?:s|ing)?|picture|communication)\b"#, in: $0)
+        }
+    }
+
+    private static let protectedTokens: Set<String> = [
+        "mother", "father", "grandmother", "grandfather", "sibling", "brother", "sister", "caregiver", "parent",
+        "rbt", "bcba", "lbs", "bht", "aac", "asl", "pecs", "verbal", "gestural", "physical", "independent",
+        "report", "model", "discuss", "conclude", "not", "need", "end", "before", "after",
+    ]
+
+    private static func matches(_ pattern: String, in value: String) -> Bool {
+        value.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private static func tokens(_ value: String) -> Set<String> {
+        var normalized = value.lowercased().replacingOccurrences(of: "’", with: "'")
+        let aliases: [(String, String)] = [
+            (#"\b(?:registered behavior technician)\b"#, "rbt"),
+            (#"\b(?:board[- ]certified behavior analyst)\b"#, "bcba"),
+            (#"\b(?:augmentative (?:and|&) alternative communication)\b"#, "aac"),
+            (#"\bamerican sign language\b"#, "asl"),
+            (#"\bfunctional communication(?: training)?\b"#, "fct"),
+            (#"\b(?:build|building|built) rapport\b|\brapport[- ]building\b"#, "pairing"),
+            (#"\baccording to\b|\b(?:reported|stated|shared that)\b"#, "report"),
+            (#"\b(?:modelled|modeled|modelling|modeling|demonstrated|demonstrating)\b"#, "model"),
+            (#"\b(?:raised (?:the )?observation of|raised|discussed|discussion|brought up|consulted)\b"#, "discuss"),
+            (#"\b(?:concluded|conclusion|concluding|assessment)\b"#, "conclude"),
+            (#"\b(?:continued to need|continued to require|remained necessary|still required|needed|requires?|required)\b"#, "need"),
+            (#"\b(?:at the beginning|opening|began|started)\b"#, "begin"),
+            (#"\b(?:ended|closed|closing)\b"#, "end"),
+            (#"\b(?:following|afterward)\b"#, "after"),
+            (#"\bprior to\b"#, "before"),
+            (#"\b(?:slept|sleeping)\b"#, "sleep"),
+            (#"\bpoorly\b"#, "poor"),
+            (#"\b(?:no|without|never)\b|\bdidn't\b"#, "not"),
+            (#"\btwice\b|\btwo (?:episodes|occurrences|times)\b"#, "2"),
+            (#"\bfree[- ]play\b"#, "free play"),
+            (#"\b(?:utilized|used|provided)\b"#, "use"),
+            (#"\b(?:took place|occurred|was held)\b"#, "session"),
+            (#"\b(?:mom|mum)\b"#, "mother"),
+            (#"\bdad\b"#, "father"),
+            (#"\bgrandma\b"#, "grandmother"),
+        ]
+        for (pattern, replacement) in aliases {
+            normalized = normalized.replacingOccurrences(of: pattern, with: replacement, options: .regularExpression)
+        }
+        let stop: Set<String> = ["a", "an", "the", "s", "of", "to", "with", "in", "at", "on", "for", "and", "or", "by", "from", "that", "which", "as", "was", "were", "is", "are", "be", "been", "had", "has", "have", "did", "client", "session", "activity", "activities", "include", "included", "including", "used", "use", "through", "using", "it", "its", "these", "this", "their", "his", "her", "they", "them", "there", "continued", "continue", "engaged", "present", "remained", "repeatedly", "repeated", "observation", "period", "then", "moved"]
+        return Set(normalized.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map { word in
+            let w = String(word)
+            if stop.contains(w) { return "" }
+            if ["requests", "requested", "requesting"].contains(w) { return "request" }
+            if ["prompts", "prompted", "prompting"].contains(w) { return "prompt" }
+            if ["supported", "supporting"].contains(w) { return "support" }
+            if w.count > 4 && w.hasSuffix("ing") && w != "pairing" && w != "swallowing" { return String(w.dropLast(3)) }
+            if w.count > 4 && w.hasSuffix("ed") { return String(w.dropLast(2)) }
+            if w.count > 3 && w.hasSuffix("s") && !["pecs", "lbs", "asl"].contains(w) { return String(w.dropLast()) }
+            return w
+        }.filter { !$0.isEmpty && !stop.contains($0) })
+    }
+}
+
 struct SessionNoteOutputValidation {
     let draft: String
     let issues: [SessionNoteValidationIssue]
@@ -1571,6 +1770,24 @@ enum SessionNoteOutputSanitizer {
             .replacingOccurrences(of: "`", with: "")
         if cleaned != beforeMarkdown { repairs.append("SN-FORMAT-001") }
 
+        let beforeLedgerIdentifiers = cleaned
+        cleaned = cleaned
+            .replacingOccurrences(
+                of: #"(?i)\(\s*F\d{2,3}\s*\)"#,
+                with: "",
+                options: .regularExpression
+            )
+            .replacingOccurrences(
+                of: #"(?im)^\s*F\d{2,3}\s*\|\s*"#,
+                with: "",
+                options: .regularExpression
+            )
+        if cleaned != beforeLedgerIdentifiers { repairs.append("SN-FORMAT-010") }
+
+        let beforeSentenceBoundaries = cleaned
+        cleaned = normalizeSemicolons(cleaned)
+        if cleaned != beforeSentenceBoundaries { repairs.append("SN-FORMAT-011") }
+
         let beforeTerminology = cleaned
         cleaned = cleaned.replacingOccurrences(
             of: #"(?i)\bmaladaptive\s+behaviou?rs?\b"#,
@@ -1642,6 +1859,10 @@ enum SessionNoteOutputSanitizer {
             .map { ABATerminologyNormalizer.normalize(normalizeSentenceSpacing($0)) }
             .filter { !$0.isEmpty }
 
+        let beforeDuplicateRemoval = paragraphs
+        paragraphs = removingExactRepeatedSentences(from: paragraphs)
+        if paragraphs != beforeDuplicateRemoval { repairs.append("SN-QUALITY-007") }
+
         return SessionNoteDeterministicRepairResult(
             draft: paragraphs.joined(separator: "\n\n")
                 .trimmingCharacters(in: .whitespacesAndNewlines),
@@ -1672,28 +1893,77 @@ enum SessionNoteOutputSanitizer {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private static func removingExactRepeatedSentences(from paragraphs: [String]) -> [String] {
+        return paragraphs.compactMap { paragraph in
+            var previous: String?
+            let retained = splitSentences(paragraph).filter { sentence in
+                let key = normalizeSentenceSpacing(sentence).lowercased()
+                defer { previous = key }
+                return key != previous
+            }
+            return retained.isEmpty ? nil : retained.joined(separator: " ")
+        }
+    }
+
     static func ensureTerminalPunctuation(_ value: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let last = trimmed.last, !".!?".contains(last) else { return trimmed }
         return trimmed + "."
     }
 
+    // Retain model-selected paragraphs. Only split an oversized paragraph at a
+    // topic boundary already expressed in its sentences; never reorder content.
     static func reflow(_ paragraphs: [String]) -> [String] {
-        var result = paragraphs.flatMap { paragraph -> [String] in
+        paragraphs.flatMap { paragraph -> [String] in
+            guard paragraph.count > 520 else { return [paragraph] }
             let sentences = splitSentences(paragraph)
-            guard sentences.count >= 4, paragraph.count > 520 else { return [paragraph] }
-            let midpoint = Int(ceil(Double(sentences.count) / 2.0))
-            return [
-                sentences[..<midpoint].joined(separator: " "),
-                sentences[midpoint...].joined(separator: " "),
-            ]
+            var groups: [String] = []
+            var current: [String] = []
+            var previousTopic: Int?
+            for sentence in sentences {
+                let topic = narrativeTopic(sentence)
+                if !current.isEmpty, let topic, topic != previousTopic {
+                    groups.append(current.joined(separator: " "))
+                    current.removeAll()
+                }
+                current.append(sentence)
+                if let topic { previousTopic = topic }
+            }
+            if !current.isEmpty { groups.append(current.joined(separator: " ")) }
+            return groups
         }
+    }
 
-        while result.count > 4 {
-            let tail = result.removeLast()
-            result[result.count - 1] += " " + tail
-        }
-        return result
+    private static func narrativeTopic(_ sentence: String) -> Int? {
+        let patterns = [
+            #"(?i)\b(?:session (?:ended|closed)|closed the session|toward the end|near the end|free[- ]play|conclud(?:ed|ing|sion))\b"#,
+            #"(?i)\b(?:discuss(?:ed|ion)|raised|consult(?:ed|ation))\b"#,
+            #"(?i)\b(?:biting|elopement|aggression|behaviors? of concern|blocked|redirect(?:ed|ion|ing)|pushed|threw)\b"#,
+            #"(?i)\b(?:transition(?:s|ed|ing)?|NET|natural environment teaching)\b"#,
+            #"(?i)\b(?:FCT|functional communication|AAC|ASL|prompt(?:s|ing)?|instructional|targeted|programming)\b"#,
+            #"(?i)\b(?:pairing|rapport|present|reported|according to|home session)\b"#,
+            #"(?i)^(?:later|next|following this)\b"#,
+        ]
+        return patterns.firstIndex { sentence.range(of: $0, options: .regularExpression) != nil }
+    }
+
+    static func normalizeSemicolons(_ value: String) -> String {
+        // Do not detach dependent phrases or a caregiver's reported clause from
+        // its attribution. A remaining chain goes to the bounded prose repair.
+        value.components(separatedBy: "\n\n").map { paragraph in
+            splitSentences(paragraph).map { sentence in
+                guard sentence.contains(";"),
+                      sentence.range(of: #"(?i)\b(?:reported|stated|shared|according to|per)\b"#, options: .regularExpression) == nil else { return sentence }
+                let clauses = sentence.components(separatedBy: ";")
+                let independent = #"(?i)^\s*(?:the\s+)?(?:client|RBT|BCBA|LBS|BHT|mother|father|grandmother|caregiver|parent)\b\s+(?:\w+\s+)?(?:used|provided|modelled|modeled|requested|selected|delivered|offered|engaged|transitioned|returned|completed|practiced|blocked|supported|responded)\b"#
+                guard clauses.dropFirst().allSatisfy({ $0.range(of: independent, options: .regularExpression) != nil }) else { return sentence }
+                return clauses.enumerated().map { index, clause in
+                    let trimmed = clause.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard index > 0, let first = trimmed.first else { return trimmed }
+                    return first.uppercased() + trimmed.dropFirst()
+                }.joined(separator: ". ")
+            }.joined(separator: " ")
+        }.joined(separator: "\n\n")
     }
 
     static func splitSentences(_ value: String) -> [String] {
@@ -1792,9 +2062,10 @@ enum SessionNoteDeterministicRepairer {
 }
 
 enum SessionNoteConservativeFallback {
-    static func make(from evidence: SessionNoteEvidencePacket) -> String? {
+    static func make(from evidence: SessionNoteEvidencePacket, requireMaterialCoverage: Bool = false) -> String? {
         guard evidence.structuredMeasurements.isEmpty else { return nil }
-        let facts = evidence.typedFacts.trimmingCharacters(in: .whitespacesAndNewlines)
+        let facts = SessionNoteEvidenceNormalizer.deduplicatedFacts(from: evidence.typedFacts)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         guard facts.count >= 20,
               facts.split(whereSeparator: \.isWhitespace).count >= 4,
               facts.range(
@@ -1818,7 +2089,7 @@ enum SessionNoteConservativeFallback {
             evidence: evidence,
             requireStructuredMeasurementCoverage: false
         )
-        return final.isSafe ? final.draft : nil
+        return final.isSafe && (!requireMaterialCoverage || SessionNoteMaterialCoverage.assess(final.draft, evidence: evidence).missingFactIDs.isEmpty) ? final.draft : nil
     }
 }
 
@@ -1841,7 +2112,8 @@ enum SessionNoteOutputValidator {
     static func validate(
         _ draft: String,
         evidence: SessionNoteEvidencePacket,
-        requireStructuredMeasurementCoverage: Bool = true
+        requireStructuredMeasurementCoverage: Bool = true,
+        requireMaterialCoverage: Bool = false
     ) -> SessionNoteOutputValidation {
         var issues: [SessionNoteValidationIssue] = []
         let cleaned = draft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1853,12 +2125,12 @@ enum SessionNoteOutputValidator {
                 "Return a nonempty note grounded only in the supplied session evidence."
             ))
         }
-        // Product boilerplate is never model evidence, even if pasted into facts.
-        // It can enter a presented note only after this body validator accepts.
+        // Legacy product boilerplate is never factual session evidence, even if
+        // pasted into facts. It must not enter an evidence-bound narrative.
         if SessionNoteStandardClosing.isPresent(in: cleaned) {
             issues.append(issue(
                 "SN-CLINICAL-014", .hardBlocker, .clinicalClaimVerification, .boundedModel,
-                "Return only the complete session body. Remove the standard closing; LifeRoute adds it after body acceptance."
+                "Remove the legacy standard closing. End the narrative after the supplied session facts without adding future-plan or treatment-protocol claims."
             ))
         }
         if evidence.scrubber.survivingIdentifier(in: cleaned) != nil {
@@ -1933,18 +2205,16 @@ enum SessionNoteOutputValidator {
         }
 
         let paragraphs = cleaned.components(separatedBy: "\n\n").filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        if paragraphs.count > 4 {
+        if paragraphs.contains(where: { $0.count > 900 && SessionNoteOutputSanitizer.splitSentences($0).count >= 4 }) {
             issues.append(issue(
-                "SN-FORMAT-006", .repairable, .formatNormalization, .deterministic,
-                "Reflow the narrative to no more than four readable paragraphs."
+                "SN-FORMAT-007", .repairable, .quality, .boundedModel,
+                "Separate the oversized paragraph at supported changes of activity or topic, without reordering facts or inventing a sequence. Keep report attribution attached."
             ))
         }
-        if paragraphs.count == 1,
-           SessionNoteOutputSanitizer.splitSentences(cleaned).count >= 4,
-           cleaned.count > 520 {
+        if cleaned.contains(";") {
             issues.append(issue(
-                "SN-FORMAT-007", .repairable, .formatNormalization, .deterministic,
-                "Reflow the oversized paragraph into readable narrative groups."
+                "SN-FORMAT-011", .repairable, .quality, .boundedModel,
+                "Replace semicolon chains with complete sentences or grammatical coordinated clauses. Retain the subject, report attribution, qualifications, and every fact; do not create sentence fragments."
             ))
         }
         if let last = cleaned.last, !".!?".contains(last) {
@@ -2036,9 +2306,43 @@ enum SessionNoteOutputValidator {
         }
         if hasRepetitiveOpenings(cleaned) {
             issues.append(issue(
-                "SN-QUALITY-003", .warning, .quality, .userEditable,
-                "Vary repetitive sentence openings when editing the draft."
+                "SN-QUALITY-003", .repairable, .quality, .boundedModel,
+                "Replace mechanical Then/After-this or role-then sentence chains with natural transitions while preserving every supplied fact and supported chronological relationship."
             ))
+        }
+        if containsUnsupportedSpecificChronology(in: cleaned, evidence: evidence) {
+            issues.append(issue(
+                "SN-CHRONOLOGY-001", .hardBlocker, .clinicalClaimVerification, .boundedModel,
+                "Remove first, then, after, following, later, beginning, or ending relationships that the supplied facts do not establish. Group unordered facts without asserting a timeline."
+            ))
+        }
+        if containsUnsupportedSimultaneity(in: cleaned, evidence: evidence) {
+            issues.append(issue(
+                "SN-CHRONOLOGY-002", .hardBlocker, .clinicalClaimVerification, .boundedModel,
+                "Remove while, as, when, where, or throughout relationships that the supplied facts do not establish. Connect facts without asserting simultaneity, location, or duration."
+            ))
+        }
+        if isMissingRequiredReportAttribution(in: cleaned, evidence: evidence) {
+            issues.append(issue(
+                "SN-ROLE-001", .hardBlocker, .clinicalClaimVerification, .boundedModel,
+                "Restore each caregiver report in the same sentence as its exact supplied mother, father, grandmother, parent, or caregiver relationship and reported fact."
+            ))
+        }
+        if containsUnsupportedMissingDataClaim(in: cleaned, evidence: evidence) {
+            issues.append(issue(
+                "SN-EVIDENCE-007", .hardBlocker, .evidenceVerification, .boundedModel,
+                "Remove claims that measurements, data, outcomes, or target values were absent or unrecorded unless the supplied facts explicitly state that absence."
+            ))
+        }
+        issues.append(contentsOf: unsupportedClosedWorldClaims(in: cleaned, evidence: evidence))
+        if requireMaterialCoverage {
+            let coverage = SessionNoteMaterialCoverage.assess(cleaned, evidence: evidence)
+            if !coverage.missingFactIDs.isEmpty {
+                issues.append(issue(
+                    "SN-COVERAGE-001", .repairable, .quality, .boundedModel,
+                    "Check potentially omitted or misattributed facts " + coverage.missingFactIDs.joined(separator: ", ") + ". Restore their material meaning, actors, communication methods, prompting, reports, and supplied conclusions from the original ledger. Paraphrase naturally; do not add facts."
+                ))
+            }
         }
         if hasSubstantialSourceCopying(cleaned, evidence: evidence) {
             issues.append(issue(
@@ -2164,7 +2468,11 @@ enum SessionNoteOutputValidator {
         in value: String,
         evidence: SessionNoteEvidencePacket
     ) -> [SessionNoteValidationIssue] {
-        let supplied = [evidence.typedFacts, evidence.quantitativeOCR]
+        let supplied = [
+            evidence.typedFacts,
+            evidence.quantitativeOCR,
+            evidence.structuredMeasurements.map(\.promptLine).joined(separator: "\n"),
+        ]
             .joined(separator: "\n")
         let patterns: [(String, String, String)] = [
             ("SN-CLINICAL-001", #"(?i)\b(function (?:was|is)|maintained by|attention[- ]seeking|escape[- ]maintained)\b"#, "Remove the unsupported behavioral-function conclusion."),
@@ -2206,17 +2514,133 @@ enum SessionNoteOutputValidator {
 
     private static func hasRepetitiveOpenings(_ value: String) -> Bool {
         let sentences = SessionNoteOutputSanitizer.splitSentences(value)
-        guard sentences.count >= 5 else { return false }
-        var counts: [String: Int] = [:]
-        for sentence in sentences {
-            let words = sentence
-                .lowercased()
-                .split(whereSeparator: { !$0.isLetter })
-                .prefix(2)
-            guard words.count == 2 else { continue }
-            counts[words.joined(separator: " "), default: 0] += 1
+        let mechanicalCount = sentences.filter { sentence in
+            sentence.range(
+                of: #"(?i)^(?:then(?:,)?|after this(?:,)?|the (?:RBT|client) then)\b"#,
+                options: .regularExpression
+            ) != nil
+        }.count
+        return mechanicalCount >= 2
+    }
+
+    private static func containsUnsupportedSpecificChronology(
+        in value: String,
+        evidence: SessionNoteEvidencePacket
+    ) -> Bool {
+        let chronologyPattern = #"(?i)\b(?:first|then|after(?:ward| this)?|before|following (?:this|the|that)|later (?:in|during) the session|at the beginning|toward the end|near the end)\b"#
+        let independentFactLines = evidence.typedFacts
+            .split(whereSeparator: \.isNewline)
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        return independentFactLines.count >= 2 &&
+            value.range(of: chronologyPattern, options: .regularExpression) != nil &&
+            evidence.typedFacts.range(of: chronologyPattern, options: .regularExpression) == nil
+    }
+
+    private static func containsUnsupportedSimultaneity(
+        in value: String,
+        evidence: SessionNoteEvidencePacket
+    ) -> Bool {
+        let relationshipPatterns = [
+            #"(?i)\bwhile\b"#,
+            #"(?i)\bthroughout\b"#,
+            #"(?i)\bas (?:the )?(?:client|RBT|LBS|BCBA|BHT|caregiver|mother|father|grandmother|parent)\b"#,
+            #"(?i)\bwhen\b"#,
+            #"(?i)\bwhere\b"#,
+        ]
+        return relationshipPatterns.contains { pattern in
+            value.range(of: pattern, options: .regularExpression) != nil &&
+                evidence.typedFacts.range(of: pattern, options: .regularExpression) == nil
         }
-        return counts.values.max().map { $0 >= 4 } ?? false
+    }
+
+    private static func isMissingRequiredReportAttribution(
+        in value: String,
+        evidence: SessionNoteEvidencePacket
+    ) -> Bool {
+        let source = evidence.typedFacts as NSString
+        let reporterPattern = #"(?i)\b(?:the\s+)?(?:client(?:'s|’s)\s+)?(mother|father|grandmother|caregiver|parent)\s+(?:reported|stated|shared)\b"#
+        guard let regex = try? NSRegularExpression(pattern: reporterPattern) else { return false }
+        let sourceMatches = regex.matches(
+            in: evidence.typedFacts,
+            range: NSRange(location: 0, length: source.length)
+        )
+        let requiredRoles = Set(sourceMatches.compactMap { match -> String? in
+            guard match.numberOfRanges > 1 else { return nil }
+            return source.substring(with: match.range(at: 1)).lowercased()
+        })
+        guard !requiredRoles.isEmpty else { return false }
+
+        let sentences = SessionNoteOutputSanitizer.splitSentences(value)
+        let attributionPattern = #"(?i)\b(?:reported|stated|shared|according to|per)\b"#
+        return requiredRoles.contains { role in
+            let rolePattern = #"(?i)\b"# + NSRegularExpression.escapedPattern(for: role) + #"\b"#
+            return !sentences.contains { sentence in
+                sentence.range(of: rolePattern, options: .regularExpression) != nil &&
+                    sentence.range(of: attributionPattern, options: .regularExpression) != nil
+            }
+        }
+    }
+
+    private static func containsUnsupportedMissingDataClaim(
+        in value: String,
+        evidence: SessionNoteEvidencePacket
+    ) -> Bool {
+        let outputPattern = #"(?i)\b(?:no|without)\s+(?:clear\s+|current[- ]session\s+)?(?:measurements?|measurement data|data points?|target data|behavior data|measurable outcomes?)\b|\b(?:measurements?|data points?|target data|behavior data|measurable outcomes?)\s+(?:were|was)\s+(?:not\s+)?(?:recorded|provided|available|observed|noted)\b|\babsence of measurable outcomes?\b"#
+        let evidencePattern = #"(?i)\b(?:no|without)\s+(?:measurements?|measurement data|data points?|target data|behavior data|measurable outcomes?)\b|\b(?:measurements?|data points?|target data|behavior data|measurable outcomes?)\s+(?:were|was)\s+not\s+(?:recorded|provided|available|observed|noted)\b"#
+        return value.range(of: outputPattern, options: .regularExpression) != nil &&
+            evidence.typedFacts.range(of: evidencePattern, options: .regularExpression) == nil
+    }
+
+    private static func unsupportedClosedWorldClaims(
+        in value: String,
+        evidence: SessionNoteEvidencePacket
+    ) -> [SessionNoteValidationIssue] {
+        let supplied = [
+            evidence.typedFacts,
+            evidence.quantitativeOCR,
+            evidence.structuredMeasurements.map(\.promptLine).joined(separator: "\n"),
+        ].joined(separator: "\n")
+        let guardedFamilies: [(String, String, String)] = [
+            (
+                "SN-CLINICAL-015",
+                #"(?i)\b(?:pairing|rapport building|built rapport)\b"#,
+                "Remove pairing or rapport claims not present in the supplied current-session facts."
+            ),
+            (
+                "SN-CLINICAL-016",
+                #"(?i)\b(?:functional communication training|functional communication|FCT)\b"#,
+                "Remove functional communication training claims not present in the supplied current-session facts."
+            ),
+            (
+                "SN-CLINICAL-017",
+                #"(?i)\b(?:prompt(?:ed|ing|s)?|verbal cue|gestural cue|physical guidance)\b"#,
+                "Remove prompting or cueing not present in the supplied current-session facts. Do not relabel a different intervention as prompting."
+            ),
+            (
+                "SN-CLINICAL-018",
+                #"(?i)\b(?:redirect(?:ed|ing|s)?|guided? back)\b"#,
+                "Remove redirection not present in the supplied current-session facts. Do not relabel a different intervention as redirection."
+            ),
+            (
+                "SN-CLINICAL-019",
+                #"(?i)\b(?:reported|stated|shared that|according to)\b"#,
+                "Remove caregiver-report attribution unless the supplied facts identify information as reported. Never convert direct observation into a report or a report into direct observation."
+            ),
+            (
+                "SN-CLINICAL-020",
+                #"(?i)\b(?:responded well|responded positively|successful(?:ly)?|positive response)\b"#,
+                "Remove unsupported positive-response or success claims. An omitted intervention or outcome cannot be completed with a generic favorable response."
+            ),
+        ]
+        return guardedFamilies.compactMap { code, pattern, instruction in
+            if code == "SN-CLINICAL-015", SessionNoteMaterialCoverage.supportsPairing(supplied) { return nil }
+            if code == "SN-CLINICAL-016", SessionNoteMaterialCoverage.supportsCommunicationTeaching(supplied) { return nil }
+            let outputContains = value.range(of: pattern, options: .regularExpression) != nil
+            let evidenceContains = supplied.range(of: pattern, options: .regularExpression) != nil
+            return outputContains && !evidenceContains
+                ? issue(code, .hardBlocker, .clinicalClaimVerification, .boundedModel, instruction)
+                : nil
+        }
     }
 
     private static func hasSubstantialSourceCopying(

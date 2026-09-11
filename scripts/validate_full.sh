@@ -9,6 +9,8 @@ bash scripts/run_day_route_contract_tests.sh
 bash scripts/run_calendar_edit_contract_tests.sh
 bash scripts/run_calendar_cross_provider_dedup_tests.sh
 bash scripts/run_session_note_contract_tests.sh
+bash scripts/run_session_note_refinement_tests.sh
+bash scripts/run_session_note_draft_persistence_tests.sh
 bash scripts/run_visual_timer_feedback_contract_tests.sh
 bash scripts/run_runtime_feedback_contract_tests.sh
 bash scripts/run_visual_activity_contract_tests.sh

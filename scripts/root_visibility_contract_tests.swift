@@ -5,6 +5,23 @@ import SwiftUI
 import Combine
 
 struct LifeRouteClientProfile {}
+@MainActor final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
+    static let shared = LifeRoutePersistenceStore()
+    private var draft = SessionNoteDraft.empty
+    func loadSessionNoteDraft() -> SessionNoteDraft { draft }
+    func saveSessionNoteDraft(_ draft: SessionNoteDraft) { self.draft = draft }
+}
+
+@MainActor private final class SessionNoteDraftMemoryStore: SessionNoteDraftPersisting {
+    var draft = SessionNoteDraft.empty
+    private(set) var saves: [SessionNoteDraft] = []
+    func loadSessionNoteDraft() -> SessionNoteDraft { draft }
+    func saveSessionNoteDraft(_ draft: SessionNoteDraft) {
+        self.draft = draft
+        saves.append(draft)
+    }
+}
+
 @MainActor enum LifeRouteHaptics {
     static var successes = 0
     static func success() { successes += 1 }
@@ -389,6 +406,100 @@ extension SessionNoteRequestRace {
     }
 
     func notes() async {
+        record("N0 durable draft owner reconstruction and explicit clear")
+        let draftStore = SessionNoteDraftMemoryStore()
+        let firstDraftOwner = AISessionNoteRuntimeModel(
+            generator: NoteEndpoint(), draftStore: draftStore,
+            draftPersistenceDelayNanoseconds: 60_000_000_000
+        )
+        firstDraftOwner.selectedClientCode = "SYNT"
+        firstDraftOwner.narrative = "synthetic draft alpha"
+        firstDraftOwner.generatedNote = "synthetic generated alpha"
+        firstDraftOwner.flushDraftPersistence()
+        let restoredDraftOwner = AISessionNoteRuntimeModel(generator: NoteEndpoint(), draftStore: draftStore)
+        expect(
+            restoredDraftOwner.selectedClientCode == "SYNT"
+                && restoredDraftOwner.narrative == "synthetic draft alpha"
+                && restoredDraftOwner.generatedNote == "synthetic generated alpha",
+            "all unfinished draft fields restore through runtime reconstruction"
+        )
+        restoredDraftOwner.clearDraft()
+        let clearedDraftOwner = AISessionNoteRuntimeModel(generator: NoteEndpoint(), draftStore: draftStore)
+        expect(clearedDraftOwner.draftIsEmpty, "explicit clear persists and cannot resurrect the prior draft")
+        clearedDraftOwner.narrative = "synthetic draft beta"
+        clearedDraftOwner.flushDraftPersistence()
+        let replacementDraftOwner = AISessionNoteRuntimeModel(generator: NoteEndpoint(), draftStore: draftStore)
+        expect(
+            replacementDraftOwner.narrative == "synthetic draft beta"
+                && !replacementDraftOwner.narrative.contains("alpha"),
+            "a new draft after clear replaces rather than revives old content"
+        )
+
+        record("N0 debounced older mutation cannot overwrite the newest draft")
+        let debounceStore = SessionNoteDraftMemoryStore()
+        let debounceOwner = AISessionNoteRuntimeModel(
+            generator: NoteEndpoint(), draftStore: debounceStore,
+            draftPersistenceDelayNanoseconds: 40_000_000
+        )
+        debounceOwner.narrative = "synthetic draft alpha"
+        try? await Task.sleep(nanoseconds: 5_000_000)
+        debounceOwner.narrative = "synthetic draft beta"
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        expect(
+            debounceStore.saves.count == 1
+                && debounceStore.draft.sessionFacts == "synthetic draft beta",
+            "only the newest revision crosses the debounced persistence boundary"
+        )
+
+        record("N0 stale generation cannot overwrite a newer draft mutation")
+        let staleEndpoint = NoteEndpoint()
+        let staleRuntime = AISessionNoteRuntimeModel(generator: staleEndpoint, draftStore: SessionNoteDraftMemoryStore())
+        staleRuntime.narrative = "synthetic draft alpha"
+        staleRuntime.generatedNote = "synthetic generated alpha"
+        staleRuntime.start(narrative: staleRuntime.narrative, writerCredential: "RBT", client: nil)
+        await drainTasks { staleEndpoint.waitingForResult }
+        staleRuntime.narrative = "synthetic draft beta"
+        staleEndpoint.resolve()
+        await drainTasks { !staleRuntime.isGenerating }
+        expect(
+            staleRuntime.generatedNote == "synthetic generated alpha"
+                && staleRuntime.diagnosticReceipt.contains("staleDraftResultIgnored"),
+            "an older generation result is rejected after a newer draft mutation"
+        )
+
+        record("N0 regeneration, failed generation, role gate and clear during request")
+        let lifecycleStore = SessionNoteDraftMemoryStore()
+        let lifecycleEndpoint = NoteEndpoint()
+        let lifecycleRuntime = AISessionNoteRuntimeModel(generator: lifecycleEndpoint, draftStore: lifecycleStore)
+        lifecycleRuntime.selectedClientCode = "SYNT"
+        lifecycleRuntime.narrative = "Synthetic source facts."
+        lifecycleRuntime.generatedNote = "Previously edited synthetic draft."
+        lifecycleRuntime.start(narrative: lifecycleRuntime.narrative, writerCredential: "credential-123", client: nil)
+        expect(lifecycleEndpoint.requests == 0 && !lifecycleRuntime.isGenerating, "unresolved writer role never reaches generation")
+        lifecycleRuntime.start(narrative: lifecycleRuntime.narrative, writerCredential: "RBT", client: nil)
+        await drainTasks { lifecycleEndpoint.waitingForResult }
+        lifecycleEndpoint.resolve()
+        await drainTasks { !lifecycleRuntime.isGenerating }
+        lifecycleRuntime.flushDraftPersistence()
+        expect(lifecycleStore.draft.generatedDraft == NoteEndpoint.result.draft, "accepted regeneration persists the new narrative")
+        expect(lifecycleStore.draft.sessionFacts == "Synthetic source facts." && lifecycleStore.draft.selectedClientCode == "SYNT", "regeneration preserves source facts and selected client")
+        lifecycleRuntime.start(narrative: lifecycleRuntime.narrative, writerCredential: "RBT", client: nil)
+        await drainTasks { lifecycleEndpoint.waitingForResult }
+        lifecycleEndpoint.reject()
+        await drainTasks { !lifecycleRuntime.isGenerating }
+        lifecycleRuntime.flushDraftPersistence()
+        expect(lifecycleStore.draft.generatedDraft == NoteEndpoint.result.draft, "failed regeneration preserves prior accepted prose")
+        lifecycleRuntime.start(narrative: lifecycleRuntime.narrative, writerCredential: "RBT", client: nil)
+        await drainTasks { lifecycleEndpoint.waitingForResult }
+        lifecycleRuntime.clearDraft()
+        expect(lifecycleStore.draft.isEmpty, "clear immediately saves empty state during generation")
+        lifecycleEndpoint.resolve()
+        await Task.yield()
+        await Task.yield()
+        expect(lifecycleRuntime.draftIsEmpty && lifecycleStore.draft.isEmpty, "late result cannot resurrect a cleared draft")
+        let lifecycleRestored = AISessionNoteRuntimeModel(generator: NoteEndpoint(), draftStore: lifecycleStore)
+        expect(lifecycleRestored.draftIsEmpty, "clear during request remains empty after reconstruction")
+
         for sceneDeparture in [false,true] {
             record(sceneDeparture ? "N2-B/X07 inactive after race win" : "N2-B/X06 root departure after race win")
             let (hub,scope)=fresh();let generator=NoteEndpoint();let runtime=AISessionNoteRuntimeModel(generator:generator)
@@ -527,6 +638,7 @@ extension SessionNoteRequestRace {
         requests += 1
         return try await withCheckedThrowingContinuation { resultContinuation=$0 }
     }
+    func reject() { let continuation=resultContinuation;resultContinuation=nil;continuation?.resume(throwing: SessionNotePipelineError.rejected(.evidenceVerification)) }
     func resolve() { let continuation=resultContinuation;resultContinuation=nil;continuation?.resume(returning:Self.result) }
 }
 

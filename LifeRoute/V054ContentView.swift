@@ -148,6 +148,9 @@ struct V054ContentView: View {
     @StateObject private var liveDayActivity = LiveDayActivityCore()
     @StateObject private var clientState = ClientProfileCore()
     @StateObject private var toolsState = SessionToolsCore()
+    @StateObject private var sessionNoteRuntime = AISessionNoteRuntimeModel(
+        generator: SessionNoteGeneratorFactory.make()
+    )
     @StateObject private var timerHero = VisualTimerHeroCoordinator()
 
     var body: some View {
@@ -205,6 +208,7 @@ struct V054ContentView: View {
                 return
             }
 
+            sessionNoteRuntime.flushDraftPersistence()
             lifecycleState.flushPersistenceForSceneTransition()
             if phase == .background {
                 routingState.cancelPendingOperations()
@@ -216,7 +220,8 @@ struct V054ContentView: View {
         V054ToolsDashboard(
             router: router,
             toolsState: toolsState,
-            clientState: clientState
+            clientState: clientState,
+            sessionNoteRuntime: sessionNoteRuntime
         )
         .lifeRouteRootScope()
     }

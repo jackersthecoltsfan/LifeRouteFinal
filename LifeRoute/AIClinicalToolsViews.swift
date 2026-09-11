@@ -77,7 +77,15 @@ final class AISessionNoteRuntimeModel: ObservableObject {
     )
 
     @Published private(set) var state: SessionNoteGenerationState = .idle
-    @Published var generatedNote = ""
+    @Published var selectedClientCode: String {
+        didSet { recordDraftMutation(from: oldValue, to: selectedClientCode) }
+    }
+    @Published var narrative: String {
+        didSet { recordDraftMutation(from: oldValue, to: narrative) }
+    }
+    @Published var generatedNote: String {
+        didSet { recordDraftMutation(from: oldValue, to: generatedNote) }
+    }
     @Published private(set) var diagnosticReceipt = ""
     @Published private(set) var extractionSummary: SessionNoteExtractionSummary?
     @Published private(set) var completeness: SessionNoteOutputCompleteness = .reviewRequired
@@ -90,6 +98,12 @@ final class AISessionNoteRuntimeModel: ObservableObject {
     weak var presentationScope: LifeRoutePresentationScope?
     private var cancellationRequestedID: UUID?
     private var presentationLeave: [UInt64]?
+    private let draftStore: (any SessionNoteDraftPersisting)?
+    private let draftPersistenceDelayNanoseconds: UInt64
+    private var draftRevision: UInt64 = 0
+    private var requestDraftRevision: UInt64?
+    private var pendingDraftPersistenceTask: Task<Void, Never>?
+    private var isApplyingDraftSnapshot = false
 
     func reconcilePresentation(_ context: LifeRouteEffectContext) {
         let previous = presentationLeave
@@ -99,9 +113,31 @@ final class AISessionNoteRuntimeModel: ObservableObject {
         }
     }
 
-    init(generator: SessionNoteGenerating, timeoutSeconds: UInt64 = 75) {
+    convenience init(
+        generator: SessionNoteGenerating,
+        timeoutSeconds: UInt64 = 75
+    ) {
+        self.init(
+            generator: generator,
+            timeoutSeconds: timeoutSeconds,
+            draftStore: LifeRoutePersistenceStore.shared
+        )
+    }
+
+    init(
+        generator: SessionNoteGenerating,
+        timeoutSeconds: UInt64 = 75,
+        draftStore: (any SessionNoteDraftPersisting)?,
+        draftPersistenceDelayNanoseconds: UInt64 = 300_000_000
+    ) {
         self.generator = generator
         self.timeoutSeconds = timeoutSeconds
+        self.draftStore = draftStore
+        self.draftPersistenceDelayNanoseconds = draftPersistenceDelayNanoseconds
+        let restored = draftStore?.loadSessionNoteDraft() ?? .empty
+        self.selectedClientCode = restored.selectedClientCode
+        self.narrative = restored.sessionFacts
+        self.generatedNote = restored.generatedDraft
     }
 
     var isGenerating: Bool { state.isActive }
@@ -126,6 +162,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
         let feedbackTicket = presentationScope?.feedbackTicket()
         cancellationRequestedID = nil
         draftLedger.begin(requestID: currentRequestID, preserving: generatedNote)
+        requestDraftRevision = draftRevision
         diagnosticReceipt = ""
         state = .checkingAvailability
         Self.logger.notice("Session-note generation started; checking model availability")
@@ -178,6 +215,12 @@ final class AISessionNoteRuntimeModel: ObservableObject {
                 guard !cleaned.isEmpty else {
                     state = .failed("Apple Intelligence returned an empty draft. Your session facts and any previous draft were preserved.")
                     recordRuntimeDiagnostic("emptyResult")
+                    finish(requestID: currentRequestID)
+                    return
+                }
+                guard requestDraftRevision == draftRevision else {
+                    state = .cancelled
+                    recordRuntimeDiagnostic("staleDraftResultIgnored")
                     finish(requestID: currentRequestID)
                     return
                 }
@@ -264,6 +307,72 @@ final class AISessionNoteRuntimeModel: ObservableObject {
         activeTask = nil
         activeRace = nil
         draftLedger.finish(requestID: requestID)
+        requestDraftRevision = nil
+    }
+
+    var draftIsEmpty: Bool {
+        currentDraft.isEmpty
+    }
+
+    func flushDraftPersistence() {
+        pendingDraftPersistenceTask?.cancel()
+        pendingDraftPersistenceTask = nil
+        draftStore?.saveSessionNoteDraft(currentDraft)
+    }
+
+    func clearDraft() {
+        activeRace?.cancel()
+        activeTask?.cancel()
+        activeTask = nil
+        activeRace = nil
+        cancellationRequestedID = nil
+        requestDraftRevision = nil
+        draftLedger = SessionNoteDraftLedger()
+        state = .idle
+        diagnosticReceipt = ""
+        extractionSummary = nil
+        completeness = .reviewRequired
+
+        isApplyingDraftSnapshot = true
+        selectedClientCode = ""
+        narrative = ""
+        generatedNote = ""
+        isApplyingDraftSnapshot = false
+        draftRevision &+= 1
+        flushDraftPersistence()
+    }
+
+    private var currentDraft: SessionNoteDraft {
+        SessionNoteDraft(
+            selectedClientCode: selectedClientCode,
+            sessionFacts: narrative,
+            generatedDraft: generatedNote
+        )
+    }
+
+    private func recordDraftMutation(from oldValue: String, to newValue: String) {
+        guard !isApplyingDraftSnapshot, oldValue != newValue else { return }
+        draftRevision &+= 1
+        scheduleDraftPersistence(for: draftRevision)
+    }
+
+    private func scheduleDraftPersistence(for scheduledRevision: UInt64) {
+        pendingDraftPersistenceTask?.cancel()
+        guard draftStore != nil else {
+            pendingDraftPersistenceTask = nil
+            return
+        }
+        pendingDraftPersistenceTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await Task.sleep(nanoseconds: draftPersistenceDelayNanoseconds)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled, draftRevision == scheduledRevision else { return }
+            pendingDraftPersistenceTask = nil
+            draftStore?.saveSessionNoteDraft(currentDraft)
+        }
     }
 
     private func recordRuntimeDiagnostic(_ code: String) {
@@ -396,7 +505,7 @@ private final class SessionNoteFixtureGenerator: SessionNoteGenerating {
 #endif
 
 @MainActor
-private enum SessionNoteGeneratorFactory {
+enum SessionNoteGeneratorFactory {
     static func make() -> SessionNoteGenerating {
         #if DEBUG
         if let mode = SessionNoteFixtureGenerator.Mode.current {
@@ -421,30 +530,15 @@ struct AISessionNoteGeneratorView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var clientState: ClientProfileCore
     @ObservedObject var toolsState: SessionToolsCore
-    @StateObject private var runtime: AISessionNoteRuntimeModel
+    @ObservedObject var runtime: AISessionNoteRuntimeModel
 
-    @State private var selectedClientCode = ""
     @AppStorage(SessionNoteWriterRole.profileCredentialKey) private var writerCredential = ""
-    @State private var narrative = ""
     @State private var localNotice: String?
+    @State private var showingClearConfirmation = false
     @FocusState private var focusedField: FocusedField?
     #if DEBUG
     @State private var seededSyntheticFixture = false
     #endif
-
-    init(
-        clientState: ClientProfileCore,
-        toolsState: SessionToolsCore,
-        generator: SessionNoteGenerating? = nil
-    ) {
-        self.clientState = clientState
-        self.toolsState = toolsState
-        _runtime = StateObject(
-            wrappedValue: AISessionNoteRuntimeModel(
-                generator: generator ?? SessionNoteGeneratorFactory.make()
-            )
-        )
-    }
 
     var body: some View {
         ScrollView {
@@ -487,7 +581,7 @@ struct AISessionNoteGeneratorView: View {
         }
         .onChange(of: focusedField) { field in
             if field != .sessionFacts {
-                narrative = ABATerminologyNormalizer.normalize(narrative)
+                runtime.narrative = ABATerminologyNormalizer.normalize(runtime.narrative)
             }
             if field != .generatedDraft {
                 runtime.generatedNote = ABATerminologyNormalizer.normalize(runtime.generatedNote)
@@ -497,6 +591,20 @@ struct AISessionNoteGeneratorView: View {
             if phase != .active {
                 runtime.cancel()
             }
+        }
+        .confirmationDialog(
+            "Clear this Session Note draft?",
+            isPresented: $showingClearConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Clear Draft", role: .destructive) {
+                runtime.clearDraft()
+                focusedField = nil
+                localNotice = "Draft cleared."
+            }
+            Button("Keep Draft", role: .cancel) {}
+        } message: {
+            Text("Session facts, selected client context, and editable generated prose will be removed from this device.")
         }
     }
 
@@ -567,7 +675,7 @@ struct AISessionNoteGeneratorView: View {
                 .font(.title3.weight(.bold))
                 .foregroundStyle(palette.textPrimary)
 
-            Picker("Client", selection: $selectedClientCode) {
+            Picker("Client", selection: $runtime.selectedClientCode) {
                 Text("General / no client").tag("")
                 ForEach(clientState.clients) { client in
                     Text(client.code).tag(client.code)
@@ -620,7 +728,7 @@ struct AISessionNoteGeneratorView: View {
             .disabled(matchingScratchNotes.isEmpty)
 
             ZStack(alignment: .topLeading) {
-                TextEditor(text: $narrative)
+                TextEditor(text: $runtime.narrative)
                     .focused($focusedField, equals: .sessionFacts)
                     .textInputAutocapitalization(.sentences)
                     .autocorrectionDisabled(false)
@@ -628,7 +736,7 @@ struct AISessionNoteGeneratorView: View {
                     .lifeRouteReadableTextSurface()
                     .accessibilityIdentifier("session-note-facts")
 
-                if narrative.isEmpty {
+                if runtime.narrative.isEmpty {
                     Text("Type or paste what happened during the session…")
                         .foregroundStyle(palette.textSecondary.opacity(0.7))
                         .padding(.horizontal, 14)
@@ -637,9 +745,9 @@ struct AISessionNoteGeneratorView: View {
                 }
             }
 
-            Text("\(narrative.count) / 5200 characters" + (narrative.count > 5_200 ? " · Over limit; complete input retained" : ""))
+            Text("\(runtime.narrative.count) / 5200 characters" + (runtime.narrative.count > 5_200 ? " · Over limit; complete input retained" : ""))
                 .font(.caption)
-                .foregroundStyle(narrative.count > 5_200 ? palette.accentSecondary : palette.textSecondary)
+                .foregroundStyle(runtime.narrative.count > 5_200 ? palette.accentSecondary : palette.textSecondary)
                 .accessibilityIdentifier("session-note-input-count")
 
             if let selectedClient {
@@ -673,6 +781,16 @@ struct AISessionNoteGeneratorView: View {
             Text("Review every sentence before using a generated draft for documentation or billing.")
                 .font(.caption)
                 .foregroundStyle(palette.textSecondary)
+
+            if !runtime.draftIsEmpty {
+                Button(role: .destructive) {
+                    showingClearConfirmation = true
+                } label: {
+                    Label("Clear draft", systemImage: "trash")
+                }
+                .buttonStyle(LifeRouteSecondaryButtonStyle())
+                .accessibilityHint("Asks before removing the unfinished Session Note draft from this device.")
+            }
         }
         .lifeRouteCard()
     }
@@ -770,12 +888,12 @@ struct AISessionNoteGeneratorView: View {
     }
 
     private var selectedClient: LifeRouteClientProfile? {
-        guard !selectedClientCode.isEmpty else { return nil }
-        return clientState.client(code: selectedClientCode)
+        guard !runtime.selectedClientCode.isEmpty else { return nil }
+        return clientState.client(code: runtime.selectedClientCode)
     }
 
     private var matchingScratchNotes: [QuickSessionNote] {
-        let selectedCode = selectedClientCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        let selectedCode = runtime.selectedClientCode.trimmingCharacters(in: .whitespacesAndNewlines)
         let matches = toolsState.notes.filter { note in
             if selectedCode.isEmpty { return note.clientCode == nil }
             return note.clientCode?.caseInsensitiveCompare(selectedCode) == .orderedSame
@@ -786,13 +904,13 @@ struct AISessionNoteGeneratorView: View {
     private var scratchNoteStatus: String {
         let count = matchingScratchNotes.count
         if count == 0 {
-            return selectedClientCode.isEmpty ? "No General scratch notes yet" : "No scratch notes for \(selectedClientCode)"
+            return runtime.selectedClientCode.isEmpty ? "No General scratch notes yet" : "No scratch notes for \(runtime.selectedClientCode)"
         }
         return "\(count) matching note\(count == 1 ? "" : "s") · appends without overwriting"
     }
 
     private var hasEvidence: Bool {
-        !narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !runtime.narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var activeButtonTitle: String {
@@ -883,10 +1001,10 @@ struct AISessionNoteGeneratorView: View {
     private func appendToNarrative(_ value: String) {
         let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
-        if narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            narrative = clean
+        if runtime.narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            runtime.narrative = clean
         } else {
-            narrative += "\n\n\(clean)"
+            runtime.narrative += "\n\n\(clean)"
         }
     }
 
@@ -894,8 +1012,8 @@ struct AISessionNoteGeneratorView: View {
         runtime.presentationScope = visibilityScope
         localNotice = nil
         focusedField = nil
-        let normalizedFacts = ABATerminologyNormalizer.normalize(narrative)
-        narrative = normalizedFacts
+        let normalizedFacts = ABATerminologyNormalizer.normalize(runtime.narrative)
+        runtime.narrative = normalizedFacts
         runtime.start(
             narrative: normalizedFacts,
             writerCredential: writerCredential,
@@ -907,9 +1025,9 @@ struct AISessionNoteGeneratorView: View {
     private func seedSyntheticFixtureIfRequested() {
         guard !seededSyntheticFixture, let mode = SessionNoteFixtureGenerator.Mode.current else { return }
         seededSyntheticFixture = true
-        narrative = "At home, the client practiced Following Directions with the RBT at 80% accuracy with a verbal prompt. The client returned the blue folder to the caregiver."
+        runtime.narrative = "At home, the client practiced Following Directions with the RBT at 80% accuracy with a verbal prompt. The client returned the blue folder to the caregiver."
         if mode == .overLimit {
-            narrative = String(repeating: "The client practiced with the RBT. ", count: 160) +
+            runtime.narrative = String(repeating: "The client practiced with the RBT. ", count: 160) +
                 "The client returned the blue folder to the caregiver."
         }
         runtime.generatedNote = "Previous synthetic draft: the client practiced with the RBT. Keep this edited draft if the next attempt fails or is cancelled."
@@ -920,7 +1038,7 @@ struct AISessionNoteGeneratorView: View {
     #endif
 
     private func finishEditing() {
-        narrative = ABATerminologyNormalizer.normalize(narrative)
+        runtime.narrative = ABATerminologyNormalizer.normalize(runtime.narrative)
         runtime.generatedNote = ABATerminologyNormalizer.normalize(runtime.generatedNote)
         focusedField = nil
     }
@@ -931,6 +1049,10 @@ struct SessionNoteReadabilityFixtureView: View {
     @Environment(\.lifeRoutePalette) private var palette
     @StateObject private var fixtureClients = ClientProfileCore(clients: [])
     @StateObject private var fixtureTools = SessionToolsCore()
+    @StateObject private var fixtureRuntime = AISessionNoteRuntimeModel(
+        generator: SessionNoteGeneratorFactory.make(),
+        draftStore: nil
+    )
 
     @State private var sessionFacts = """
     The RBT met with the client in the client's home while the LBS and family members were present. The session began with outdoor pairing and functional communication targets before the client transitioned indoors for instructional activities and waiting practice. The client later returned outdoors for play, transitioned inside for cooperative play and another instructional period, and engaged in elopement during the later work period.
@@ -945,7 +1067,11 @@ struct SessionNoteReadabilityFixtureView: View {
 
     var body: some View {
         if SessionNoteFixtureGenerator.Mode.current != nil {
-            AISessionNoteGeneratorView(clientState: fixtureClients, toolsState: fixtureTools)
+            AISessionNoteGeneratorView(
+                clientState: fixtureClients,
+                toolsState: fixtureTools,
+                runtime: fixtureRuntime
+            )
         } else {
             readabilityContent
         }

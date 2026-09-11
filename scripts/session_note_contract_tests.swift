@@ -37,6 +37,7 @@ private struct SessionNoteContractFixtureRunner {
         let donorAssertions = assertionCount
         try expect(donorAssertions == 472, "all 472 frozen donor assertions executed unchanged")
         try await finalProseAndClosingFixtures()
+        try await narrativeSynthesisContractFixtures()
         print("Frozen donor assertions: \(donorAssertions); new final-prose assertions: \(assertionCount - donorAssertions).")
         print("Original assertions: \(existingAssertions); added assertions: \(assertionCount - existingAssertions).")
         precondition(
@@ -68,7 +69,7 @@ private struct SessionNoteContractFixtureRunner {
         let packet = evidencePacket()
         try expect(!(try packet.modelPrompt(compaction: .standard)).contains("JaHe"), "profile code never reaches the standard model prompt")
         try expect(!(try packet.modelPrompt(compaction: .compactRetry)).contains("JaHe"), "profile code never reaches the compact model prompt")
-        try expect((try packet.modelPrompt(compaction: .compactRetry)).contains(packet.typedFacts), "compact retry preserves the normalized typed facts")
+        try expect(try SessionNoteEvidenceNormalizer.distinctFactUnits(from: packet.typedFacts).allSatisfy { (try packet.modelPrompt(compaction: .compactRetry)).contains($0) }, "compact retry preserves the normalized typed facts")
 
         let unsafe = """
         **Session 1**
@@ -146,9 +147,9 @@ private struct SessionNoteContractFixtureRunner {
     }
 
     private static func severityClassificationFixtures() throws {
-        let packet = evidencePacket()
         let styleOnly = "The client worked with the RBT during the supplied activity"
-        let styleValidation = SessionNoteOutputValidator.validate(styleOnly, evidence: packet)
+        let stylePacket = boundaryPacket(styleOnly + ".")
+        let styleValidation = SessionNoteOutputValidator.validate(styleOnly, evidence: stylePacket)
         try expect(styleValidation.hardBlockers.isEmpty, "format-only issues are not hard blockers")
         try expect(
             !styleValidation.issueCodes.contains("SN-FORMAT-005"),
@@ -159,17 +160,17 @@ private struct SessionNoteContractFixtureRunner {
             "missing final punctuation is deterministically repairable"
         )
 
-        let repetitive = "The client entered the home. The client greeted the RBT. The client joined the activity. The client completed the activity. The client left the table."
-        let repetitionValidation = SessionNoteOutputValidator.validate(repetitive, evidence: packet)
+        let repetitive = "The client entered the home. The client then greeted the RBT. The RBT then presented the activity. Then, the client left the table."
+        let repetitionValidation = SessionNoteOutputValidator.validate(repetitive, evidence: boundaryPacket(repetitive))
         try expect(repetitionValidation.isSafe, "repetitive sentence openings remain nonfatal")
         try expect(
-            repetitionValidation.warnings.contains(where: { $0.code == "SN-QUALITY-003" }),
-            "repetitive sentence openings are represented as a quality warning"
+            repetitionValidation.boundedModelRepairIssues.contains(where: { $0.code == "SN-QUALITY-003" }),
+            "mechanically repetitive narrative is routed through the single bounded quality repair"
         )
 
         let invented = SessionNoteOutputValidator.validate(
             "The client completed 999 trials.",
-            evidence: packet
+            evidence: evidencePacket()
         )
         try expect(
             invented.hardBlockers.contains(where: {
@@ -594,8 +595,8 @@ private struct SessionNoteContractFixtureRunner {
         let standardPrompt = (try packet.modelPrompt(compaction: .standard))
         let compactPrompt = (try packet.modelPrompt(compaction: .compactRetry))
         try expect(
-            standardPrompt.contains("RAW FACTUAL SOURCE MATERIAL") && standardPrompt.contains("reconstruct"),
-            "the normal prompt treats rough typed facts as facts to reconstruct rather than prose to preserve"
+            standardPrompt.contains("REQUIRED FACT LEDGER") && standardPrompt.contains("reconstruct"),
+            "the normal prompt treats ledgered rough facts as required evidence to reconstruct rather than prose to preserve"
         )
         try expect(
             standardPrompt.contains("PROFESSIONAL RECONSTRUCTION REQUIREMENTS") &&
@@ -620,7 +621,7 @@ private struct SessionNoteContractFixtureRunner {
         )
 
         let professionalDraft = """
-        During the home session, the client's mother was present while the RBT began with play-based activities. The client then transitioned to skill-acquisition work, completing Following Directions with 80% accuracy and Requesting Break in 4/5 trials with a verbal prompt.
+        The home session included the client's mother. The RBT began with play-based activities. The client then transitioned to skill-acquisition work, completing Following Directions with 80% accuracy and Requesting Break in 4/5 trials with a verbal prompt.
 
         The client engaged in Aggression 3 times during work. Following redirection from the RBT, the client returned to the activity, completed the supplied work, and accessed outside time.
         """
@@ -891,7 +892,7 @@ private struct SessionNoteContractFixtureRunner {
         )
 
         let fragmentDraft = """
-        The RBT met with the client in the client's home while family members and the LBS were present. The session began with outdoor pairing and FCT targets. The RBT then did work with the client, had him wait, and returned outdoors for play.
+        The RBT met with the client in the client's home. Family members and the LBS were present. The session began with outdoor pairing and FCT targets. The RBT then did work with the client, had him wait, and returned outdoors for play.
 
         During a later instructional period, the client engaged in elopement and took many redirections to attend to the work before earning preferred outdoor time. The LBS instructed the RBT regarding skill-acquisition targets and newly implemented programs.
         """
@@ -960,6 +961,7 @@ private struct SessionNoteContractFixtureRunner {
             candidateDiagnostics.allSatisfy {
                 $0.sourceOverlapBasisPoints >= 4_500 &&
                 $0.roughFragmentMatchCount > 0 &&
+                $0.issueCodes.contains("SN-QUALITY-003") &&
                 $0.issueCodes.contains("SN-QUALITY-004") &&
                 $0.issueCodes.contains("SN-QUALITY-005") &&
                 !$0.isProfessionallyReady
@@ -967,7 +969,7 @@ private struct SessionNoteContractFixtureRunner {
             "near-copy diagnostics preserve the exact professional-quality reasons for both passes"
         )
         try expect(
-            degradedDiagnostics.contains(.repairAttempted(["SN-QUALITY-004", "SN-QUALITY-005"])),
+            degradedDiagnostics.contains(.repairAttempted(["SN-QUALITY-003", "SN-QUALITY-004", "SN-QUALITY-005"])),
             "diagnostics explicitly record the single bounded repair attempt and its reason codes"
         )
         try expect(
@@ -1017,7 +1019,7 @@ private struct SessionNoteContractFixtureRunner {
             profileCode: "SyCl"
         )
         let physicalDraft = """
-        The RBT met with the client in the client's home. Present during the session were the RBT, LBS, grandmother, mother, father, brother, and the brother's BHT. The session began with pairing outdoors while the RBT targeted FCT through Full Sentence Manding at 80% accuracy and requests for additional time. The RBT then transitioned the client indoors for instructional activities, targeted Waiting in 4/5 trials with a verbal prompt, and transitioned the client back outdoors for additional play and reinforcement.
+        The RBT met with the client in the client's home. Present during the session were the RBT, LBS, grandmother, mother, father, brother, and the brother's BHT. The session began with pairing outdoors. The RBT targeted FCT through Full Sentence Manding at 80% accuracy and requests for additional time. The RBT then transitioned the client indoors for instructional activities, targeted Waiting in 4/5 trials with a verbal prompt, and transitioned the client back outdoors for additional play and reinforcement.
 
         The LBS and RBT later transitioned the client indoors for additional instructional activities, followed by cooperative play and another instructional period. During the later work period, the client engaged in elopement and required multiple redirections to return to and attend to the task. Following re-engagement, the client earned preferred outdoor time. The LBS also provided instruction to the RBT regarding skill-acquisition targets, including newly implemented programs.
 
@@ -1379,18 +1381,18 @@ private struct SessionNoteContractFixtureRunner {
         let normal = "The RBT met with the client at home with the client's mother present. Pairing with blocks came first, followed by functional communication training (FCT). The client requested a break in 4/5 trials with a verbal prompt. The RBT provided praise after the requests. The client then moved to a puzzle, paused when asked to put it away, and put it away after the RBT repeated the instruction. The client's mother reported that the client had slept poorly. The session ended with reading; the client selected a book."
         var normalCalls = 0
         let normalResult = try await SessionNoteGenerationPipeline.generate(packet: boundaryPacket(normal)) { _ in normalCalls += 1; return normal }
-        try expect(normalCalls == 1 && normalResult.draft.replacingOccurrences(of: "\n\n", with: " ") == normal, "normal synthetic session preserves chronology, prompting, reinforcement, observable response and report attribution")
+        try expect(normalCalls == 1 && normalResult.draft.replacingOccurrences(of: "\n\n", with: " ") == SessionNoteOutputSanitizer.normalizeSemicolons(normal), "normal synthetic session preserves chronology, prompting, reinforcement, observable response and report attribution")
         let measurements = SessionNoteOCRMeasurementExtractor.extract(from: ["Requesting Break 4/5 trials with a verbal prompt\nFollowing Directions 80% accuracy\nWaiting duration 2 minutes"])
         let detail = "At home, the RBT and client began with blocks. Requesting Break was recorded at 4/5 trials with a verbal prompt. Following Directions was recorded at 80% accuracy. Waiting duration was 2 minutes. " + ["The client sorted the red cards.", "The client placed the toy car on the shelf.", "The RBT presented a picture book.", "The client selected the animal page.", "The client pointed to the horse.", "The RBT put the book on the table.", "The client selected a puzzle.", "The client put the corner piece in the puzzle.", "The client's mother reported that the client read at home yesterday.", "The client returned the blue folder to the caregiver."].joined(separator: " ")
         let dp = SessionNoteEvidencePacket.make(typedFacts: detail, ocrEvidence: "", structuredMeasurements: measurements, savedTerminologyContext: "", profileCode: nil)
         let dv = SessionNoteOutputValidator.validate(detail, evidence: dp)
-        try expect(measurements.count == 3 && dv.isProfessionallyReady, "detailed within-limit narrative retains three exact measurement associations")
+        try expect(measurements.count == 3 && dv.isSafe, "detailed within-limit narrative retains three exact measurement associations")
         let dr = SessionNoteDeterministicRepairer.repair(detail, validation: dv, evidence: dp)
         for fact in ["4/5 trials with a verbal prompt", "80% accuracy", "2 minutes", "reported", "blue folder"] {
             try expect(dr.draft.components(separatedBy: fact).count == 2, "detailed repair preserves each designated fact exactly once: \(fact)")
         }
         let omitted = detail.replacingOccurrences(of: "The client returned the blue folder to the caregiver.", with: "")
-        try expect(SessionNoteOutputValidator.validate(omitted, evidence: dp).isProfessionallyReady, "known limitation: unmeasured tail omission is not certified by the existing validator; reviewRequired remains necessary")
+        try expect(!SessionNoteOutputValidator.validate(omitted, evidence: dp, requireMaterialCoverage: true).isProfessionallyReady, "completeness gate detects unmeasured tail omission is not certified by the existing validator; reviewRequired remains necessary")
     }
 
 
@@ -1427,18 +1429,18 @@ private struct SessionNoteContractFixtureRunner {
                 calls += 1; return sparseBody
             }
             let close = "\(role.rawValue) \(action)"
-            try expect(note.draft == sparseBody + "\n\n" + close && calls == 1,
-                       "short accepted body stays concise; exact profile-role closing is appended once: \(role)")
-            try expect(note.draft.components(separatedBy: action).count == 2 && note.draft.hasSuffix(close),
-                       "authorized close occurs exactly once as the final sentence")
+            try expect(note.draft == sparseBody && calls == 1,
+                       "short accepted narrative stays concise without unsupplied role boilerplate: \(role)")
+            try expect(!note.draft.contains(close) && !note.draft.contains(action),
+                       "generation never appends the legacy future-plan closing")
             try expect(note.completeness == .reviewRequired && note.outcome == .generated,
-                       "closed note remains editable review-required generated output")
+                       "accepted note remains editable review-required generated output")
             try expect(ABATerminologyNormalizer.normalize(ABATerminologyNormalizer.normalize(note.draft)) == note.draft,
-                       "repeated editor terminology normalization preserves exact close without accumulation")
+                       "repeated editor terminology normalization preserves the accepted narrative")
             let suppliedClose = boundaryPacket(sparse + "\n" + close)
-            try expect(SessionNoteOutputValidator.validate(note.draft, evidence: suppliedClose)
+            try expect(SessionNoteOutputValidator.validate(close, evidence: suppliedClose)
                 .hardBlockerCodes.contains("SN-CLINICAL-014"),
-                       "even a supplied exact close is forbidden inside model-generated body")
+                       "even a supplied legacy close is forbidden inside model-generated narrative")
         }
 
         // Representative synthetic reconstruction of the facts Brandon supplied in
@@ -1456,7 +1458,7 @@ private struct SessionNoteContractFixtureRunner {
         let normal = try await SessionNoteGenerationPipeline.generateNote(packet: normalPacket, writerRole: .rbt) { _ in
             normalCalls += 1; return normalBody
         }
-        let body = normal.draft.components(separatedBy: "\n\nRBT " + action)[0]
+        let body = normal.draft
         try expect(normalCalls == 1 && normal.outcome == .generated, "representative fuller authored prose passes the actual body pipeline in one model-double call")
         try expect(body.split(whereSeparator: \.isWhitespace).count > normalFacts.split(whereSeparator: \.isWhitespace).count,
                    "normal fixture develops rough evidence beyond direct bullet-to-sentence conversion")
@@ -1474,8 +1476,8 @@ private struct SessionNoteContractFixtureRunner {
         for unsupported in ["prompt", "praise", "improved", "independently", "engaged", "participated", "session continued", "will continue"] {
             try expect(!body.lowercased().contains(unsupported), "normal authored body contains no unsupported \(unsupported)")
         }
-        try expect(normal.draft.hasSuffix("RBT " + action) && normal.draft.components(separatedBy: action).count == 2,
-                   "normal result has one exact deterministic final close")
+        try expect(!normal.draft.contains(action) && normal.draft == normalBody,
+                   "normal result ends with supported session facts and no deterministic future-plan close")
 
         let unsupportedPlan = sparseBody + " The RBT will introduce new targets during future sessions."
         try expect(!SessionNoteOutputValidator.validate(unsupportedPlan, evidence: sparsePacket).isSafe,
@@ -1493,8 +1495,8 @@ private struct SessionNoteContractFixtureRunner {
             }
             let outcome: SessionNoteFinalOutcome = mode == "fallback" ? .fallback : (mode == "compact" ? .generated : .repaired)
             try expect(calls == 2 && note.outcome == outcome, "bounded \(mode) preserves original attempt budget and truthful outcome")
-            try expect(note.draft.hasSuffix("BHT " + action) && note.draft.components(separatedBy: action).count == 2,
-                       "\(mode) adds the profile close once after accepting the body")
+            try expect(!note.draft.contains(action),
+                       "\(mode) never adds unsupported profile-role future-plan boilerplate")
             try expect(!note.draft.contains("new targets") && note.completeness == .reviewRequired,
                        "\(mode) cannot preserve unsupported model plans or waive professional review")
         }
@@ -1532,8 +1534,8 @@ private struct SessionNoteContractFixtureRunner {
                 calls += 1; return calls == 1 ? raw : sparseBody
             }
             try expect(calls == 2 && recovered.outcome == .repaired && !recovered.draft.contains(unfinished)
-                       && recovered.draft.components(separatedBy: action).count == 2,
-                       "repair replaces contaminated body; it cannot duplicate or authorize its model-authored close")
+                       && !recovered.draft.contains(action) && recovered.draft == sparseBody,
+                       "repair replaces contaminated narrative and cannot authorize its model-authored close")
         }
 
         var ledger = SessionNoteDraftLedger(draft: normal.draft)
@@ -1543,15 +1545,111 @@ private struct SessionNoteContractFixtureRunner {
             let fresh = try await SessionNoteGenerationPipeline.generateNote(packet: sparsePacket, writerRole: role) { _ in sparseBody }
             try expect(ledger.accept(fresh.draft, for: id), "current regenerated note replaces edited prior draft")
             ledger.finish(requestID: id)
-            try expect(ledger.draft.hasSuffix("\(role.rawValue) " + action)
-                       && ledger.draft.components(separatedBy: action).count == 2,
-                       "regeneration with a different profile role replaces rather than accumulates closings")
+            try expect(ledger.draft == sparseBody && !ledger.draft.contains(action),
+                       "regeneration replaces edited prose without adding or accumulating closings for \(role)")
         }
         for stage in allNoteStages {
             let instructions = SessionNoteStageInstructions.instructions(for: stage)
-            for property in ["substantive paragraphs", "community work", "meaningfully connect", "no minimum word, sentence, or paragraph count", "BODY only", "after body acceptance"] {
+            for property in ["substantive paragraphs", "community work", "meaningfully connect", "no minimum word, sentence, or paragraph count", "complete session narrative", "without a standard closing"] {
                 try expect(instructions.contains(property), "production \(stage) shares fuller evidence-locked body policy: \(property)")
             }
+        }
+    }
+
+    private static func narrativeSynthesisContractFixtures() async throws {
+        let unorderedFacts = """
+        The client sorted orange tokens.
+        The RBT practiced shoe tying with the client.
+        A caregiver was present.
+        The client placed a silver cup on the counter.
+        """
+        let unorderedPacket = boundaryPacket(unorderedFacts)
+        let prompt = try unorderedPacket.modelPrompt(compaction: .standard)
+        for entry in ["F01 | The client sorted orange tokens.", "F02 | The RBT practiced shoe tying", "F03 | A caregiver was present.", "F04 | The client placed a silver cup"] {
+            try expect(prompt.contains(entry), "numbered fact ledger retains required unordered evidence: \(entry)")
+        }
+        try expect(prompt.contains("IDs and display order are not chronology") && prompt.contains("Fact-ID order alone proves nothing"),
+                   "request contract separates coverage bookkeeping from chronology authority")
+        try expect(!prompt.contains("CURRENT-SESSION MEASUREMENTS") && !prompt.contains("OTHER CLEAR QUANTITATIVE OCR") && !prompt.contains("NEUTRAL TERMINOLOGY CONTEXT"),
+                   "empty optional evidence categories are omitted instead of being narrated as none")
+        try expect(!prompt.contains("\nnone\n") && prompt.contains("Silently account for every F-ID"),
+                   "prompt requires internal fact accounting without an output checklist or none sentinel")
+
+        let unorderedOutput = "The client sorted orange tokens and placed a silver cup on the counter. A caregiver was present. The RBT practiced shoe tying with the client."
+        try expect(SessionNoteOutputValidator.validate(unorderedOutput, evidence: unorderedPacket).isProfessionallyReady,
+                   "coherent unordered grouping remains acceptable without invented timeline")
+        let falseTimeline = "The client sorted orange tokens. The RBT then practiced shoe tying with the client. Later in the session, the client placed a silver cup on the counter while a caregiver was present."
+        try expect(SessionNoteOutputValidator.validate(falseTimeline, evidence: unorderedPacket).hardBlockerCodes.contains("SN-CHRONOLOGY-001"),
+                   "specific chronology is blocked when the facts supply no ordering basis")
+        let falseSimultaneity = "The client sorted orange tokens while the RBT practiced shoe tying. A caregiver was present throughout the activity. The client placed a silver cup on the counter."
+        try expect(SessionNoteOutputValidator.validate(falseSimultaneity, evidence: unorderedPacket).hardBlockerCodes.contains("SN-CHRONOLOGY-002"),
+                   "simultaneity and duration are blocked when independent facts do not supply that relationship")
+        let falseLocationLink = "The client sorted orange tokens. The RBT practiced shoe tying where the client placed a silver cup on the counter. A caregiver was present."
+        try expect(SessionNoteOutputValidator.validate(falseLocationLink, evidence: unorderedPacket).hardBlockerCodes.contains("SN-CHRONOLOGY-002"),
+                   "a location relationship cannot be created merely to bridge independent facts")
+        let explicitSimultaneity = boundaryPacket("While the RBT practiced shoe tying, the client sorted orange tokens. A caregiver remained present throughout the activity.")
+        try expect(!SessionNoteOutputValidator.validate(explicitSimultaneity.typedFacts, evidence: explicitSimultaneity).hardBlockerCodes.contains("SN-CHRONOLOGY-002"),
+                   "explicitly supplied simultaneity and duration remain available")
+
+        let orderedPacket = boundaryPacket("First, the client sorted orange tokens. After sorting, the RBT practiced shoe tying with the client.")
+        let orderedOutput = "First, the client sorted orange tokens. After sorting, the RBT practiced shoe tying with the client."
+        try expect(SessionNoteOutputValidator.validate(orderedOutput, evidence: orderedPacket).isProfessionallyReady,
+                   "explicitly supplied chronology remains available to the narrative")
+
+        let sparsePacket = boundaryPacket("The session occurred at home. A caregiver was present. The client read a blue book.")
+        let missingData = "The session occurred at home with a caregiver present, and the client read a blue book. No current-session measurements were recorded."
+        try expect(SessionNoteOutputValidator.validate(missingData, evidence: sparsePacket).hardBlockerCodes.contains("SN-EVIDENCE-007"),
+                   "empty request categories cannot become unsupported missing-data claims")
+        let explicitMissingData = boundaryPacket("The session occurred at home. No target data were recorded during this session.")
+        try expect(!SessionNoteOutputValidator.validate(explicitMissingData.typedFacts, evidence: explicitMissingData).hardBlockerCodes.contains("SN-EVIDENCE-007"),
+                   "an explicitly supplied missing-data fact remains distinguishable from model invention")
+
+        let reportPacket = boundaryPacket("The client's father reported that the client ate breakfast before the session. During the session, the RBT observed the client request crayons. The client's father remained present.")
+        let lostReport = "The client's father remained present. The client ate breakfast before the session. During the session, the RBT observed the client request crayons."
+        try expect(SessionNoteOutputValidator.validate(lostReport, evidence: reportPacket).hardBlockerCodes.contains("SN-ROLE-001"),
+                   "a caregiver-reported fact cannot become an unattributed direct statement")
+        let generalizedReport = "The client's father remained present. A caregiver reported that the client ate breakfast before the session. During the session, the RBT observed the client request crayons."
+        try expect(SessionNoteOutputValidator.validate(generalizedReport, evidence: reportPacket).hardBlockerCodes.contains("SN-ROLE-001"),
+                   "report attribution cannot generalize a supplied relationship role")
+        try expect(!SessionNoteOutputValidator.validate(reportPacket.typedFacts, evidence: reportPacket).hardBlockerCodes.contains("SN-ROLE-001"),
+                   "the exact reporting role and reported fact remain valid")
+
+        let repeatedRaw = "The RBT used a visual schedule for the transition to art (F01). The RBT used a visual schedule for the transition to art (F01). The client entered the art room (F02)."
+        let repeatedSanitization = SessionNoteOutputSanitizer.sanitizeWithReport(repeatedRaw, scrubber: unorderedPacket.scrubber)
+        try expect(!repeatedSanitization.draft.contains("F01") && !repeatedSanitization.draft.contains("F02") && repeatedSanitization.appliedIssueCodes.contains("SN-FORMAT-010"),
+                   "internal fact-ledger identifiers are deterministically removed from model prose")
+        try expect(repeatedSanitization.draft.components(separatedBy: "The RBT used a visual schedule for the transition to art.").count == 2 && repeatedSanitization.appliedIssueCodes.contains("SN-QUALITY-007"),
+                   "an exact repeated output sentence is retained once")
+        let duplicatePacket = boundaryPacket("The RBT used a visual schedule for the transition to art.\nThe RBT used a visual schedule for the transition to art.\nThe client entered the art room.")
+        let duplicatePrompt = try duplicatePacket.modelPrompt(compaction: .standard)
+        try expect(duplicatePrompt.components(separatedBy: "The RBT used a visual schedule for the transition to art.").count == 2,
+                   "exact duplicate source lines enter the model ledger once")
+
+        for (claim, code) in [
+            ("The RBT initiated pairing with the client.", "SN-CLINICAL-015"),
+            ("The RBT implemented functional communication training (FCT).", "SN-CLINICAL-016"),
+            ("The RBT prompted the client to continue.", "SN-CLINICAL-017"),
+            ("The RBT redirected the client to the activity.", "SN-CLINICAL-018"),
+            ("The caregiver reported that the client read a blue book.", "SN-CLINICAL-019"),
+            ("The client responded well.", "SN-CLINICAL-020"),
+        ] {
+            try expect(SessionNoteOutputValidator.validate(sparsePacket.typedFacts + " " + claim, evidence: sparsePacket).hardBlockerCodes.contains(code),
+                       "closed-world clinical guard rejects unsupported claim family \(code)")
+            let supported = boundaryPacket(sparsePacket.typedFacts + " " + claim)
+            try expect(!SessionNoteOutputValidator.validate(supported.typedFacts, evidence: supported).hardBlockerCodes.contains(code),
+                       "closed-world clinical guard preserves explicitly supplied counterpart \(code)")
+        }
+
+        let mechanical = "The client entered the room. The client then sat at the table. The RBT then presented the blue book. Then, the client opened the book."
+        let mechanicalPacket = boundaryPacket(mechanical)
+        try expect(SessionNoteOutputValidator.validate(mechanical, evidence: mechanicalPacket).boundedModelRepairIssues.contains(where: { $0.code == "SN-QUALITY-003" }),
+                   "mechanical role-then chains require the existing single bounded narrative repair")
+
+        let accepted = "The session occurred at home with a caregiver present. The client read a blue book."
+        for role in SessionNoteWriterRole.allCases {
+            let result = try await SessionNoteGenerationPipeline.generateNote(packet: sparsePacket, writerRole: role) { _ in accepted }
+            try expect(result.draft == accepted && !result.draft.contains("will continue"),
+                       "accepted narrative remains fact-bounded for writer role \(role)")
         }
     }
 
@@ -1578,7 +1676,7 @@ private struct SessionNoteContractFixtureRunner {
     }
 
     private static func validMultiScreenshotDraft() -> String {
-        "At home, the client worked with the RBT on Following Directions. The RBT recorded 3 occurrences of the supplied behavior of concern during the opening activity. Following the transition to table work, the client completed Following Directions with 80% accuracy using a verbal prompt."
+        "At home, the client worked with the RBT on Following Directions. The RBT recorded 3 occurrences of the supplied behavior of concern. The client completed Following Directions with 80% accuracy using a verbal prompt."
     }
 
     private static func expect(

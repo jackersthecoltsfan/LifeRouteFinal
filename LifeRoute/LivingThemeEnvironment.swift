@@ -278,6 +278,7 @@ final class LivingSceneResources: @unchecked Sendable {
     let queue: MTLCommandQueue
     let pipeline: MTLRenderPipelineState
     let artwork: MTLTexture
+    let objectMask: MTLTexture?
     let ocean: LivingOceanConfiguration?
     let atmosphere: LivingAtmosphereConfiguration?
     let sceneIdentifier: String
@@ -306,6 +307,13 @@ final class LivingSceneResources: @unchecked Sendable {
                 .textureUsage: MTLTextureUsage.shaderRead.rawValue,
                 .textureStorageMode: MTLStorageMode.private.rawValue,
             ])
+        if scene == .canyonDay {
+            objectMask = try MTKTextureLoader(device: device).newTexture(name: "LivingCanyonDayFoliageMask",
+                scaleFactor: 1, bundle: .main, options: [.SRGB: false, .generateMipmaps: false,
+                    .textureUsage: MTLTextureUsage.shaderRead.rawValue, .textureStorageMode: MTLStorageMode.private.rawValue])
+        } else {
+            objectMask = nil
+        }
 #if DEBUG
         LivingSceneDebugOwnership.shared.change(resources: 1)
 #endif
@@ -404,6 +412,7 @@ final class LivingSceneRenderer: NSObject, MTKViewDelegate {
             time: Float(elapsed), motion: quality.motionAmount, atmosphere: quality.atmosphereAmount)
         encoder.setRenderPipelineState(resources.pipeline)
         encoder.setFragmentTexture(resources.artwork, index: 0)
+        encoder.setFragmentTexture(resources.objectMask ?? resources.artwork, index: 3)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<LivingSceneUniforms>.stride, index: 0)
         if var ocean = resources.ocean {
             encoder.setFragmentBytes(&ocean, length: MemoryLayout<LivingOceanConfiguration>.stride, index: 1)

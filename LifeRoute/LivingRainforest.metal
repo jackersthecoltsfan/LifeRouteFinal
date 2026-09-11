@@ -761,7 +761,7 @@ static float4 livingRiverCoordinates(float2 uv, thread const float2 *path, int c
 }
 
 fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
-    texture2d<float> artwork [[texture(0)]], constant LivingSceneUniforms &u [[buffer(0)]],
+    texture2d<float> artwork [[texture(0)]], texture2d<float> objectMask [[texture(3)]], constant LivingSceneUniforms &u [[buffer(0)]],
     constant LivingAtmosphereConfiguration &c [[buffer(2)]]) {
     constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
     float2 uv = (in.uv - 0.5) * u.uvScale + 0.5;
@@ -871,8 +871,14 @@ fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
         }
     }
     if (night < 0.5 && u.atmosphere > 0.0) {
-        // Foliage deformation is deferred: the amber material mask also
-        // selected bare foreground rocks. Preserve stable terrain and clouds.
+        // Data mask traces actual photographed crowns and stays6pixels
+        // inside their boundaries. No warm-rock colour classifier is used.
+        float foliage = objectMask.sample(sampling,uv).r;
+        if (foliage>0.001) {
+            float sway=sin(t*1.8+uv.x*9.0+uv.y*5.0)*(4.0+sin(t*0.63));
+            float2 offset=float2(sway,sway*0.12)*foliage*u.motion/u.textureSize;
+            color+=(artwork.sample(sampling,uv+offset).rgb-original)*foliage*u.atmosphere;
+        }
         // Anchored sunset shafts breathe with the same drifting cloud field.
         // Only air over the distant gorge is lit; no global exposure pulse.
         float beamArea = livingOval(uv,float2(0.58,0.43),float2(0.22,0.053));

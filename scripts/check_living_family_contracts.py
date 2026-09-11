@@ -14,8 +14,14 @@ shader = (ROOT/'LifeRoute/LivingRainforest.metal').read_text()
 # The accepted Day shader is retained byte for byte. Its two advection rates
 # remain literal in that frozen representation; reject divergence from the
 # Rainforest contract instead of refactoring accepted rendering for cosmetics.
-day = shader[:6455]  # Exact byte extent of 9494e81's complete accepted shader.
-assert shader[6455:].split('#include "LivingOceanTiming.h"', 1)[0].isspace()
+# The event-only include is outside the frozen Day program and is not called by
+# Rainforest Day. Remove exactly that declaration before applying the unchanged
+# original extent and SHA; all original helpers and Day statements remain bound.
+event_include = '#include "LivingSceneEvents.h"\n\n'
+assert shader.count(event_include) == 1
+accepted_layout = shader.replace(event_include, '', 1)
+day = accepted_layout[:6455]  # Exact byte extent of 9494e81's complete accepted shader.
+assert accepted_layout[6455:].split('#include "LivingOceanTiming.h"', 1)[0].isspace()
 assert hashlib.sha256(day.encode()).hexdigest() == 'acca8a9813c0a2fbfcbf460b83482af74627484ba9eecfe002dda582335477fd', 'Accepted Rainforest Day implementation changed'
 rainforest = (ROOT/'LifeRoute/LivingRainforestMotion.h').read_text()
 for name, call in [('FALL', 'uv, flow'), ('STREAM', 'surface, flow')]:

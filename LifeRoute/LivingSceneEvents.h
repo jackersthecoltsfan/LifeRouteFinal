@@ -125,24 +125,28 @@ static float3 livingBird(float3 color,float2 uv,float2 textureSize,float t,bool 
     float2 heading=normalize(e.tangent*textureSize);
     float age=t-e.eventStart;
     float direction=fmod(e.cycle,2.0)>0.5?-1.0:1.0;
-    float angle=atan2(heading.y,heading.x);
-    if (e.state==1) angle=mix(direction>0?0.0:-M_PI_F,angle,smoothstep(0.0,0.35,age));
-    if (e.state==3) angle=mix(angle,direction>0?M_PI_F:0.0,smoothstep(9.4,10.0,age));
-    heading=float2(cos(angle),sin(angle));
-    float2 q=float2(dot(local,heading),dot(local,float2(-heading.y,heading.x)));
-    if (e.state==0) q=float2(local.x*e.tangent.x,local.y);
+    float facing=e.state==0?e.tangent.x:direction;
+    float pitch=e.state==0?0.0:atan2(heading.y,abs(heading.x))*direction;
+    float airborne=e.state==0?0.0:smoothstep(0.0,0.25,age)*(1.0-smoothstep(9.65,10.0,age));
+    if (e.state==1) pitch*=smoothstep(0.0,0.35,age);
+    if (e.state==3) {
+        float turn=smoothstep(9.4,10.0,age);
+        pitch*=1.0-turn;facing=direction*(1.0-2.0*turn);
+    }
+    // Preserve an upright side profile in both travel directions. During the
+    // landing turn the profile narrows to zero before changing facing.
+    if (abs(facing)<0.01) return color;
+    float2 axis=float2(cos(pitch),sin(pitch));
+    float2 q=float2(dot(local,axis)/facing,dot(local,float2(-axis.y,axis.x)));
     float body=livingOval(q,float2(0,0),float2(0.33,0.17));
     body=max(body,livingOval(q,float2(0.25,-0.12),float2(0.14,0.13)));
     body=max(body,livingTriangle(q,float2(0.35,-0.13),float2(0.57,-0.09),float2(0.35,-0.03)));
     body=max(body,livingTriangle(q,float2(-0.20,0.04),float2(-0.59,0.12),float2(-0.43,-0.10)));
-    if (e.state>0) {
-        float span=0.20+e.wingPhase*0.95;
-        body=max(body,livingTriangle(q,float2(-0.08,0),float2(-0.28,-span),float2(0.09,-span*0.44)));
-        body=max(body,livingTriangle(q,float2(-0.08,0),float2(-0.24,span*0.80),float2(0.10,span*0.37)));
-    } else {
-        body=max(body,livingTriangle(q,float2(-0.05,0.11),float2(-0.01,0.34),float2(0.035,0.13)));
-        body=max(body,livingTriangle(q,float2(0.10,0.10),float2(0.13,0.34),float2(0.16,0.10)));
-    }
+    float span=0.20+e.wingPhase*0.95;
+    body=max(body,livingTriangle(q,float2(-0.08,0),float2(-0.28,-span),float2(0.09,-span*0.44))*airborne);
+    body=max(body,livingTriangle(q,float2(-0.08,0),float2(-0.24,span*0.80),float2(0.10,span*0.37))*airborne);
+    body=max(body,livingTriangle(q,float2(-0.05,0.11),float2(-0.01,0.34),float2(0.035,0.13))*(1.0-airborne));
+    body=max(body,livingTriangle(q,float2(0.10,0.10),float2(0.13,0.34),float2(0.16,0.10))*(1.0-airborne));
     return mix(color,float3(0.045,0.033,0.022),body*0.9);
 }
 

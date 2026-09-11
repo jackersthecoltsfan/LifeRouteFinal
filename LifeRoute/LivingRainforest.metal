@@ -990,6 +990,7 @@ fragment float4 livingDesertFragment(LivingSceneVertex in [[stage_in]],
     return float4(color,1);
 }
 
+#if defined(LIVING_EVENT_TESTS)
 // Tests query the same production state used by the scene fragment.
 kernel void livingBatEventProbe(device const float2 *requests [[buffer(0)]],
     device float4 *results [[buffer(1)]], uint id [[thread_position_in_grid]]) {
@@ -1012,3 +1013,5 @@ kernel void livingBirdEventProbe(device const float2 *requests [[buffer(0)]],
     results[id*2]=float4(e.position,e.state,e.eventStart);
     results[id*2+1]=float4(e.tangent,e.wingPhase,e.cycle);
 }
+
+#endif // LIVING_EVENT_TESTS: offline probes are absent from app configurations.

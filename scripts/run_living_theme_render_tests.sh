@@ -10,7 +10,7 @@ if [[ -n "${LIFEROUTE_MOTION_CHECKPOINT:-}" ]]; then
     python3 "$ROOT/scripts/check_living_family_contracts.py" --checkpoint "$LIFEROUTE_MOTION_CHECKPOINT"
 fi
 python3 "$ROOT/scripts/check_ocean_timing_authority.py"
-xcrun -sdk macosx metal -c "$ROOT/LifeRoute/LivingRainforest.metal" -o "$OUTPUT/LivingRainforest.air"
+xcrun -sdk macosx metal -DLIVING_EVENT_TESTS=1 -c "$ROOT/LifeRoute/LivingRainforest.metal" -o "$OUTPUT/LivingRainforest.air"
 xcrun -sdk macosx metallib "$OUTPUT/LivingRainforest.air" -o "$OUTPUT/LivingRainforest.metallib"
 xcrun -sdk macosx swiftc -import-objc-header "$ROOT/LifeRoute/LivingMotionContracts.h" -parse-as-library "$ROOT/LifeRoute/LivingThemeScene.swift" \
     "$ROOT/scripts/living_theme_render_tests.swift" -o "$OUTPUT/render-tests"

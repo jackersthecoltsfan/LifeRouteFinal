@@ -123,7 +123,7 @@ struct LivingAtmosphereConfiguration: Equatable, Sendable {
     var light: SIMD4<Float> // night, deterministic scene seed, moon x/y
     var air: SIMD4<Float> // cloud velocity, cloud strength, fog strength, weather density
     static let rainforestNight = Self(skyA: SIMD4(0.05, 0.05, 0.05, 0.05), skyB: SIMD4(0.05, 0.05, 0.05, 0.05),
-        light: SIMD4(1, 11, 0.54, 0.174), air: SIMD4(0.008, 0.15, 0.65, 0.12))
+        light: SIMD4(1, 11, 0.54, 0.174), air: SIMD4(0.026, 0.78, 0.65, 0.12))
     static let arcticDay = Self(skyA: SIMD4(0.28, 0.31, 0.34, 0.34), skyB: SIMD4(0.31, 0.29, 0.28, 0.26),
         light: SIMD4(0, 23, -1, -1), air: SIMD4(0.022, 0.4, 0.8, 0.7))
     static let arcticNight = Self(skyA: SIMD4(0.36, 0.43, 0.49, 0.47), skyB: SIMD4(0.42, 0.35, 0.32, 0.3),

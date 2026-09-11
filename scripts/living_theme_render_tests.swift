@@ -273,6 +273,14 @@ import CryptoKit
         let calmA = render(time: 0.3, motion: 0.25, atmosphere: 0)
         let calmB = render(time: 1.3, motion: 0.25, atmosphere: 0)
         expect(difference(calmA,calmB,box:regions[0].1) > 0, "calm retains primary environmental motion")
+        if scene == .rainforestNight {
+            expect(difference(first,next,box:[0.51,0.247,0.57,0.267]) > 0.1,
+                "Rainforest Night clouds travel through the actual canopy opening")
+            expect(difference(render(time:1),render(time:8),box:[0.08,0.695,0.16,0.75]) > 0.03,
+                "Rainforest Night photographed leaves respond to local wind")
+            expect(difference(render(time:1,atmosphere:0),render(time:8,atmosphere:0),box:[0.40,0.56,0.53,0.68]) > 0.5,
+                "Preserved Rainforest Night water remains independent of added air and foliage")
+        }
         if scene == .canyonDay {
             let waterA = render(time:1,atmosphere:0), waterB = render(time:8,atmosphere:0)
             expect(difference(waterA,waterB,box:[0.435,0.54,0.495,0.552]) > 1,

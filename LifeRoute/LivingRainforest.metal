@@ -402,11 +402,23 @@ fragment float4 livingRainforestNightFragment(LivingSceneVertex in [[stage_in]],
     float3 moving = livingAdvect(artwork, sampling, uv + float2(ripple * 0.5, ripple * 0.18) / u.textureSize * u.motion, flow, t, LIVING_RF_STREAM_ADVECTION_RATE);
     moving *= 1.0 + ripple * 0.04 * u.motion;
     float3 color = mix(original, moving, stream * material * 0.94);
-    float leaf = max(livingOval(uv, float2(0.22,0.82),float2(0.17,0.06)),
-                     livingOval(uv, float2(0.87,0.56),float2(0.11,0.07)));
-    if (leaf > 0.001 && u.atmosphere > 0.0) {
-        float2 offset = float2(sin(t * LIVING_RF_LEAF_SWAY_RATE + uv.y * 11.0), sin(t * LIVING_RF_LEAF_CROSS_RATE + uv.x * 19.0) * 0.5);
-        color = mix(color, artwork.sample(sampling, uv + offset / u.textureSize * colorAmount).rgb, leaf * u.atmosphere);
+    // Clouds travel only through the blue opening between fixed tree limbs.
+    // Material and moon exclusions keep the photographed trunks/moon stationary.
+    float opening = livingOval(uv,float2(0.53,0.23),float2(0.12,0.115))
+        * livingMoonExclusion(uv,c) * smoothstep(0.01,0.04,original.b-original.g);
+    if (u.atmosphere > 0.0) color += livingClouds(artwork,sampling,uv,original,opening,t,u.motion,c)-original;
+    float leaf = max(max(livingOval(uv,float2(0.16,0.74),float2(0.15,0.07)),
+                         livingOval(uv,float2(0.34,0.86),float2(0.13,0.07))),
+                    max(livingOval(uv,float2(0.44,0.29),float2(0.07,0.035)),
+                         livingOval(uv,float2(0.73,0.33),float2(0.09,0.045))));
+    float foliage = smoothstep(0.002,0.017,original.g-original.r)
+        * (1.0-smoothstep(0.002,0.012,original.b-original.g));
+    if (leaf * foliage > 0.001 && u.atmosphere > 0.0) {
+        float gust = smoothstep(0.1,0.9,sin(t*LIVING_RF_LEAF_SWAY_RATE*0.47+uv.x*4.0));
+        float2 offset = float2(sin(t*LIVING_RF_LEAF_SWAY_RATE+uv.y*17.0+uv.x*29.0),
+            sin(t*LIVING_RF_LEAF_CROSS_RATE+uv.x*19.0)*0.45);
+        offset *= colorAmount*(0.65+gust*1.85)*leaf*foliage;
+        color += (artwork.sample(sampling,uv+offset/u.textureSize).rgb-original)*leaf*foliage*u.atmosphere;
     }
     float mist = livingOval(uv, float2(0.49,0.545),float2(0.28,0.045));
     color = livingFog(color, uv, t, mist, c.air.z * u.atmosphere, c.light.y, float3(0.055,0.15,0.18));

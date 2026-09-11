@@ -27,4 +27,4 @@ import json,pathlib,sys
 p=pathlib.Path(sys.argv[1]);print(p/next(i['filename'] for i in json.loads((p/'Contents.json').read_text())['images'] if 'filename' in i))
 PYMAP
 )"
-"$OUTPUT/render-tests" "$OUTPUT/LivingRainforest.metallib" "$ARTWORK_FILE" "$OUTPUT" "$SCENE"
+"$OUTPUT/render-tests" "$OUTPUT/LivingRainforest.metallib" "$ARTWORK_FILE" "$OUTPUT" "$SCENE" "$ROOT/scripts/living_theme_roi_contract.json"

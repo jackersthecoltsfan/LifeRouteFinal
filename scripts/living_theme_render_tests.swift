@@ -2,12 +2,18 @@ import Foundation
 import MetalKit
 import ImageIO
 import UniformTypeIdentifiers
+import CryptoKit
 
 @main struct LivingThemeRenderTests {
     static func main() throws {
         let args = CommandLine.arguments
-        precondition(args.count == 4 || args.count == 5, "library, original artwork, output directory required")
-        let scene = args.count == 5 ? LivingThemeScene.scene(for: args[4])! : .rainforestDay
+        precondition(args.count == 6, "library, original artwork, output directory, scene and ROI contract required")
+        let scene = LivingThemeScene.scene(for: args[4])!
+        let roiContract = try JSONSerialization.jsonObject(with:Data(contentsOf:URL(fileURLWithPath:args[5]))) as! [String:Any]
+        let sceneROI = (roiContract["scenes"] as! [String:[String:Any]])[scene.themeIdentifier]!
+        let artworkHash = SHA256.hash(data:try Data(contentsOf:URL(fileURLWithPath:args[2])))
+            .map { String(format:"%02x",$0) }.joined()
+        precondition(artworkHash == sceneROI["artwork_sha256"] as! String,"frozen ROI must match exact scene artwork")
         let output = URL(fileURLWithPath: args[3], isDirectory: true)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let device = MTLCreateSystemDefaultDevice()!
@@ -184,6 +190,67 @@ import UniformTypeIdentifiers
             measured[name] = value
             expect(moving ? value > (scene == .rainforestDay ? 0.4 : 0.02) : value == 0, "\(name) expected \(moving ? "motion" : "fixed") but difference=\(value)")
         }
+        // Earlier small-region averages were only signal probes and could admit
+        // effectively static scenes. A GPU PASS now also requires the complete
+        // primary artwork ROI, moving-pixel magnitude, spread and static floor.
+        // The same frozen polygons and thresholds govern native viewer evidence.
+        func roiPixels(_ polygons: [[[Double]]]) -> [Int] {
+            var mask = [UInt8](repeating:0,count:width * height)
+            mask.withUnsafeMutableBytes { storage in
+                let context = CGContext(data:storage.baseAddress,width:width,height:height,
+                    bitsPerComponent:8,bytesPerRow:width,space:CGColorSpaceCreateDeviceGray(),bitmapInfo:0)!
+                // CoreGraphics bitmap coordinates are bottom-up; artwork UVs
+                // and Metal readback rows are top-down. Keep the frozen matte
+                // aligned with the same photographed geometry as native captures.
+                context.translateBy(x:0,y:CGFloat(height));context.scaleBy(x:1,y:-1)
+                context.setShouldAntialias(false);context.setFillColor(gray:1,alpha:1)
+                for polygon in polygons {
+                    context.beginPath()
+                    context.move(to:CGPoint(x:polygon[0][0] * Double(width),y:polygon[0][1] * Double(height)))
+                    for point in polygon.dropFirst() { context.addLine(to:CGPoint(x:point[0] * Double(width),y:point[1] * Double(height))) }
+                    context.closePath();context.fillPath()
+                }
+            }
+            let viewport = roiContract["viewport"] as! [Double]
+            let scale = LivingSceneFraming.uvScale(viewport:CGSize(width:viewport[0],height:viewport[1]),artwork:CGSize(width:width,height:height))
+            let left = (1 - Double(scale.x)) / 2, top = (1 - Double(scale.y)) / 2
+            return mask.indices.filter { pixel in
+                let x = (Double(pixel % width) + 0.5) / Double(width), y = (Double(pixel / width) + 0.5) / Double(height)
+                return mask[pixel] != 0 && x >= left && x <= 1-left && y >= top && y <= 1-top
+            }
+        }
+        let primaryPixels = roiPixels(sceneROI["primary"] as! [[[Double]]])
+        let staticPixels = roiPixels(sceneROI["static"] as! [[[Double]]])
+        expect(!primaryPixels.isEmpty && !staticPixels.isEmpty,"artwork-specific primary/static ROIs are nonempty")
+        var low = render(time:1), high = low
+        let seconds = sceneROI["seconds"] as! Int
+        for second in 1...seconds {
+            let sample = render(time:Float(1 + second))
+            for index in sample.indices { low[index] = min(low[index],sample[index]);high[index] = max(high[index],sample[index]) }
+        }
+        func temporalStats(_ pixels: [Int]) -> [String:Double] {
+            var moving = [Double]()
+            let threshold = roiContract["motion_pixel_threshold_255"] as! Double
+            for pixel in pixels {
+                let index = pixel * 4
+                let delta = (Double(high[index])-Double(low[index]) + Double(high[index+1])-Double(low[index+1]) + Double(high[index+2])-Double(low[index+2])) / 3
+                if delta > threshold { moving.append(delta) }
+            }
+            moving.sort()
+            let median = moving.isEmpty ? 0 : (moving[(moving.count-1)/2] + moving[moving.count/2]) / 2
+            return ["pixels":Double(pixels.count),"movingPixels":Double(moving.count),"spread":Double(moving.count)/Double(pixels.count),"movingMedian255":median]
+        }
+        let primaryTemporal = temporalStats(primaryPixels), staticTemporal = temporalStats(staticPixels)
+        let temporalEvidence: [String:Any] = ["primary":primaryTemporal,"static":staticTemporal,"seconds":seconds]
+        try JSONSerialization.data(withJSONObject:temporalEvidence,options:[.prettyPrinted,.sortedKeys])
+            .write(to:output.appendingPathComponent("temporal-roi.json"))
+        var maskAudit = first
+        for pixel in primaryPixels { maskAudit[pixel*4+1] = 255 }
+        for pixel in staticPixels { maskAudit[pixel*4+2] = 255 }
+        try png(maskAudit,name:"roi-audit")
+        expect(primaryTemporal["movingMedian255"]! >= (roiContract["minimum_moving_median_255"] as! Double),"primary moving-pixel magnitude >=3/255")
+        expect(primaryTemporal["spread"]! >= (sceneROI["minimum_spread"] as! Double),"primary motion spread >=25%, or40% for Ocean")
+        expect(staticTemporal["spread"]! <= (roiContract["maximum_static_spread"] as! Double),"fixed-control moving spread <=5%")
         if scene == .rainforestDay {
         let mistOn = render(time: 0.3), mistOff = render(time: 0.3, atmosphere: 0)
         expect(difference(mistOn,mistOff,box:[0.56,0.51,0.61,0.55]) > 0.2, "mist has localized visible contribution")
@@ -199,6 +266,19 @@ import UniformTypeIdentifiers
         let calmA = render(time: 0.3, motion: 0.25, atmosphere: 0)
         let calmB = render(time: 1.3, motion: 0.25, atmosphere: 0)
         expect(difference(calmA,calmB,box:regions[0].1) > 0, "calm retains primary environmental motion")
+        if scene == .mountainsDay {
+            let waterA = render(time:1,atmosphere:0), waterB = render(time:8,atmosphere:0)
+            expect(difference(waterA,waterB,box:[0.59,0.485,0.70,0.51]) > 1,
+                "Mountains Day lake remains perceptible without secondary atmosphere")
+            expect(difference(render(time:1,motion:0.25,atmosphere:0),render(time:8,motion:0.25,atmosphere:0),box:[0.59,0.485,0.70,0.51]) > 0.25,
+                "Mountains Day calm retains independent lake motion")
+            expect(difference(waterA,waterB,box:[0.13,0.37,0.24,0.43]) == 0,
+                "Lake and grass never displace fixed mountain faces")
+            expect(difference(waterA,waterB,box:[0.615,0.523,0.63,0.527]) == 0,
+                "Lake flow excludes the left-bank peninsula")
+            expect(difference(waterA,waterB,box:[0.20,0.925,0.34,0.955]) > 0.1,
+                "Material-gated foreground grass responds to wind")
+        }
         if scene == .mountainsNight {
             let meteorProbe = try device.makeComputePipelineState(function: library.makeFunction(name: "livingMountainsMeteorProbe")!)
             let requests = (0..<32).map { SIMD2(Float($0),scene.atmosphere!.light.y) }
@@ -242,6 +322,7 @@ import UniformTypeIdentifiers
         for frame in 0..<90 { try png(render(time: Float(frame)/30), name:String(format:"frame-%03d",frame)) }
         let metrics:[String:Any] = ["assertions":assertions,"artworkPixels":[width,height],"textureBytes":texture.allocatedSize,
             "regionMeanByteDifferences":measured,"scene":scene.themeIdentifier,
+            "primaryTemporalROI":primaryTemporal,"staticTemporalROI":staticTemporal,"temporalWindowSeconds":seconds,
             "gpuMeanMilliseconds":durations.reduce(0,+)/Double(durations.count),
             "gpuMaximumMilliseconds":durations.max()!,"device":device.name,
             "limitation":"Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance"]

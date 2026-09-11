@@ -547,11 +547,46 @@ fragment float4 livingMountainsFragment(LivingSceneVertex in [[stage_in]],
             t * LIVING_MOUNTAINS_NEAR_FOG_SCALE,c.light.y,true);
         color += float3(0.30,0.40,0.48) * snowDrift * snowEdge * u.atmosphere * 0.35;
     } else {
-        float lake = livingOval(uv,float2(0.65,0.52),float2(0.095,0.023));
-        if (lake > 0.001 && u.atmosphere > 0.0) {
-            float wave = sin(uv.y * 740.0 - t * LIVING_MOUNTAINS_LAKE_RATE + uv.x * 27.0);
-            color = mix(color,artwork.sample(sampling,uv + float2(wave * 0.45,wave * 0.2) / u.textureSize * u.motion).rgb,lake * 0.5);
+        // Distant lake follows both banks and the right-hand inlet. Several
+        // fine wind-driven fronts cross its whole visible surface; shore and
+        // mountain silhouettes stay fixed and secondary air is optional.
+        if (uv.y > 0.463 && uv.y < 0.546) {
+            const float2 shore[] = {float2(0.542,0.480),float2(0.598,0.468),float2(0.66,0.463),
+                float2(0.72,0.465),float2(0.754,0.471),float2(0.786,0.476),float2(0.778,0.484),
+                float2(0.787,0.489),float2(0.82,0.497),float2(0.865,0.509),float2(0.90,0.517),
+                float2(0.917,0.525),float2(0.917,0.533),float2(0.898,0.537),float2(0.835,0.540),
+                float2(0.775,0.543),float2(0.742,0.546),float2(0.707,0.540),float2(0.67,0.535),
+                float2(0.646,0.532),float2(0.650,0.528),float2(0.641,0.522),float2(0.618,0.517),
+                float2(0.603,0.520),float2(0.597,0.515),float2(0.587,0.512),float2(0.60,0.508),
+                float2(0.584,0.501),float2(0.564,0.493)};
+            float lake = livingWaterInterior(uv,shore,29);
+            float travel = t * LIVING_MOUNTAINS_LAKE_RATE;
+            float bend = livingFractal(uv * float2(26,73) + float2(-travel * 0.02,0),t);
+            float windPatch = livingFractal(uv * float2(53,141) + float2(travel * 0.035,3.7),t);
+            float wave = sin(uv.y * 1850.0 + uv.x * 65.0 - travel
+                + bend * 12.0 + sin(uv.x * 19.0 + travel * 0.31));
+            float cross = sin(uv.y * 2810.0 - uv.x * 43.0 - travel * 1.23 + bend * 19.0);
+            float rippleStrength = 0.35 + windPatch * 0.65;
+            float2 displacement = float2(wave * 1.15 + cross * 0.42,wave * 0.38 + cross * 0.21)
+                * lake * rippleStrength * u.motion;
+            float3 water = artwork.sample(sampling,uv + displacement / u.textureSize).rgb;
+            water *= 1.0 + u.motion * rippleStrength * (wave * 0.085 + cross * 0.045);
+            color += (water - original) * lake;
         }
+        // Restrict wind to photographed grass clumps, with stems anchored at
+        // their bases. Grey rock material and the major foreground slabs remain
+        // stationary while blade tips respond to different phases and gusts.
+        float grass = max(max(livingOval(uv,float2(0.065,0.875),float2(0.06,0.06)),
+                              livingOval(uv,float2(0.27,0.946),float2(0.18,0.045))),
+                          max(livingOval(uv,float2(0.60,0.975),float2(0.22,0.03)),
+                              livingOval(uv,float2(0.90,0.865),float2(0.10,0.06))));
+        float vegetation = smoothstep(0.018,0.10,original.g - original.b)
+            * (1.0 - smoothstep(0.09,0.18,original.r - original.g));
+        float gust = smoothstep(0.05,0.85,sin(t * LIVING_MOUNTAINS_NEAR_FOG_SCALE * 0.47 + uv.x * 3.0));
+        float blades = sin(t * LIVING_MOUNTAINS_LAKE_RATE + uv.x * 73.0 + uv.y * 29.0);
+        float sway = grass * vegetation * u.motion * (0.45 + gust * 1.15) * blades;
+        color += (artwork.sample(sampling,uv + float2(sway,sway * 0.12) / u.textureSize).rgb - original)
+            * grass * vegetation;
     }
     if (night > 0.5) {
         color = livingNightSky(color,uv,t,sky,u.atmosphere,c,LIVING_MOUNTAINS_METEOR_PERIOD,

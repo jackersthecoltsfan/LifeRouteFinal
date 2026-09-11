@@ -128,6 +128,8 @@ fragment float4 livingRainforestFragment(LivingSceneVertex in [[stage_in]],
     return float4(color, 1);
 }
 
+#include "LivingOceanTiming.h"
+
 // Ocean is a train of finite, independently shaped wave events. A wave enters,
 // grows a face, crests, spills, leaves an expanding foam wake, then dissipates.
 // Events overlap but never translate the camera, horizon, or exposed seabed.
@@ -142,18 +144,18 @@ struct LivingWaveEvent {
 };
 
 static LivingWaveEvent livingOceanEvent(float time, float eventID) {
-    float seed = livingHash(float2(eventID, 19.73));
-    float start = eventID * 6.3 + seed * 1.7;
+    float seed = livingHash(float2(eventID, LIVING_OCEAN_START_SEED));
+    float start = eventID * LIVING_OCEAN_ARRIVAL_SPACING + seed * LIVING_OCEAN_START_JITTER;
     // Bounded to 18 seconds; arrival spacing, not a longer lifetime, supplies overlap.
-    float life = 14.2 + livingHash(float2(eventID, 71.1)) * 3.8;
+    float life = LIVING_OCEAN_LIFETIME_MIN + livingHash(float2(eventID, LIVING_OCEAN_LIFETIME_SEED)) * LIVING_OCEAN_LIFETIME_VARIATION;
     float age = time - start;
     float p = saturate(age / life);
-    float envelope = smoothstep(0.0, 0.09, p) * (1.0 - smoothstep(0.82, 1.0, p));
-    float swell = smoothstep(0.0, 0.18, p) * (1.0 - smoothstep(0.58, 0.78, p));
-    float crest = smoothstep(0.19, 0.40, p) * (1.0 - smoothstep(0.54, 0.72, p));
-    float breaking = smoothstep(0.37, 0.53, p) * (1.0 - smoothstep(0.65, 0.83, p));
-    float foam = smoothstep(0.47, 0.66, p) * (1.0 - smoothstep(0.79, 1.0, p));
-    return {age, life, p, 0.035 + 0.94 * pow(p, 1.36),
+    float envelope = smoothstep(LIVING_OCEAN_ENVELOPE_START, LIVING_OCEAN_ENVELOPE_FULL, p) * (1.0 - smoothstep(LIVING_OCEAN_DISSIPATION_START, LIVING_OCEAN_DISSIPATION_END, p));
+    float swell = smoothstep(LIVING_OCEAN_SWELL_START, LIVING_OCEAN_SWELL_FULL, p) * (1.0 - smoothstep(LIVING_OCEAN_SWELL_DECAY, LIVING_OCEAN_SWELL_END, p));
+    float crest = smoothstep(LIVING_OCEAN_CREST_START, LIVING_OCEAN_CREST_FULL, p) * (1.0 - smoothstep(LIVING_OCEAN_CREST_DECAY, LIVING_OCEAN_CREST_END, p));
+    float breaking = smoothstep(LIVING_OCEAN_BREAK_START, LIVING_OCEAN_BREAK_FULL, p) * (1.0 - smoothstep(LIVING_OCEAN_BREAK_DECAY, LIVING_OCEAN_BREAK_END, p));
+    float foam = smoothstep(LIVING_OCEAN_FOAM_START, LIVING_OCEAN_FOAM_FULL, p) * (1.0 - smoothstep(LIVING_OCEAN_FOAM_DECAY, LIVING_OCEAN_FOAM_END, p));
+    return {age, life, p, 0.035 + 0.94 * pow(p, LIVING_OCEAN_TRAVEL_EXPONENT),
         0.012 + 0.038 * p, 0.76 + 0.48 * seed,
         swell * envelope, crest * envelope, breaking * envelope, foam * envelope, envelope};
 }
@@ -180,14 +182,14 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
     float wet = smoothstep(0.0, 0.032, depth);
     // Calm slows the physical sequence as well as reducing amplitude. It never
     // removes the primary break/foam stages; those are part of the water itself.
-    float t = u.time * mix(0.42, 1.0, u.motion);
+    float t = u.time * mix(LIVING_OCEAN_CALM_TIME_SCALE, LIVING_OCEAN_FULL_TIME_SCALE, u.motion);
     float face = 0, normal = 0, crest = 0, breakWater = 0, wake = 0;
-    float newest = floor(t / 6.3);
-    for (int i = 0; i < 5; ++i) {
+    float newest = floor(t / LIVING_OCEAN_ARRIVAL_SPACING);
+    for (int i = 0; i < LIVING_OCEAN_EVENT_SLOTS; ++i) {
         float eventID = newest - float(i);
         LivingWaveEvent e = livingOceanEvent(t, eventID);
         if (e.envelope <= 0.0001) continue;
-        float seed = livingHash(float2(eventID, 19.73));
+        float seed = livingHash(float2(eventID, LIVING_OCEAN_START_SEED));
         // Oblique arrivals follow the photographed wave direction. Curvature,
         // crest fragmentation and lifetime vary independently for each arrival.
         float bend = (uv.x - 0.5) * o.crestSlope * 0.64
@@ -195,7 +197,7 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
         float distance = depth - e.front - bend;
         float ridge = exp(-pow(distance / e.width, 2.0));
         float lip = exp(-pow((distance + e.width * 0.24) / (e.width * 0.21), 2.0));
-        float curl = livingNoise(float2(uv.x * 32.0 + seed * 47.0, distance * 65.0 - e.age * 0.48));
+        float curl = livingNoise(float2(uv.x * 32.0 + seed * 47.0, distance * 65.0 - e.age * LIVING_OCEAN_CURL_RATE));
         float fragments = smoothstep(0.24, 0.69, curl);
         face += ridge * e.swell * e.strength;
         normal += (-distance / e.width) * ridge * e.swell * e.strength;
@@ -203,17 +205,17 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
         breakWater += lip * e.breaking * fragments * e.strength;
         // Foam remains behind the travelling front and spreads across its wake.
         // Two advecting scales erode and reform it; there is no repeating texture.
-        float wakeWidth = 0.025 + 0.11 * smoothstep(0.48, 0.92, e.progress);
+        float wakeWidth = 0.025 + 0.11 * smoothstep(LIVING_OCEAN_WAKE_SPREAD_START, LIVING_OCEAN_WAKE_SPREAD_END, e.progress);
         float wakeRegion = smoothstep(-wakeWidth, -wakeWidth * 0.2, distance)
             * (1.0 - smoothstep(-0.004, 0.012, distance));
-        float lace = livingNoise(float2(uv.x * 113.0 + seed * 101.0, depth * 245.0 - e.age * 1.9));
-        lace = 0.62 * lace + 0.38 * livingNoise(float2(uv.x * 247.0 - e.age * 0.27, depth * 397.0 + seed * 13.0));
+        float lace = livingNoise(float2(uv.x * 113.0 + seed * 101.0, depth * 245.0 - e.age * LIVING_OCEAN_FOAM_ADVECTION_RATE));
+        lace = 0.62 * lace + 0.38 * livingNoise(float2(uv.x * 247.0 - e.age * LIVING_OCEAN_FOAM_CROSS_RATE, depth * 397.0 + seed * 13.0));
         wake += wakeRegion * e.foam * smoothstep(0.43, 0.73, lace) * (0.55 + 0.45 * fragments);
     }
     float amplitude = wet * u.motion * o.swellAmplitude;
     float shallows = o.shallow * smoothstep(0.42, 0.82, depth);
-    float ripple = sin(log(1.0 + depth * 6.0) * 101.0 + uv.x * 33.0 - t * 2.7
-        + livingNoise(uv * 29.0 + t * 0.08));
+    float ripple = sin(log(1.0 + depth * 6.0) * 101.0 + uv.x * 33.0 - t * LIVING_OCEAN_RIPPLE_RATE
+        + livingNoise(uv * 29.0 + t * LIVING_OCEAN_RIPPLE_EVOLUTION_RATE));
     float2 offset = float2(-o.crestSlope * normal, normal) * mix(7.0, 0.5, shallows);
     offset += float2(ripple * 0.20, ripple * 0.34);
     float2 sampleUV = uv + offset * amplitude / u.textureSize;
@@ -231,7 +233,7 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
     water = mix(water, foamColor, foam);
     water += float3(0.05, 0.075, 0.10) * reflection * amplitude * (normal * 0.18 + crest * 0.23);
     if (u.atmosphere > 0.0) {
-        float spray = smoothstep(0.70, 0.93, livingNoise(uv * float2(390, 460) + float2(-t, t * 2.7)));
+        float spray = smoothstep(0.70, 0.93, livingNoise(uv * float2(390, 460) + float2(-t * LIVING_OCEAN_SPRAY_CROSS_RATE, t * LIVING_OCEAN_SPRAY_RISE_RATE)));
         water += foamColor * spray * breakWater * amplitude * u.atmosphere * 0.06;
     }
     return float4(mix(original, water, wet), 1);

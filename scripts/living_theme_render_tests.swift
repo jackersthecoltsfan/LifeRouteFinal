@@ -76,7 +76,15 @@ import UniformTypeIdentifiers
                 return Array(UnsafeBufferPointer(start: output.contents().assumingMemoryBound(to: SIMD4<Float>.self), count: times.count * 3))
             }
             let origin = waves([0])[0], start = -origin.x, life = origin.y
-            let phases: [Float] = [-0.01, 0.12, 0.30, 0.47, 0.60, 0.76, 0.91, 1.01]
+            let phases: [Float] = [
+                LIVING_OCEAN_ENVELOPE_START - 0.01,
+                (LIVING_OCEAN_ENVELOPE_FULL + LIVING_OCEAN_CREST_START) / 2,
+                (LIVING_OCEAN_CREST_START + LIVING_OCEAN_CREST_FULL) / 2,
+                (LIVING_OCEAN_BREAK_START + LIVING_OCEAN_BREAK_FULL) / 2,
+                (LIVING_OCEAN_BREAK_FULL + LIVING_OCEAN_FOAM_FULL) / 2,
+                (LIVING_OCEAN_FOAM_FULL + LIVING_OCEAN_FOAM_DECAY) / 2,
+                (LIVING_OCEAN_DISSIPATION_START + LIVING_OCEAN_DISSIPATION_END) / 2,
+                LIVING_OCEAN_DISSIPATION_END + 0.01]
             let samples = waves(phases.map { start + $0 * life })
             expect(samples[2].x == 0 && samples[23].x == 0, "individual wave enters and completely dissipates")
             expect(samples[4].x > 0 && samples[4].y == 0 && samples[4].w == 0, "swell precedes crest and foam")
@@ -87,17 +95,20 @@ import UniformTypeIdentifiers
             expect(samples[20].x < samples[17].x, "late wave loses strength")
             // Query real GPU event starts, lifetimes and strengths, including the
             // negative IDs that provide pre-existing water at first presentation.
-            let eventIDs = (-4...20).map(Float.init)
+            let eventIDs = (-(Int(LIVING_OCEAN_EVENT_SLOTS) - 1)...20).map(Float.init)
             let origins = waves(eventIDs.map { _ in 0 }, eventIDs: eventIDs)
+            expect(abs(LIVING_OCEAN_LIFETIME_MIN + LIVING_OCEAN_LIFETIME_VARIATION - LIVING_OCEAN_LIFETIME_MAX) < 0.00001, "authority lifetime bounds agree")
+            let latestNextArrival = LIVING_OCEAN_ARRIVAL_SPACING + LIVING_OCEAN_START_JITTER
+            expect(latestNextArrival + LIVING_OCEAN_OVERLAP_SWELL_PROGRESS * LIVING_OCEAN_LIFETIME_MAX < LIVING_OCEAN_LIFETIME_MIN * LIVING_OCEAN_DISSIPATION_START, "authority guarantees a developed new swell before earliest old dissipation")
             var overlaps: [[String: Float]] = []
             for i in 0..<(eventIDs.count - 1) {
                 let earlierStart = -origins[i * 3].x, laterStart = -origins[(i + 1) * 3].x
                 let earlierLife = origins[i * 3].y, laterLife = origins[(i + 1) * 3].y
-                expect(earlierLife > 0 && earlierLife <= 18 && laterLife <= 18, "bounded wave lifetimes never exceed 18 seconds")
+                expect(earlierLife > 0 && earlierLife <= LIVING_OCEAN_LIFETIME_MAX && laterLife <= LIVING_OCEAN_LIFETIME_MAX, "bounded wave lifetimes never exceed 18 seconds")
                 expect(laterStart > earlierStart, "subsequent wave has a distinct later arrival")
                 // A fifth of its lifetime gives the new wave time to develop;
                 // this excludes mathematically overlapping but invisible tails.
-                let sharedTime = laterStart + laterLife * 0.20
+                let sharedTime = laterStart + laterLife * LIVING_OCEAN_OVERLAP_SWELL_PROGRESS
                 let coexist = waves([sharedTime, sharedTime], eventIDs: [eventIDs[i], eventIDs[i+1]])
                 expect(coexist[2].x > 0.3 && coexist[5].x > 0.3, "two substantial wave envelopes coexist")
                 expect(coexist[4].x > 0.8 && coexist[1].y + coexist[1].z + coexist[1].w > 0.05, "new developed swell overlaps earlier crest, break or foam")
@@ -109,7 +120,7 @@ import UniformTypeIdentifiers
             }
             expect(Set(eventIDs.indices.map { origins[$0 * 3].y }).count > 4, "subsequent waves vary in lifetime")
             expect(Set(eventIDs.indices.map { origins[$0 * 3 + 2].z }).count > 4, "subsequent waves vary in strength")
-            let payload: [String: Any] = ["scene": scene.themeIdentifier, "lifetime": life, "arrivalSpacing": 6.3,
+            let payload: [String: Any] = ["scene": scene.themeIdentifier, "lifetime": life, "arrivalSpacing": LIVING_OCEAN_ARRIVAL_SPACING,
                 "overlapSamples": overlaps, "phaseFractions": phases, "productionGPUValues": samples.map { [$0.x, $0.y, $0.z, $0.w] }]
             try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]).write(to: output.appendingPathComponent("ocean-wave-phases.json"))
         }

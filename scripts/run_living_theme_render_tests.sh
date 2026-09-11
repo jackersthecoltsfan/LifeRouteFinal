@@ -8,7 +8,7 @@ mkdir -p "$RESOLVED_OUTPUT"
 OUTPUT="$RESOLVED_OUTPUT"
 xcrun -sdk macosx metal -c "$ROOT/LifeRoute/LivingRainforest.metal" -o "$OUTPUT/LivingRainforest.air"
 xcrun -sdk macosx metallib "$OUTPUT/LivingRainforest.air" -o "$OUTPUT/LivingRainforest.metallib"
-xcrun -sdk macosx swiftc -parse-as-library "$ROOT/LifeRoute/LivingThemeScene.swift" \
+xcrun -sdk macosx swiftc -import-objc-header "$ROOT/LifeRoute/LivingOceanTiming.h" -parse-as-library "$ROOT/LifeRoute/LivingThemeScene.swift" \
     "$ROOT/scripts/living_theme_render_tests.swift" -o "$OUTPUT/render-tests"
 SCENE="${2:-scenery.rainforest.day}"
 case "$SCENE" in

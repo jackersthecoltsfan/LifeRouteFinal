@@ -1,3 +1,18 @@
+# Living Themes full expansion — stopped September 10, 2026
+
+- Exact parent: `f89a6c189500f5a22e9fed7ecf0b3a95c350ad8e`. Brandon explicitly authorized descendant source development before Ocean physical acceptance. Rainforest Day at `9494e81c814d6cbe958dc190263d8fec141cdb27` remains physically accepted.
+- Isolated worktree: `/Users/brand/Documents/GitHub/LifeRouteFinal-living-themes-full-expansion`; branch `codex/living-themes-full-expansion-20260910`. One source owner; no other worker was launched. The parent and accepted Rainforest worktrees were preserved.
+- **STOP_BUILD_OR_VALIDATION_FAILED. This is an incomplete source checkpoint, not a twelve-scene candidate.** The first Ocean host GPU validation exited 133 on `arrival interval allows three overlapping generations`. The new test requires lifetime >18.9 seconds, while the draft event lifetime is 18.0–21.8 seconds. That proxy assertion is stricter than the owner's multiple-overlap requirement and does not directly count overlapping events. No test repair/retry or further scene implementation followed the stop.
+- Retained draft only: finite Ocean arrivals with advancing swell, crest, breaking water, spreading foam and dissipation, plus production-kernel temporal tests. The shader and test runner compiled on host Metal; the temporal checks before the overlap assertion completed. Candidate pixel tests, native integration, broader regressions and performance checks were not reached. No perceptual result is established.
+- Rainforest shader prefix, native renderer/lifecycle, scene registry, artwork, Dynamic retirement/migration, Timer, Session Note, Calendar B, planner, root/navigation, styling and project/scheme remain unchanged. Nine scenes still have motion pending. Ocean Day/Night select the changed, unqualified draft shader.
+- Fresh parent-only evidence: Debug Simulator build succeeded; Rainforest GPU render suite passed 12 assertions. This does not validate the changed descendant.
+- No signed expansion artifact was produced; no application was installed or launched on the new Simulator or any physical device. No TestFlight, release, push, merge or unrelated source work occurred.
+- Sole stopped receipt, exact commit and handoff state: `/Users/brand/Documents/LifeRouteCheckpoints/living-themes-full-expansion-20260910/LIVING_THEMES_FULL_EXPANSION_RECEIPT.md`. The physical QA matrix is empty. Further work requires disposition of this explicit stop; do not treat this checkpoint as ready for phone QA.
+
+The previous entries remain historical authority for their own candidates.
+
+---
+
 # Living Themes Phase 2A — September 10, 2026
 
 - Exact physically accepted Rainforest parent: `9494e81c814d6cbe958dc190263d8fec141cdb27`, accepted by Brandon on iPhone 17 Pro / iOS 27.0. This supersedes the older Phase 1 pending-acceptance text below.

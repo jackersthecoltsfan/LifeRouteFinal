@@ -61,6 +61,34 @@ import UniformTypeIdentifiers
         }
         var assertions = 0
         func expect(_ condition: Bool, _ reason: String) { assertions += 1; precondition(condition, reason) }
+        if scene.ocean != nil {
+            let probe = try device.makeComputePipelineState(function: library.makeFunction(name: "livingOceanWaveProbe")!)
+            func waves(_ times: [Float]) -> [SIMD4<Float>] {
+                let input = device.makeBuffer(bytes: times, length: times.count * 4, options: .storageModeShared)!
+                let output = device.makeBuffer(length: times.count * 3 * MemoryLayout<SIMD4<Float>>.stride, options: .storageModeShared)!
+                let command = queue.makeCommandBuffer()!, encoder = command.makeComputeCommandEncoder()!
+                encoder.setComputePipelineState(probe)
+                encoder.setBuffer(input, offset: 0, index: 0); encoder.setBuffer(output, offset: 0, index: 1)
+                encoder.dispatchThreads(MTLSize(width: times.count, height: 1, depth: 1), threadsPerThreadgroup: MTLSize(width: 1, height: 1, depth: 1))
+                encoder.endEncoding(); command.commit(); command.waitUntilCompleted()
+                expect(command.status == .completed, "production wave probe executes on GPU")
+                return Array(UnsafeBufferPointer(start: output.contents().assumingMemoryBound(to: SIMD4<Float>.self), count: times.count * 3))
+            }
+            let origin = waves([0])[0], start = -origin.x, life = origin.y
+            let phases: [Float] = [-0.01, 0.12, 0.30, 0.47, 0.60, 0.76, 0.91, 1.01]
+            let samples = waves(phases.map { start + $0 * life })
+            expect(samples[2].x == 0 && samples[23].x == 0, "individual wave enters and completely dissipates")
+            expect(samples[4].x > 0 && samples[4].y == 0 && samples[4].w == 0, "swell precedes crest and foam")
+            expect(samples[7].y > 0 && samples[7].z == 0, "crest develops before break")
+            expect(samples[10].z > 0 && samples[10].w == 0, "break precedes foam wake")
+            expect(samples[16].w > samples[13].w && samples[19].w < samples[16].w, "foam expands then decays")
+            expect((1..<7).allSatisfy { samples[$0 * 3].w > samples[($0 - 1) * 3].w }, "front advances through water rather than rocking in place")
+            expect(samples[20].x < samples[17].x, "late wave loses strength")
+            expect(life > 3 * 6.3, "arrival interval allows three overlapping generations")
+            let payload: [String: Any] = ["scene": scene.themeIdentifier, "lifetime": life, "arrivalSpacing": 6.3,
+                "phaseFractions": phases, "productionGPUValues": samples.map { [$0.x, $0.y, $0.z, $0.w] }]
+            try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys]).write(to: output.appendingPathComponent("ocean-wave-phases.json"))
+        }
         let still = render(time: 0, motion: 0)
         expect(still == render(time: 900, motion: 0), "Still is exactly static at any time")
         let first = render(time: 0.3)

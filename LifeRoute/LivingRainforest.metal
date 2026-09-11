@@ -128,13 +128,44 @@ fragment float4 livingRainforestFragment(LivingSceneVertex in [[stage_in]],
     return float4(color, 1);
 }
 
-// Ocean Day and Night share this surface model. Their source photographs have
-// different horizon/crest/light placement, supplied as geometry configuration.
-// No camera transform, translating image layer, particles or sky animation.
+// Ocean is a train of finite, independently shaped wave events. A wave enters,
+// grows a face, crests, spills, leaves an expanding foam wake, then dissipates.
+// Events overlap but never translate the camera, horizon, or exposed seabed.
 struct LivingOceanConfiguration {
     float horizon, crestIntercept, crestSlope, shallow;
     float reflectionX, night, swellAmplitude, padding;
 };
+
+struct LivingWaveEvent {
+    float age, lifetime, progress, front, width, strength;
+    float swell, crest, breaking, foam, envelope;
+};
+
+static LivingWaveEvent livingOceanEvent(float time, float eventID) {
+    float seed = livingHash(float2(eventID, 19.73));
+    float start = eventID * 6.3 + seed * 1.7;
+    float life = 18.0 + livingHash(float2(eventID, 71.1)) * 3.8;
+    float age = time - start;
+    float p = saturate(age / life);
+    float envelope = smoothstep(0.0, 0.09, p) * (1.0 - smoothstep(0.82, 1.0, p));
+    float swell = smoothstep(0.0, 0.18, p) * (1.0 - smoothstep(0.58, 0.78, p));
+    float crest = smoothstep(0.19, 0.40, p) * (1.0 - smoothstep(0.54, 0.72, p));
+    float breaking = smoothstep(0.37, 0.53, p) * (1.0 - smoothstep(0.65, 0.83, p));
+    float foam = smoothstep(0.47, 0.66, p) * (1.0 - smoothstep(0.79, 1.0, p));
+    return {age, life, p, 0.035 + 0.94 * pow(p, 1.36),
+        0.012 + 0.038 * p, 0.76 + 0.48 * seed,
+        swell * envelope, crest * envelope, breaking * envelope, foam * envelope, envelope};
+}
+
+// Independent GPU tests read the actual temporal model used by the fragment.
+// This kernel is never dispatched by the application.
+kernel void livingOceanWaveProbe(device const float *times [[buffer(0)]],
+                                 device float4 *values [[buffer(1)]], uint id [[thread_position_in_grid]]) {
+    LivingWaveEvent e = livingOceanEvent(times[id], 0);
+    values[id * 3] = float4(e.age, e.lifetime, e.progress, e.front);
+    values[id * 3 + 1] = float4(e.swell, e.crest, e.breaking, e.foam);
+    values[id * 3 + 2] = float4(e.envelope, e.width, e.strength, 0);
+}
 
 fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
                                     texture2d<float> artwork [[texture(0)]],
@@ -146,51 +177,61 @@ fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
     if (u.motion <= 0.0 || uv.y <= o.horizon) return float4(original, 1);
     float depth = saturate((uv.y - o.horizon) / (1.0 - o.horizon));
     float wet = smoothstep(0.0, 0.032, depth);
-    float t = u.time;
-    // Perspective compression creates close-spaced distant ripples and broad
-    // near swells. Independent crossing components vary speed and direction.
-    float longitudinal = log(1.0 + depth * 6.0) * 24.0;
-    float direction = uv.x * (4.0 + 7.0 * depth);
-    float swell = sin(longitudinal + direction - t * 1.45);
-    float crossing = sin(longitudinal * 1.79 - uv.x * 18.0 - t * 2.13);
-    float ripple = sin(longitudinal * 4.1 + uv.x * 38.0 - t * 3.25 + swell * 0.7);
+    // Calm slows the physical sequence as well as reducing amplitude. It never
+    // removes the primary break/foam stages; those are part of the water itself.
+    float t = u.time * mix(0.42, 1.0, u.motion);
+    float face = 0, normal = 0, crest = 0, breakWater = 0, wake = 0;
+    float newest = floor(t / 6.3);
+    for (int i = 0; i < 5; ++i) {
+        float eventID = newest - float(i);
+        LivingWaveEvent e = livingOceanEvent(t, eventID);
+        if (e.envelope <= 0.0001) continue;
+        float seed = livingHash(float2(eventID, 19.73));
+        // Oblique arrivals follow the photographed wave direction. Curvature,
+        // crest fragmentation and lifetime vary independently for each arrival.
+        float bend = (uv.x - 0.5) * o.crestSlope * 0.64
+            + sin(uv.x * (5.0 + seed * 4.0) + seed * 20.0) * 0.018 * e.progress;
+        float distance = depth - e.front - bend;
+        float ridge = exp(-pow(distance / e.width, 2.0));
+        float lip = exp(-pow((distance + e.width * 0.24) / (e.width * 0.21), 2.0));
+        float curl = livingNoise(float2(uv.x * 32.0 + seed * 47.0, distance * 65.0 - e.age * 0.48));
+        float fragments = smoothstep(0.24, 0.69, curl);
+        face += ridge * e.swell * e.strength;
+        normal += (-distance / e.width) * ridge * e.swell * e.strength;
+        crest += lip * e.crest * e.strength;
+        breakWater += lip * e.breaking * fragments * e.strength;
+        // Foam remains behind the travelling front and spreads across its wake.
+        // Two advecting scales erode and reform it; there is no repeating texture.
+        float wakeWidth = 0.025 + 0.11 * smoothstep(0.48, 0.92, e.progress);
+        float wakeRegion = smoothstep(-wakeWidth, -wakeWidth * 0.2, distance)
+            * (1.0 - smoothstep(-0.004, 0.012, distance));
+        float lace = livingNoise(float2(uv.x * 113.0 + seed * 101.0, depth * 245.0 - e.age * 1.9));
+        lace = 0.62 * lace + 0.38 * livingNoise(float2(uv.x * 247.0 - e.age * 0.27, depth * 397.0 + seed * 13.0));
+        wake += wakeRegion * e.foam * smoothstep(0.43, 0.73, lace) * (0.55 + 0.45 * fragments);
+    }
     float amplitude = wet * u.motion * o.swellAmplitude;
-    // The bright Day foreground reveals a stationary seabed. Subpixel
-    // refraction there preserves its forms, while the surface light still moves.
     float shallows = o.shallow * smoothstep(0.42, 0.82, depth);
-    float displacement = mix(0.65 + depth * 3.2, 0.55, shallows) * amplitude;
-    float2 offset = float2(swell * 0.30 + crossing * 0.20,
-                           swell * 0.74 + crossing * 0.22 + ripple * 0.12) * displacement / u.textureSize;
-
-    // The photographed crest heaves locally, normal to its own diagonal. This
-    // narrow mask never drifts the entire sea or moves the horizon/seabed.
-    float crestY = o.crestIntercept + o.crestSlope * uv.x
-        + o.night * 0.019 * sin(uv.x * 7.0);
-    float crestDistance = uv.y - crestY;
-    float crestMask = exp(-pow(crestDistance / mix(0.018, 0.033, o.night), 2.0));
-    float crestWave = sin(t * 1.28 - uv.x * 5.5) + 0.23 * sin(t * 2.1 + uv.x * 13.0);
-    offset += float2(-o.crestSlope * 0.35, 1.0) * crestWave * crestMask * amplitude
-        * mix(3.1, 4.0, o.night) / u.textureSize;
-    float2 sampleUV = uv + offset;
+    float ripple = sin(log(1.0 + depth * 6.0) * 101.0 + uv.x * 33.0 - t * 2.7
+        + livingNoise(uv * 29.0 + t * 0.08));
+    float2 offset = float2(-o.crestSlope * normal, normal) * mix(7.0, 0.5, shallows);
+    offset += float2(ripple * 0.20, ripple * 0.34);
+    float2 sampleUV = uv + offset * amplitude / u.textureSize;
     sampleUV.y = max(o.horizon, sampleUV.y);
     float3 water = artwork.sample(sampling, sampleUV).rgb;
-
-    // Surface normals modulate water light with the same phases as displacement.
-    // Moon reflections remain attached to this surface, never an independent
-    // twinkle overlay. Water outside that corridor also moves.
-    float surfaceLight = (swell * 0.022 + crossing * 0.013 + ripple * 0.007) * amplitude;
-    water *= 1.0 + surfaceLight * mix(1.0, 1.5, o.night);
+    // A travelling shaded wave face and narrowing illuminated lip supply shape,
+    // rather than uniform oscillation or shimmer. Existing water remains visible.
+    water *= 1.0 + amplitude * (normal * 0.13 - face * 0.12 + ripple * 0.013);
     float reflectionWidth = 0.035 + depth * 0.19;
     float reflection = exp(-pow((uv.x - o.reflectionX) / reflectionWidth, 2.0)) * o.night;
-    float lightMaterial = smoothstep(0.07, 0.52, dot(water, float3(0.2126, 0.7152, 0.0722)));
-    water += float3(0.08, 0.095, 0.11) * reflection * lightMaterial * surfaceLight;
-
-    // Secondary crest foam/highlights use existing bright water material only.
-    // Night crests are unbroken swells, so their white detail stays restrained.
-    if (u.atmosphere > 0.0 && crestMask > 0.001) {
-        float foam = livingNoise(float2(uv.x * 175.0 - t * 0.85, crestDistance * 570.0 - t * 1.3));
-        float glint = (foam - 0.45) * crestMask * lightMaterial * u.atmosphere * amplitude;
-        water += float3(0.11, 0.13, 0.14) * glint * mix(1.0, 0.40, o.night);
+    water += float3(0.10, 0.14, 0.17) * crest * amplitude * mix(0.6, 0.20 + reflection * 0.9, o.night);
+    // Night's unbroken open-water swells spill sparsely; no shore is fabricated.
+    float foam = saturate(breakWater * 0.60 + wake * 0.46) * amplitude * mix(1.0, 0.44, o.night);
+    float3 foamColor = mix(float3(0.68, 0.84, 0.84), float3(0.14, 0.25, 0.33) + reflection * 0.25, o.night);
+    water = mix(water, foamColor, foam);
+    water += float3(0.05, 0.075, 0.10) * reflection * amplitude * (normal * 0.18 + crest * 0.23);
+    if (u.atmosphere > 0.0) {
+        float spray = smoothstep(0.70, 0.93, livingNoise(uv * float2(390, 460) + float2(-t, t * 2.7)));
+        water += foamColor * spray * breakWater * amplitude * u.atmosphere * 0.06;
     }
     return float4(mix(original, water, wet), 1);
 }

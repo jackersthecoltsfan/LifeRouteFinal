@@ -427,7 +427,8 @@ final class LifeRouteThemeStore: ObservableObject {
 
     @Published var selectedTheme: LifeRouteTheme {
         didSet {
-            selectedTheme = Self.shippingTheme(Self.resolveStoredTheme(selectedTheme.rawValue))
+            let normalized = Self.shippingTheme(Self.resolveStoredTheme(selectedTheme.rawValue))
+            if selectedTheme != normalized { selectedTheme = normalized }
             if defaults.string(forKey: Self.storageKey) != selectedTheme.rawValue {
                 defaults.set(selectedTheme.rawValue, forKey: Self.storageKey)
             }
@@ -495,7 +496,8 @@ final class LifeRouteThemeStore: ObservableObject {
         case "ultraviolet":
             return .plasmaOrchid
         case "arcticPulse":
-            return .arcticHalo
+            // This older alias previously displayed Royal Current's Mountains Night companion.
+            return .sceneryMountainsNight
         case "aurora":
             return .auroraBloom
         case "sapphireTide":
@@ -3203,7 +3205,6 @@ struct LifeRouteLiveThemeEnvironment: View {
                     reduceMotion: reduceMotion,
                     effectsEnabled: renderMode.plan.showsSceneryEffects
                 ))
-                .id(scene.themeIdentifier)
                 fixedGrade
             }
             .allowsHitTesting(false)

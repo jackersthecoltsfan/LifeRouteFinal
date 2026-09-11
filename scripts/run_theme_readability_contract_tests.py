@@ -116,6 +116,16 @@ final class CountingThemeDefaults: UserDefaults {
    let reopened = LifeRouteThemeStore(defaults: preferences)
    expect(reopened.selectedTheme == first.selectedTheme && preferences.selectionWrites == 0, "restart has no repeat migration")
   }
+  let selectedStore = LifeRouteThemeStore(defaults: preferences)
+  var publications = 0
+  let subscription = selectedStore.$selectedTheme.dropFirst().sink { _ in publications += 1 }
+  preferences.selectionWrites = 0
+  selectedStore.selectedTheme = .sceneryOceanDay
+  expect(publications == 1 && preferences.selectionWrites == 1, "canonical tap publishes and saves once")
+  selectedStore.selectedTheme = .oceanGlass
+  expect(selectedStore.selectedTheme == .sceneryOceanNight, "direct retired selection normalizes")
+  expect(preferences.string(forKey: "liferoute.selectedTheme") == "scenery.ocean.night", "direct retired choice persists current identity")
+  withExtendedLifetime(subscription) {}
   expect(Set(visible).isDisjoint(with: dynamic), "legacy eight absent from active catalogue")
   expect(Set(LivingThemeRegistration.all.map(\.themeIdentifier)) == Set(scenery.map(\.rawValue)), "one registry covers exact twelve")
   var observations: [[String:Any]] = []

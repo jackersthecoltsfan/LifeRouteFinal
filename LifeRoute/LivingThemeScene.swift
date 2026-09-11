@@ -7,12 +7,18 @@ struct LivingThemeScene: Equatable, Sendable {
     let themeIdentifier: String
     let artworkName: String
     let fragmentFunction: String
+    var ocean: LivingOceanConfiguration? = nil
 
     static let rainforestDay = Self(
         themeIdentifier: "scenery.rainforest.day",
         artworkName: "SceneryRainforestDay",
         fragmentFunction: "livingRainforestFragment"
     )
+
+    static let oceanDay = Self(themeIdentifier: "scenery.ocean.day", artworkName: "SceneryOceanDay",
+                               fragmentFunction: "livingOceanFragment", ocean: .day)
+    static let oceanNight = Self(themeIdentifier: "scenery.ocean.night", artworkName: "SceneryOceanNight",
+                                 fragmentFunction: "livingOceanFragment", ocean: .night)
 
     static func scene(for themeIdentifier: String) -> Self? {
         LivingThemeRegistration.registration(for: themeIdentifier)?.scene
@@ -38,8 +44,8 @@ struct LivingThemeRegistration: Equatable, Sendable {
     static let all: [Self] = [
         .init(themeIdentifier: "scenery.rainforest.day", family: .rainforest, variant: .day, scene: .rainforestDay),
         .init(themeIdentifier: "scenery.rainforest.night", family: .rainforest, variant: .night, scene: nil),
-        .init(themeIdentifier: "scenery.ocean.day", family: .ocean, variant: .day, scene: nil),
-        .init(themeIdentifier: "scenery.ocean.night", family: .ocean, variant: .night, scene: nil),
+        .init(themeIdentifier: "scenery.ocean.day", family: .ocean, variant: .day, scene: .oceanDay),
+        .init(themeIdentifier: "scenery.ocean.night", family: .ocean, variant: .night, scene: .oceanNight),
         .init(themeIdentifier: "scenery.arctic.day", family: .arctic, variant: .day, scene: nil),
         .init(themeIdentifier: "scenery.arctic.night", family: .arctic, variant: .night, scene: nil),
         .init(themeIdentifier: "scenery.mountains.day", family: .mountains, variant: .day, scene: nil),
@@ -55,6 +61,23 @@ struct LivingThemeRegistration: Equatable, Sendable {
     }
 }
 
+/// Artwork-calibrated geometry and lighting for one physical ocean program.
+/// Eight floats match buffer(1) in Metal; the Rainforest uniform ABI is unchanged.
+struct LivingOceanConfiguration: Equatable, Sendable {
+    var horizon: Float
+    var crestIntercept: Float
+    var crestSlope: Float
+    var shallow: Float
+    var reflectionX: Float
+    var night: Float
+    var swellAmplitude: Float
+    var padding: Float = 0
+    static let day = Self(horizon: 0.306, crestIntercept: 0.61, crestSlope: -0.18,
+                          shallow: 1, reflectionX: 0.72, night: 0, swellAmplitude: 1)
+    static let night = Self(horizon: 0.337, crestIntercept: 0.76, crestSlope: -0.25,
+                            shallow: 0, reflectionX: 0.343, night: 1, swellAmplitude: 0.82)
+}
+
 struct LivingSceneQuality: Equatable, Sendable {
     enum Thermal: Sendable { case nominal, fair, serious, critical }
     let framesPerSecond: Int
@@ -65,9 +88,13 @@ struct LivingSceneQuality: Equatable, Sendable {
     static func resolve(reduceMotion: Bool, lowPower: Bool, thermal: Thermal,
                         effectsEnabled: Bool) -> Self {
         // Static scenery remains attractive, including on the iOS 16 path.
-        guard !reduceMotion, effectsEnabled, thermal != .critical else {
+        guard effectsEnabled, thermal != .critical else {
             return .init(framesPerSecond: 0, maximumDrawableDimension: 1280,
                          motionAmount: 0, atmosphereAmount: 0)
+        }
+        if reduceMotion {
+            return .init(framesPerSecond: 15, maximumDrawableDimension: 960,
+                         motionAmount: 0.25, atmosphereAmount: 0)
         }
         if lowPower || thermal == .serious {
             return .init(framesPerSecond: 20, maximumDrawableDimension: 960,

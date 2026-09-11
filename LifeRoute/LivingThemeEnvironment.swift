@@ -13,7 +13,7 @@ struct LivingThemeEnvironment: UIViewRepresentable {
     }
 
     func updateUIView(_ surface: LivingEnvironmentSurface, context: Context) {
-        surface.update(playback: playback)
+        surface.update(scene: scene, playback: playback)
     }
 
     static func dismantleUIView(_ surface: LivingEnvironmentSurface, coordinator: ()) {
@@ -31,8 +31,18 @@ final class LivingEnvironmentSurface: UIView {
     private var applicationActive = true
     private var observations: [NSObjectProtocol] = []
     private var tornDown = false
-    private let scene: LivingThemeScene
+    private var scene: LivingThemeScene
+    private var retainedClock = LivingSceneClock()
+    private var preparationFailed = false
+    static let activationDelayNanoseconds: UInt64 = 250_000_000
     private var preparation: Task<Void, Never>?
+#if DEBUG
+    private var testConstraints: (lowPower: Bool, thermal: LivingSceneQuality.Thermal)?
+    func debugSetConstraints(lowPower: Bool, thermal: LivingSceneQuality.Thermal) {
+        testConstraints = (lowPower, thermal)
+        reconcile()
+    }
+#endif
 
     init(scene: LivingThemeScene, playback: LivingScenePlayback) {
         self.scene = scene
@@ -66,7 +76,7 @@ final class LivingEnvironmentSurface: UIView {
                 self?.reconcile()
             })
         }
-        prepareRenderer()
+        // Attachment/exposure gates allocation; the still image is immediate.
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -83,21 +93,37 @@ final class LivingEnvironmentSurface: UIView {
         reconcile()
     }
 
-    func update(playback: LivingScenePlayback) {
-        guard !tornDown, self.playback != playback else { return }
+    func update(scene: LivingThemeScene? = nil, playback: LivingScenePlayback) {
+        guard !tornDown else { return }
+        if let scene, scene != self.scene {
+            releaseRenderer()
+            self.scene = scene
+            retainedClock = LivingSceneClock()
+            preparationFailed = false
+            fallback.image = UIImage(named: scene.artworkName)
+            fallback.isHidden = false
+        }
         self.playback = playback
         reconcile()
     }
 
     private func prepareRenderer() {
-        guard let device = MTLCreateSystemDefaultDevice() else { return }
+        guard preparation == nil, !preparationFailed else { return }
         let scene = scene
         // Pipeline compilation and asset upload cannot delay theme selection,
         // toolbar construction or root layout. Only one preparation is in flight.
         preparation = Task { [weak self] in
+            // Cancellation occurs before allocating Metal resources. Picker feedback
+            // and the static photograph change immediately, while only the final
+            // exposed selection can acquire the single renderer after 250 ms.
+            do { try await Task.sleep(nanoseconds: Self.activationDelayNanoseconds) }
+            catch { return }
+            guard !Task.isCancelled, let device = MTLCreateSystemDefaultDevice() else { return }
             let resources = try? await LivingScenePreparation.shared.prepare(device: device, scene: scene)
-            guard !Task.isCancelled, let self, !self.tornDown else { return }
+            guard !Task.isCancelled, let self, !self.tornDown, self.scene == scene else { return }
+            self.preparation = nil
             guard let resources else {
+                self.preparationFailed = true
                 Logger(subsystem: "Com.Brandongood.LifeRoute", category: "LivingTheme")
                     .error("Living scene unavailable; retaining static scenery")
                 return
@@ -112,7 +138,7 @@ final class LivingEnvironmentSurface: UIView {
             view.isPaused = true
             view.enableSetNeedsDisplay = true
             view.isHidden = false
-            let renderer = LivingSceneRenderer(resources: resources)
+            let renderer = LivingSceneRenderer(resources: resources, clock: self.retainedClock)
             renderer.firstFrame = { [weak self, weak view] in
                 guard let self, !self.tornDown else { return }
                 view?.isHidden = false
@@ -128,6 +154,7 @@ final class LivingEnvironmentSurface: UIView {
                 view?.delegate = nil
                 self.renderer?.tearDown()
                 self.renderer = nil
+                self.preparationFailed = true
                 view?.releaseDrawables()
                 self.fallback.image = UIImage(named: self.scene.artworkName)
                 self.fallback.isHidden = false
@@ -143,7 +170,16 @@ final class LivingEnvironmentSurface: UIView {
     }
 
     private func reconcile() {
-        guard !tornDown, let renderer, let view = metalView else { return }
+        guard !tornDown else { return }
+        let attached = window != nil && !isHidden && bounds.width > 0 && bounds.height > 0
+        guard attached, applicationActive, playback.isActive, playback.isExposed else {
+            releaseRenderer()
+            return
+        }
+        guard let renderer, let view = metalView else {
+            prepareRenderer()
+            return
+        }
         let thermal: LivingSceneQuality.Thermal
         switch ProcessInfo.processInfo.thermalState {
         case .nominal: thermal = .nominal
@@ -152,10 +188,13 @@ final class LivingEnvironmentSurface: UIView {
         case .critical: thermal = .critical
         @unknown default: thermal = .serious
         }
+        var effectiveThermal = thermal
+        var lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
+#if DEBUG
+        if let testConstraints { effectiveThermal = testConstraints.thermal; lowPower = testConstraints.lowPower }
+#endif
         let quality = LivingSceneQuality.resolve(reduceMotion: playback.reduceMotion,
-            lowPower: ProcessInfo.processInfo.isLowPowerModeEnabled,
-            thermal: thermal, effectsEnabled: playback.effectsEnabled)
-        let attached = window != nil && !isHidden && bounds.width > 0 && bounds.height > 0
+            lowPower: lowPower, thermal: effectiveThermal, effectsEnabled: playback.effectsEnabled)
         renderer.configure(view: view, playback: playback, attached: attached,
                            applicationActive: applicationActive, quality: quality)
     }
@@ -165,9 +204,28 @@ final class LivingEnvironmentSurface: UIView {
     var debugShowsFallback: Bool { !fallback.isHidden }
 #endif
 
+    private func releaseRenderer() {
+        preparation?.cancel()
+        preparation = nil
+        if let renderer {
+            retainedClock = renderer.playbackClock
+            retainedClock.setRunning(false)
+        }
+        metalView?.isPaused = true
+        metalView?.delegate = nil
+        renderer?.tearDown()
+        renderer = nil
+        metalView?.releaseDrawables()
+        metalView?.removeFromSuperview()
+        metalView = nil
+        fallback.image = UIImage(named: scene.artworkName)
+        fallback.isHidden = false
+    }
+
     func tearDown() {
         guard !tornDown else { return }
         tornDown = true
+        releaseRenderer()
         preparation?.cancel()
         preparation = nil
         observations.forEach(NotificationCenter.default.removeObserver)
@@ -207,9 +265,13 @@ final class LivingSceneResources: @unchecked Sendable {
     let queue: MTLCommandQueue
     let pipeline: MTLRenderPipelineState
     let artwork: MTLTexture
+    let ocean: LivingOceanConfiguration?
+    let sceneIdentifier: String
 
     init(device: MTLDevice, scene: LivingThemeScene) throws {
         self.device = device
+        ocean = scene.ocean
+        sceneIdentifier = scene.themeIdentifier
         guard let queue = device.makeCommandQueue(),
               let library = device.makeDefaultLibrary(),
               let vertex = library.makeFunction(name: "livingSceneVertex"),
@@ -229,6 +291,14 @@ final class LivingSceneResources: @unchecked Sendable {
                 .textureUsage: MTLTextureUsage.shaderRead.rawValue,
                 .textureStorageMode: MTLStorageMode.private.rawValue,
             ])
+#if DEBUG
+        LivingSceneDebugOwnership.shared.change(resources: 1)
+#endif
+    }
+    deinit {
+#if DEBUG
+        LivingSceneDebugOwnership.shared.change(resources: -1)
+#endif
     }
 }
 
@@ -247,10 +317,18 @@ final class LivingSceneRenderer: NSObject, MTKViewDelegate {
     private let diagnostics = LivingSceneDiagnostics()
 #endif
 
-    init(resources: LivingSceneResources) {
+    init(resources: LivingSceneResources, clock: LivingSceneClock = LivingSceneClock()) {
         self.resources = resources
+        self.clock = clock
         super.init()
+#if DEBUG
+        LivingSceneDebugOwnership.shared.change(renderers: 1)
+#endif
     }
+
+    deinit { tearDown() }
+
+    var playbackClock: LivingSceneClock { clock }
 
     func configure(view: MTKView, playback: LivingScenePlayback, attached: Bool,
                    applicationActive: Bool, quality: LivingSceneQuality) {
@@ -305,6 +383,9 @@ final class LivingSceneRenderer: NSObject, MTKViewDelegate {
         encoder.setRenderPipelineState(resources.pipeline)
         encoder.setFragmentTexture(resources.artwork, index: 0)
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<LivingSceneUniforms>.stride, index: 0)
+        if var ocean = resources.ocean {
+            encoder.setFragmentBytes(&ocean, length: MemoryLayout<LivingOceanConfiguration>.stride, index: 1)
+        }
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
         command.present(drawable)
@@ -336,6 +417,8 @@ final class LivingSceneRenderer: NSObject, MTKViewDelegate {
     }
 
 #if DEBUG
+    var debugSceneIdentifier: String? { resources?.sceneIdentifier }
+    var debugQuality: LivingSceneQuality { quality }
     var debugFrameCount: Int { diagnostics.frameCount }
     var debugIsRunning: Bool { clock.isRunning }
     var debugElapsed: TimeInterval { clock.elapsed }
@@ -350,6 +433,7 @@ final class LivingSceneRenderer: NSObject, MTKViewDelegate {
         renderFailure = nil
         resources = nil // GPU retains only already submitted command resources.
 #if DEBUG
+        LivingSceneDebugOwnership.shared.change(renderers: -1)
         diagnostics.report(event: "teardown", elapsed: clock.elapsed)
 #endif
     }
@@ -399,6 +483,24 @@ private final class LivingSceneDiagnostics: @unchecked Sendable {
         print("LIVING_SCENE \(event) id=\(id) frames=\(frames) elapsed=\(elapsed) cpuMeanMs=\(cpuTotal / Double(max(1, frames))) gpuMeanMs=\(gpuTotal / Double(max(1, gpuCount))) maxIntervalMs=\(maximumInterval * 1000)")
         fflush(stdout)
         lastFrame = nil // inactive time is not a pacing sample
+    }
+}
+#endif
+
+#if DEBUG
+/// Test evidence only, separate from SwiftUI invalidation and scheduling.
+final class LivingSceneDebugOwnership: @unchecked Sendable {
+    static let shared = LivingSceneDebugOwnership()
+    private let lock = NSLock()
+    private var renderers = 0, resources = 0
+    func change(renderers: Int = 0, resources: Int = 0) {
+        lock.lock(); defer { lock.unlock() }
+        self.renderers += renderers
+        self.resources += resources
+    }
+    var counts: (renderers: Int, resources: Int) {
+        lock.lock(); defer { lock.unlock() }
+        return (renderers, resources)
     }
 }
 #endif

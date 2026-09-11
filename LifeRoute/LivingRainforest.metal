@@ -127,3 +127,70 @@ fragment float4 livingRainforestFragment(LivingSceneVertex in [[stage_in]],
     }
     return float4(color, 1);
 }
+
+// Ocean Day and Night share this surface model. Their source photographs have
+// different horizon/crest/light placement, supplied as geometry configuration.
+// No camera transform, translating image layer, particles or sky animation.
+struct LivingOceanConfiguration {
+    float horizon, crestIntercept, crestSlope, shallow;
+    float reflectionX, night, swellAmplitude, padding;
+};
+
+fragment float4 livingOceanFragment(LivingSceneVertex in [[stage_in]],
+                                    texture2d<float> artwork [[texture(0)]],
+                                    constant LivingSceneUniforms &u [[buffer(0)]],
+                                    constant LivingOceanConfiguration &o [[buffer(1)]]) {
+    constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
+    float2 uv = (in.uv - 0.5) * u.uvScale + 0.5;
+    float3 original = artwork.sample(sampling, uv).rgb;
+    if (u.motion <= 0.0 || uv.y <= o.horizon) return float4(original, 1);
+    float depth = saturate((uv.y - o.horizon) / (1.0 - o.horizon));
+    float wet = smoothstep(0.0, 0.032, depth);
+    float t = u.time;
+    // Perspective compression creates close-spaced distant ripples and broad
+    // near swells. Independent crossing components vary speed and direction.
+    float longitudinal = log(1.0 + depth * 6.0) * 24.0;
+    float direction = uv.x * (4.0 + 7.0 * depth);
+    float swell = sin(longitudinal + direction - t * 1.45);
+    float crossing = sin(longitudinal * 1.79 - uv.x * 18.0 - t * 2.13);
+    float ripple = sin(longitudinal * 4.1 + uv.x * 38.0 - t * 3.25 + swell * 0.7);
+    float amplitude = wet * u.motion * o.swellAmplitude;
+    // The bright Day foreground reveals a stationary seabed. Subpixel
+    // refraction there preserves its forms, while the surface light still moves.
+    float shallows = o.shallow * smoothstep(0.42, 0.82, depth);
+    float displacement = mix(0.65 + depth * 3.2, 0.55, shallows) * amplitude;
+    float2 offset = float2(swell * 0.30 + crossing * 0.20,
+                           swell * 0.74 + crossing * 0.22 + ripple * 0.12) * displacement / u.textureSize;
+
+    // The photographed crest heaves locally, normal to its own diagonal. This
+    // narrow mask never drifts the entire sea or moves the horizon/seabed.
+    float crestY = o.crestIntercept + o.crestSlope * uv.x
+        + o.night * 0.019 * sin(uv.x * 7.0);
+    float crestDistance = uv.y - crestY;
+    float crestMask = exp(-pow(crestDistance / mix(0.018, 0.033, o.night), 2.0));
+    float crestWave = sin(t * 1.28 - uv.x * 5.5) + 0.23 * sin(t * 2.1 + uv.x * 13.0);
+    offset += float2(-o.crestSlope * 0.35, 1.0) * crestWave * crestMask * amplitude
+        * mix(3.1, 4.0, o.night) / u.textureSize;
+    float2 sampleUV = uv + offset;
+    sampleUV.y = max(o.horizon, sampleUV.y);
+    float3 water = artwork.sample(sampling, sampleUV).rgb;
+
+    // Surface normals modulate water light with the same phases as displacement.
+    // Moon reflections remain attached to this surface, never an independent
+    // twinkle overlay. Water outside that corridor also moves.
+    float surfaceLight = (swell * 0.022 + crossing * 0.013 + ripple * 0.007) * amplitude;
+    water *= 1.0 + surfaceLight * mix(1.0, 1.5, o.night);
+    float reflectionWidth = 0.035 + depth * 0.19;
+    float reflection = exp(-pow((uv.x - o.reflectionX) / reflectionWidth, 2.0)) * o.night;
+    float lightMaterial = smoothstep(0.07, 0.52, dot(water, float3(0.2126, 0.7152, 0.0722)));
+    water += float3(0.08, 0.095, 0.11) * reflection * lightMaterial * surfaceLight;
+
+    // Secondary crest foam/highlights use existing bright water material only.
+    // Night crests are unbroken swells, so their white detail stays restrained.
+    if (u.atmosphere > 0.0 && crestMask > 0.001) {
+        float foam = livingNoise(float2(uv.x * 175.0 - t * 0.85, crestDistance * 570.0 - t * 1.3));
+        float glint = (foam - 0.45) * crestMask * lightMaterial * u.atmosphere * amplitude;
+        water += float3(0.11, 0.13, 0.14) * glint * mix(1.0, 0.40, o.night);
+    }
+    return float4(mix(original, water, wet), 1);
+}

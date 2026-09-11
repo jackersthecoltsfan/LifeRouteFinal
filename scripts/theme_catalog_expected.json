@@ -19,7 +19,7 @@
     {"input":"solarFlare","output":"scenery.desert.night"},
     {"input":"electricStorm","output":"scenery.mountains.night"},
     {"input":"ultraviolet","output":"scenery.canyon.night"},
-    {"input":"arcticPulse","output":"scenery.rainforest.day"},
+    {"input":"arcticPulse","output":"scenery.mountains.night"},
     {"input":"sapphireTide","output":"scenery.ocean.night"},
     {"input":"mountain","output":"scenery.mountains.day"},
     {"input":"space","output":"scenery.arctic.night"},

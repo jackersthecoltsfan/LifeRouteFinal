@@ -6,14 +6,15 @@ import UniformTypeIdentifiers
 @main struct LivingThemeRenderTests {
     static func main() throws {
         let args = CommandLine.arguments
-        precondition(args.count == 4, "library, original artwork, output directory required")
+        precondition(args.count == 4 || args.count == 5, "library, original artwork, output directory required")
+        let scene = args.count == 5 ? LivingThemeScene.scene(for: args[4])! : .rainforestDay
         let output = URL(fileURLWithPath: args[3], isDirectory: true)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let device = MTLCreateSystemDefaultDevice()!
         let library = try device.makeLibrary(URL: URL(fileURLWithPath: args[1]))
         let pipelineDescription = MTLRenderPipelineDescriptor()
         pipelineDescription.vertexFunction = library.makeFunction(name: "livingSceneVertex")
-        pipelineDescription.fragmentFunction = library.makeFunction(name: LivingThemeScene.rainforestDay.fragmentFunction)
+        pipelineDescription.fragmentFunction = library.makeFunction(name: scene.fragmentFunction)
         pipelineDescription.colorAttachments[0].pixelFormat = .bgra8Unorm_srgb
         let pipeline = try device.makeRenderPipelineState(descriptor: pipelineDescription)
         let texture = try MTKTextureLoader(device: device).newTexture(URL: URL(fileURLWithPath: args[2]), options: [.SRGB:true, .generateMipmaps:false])
@@ -35,6 +36,9 @@ import UniformTypeIdentifiers
             encoder.setRenderPipelineState(pipeline)
             encoder.setFragmentTexture(texture, index: 0)
             encoder.setFragmentBytes(&uniforms, length: MemoryLayout<LivingSceneUniforms>.stride, index: 0)
+            if var ocean = scene.ocean {
+                encoder.setFragmentBytes(&ocean, length: MemoryLayout<LivingOceanConfiguration>.stride, index: 1)
+            }
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             encoder.endEncoding()
             command.commit()
@@ -58,7 +62,7 @@ import UniformTypeIdentifiers
         var assertions = 0
         func expect(_ condition: Bool, _ reason: String) { assertions += 1; precondition(condition, reason) }
         let still = render(time: 0, motion: 0)
-        expect(still == render(time: 900, motion: 0), "Reduce Motion is exactly static at any time")
+        expect(still == render(time: 900, motion: 0), "Still is exactly static at any time")
         let first = render(time: 0.3)
         expect(first == render(time: 0.3), "same scene/time yields identical pixels")
         let next = render(time: 1.3)
@@ -73,7 +77,7 @@ import UniformTypeIdentifiers
             }
             return difference / Double(max(1, pixels))
         }
-        let regions: [(String,[Double],Bool)] = [
+        let rainforestRegions: [(String,[Double],Bool)] = [
             ("falling water",[0.535,0.425,0.567,0.492],true),
             ("stream surface",[0.573,0.571,0.636,0.607],true),
             ("leaf cluster",[0.67,0.18,0.76,0.22],true),
@@ -81,27 +85,49 @@ import UniformTypeIdentifiers
             ("fixed canopy",[0.32,0.03,0.48,0.13],false),
             ("fixed rock bank",[0.35,0.58,0.43,0.68],false),
         ]
+        let dayRegions: [(String,[Double],Bool)] = [
+            ("mid-distance water",[0.18,0.36,0.70,0.43],true),
+            ("water crest",[0.56,0.49,0.76,0.53],true),
+            ("shallow surface",[0.70,0.72,0.90,0.87],true),
+            ("fixed sky",[0.38,0.05,0.62,0.15],false),
+            ("fixed horizon",[0.20,0.300,0.80,0.303],false),
+        ]
+        let nightRegions: [(String,[Double],Bool)] = [
+            ("water outside moonlight",[0.60,0.39,0.87,0.48],true),
+            ("moonlit water",[0.25,0.40,0.45,0.54],true),
+            ("foreground wave",[0.56,0.59,0.80,0.69],true),
+            ("fixed moon",[0.322,0.129,0.367,0.160],false),
+            ("fixed sky",[0.72,0.04,0.92,0.12],false),
+            ("fixed horizon",[0.50,0.331,0.90,0.334],false),
+        ]
+        let regions = scene == .rainforestDay ? rainforestRegions : (scene == .oceanDay ? dayRegions : nightRegions)
         var measured: [String:Double] = [:]
         for (name,box,moving) in regions {
             let value = difference(first,next,box:box)
             measured[name] = value
-            expect(moving ? value > 0.4 : value == 0, "\(name) expected \(moving ? "motion" : "fixed") but difference=\(value)")
+            expect(moving ? value > (scene == .rainforestDay ? 0.4 : 0.1) : value == 0, "\(name) expected \(moving ? "motion" : "fixed") but difference=\(value)")
         }
+        if scene == .rainforestDay {
         let mistOn = render(time: 0.3), mistOff = render(time: 0.3, atmosphere: 0)
         expect(difference(mistOn,mistOff,box:[0.56,0.51,0.61,0.55]) > 0.2, "mist has localized visible contribution")
         let wrap:Float = 1.0 / 0.63
         let before = render(time: wrap - 0.0001), after = render(time: wrap + 0.0001)
         let wrapDifference = difference(before,after,box:[0.53,0.41,0.58,0.54])
         expect(wrapDifference < 0.2, "water phase handover has no discontinuity")
+        }
         expect(stride(from: 3, to: first.count, by: 4).allSatisfy { first[$0] == 255 }, "one opaque pass")
-        try png(first,name:"rainforest-0.3s")
-        try png(next,name:"rainforest-1.3s")
-        try png(still,name:"rainforest-reduced")
+        try png(first,name:"scene-0.3s")
+        try png(next,name:"scene-1.3s")
+        try png(still,name:"scene-still")
+        let calmA = render(time: 0.3, motion: 0.25, atmosphere: 0)
+        let calmB = render(time: 1.3, motion: 0.25, atmosphere: 0)
+        expect(difference(calmA,calmB,box:regions[0].1) > 0, "calm retains primary environmental motion")
+        try png(calmA,name:"scene-calm")
         // A short locally rendered sequence makes the motion inspectable; no
         // renderer code or external service substitutes for the production shader.
         for frame in 0..<90 { try png(render(time: Float(frame)/30), name:String(format:"frame-%03d",frame)) }
         let metrics:[String:Any] = ["assertions":assertions,"artworkPixels":[width,height],"textureBytes":texture.allocatedSize,
-            "regionMeanByteDifferences":measured,"phaseWrapMeanByteDifference":wrapDifference,
+            "regionMeanByteDifferences":measured,"scene":scene.themeIdentifier,
             "gpuMeanMilliseconds":durations.reduce(0,+)/Double(durations.count),
             "gpuMaximumMilliseconds":durations.max()!,"device":device.name,
             "limitation":"Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance"]

@@ -1,0 +1,437 @@
+{
+  "version": "physical-object-rois-v1",
+  "coordinate_space": "normalized original artwork, projected through production centered aspectfill",
+  "boundary": "AdditionalobjectROIs describe requested effects. Original sealed Ocean/primaryROIs remain unchanged. Pixel ranges are comparator diagnostics; cadence/displacement/coverage and temporal evidence determine engineering perceptibility; Brandonownsphysicalappearance.",
+  "scenes": {
+    "scenery.mountains.day": {
+      "tier": 3,
+      "regions": {
+        "sky": [
+          [
+            [
+              0.07,
+              0.08
+            ],
+            [
+              0.9199999999999999,
+              0.08
+            ],
+            [
+              0.9199999999999999,
+              0.22999999999999998
+            ],
+            [
+              0.07,
+              0.22999999999999998
+            ]
+          ]
+        ],
+        "grass": [
+          [
+            [
+              0.035,
+              0.83
+            ],
+            [
+              0.155,
+              0.83
+            ],
+            [
+              0.155,
+              0.9299999999999999
+            ],
+            [
+              0.035,
+              0.9299999999999999
+            ]
+          ],
+          [
+            [
+              0.13,
+              0.92
+            ],
+            [
+              0.43,
+              0.92
+            ],
+            [
+              0.43,
+              0.9750000000000001
+            ],
+            [
+              0.13,
+              0.9750000000000001
+            ]
+          ],
+          [
+            [
+              0.42,
+              0.95
+            ],
+            [
+              0.77,
+              0.95
+            ],
+            [
+              0.77,
+              0.99
+            ],
+            [
+              0.42,
+              0.99
+            ]
+          ],
+          [
+            [
+              0.83,
+              0.83
+            ],
+            [
+              0.95,
+              0.83
+            ],
+            [
+              0.95,
+              0.9049999999999999
+            ],
+            [
+              0.83,
+              0.9049999999999999
+            ]
+          ]
+        ]
+      },
+      "contract": "Lake>=40%; clouds35artwork-width seconds (~29visible-widthseconds); sway3.14s,8-12.8artworkpixels at peak before object masks."
+    },
+    "scenery.rainforest.night": {
+      "tier": 2,
+      "regions": {
+        "sky_opening": [
+          [
+            [
+              0.43,
+              0.21
+            ],
+            [
+              0.59,
+              0.21
+            ],
+            [
+              0.59,
+              0.29
+            ],
+            [
+              0.43,
+              0.29
+            ]
+          ]
+        ],
+        "canopy": [
+          [
+            [
+              0.24,
+              0.19
+            ],
+            [
+              0.37,
+              0.19
+            ],
+            [
+              0.37,
+              0.36
+            ],
+            [
+              0.24,
+              0.36
+            ]
+          ],
+          [
+            [
+              0.67,
+              0.12
+            ],
+            [
+              0.8,
+              0.12
+            ],
+            [
+              0.8,
+              0.27
+            ],
+            [
+              0.67,
+              0.27
+            ]
+          ],
+          [
+            [
+              0.09,
+              0.695
+            ],
+            [
+              0.19,
+              0.695
+            ],
+            [
+              0.19,
+              0.7749999999999999
+            ],
+            [
+              0.09,
+              0.7749999999999999
+            ]
+          ]
+        ],
+        "rain": [
+          [
+            [
+              0.25,
+              0.36
+            ],
+            [
+              0.63,
+              0.36
+            ],
+            [
+              0.63,
+              0.48
+            ],
+            [
+              0.25,
+              0.48
+            ]
+          ]
+        ],
+        "mist": [
+          [
+            [
+              0.28,
+              0.52
+            ],
+            [
+              0.68,
+              0.52
+            ],
+            [
+              0.68,
+              0.56
+            ],
+            [
+              0.28,
+              0.56
+            ]
+          ]
+        ]
+      },
+      "contract": "Water computation preserved; small3depth rain; canopy2.7/3.5s; broad mist~64artworkwidthseconds."
+    },
+    "scenery.canyon.day": {
+      "tier": 2,
+      "regions": {
+        "sky": [
+          [
+            [
+              0.08,
+              0.08
+            ],
+            [
+              0.9199999999999999,
+              0.08
+            ],
+            [
+              0.9199999999999999,
+              0.22999999999999998
+            ],
+            [
+              0.08,
+              0.22999999999999998
+            ]
+          ]
+        ],
+        "foliage": [
+          [
+            [
+              0.045,
+              0.69
+            ],
+            [
+              0.22499999999999998,
+              0.69
+            ],
+            [
+              0.22499999999999998,
+              0.745
+            ],
+            [
+              0.045,
+              0.745
+            ]
+          ],
+          [
+            [
+              0.26,
+              0.81
+            ],
+            [
+              0.44,
+              0.81
+            ],
+            [
+              0.44,
+              0.91
+            ],
+            [
+              0.26,
+              0.91
+            ]
+          ],
+          [
+            [
+              0.65,
+              0.89
+            ],
+            [
+              0.8300000000000001,
+              0.89
+            ],
+            [
+              0.8300000000000001,
+              0.95
+            ],
+            [
+              0.65,
+              0.95
+            ]
+          ]
+        ]
+      },
+      "contract": "42artworkwidthsecond clouds;3.49s shrub sway; fixed rocks."
+    },
+    "scenery.canyon.night": {
+      "tier": 3,
+      "regions": {
+        "sky": [
+          [
+            [
+              0.15,
+              0.08
+            ],
+            [
+              0.72,
+              0.08
+            ],
+            [
+              0.72,
+              0.18
+            ],
+            [
+              0.15,
+              0.18
+            ]
+          ]
+        ],
+        "moon": [
+          [
+            [
+              0.187,
+              0.125
+            ],
+            [
+              0.205,
+              0.125
+            ],
+            [
+              0.205,
+              0.14
+            ],
+            [
+              0.187,
+              0.14
+            ]
+          ]
+        ]
+      },
+      "contract": "GPUmeasured visible riffle phase1.7to2.72rad/scene-second; same channel geometry; moon bank32s; moon fixed without atmosphere."
+    },
+    "scenery.arctic.day": {
+      "tier": 4,
+      "regions": {
+        "water": [
+          [
+            [
+              0.44,
+              0.389
+            ],
+            [
+              0.52,
+              0.392
+            ],
+            [
+              0.54,
+              0.484
+            ],
+            [
+              0.439,
+              0.486
+            ],
+            [
+              0.447,
+              0.614
+            ],
+            [
+              0.42,
+              0.74
+            ],
+            [
+              0.29,
+              0.792
+            ],
+            [
+              0.04,
+              0.868
+            ],
+            [
+              0.04,
+              0.571
+            ],
+            [
+              0.14,
+              0.518
+            ],
+            [
+              0.34,
+              0.458
+            ]
+          ]
+        ]
+      },
+      "contract": "Measured3depthparticle occupancy target1.5-2x;8.33s channel advection cycle; actual water>=30%; episodicgust."
+    },
+    "scenery.arctic.night": {
+      "tier": 4,
+      "regions": {
+        "stars": [
+          [
+            [
+              0.12,
+              0.08
+            ],
+            [
+              0.62,
+              0.08
+            ],
+            [
+              0.62,
+              0.19
+            ],
+            [
+              0.12,
+              0.19
+            ]
+          ]
+        ]
+      },
+      "contract": "Aurora1.8-2.2x parent score and>=70%ROI; starperiods1.5-4s with20%timechanging; no forcedchroma."
+    }
+  }
+}

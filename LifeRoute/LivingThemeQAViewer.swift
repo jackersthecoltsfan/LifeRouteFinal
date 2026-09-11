@@ -49,6 +49,7 @@ struct LivingThemeQAViewer: View {
     @State private var controlsVisible = false
     @State private var rendererSummary = "Preparing"
     @State private var rendererValue = "{}"
+    @State private var lastPerformanceSample: TimeInterval = 0
 
     private var theme: LifeRouteTheme { LifeRouteTheme(rawValue: controller.sceneIdentifier)! }
 
@@ -193,7 +194,22 @@ struct LivingThemeQAViewer: View {
     }
 
     private func updateSnapshot() {
-        let state = snapshot()
+        var state = snapshot()
+        let now = ProcessInfo.processInfo.systemUptime
+        if now-lastPerformanceSample >= 5 {
+            lastPerformanceSample = now
+            var info = task_vm_info_data_t()
+            let capacity = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size/MemoryLayout<integer_t>.size)
+            var count = capacity
+            let result = withUnsafeMutablePointer(to: &info) { pointer in
+                pointer.withMemoryRebound(to: integer_t.self, capacity: Int(capacity)) {
+                    task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+                }
+            }
+            if result == KERN_SUCCESS { state["physicalFootprintBytes"] = info.phys_footprint }
+            state["sampleUptime"] = now
+            emit(state,event: "performance")
+        }
         rendererSummary = "\(state["renderers"]!) renderer · \(state["fps"]!) fps · \((state["running"] as? Int ?? 0) == 1 ? "Running" : "Paused")"
         if let data = try? JSONSerialization.data(withJSONObject: state, options: [.sortedKeys]),
            let value = String(data: data, encoding: .utf8) { rendererValue = value }

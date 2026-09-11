@@ -25,6 +25,7 @@ def main():
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--compare', type=Path)
+    parser.add_argument('--regions', type=Path, help='Additional object ROIs; never replaces the sealed primary ROI')
     args = parser.parse_args()
     capture = args.capture.resolve()
     meta = json.loads((capture / 'capture.json').read_text())
@@ -46,6 +47,9 @@ def main():
         return np.asarray(result, dtype=bool)
     masks = {'primary': mask(config['primary'])}
     masks.update({name: mask(polygons) for name, polygons in config.get('depth_regions', {}).items()})
+    if args.regions:
+        extra = json.loads(args.regions.read_text())['scenes'].get(meta['scene'], {})
+        masks.update({name: mask(polygons) for name, polygons in extra.get('regions', {}).items()})
     masks['fixed'] = mask(config.get('fixed_horizon', config['static']))
     assert all(region.any() for region in masks.values())
     frames = []
@@ -92,6 +96,11 @@ def main():
         end = start + 3
         glance.append({'start_sample': start, 'actual_seconds': float(times[end] - times[start]),
                        'regions': describe(frames[start:end + 1])})
+    five_second = []
+    for start in range(len(times)-5):
+        end = start+5
+        five_second.append({'start_sample': start, 'actual_seconds': float(times[end]-times[start]),
+                            'regions': describe(frames[start:end+1])})
     # Opponent-color magnitude in encoded sRGB. A reproducible color-excursion
     # proxy, not a perceptual color-space claim or license to force saturation.
     chroma = []
@@ -112,6 +121,9 @@ def main():
               'roi_identity': str(capture/'identity.json'), 'roi_identity_sha256': sha(capture/'identity.json'),
               'script_sha256': sha(Path(__file__)), 'invocation': [sys.executable, *sys.argv],
               'aggregate': aggregate, 'windows': windows, 'three_second_diagnostics': glance,
+              'five_second_diagnostics': five_second,
+              'additional_roi_file': str(args.regions.resolve()) if args.regions else None,
+              'additional_roi_sha256': sha(args.regions) if args.regions else None,
               'chroma_proxy': {'formula': 'temporal range of sqrt(((r-g)^2+(g-b)^2+(b-r)^2)/2), sRGB normalized',
                                'mean_excursion': float(chroma_range.mean()),
                                'median_excursion': float(np.median(chroma_range)),

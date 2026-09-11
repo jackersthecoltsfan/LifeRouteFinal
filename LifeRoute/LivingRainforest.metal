@@ -537,13 +537,14 @@ fragment float4 livingArcticDayFragment(LivingSceneVertex in [[stage_in]],
         float cross = sin(uv.y*497.0-uv.x*37.0-phase*0.71+folds*11.0);
         float2 displacement = float2(wave*1.2+cross*0.45,wave*0.70+cross*0.32)
             * mix(0.30,1.0,depth)*water*u.motion;
-        float3 flow = artwork.sample(sampling,uv+displacement/u.textureSize).rgb;
+        float3 flow = livingAdvect(artwork,sampling,uv+displacement/u.textureSize,
+            float2(-0.012,0.005)*u.motion,t,0.12);
         flow *= 1.0+u.motion*(wave*0.07+cross*0.035);
         // Keep spindrift already composited above while water/floating fragments
         // respond slowly underneath it. Foreground shelf faces remain fixed.
         color += (flow-original)*water;
     }
-    if (u.atmosphere > 0.0) color += float3(0.56,0.63,0.70) * livingPrecipitation(uv,t,c.light.y,true,10.0) * max(bank,sky * 0.65) * c.air.w;
+    if (u.atmosphere > 0.0) color += float3(0.56,0.63,0.70) * livingPrecipitation(uv,t,c.light.y,true,17.5) * max(bank,sky * 0.65) * c.air.w;
     return float4(color,1);
 }
 

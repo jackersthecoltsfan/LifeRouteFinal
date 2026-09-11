@@ -35,6 +35,8 @@ struct LivingThemeScene: Equatable, Sendable {
         fragmentFunction: "livingCanyonFragment", atmosphere: .canyonDay)
     static let canyonNight = Self(themeIdentifier: "scenery.canyon.night", artworkName: "SceneryCanyonNight",
         fragmentFunction: "livingCanyonFragment", atmosphere: .canyonNight)
+    static let desertDay = Self(themeIdentifier: "scenery.desert.day", artworkName: "SceneryDesertDay",
+        fragmentFunction: "livingDesertFragment", atmosphere: .desertDay)
 
     static func scene(for themeIdentifier: String) -> Self? {
         LivingThemeRegistration.registration(for: themeIdentifier)?.scene
@@ -83,7 +85,7 @@ struct LivingThemeRegistration: Equatable, Sendable {
               primaryMotion: "evolving sky clouds and broad canyon haze", secondaryEffects: ["directional river flow", "distance haze"], ambientEffects: []),
         .init(themeIdentifier: "scenery.canyon.night", family: .canyon, variant: .night, scene: .canyonNight,
               primaryMotion: "evolving cloud and canyon mist", secondaryEffects: ["directional river flow"], ambientEffects: ["stars", "rare shooting stars"]),
-        .init(themeIdentifier: "scenery.desert.day", family: .desert, variant: .day, scene: nil,
+        .init(themeIdentifier: "scenery.desert.day", family: .desert, variant: .day, scene: .desertDay,
               primaryMotion: "local heat refraction and moving warm haze", secondaryEffects: ["high cloud evolution"], ambientEffects: ["restrained distant dust"]),
         .init(themeIdentifier: "scenery.desert.night", family: .desert, variant: .night, scene: nil,
               primaryMotion: "evolving night haze within the rock-arch opening", secondaryEffects: ["distant cool haze"], ambientEffects: ["stars", "rare shooting stars"]),

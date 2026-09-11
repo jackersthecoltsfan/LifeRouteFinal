@@ -511,3 +511,40 @@ fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
     color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
     return float4(color,1);
 }
+
+fragment float4 livingDesertFragment(LivingSceneVertex in [[stage_in]],
+    texture2d<float> artwork [[texture(0)]], constant LivingSceneUniforms &u [[buffer(0)]],
+    constant LivingAtmosphereConfiguration &c [[buffer(2)]]) {
+    constexpr sampler sampling(coord::normalized, address::clamp_to_edge, filter::linear);
+    float2 uv = (in.uv - 0.5) * u.uvScale + 0.5;
+    float3 original = artwork.sample(sampling,uv).rgb;
+    if (u.motion <= 0.0) return float4(original,1);
+    float t = u.time * mix(LIVING_DESERT_CALM_SCALE,1.0,u.motion), night = c.light.x;
+    float sky = livingSky(uv,c) * livingMoonExclusion(uv,c);
+    if (night > 0.5) {
+        // Sky is an opening under an arch. A conservative interior matte avoids
+        // moving any part of the arch, foreground sand or distant silhouettes.
+        sky *= livingOval(uv,float2(0.60,0.29),float2(0.30,0.19));
+        float3 color = livingClouds(artwork,sampling,uv,original,sky,t,u.motion,c);
+        color = livingFog(color,uv,t,sky,c.air.z * u.motion,c.light.y,float3(0.035,0.055,0.105));
+        color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
+        return float4(color,1);
+    }
+    float3 color = livingClouds(artwork,sampling,uv,original,sky,t,u.motion,c);
+    // Rising refractive cells cross the distant basin. Foreground dunes, ridge
+    // silhouettes and all foreground SwiftUI controls have zero displacement.
+    float heat = livingOval(uv,float2(0.52,0.265),float2(0.30,0.055));
+    if (heat > 0.001) {
+        float cells = livingFractal(uv * float2(45,105) + float2(t * LIVING_DESERT_AIR_DRIFT_RATE,-t * LIVING_DESERT_HEAT_RISE_RATE),t);
+        float fine = sin(uv.y * 390.0 - t * LIVING_DESERT_HEAT_REFRACTION_RATE + cells * 5.0);
+        float2 offset = float2((cells - 0.5) * 3.2,fine * 0.85) / u.textureSize * heat * u.motion;
+        color = artwork.sample(sampling,uv + offset).rgb;
+    }
+    float haze = livingOval(uv,float2(0.56,0.29),float2(0.29,0.05));
+    color = livingFog(color,uv,t,haze,c.air.z * u.motion,c.light.y,float3(0.62,0.39,0.21));
+    if (u.atmosphere > 0.0) {
+        float dust = livingFractal(uv * float2(11,57) + float2(-t * LIVING_DESERT_AIR_DRIFT_RATE,8.4),t);
+        color = mix(color,float3(0.53,0.32,0.17),haze * smoothstep(0.50,0.80,dust) * c.air.w * u.atmosphere);
+    }
+    return float4(color,1);
+}

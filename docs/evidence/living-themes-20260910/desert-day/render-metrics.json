@@ -1,0 +1,18 @@
+{
+  "artworkPixels" : [
+    941,
+    1672
+  ],
+  "assertions" : 8,
+  "device" : "Apple M5",
+  "gpuMaximumMilliseconds" : 7.0397499985119794,
+  "gpuMeanMilliseconds" : 1.9411477274255535,
+  "limitation" : "Host Metal render at original artwork resolution; not physical iPhone pacing or thermal acceptance",
+  "regionMeanByteDifferences" : {
+    "fixed dune" : 0,
+    "fixed ridge" : 0,
+    "heat refraction" : 5.5871784776902889
+  },
+  "scene" : "scenery.desert.day",
+  "textureBytes" : 6701056
+}

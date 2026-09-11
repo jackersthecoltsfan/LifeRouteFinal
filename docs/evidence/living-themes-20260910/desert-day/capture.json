@@ -1,0 +1,16 @@
+{
+  "scene": "scenery.desert.day",
+  "source_manifest": {
+    "LifeRoute/LivingThemeScene.swift": "977e250d9865fbc005a1f2f4fda6649db4d5f7c76028f011c65b4342120df90f",
+    "LifeRoute/LivingThemeEnvironment.swift": "8657b2540b08bcb51b734f64479d3b64aa8dd42a58ee3c824255ad3f99ea9d1d",
+    "scripts/living_scene_capture.swift": "39c1e55af8a0842b03d62eb9de702a1bbba0572b2a0d6403316a808e6264e336",
+    "Assets.car": "c8528924dfda702e351964025d887111cdcdb31d9d98c96b1d4deb0b93165684",
+    "default.metallib": "b0cf8ead92b708becff24e9e6426cd1073f8b16ffa9c5f04ca33d9c9b4844eca"
+  },
+  "duration_requested_seconds": 18,
+  "readiness": "CAPTURE_READY scene=scenery.desert.day program=livingDesertFragment rendererCount=1 resourceCount=1",
+  "video_sha256": "c870961f76e12ddf14283a49f12db229a162f7cb367d09062de64783fe904147",
+  "raw_video_sha256": "3283c978ff3c7545016fef22f1b0830e8de439717ab55e711bf17aec6b1f410a",
+  "video_validation": "VIDEO_VERIFIED duration=17.916666666666668",
+  "boundary": "Simulator engineering evidence. Empty production surface harness, no user data. Physical acceptance unverified."
+}

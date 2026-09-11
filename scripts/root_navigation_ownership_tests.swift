@@ -211,7 +211,7 @@ private final class PagerResponderSensor: UITextView {
         invariant("root input oracle")
     }
 
-    func run() async {
+    func run(in windowScene: UIWindowScene) async {
         var environment = EnvironmentValues()
         environment.scenePhase = .active
         visibility.scene(.active, immediate: true) // Fixture supplies the real-scene input seam.
@@ -240,7 +240,7 @@ private final class PagerResponderSensor: UITextView {
         pager = LifeRouteRootPagerController(roots: roots, router: router, visibility: visibility, themeStore: theme,
                                             visualActivity: activity, environment: environment)
         originalHosts = pager.hosts.mapValues(ObjectIdentifier.init)
-        window = UIWindow(frame: UIScreen.main.bounds)
+        window = UIWindow(windowScene: windowScene)
         window.rootViewController = pager
         window.makeKeyAndVisible()
         await turn()
@@ -360,9 +360,18 @@ private final class PagerResponderSensor: UITextView {
 }
 
 private final class PagerTestAppDelegate: UIResponder, UIApplicationDelegate {
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        Task { @MainActor in await PagerOwnershipTests().run() }
-        return true
+    func application(_ application: UIApplication, configurationForConnecting session: UISceneSession,
+                     options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: "Ownership Fixture", sessionRole: session.role)
+        configuration.delegateClass = PagerTestSceneDelegate.self
+        return configuration
+    }
+}
+
+private final class PagerTestSceneDelegate: UIResponder, UIWindowSceneDelegate {
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
+        guard let windowScene = scene as? UIWindowScene else { preconditionFailure("Expected window scene") }
+        Task { @MainActor in await PagerOwnershipTests().run(in: windowScene) }
     }
 }
 

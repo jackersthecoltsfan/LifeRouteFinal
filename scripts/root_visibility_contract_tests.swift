@@ -531,8 +531,22 @@ extension SessionNoteRequestRace {
 }
 
 @MainActor private final class VisibilityTestAppDelegate: NSObject, UIApplicationDelegate {
-    func application(_ application:UIApplication,didFinishLaunchingWithOptions options:[UIApplication.LaunchOptionsKey:Any]?=nil) -> Bool {
-        Task { @MainActor in await VisibilityFixture().run() };return true
+    func application(_ application: UIApplication, configurationForConnecting session: UISceneSession,
+                     options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: "Visibility Fixture", sessionRole: session.role)
+        configuration.delegateClass = VisibilityTestSceneDelegate.self
+        return configuration
+    }
+}
+@MainActor private final class VisibilityTestSceneDelegate: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+    func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options: UIScene.ConnectionOptions) {
+        guard let windowScene = scene as? UIWindowScene else { preconditionFailure("Expected window scene") }
+        let fixtureWindow = UIWindow(windowScene: windowScene)
+        fixtureWindow.rootViewController = UIViewController()
+        fixtureWindow.makeKeyAndVisible()
+        window = fixtureWindow
+        Task { @MainActor in await VisibilityFixture().run() }
     }
 }
 _ = UIApplicationMain(CommandLine.argc,CommandLine.unsafeArgv,nil,NSStringFromClass(VisibilityTestAppDelegate.self))

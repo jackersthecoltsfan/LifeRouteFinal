@@ -15,8 +15,9 @@ import subprocess
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-ENV = dict(os.environ, DEVELOPER_DIR='/Applications/Xcode.app/Contents/Developer',
+ENV = dict(os.environ, DEVELOPER_DIR=os.environ.get('DEVELOPER_DIR', '/Applications/Xcode.app/Contents/Developer'),
            GIT_OPTIONAL_LOCKS='0', PYTHONDONTWRITEBYTECODE='1')
+ENV.pop('SDKROOT', None)
 
 
 def main():
@@ -65,6 +66,7 @@ def main():
         CFBundleExecutable='RootOwnershipTests',CFBundleName='Root Ownership Tests',CFBundlePackageType='APPL',
         CFBundleVersion='1',CFBundleShortVersionString='1.0',MinimumOSVersion='16.0',
         LSRequiresIPhoneOS=True,UIDeviceFamily=[1],UILaunchScreen={},
+        UIApplicationSceneManifest={'UIApplicationSupportsMultipleScenes':False},
         UISupportedInterfaceOrientations=['UIInterfaceOrientationPortrait','UIInterfaceOrientationLandscapeLeft','UIInterfaceOrientationLandscapeRight'])))
     run(['xcrun','swiftc','-sdk',sdk,'-target','arm64-apple-ios16.0-simulator','-swift-version','5','-D','DEBUG',
          '-module-cache-path',str(out/'module-cache'),str(source),'-o',str(app/'RootOwnershipTests')])

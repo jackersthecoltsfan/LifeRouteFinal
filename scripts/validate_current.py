@@ -299,7 +299,7 @@ def validate_active_build_path() -> None:
             "persisted stops round-trip with stable identity",
             "removal prevents a deleted stop from returning",
             "a canonical generated itinerary starts an in-app Live Day",
-            "ActivityKit projection remains independently unavailable without a timed departure",
+            "an untimed stop may project without fabricating a timed departure",
             "ActivityKit denial has deterministic visible handling",
             "a stale generated itinerary is rejected before Maps launch",
             "a virtual event is never selected as a Maps destination",

@@ -187,7 +187,7 @@ struct DayRouteContractTests {
         expect(!reason.isEmpty, "a rejected Live Day supplies a visible reason")
         expect(LifeRouteLiveActivityDeliveryStatus.failed != .active, "ActivityKit failure is distinct from active delivery")
         expect(LifeRouteLiveActivityDeliveryStatus.disabled.userFacingDetail.contains("disabled"), "ActivityKit denial has deterministic visible handling")
-        expect(LifeRouteLiveActivityDeliveryStatus.noUpcomingDeparture.userFacingDetail.contains("departure"), "missing projection has deterministic visible handling")
+        expect(LifeRouteLiveActivityDeliveryStatus.noUpcomingDeparture.userFacingDetail.contains("generated day schedule"), "missing projection has deterministic visible handling")
     }
 
     // Catches a route preference that silently changes the established ten-minute

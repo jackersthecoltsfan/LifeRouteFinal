@@ -150,6 +150,29 @@ static float3 livingBird(float3 color,float2 uv,float2 textureSize,float t,bool 
     return mix(color,float3(0.045,0.033,0.022),body*0.9);
 }
 
+// A small, distant Desert flock passes through open sky, using the same scene
+// clock and local silhouette primitives as existing fauna. No perched UI glyphs.
+static float3 livingDesertBirds(float3 color,float2 uv,float2 textureSize,float t,float sky) {
+    float cycle=floor(max(t,0.0)/28.0),local=max(t,0.0)-cycle*28.0;
+    float age=local-(5.0+livingHash(float2(cycle,221.0))*5.0);
+    if (age<0.0 || age>11.0 || sky<0.01) return color;
+    for (int bird=0;bird<3;++bird) {
+        float d=float(bird),progress=(age-d*0.55)/9.0;
+        if (progress<0.0 || progress>1.0) continue;
+        float direction=fmod(cycle,2.0)>0.5?-1.0:1.0;
+        float2 position=float2(direction>0.0?mix(-0.03,1.03,progress):mix(1.03,-0.03,progress),
+            0.13+d*0.014-sin(progress*M_PI_F)*0.025);
+        float2 q=(uv-position)*textureSize/(3.0+d*0.35);
+        if (dot(q,q)>5.0) continue;
+        float flap=sin(age*(12.0+d)+d*2.1)*0.72;
+        float silhouette=livingOval(q,float2(0),float2(0.18,0.36));
+        silhouette=max(silhouette,livingTriangle(float2(abs(q.x),q.y),float2(0.07,0),float2(1.1,flap),float2(0.40,0.27)));
+        float envelope=smoothstep(0.0,0.08,progress)*(1.0-smoothstep(0.92,1.0,progress));
+        color=mix(color,float3(0.07,0.055,0.04),silhouette*envelope*sky*0.8);
+    }
+    return color;
+}
+
 struct LivingGustEvent { float strength; float travel; float state; float eventStart; };
 static LivingGustEvent livingGustEvent(float t) {
     float cycle=floor(max(0.0,t)/32.0),local=max(0.0,t)-cycle*32.0;

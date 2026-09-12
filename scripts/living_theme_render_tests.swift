@@ -415,8 +415,19 @@ import CryptoKit
                 "Lake and grass never displace fixed mountain faces")
             expect(difference(waterA,waterB,box:[0.615,0.523,0.63,0.527]) == 0,
                 "Lake flow excludes the left-bank peninsula")
-            expect(difference(waterA,waterB,box:[0.20,0.925,0.34,0.955]) > 0.1,
-                "Material-gated foreground grass responds to wind")
+            expect(difference(waterA,waterB,box:[0.24,0.900,0.34,0.918]) > 0.1,
+                "Artwork-traced grass band responds without the former stone-spanning oval")
+        }
+        if scene == .mountainsDay {
+            let grassA=render(time:1,atmosphere:0),grassB=render(time:8,atmosphere:0)
+            for box in [[0.06057,0.83074,0.08077,0.84211],[0.16472,0.93600,0.21785,0.94797],
+                        [0.72264,0.96890,0.77577,0.98684],[0.83528,0.84330,0.85866,0.85167]] {
+                expect(difference(grassA,grassB,box:box)==0,"Foreground stone controls under former broad grass ovals stay exactly rigid")
+            }
+            for box in [[0.025,0.851,0.045,0.871],[0.33,0.911,0.37,0.919],
+                        [0.438,0.970,0.471,0.978],[0.938,0.886,0.961,0.895]] {
+                expect(difference(grassA,grassB,box:box)>0.1,"Each conservative photographed grass patch retains local wind")
+            }
         }
         if scene == .desertDay {
             let heatA=render(time:1,atmosphere:0,weatherAmount:0), heatB=render(time:8,atmosphere:0,weatherAmount:0)
@@ -439,7 +450,7 @@ import CryptoKit
             expect(command.status == .completed,"production Desert meteor timing probe executes")
             let events = Array(UnsafeBufferPointer(start:resultBuffer.contents().assumingMemoryBound(to:SIMD2<Float>.self),count:requests.count))
             let intervals = zip(events.dropFirst(),events).map { $0.0.x - $0.1.x }
-            expect(intervals.allSatisfy { $0 >= 8 && $0 <= 15 },"Desert shooting-star arrivals stay within8–15seconds")
+            expect(intervals.allSatisfy { $0 >= 4 && $0 <= 8 },"Desert meteor-shower polish has bounded4–8second arrivals")
             expect(Set(events.map(\.y)).count > 28,"successive meteor paths and phases vary")
             expect(difference(render(time:1,atmosphere:0),render(time:8,atmosphere:0),box:[0.44,0.53,0.65,0.59]) > 1,
                 "Desert Night primary low haze evolves independently of celestial atmosphere")

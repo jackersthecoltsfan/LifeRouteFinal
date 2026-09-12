@@ -386,8 +386,29 @@ static float livingPrecipitation(float2 uv, float t, float seed, bool snow, floa
 
 static float livingSnowfallWithGust(float2 uv,float t,float seed) {
     LivingGustEvent gust=livingGustEvent(t);
-    return livingPrecipitation(uv-float2(gust.travel,0),t,seed,true,17.5)
-        * (1.0+0.15*gust.strength);
+    float sum=0;
+    // Independent seeded centres and phases remove the old lattice. Neighbour
+    // cells keep particles continuous as their individual sway crosses an edge.
+    for (int layer=0;layer<3;++layer) {
+        float depth=float(layer);
+        float2 grid=float2(72.0-depth*15.0,68.0-depth*12.0);
+        float2 p=(uv-float2(gust.travel*2.6,0))*grid
+            -float2(t*(0.5+depth*0.30),t*(0.8+depth*0.8));
+        float2 cell=floor(p);
+        for (int y=-1;y<=1;++y) for (int x=-1;x<=1;++x) {
+            float2 id=cell+float2(x,y);
+            float random=livingHash(id+seed+depth*37.0);
+            if (random<0.42) continue;
+            float phase=livingHash(id+float2(71.3,13.9)+depth)*M_PI_F*2.0;
+            float2 centre=float2(livingHash(id+19.7),livingHash(id+73.1));
+            float2 individual=float2(sin(t*(0.35+random*0.8)+phase)*0.30,
+                sin(t*(0.20+random*0.55)+phase*1.7)*0.24);
+            float2 local=p-id-centre+individual;
+            float radius=(0.024+depth*0.013)*(0.6+random*1.1);
+            sum+=exp(-dot(local,local)/(radius*radius))*(0.16+depth*0.10)*(0.45+random);
+        }
+    }
+    return sum*(1.0+0.40*gust.strength);
 }
 
 // Owner-requested physical refinements only. Existing callers retain their
@@ -619,9 +640,12 @@ fragment float4 livingArcticNightFragment(LivingSceneVertex in [[stage_in]],
     // Nearest sampling preserves object identity; alpha is zero on sky/aurora.
     constexpr sampler objectSampling(coord::normalized,address::clamp_to_edge,filter::nearest);
     float4 star=objectMask.sample(objectSampling,uv);
-    float starPhase=fract(t/(1.5+star.g*2.5)+star.r);
-    float twinkle=smoothstep(0.0,0.10,starPhase)*(1.0-smoothstep(0.20,0.30,starPhase));
-    color-=float3(star.b*star.b)*twinkle*0.65*star.a*u.atmosphere;
+    float clock=t/(3.0+star.g*4.0)+star.r;
+    float cycle=floor(clock),starPhase=fract(clock);
+    float selected=step(0.35,livingHash(float2(star.r*7919.0,cycle+star.g*113.0)));
+    float twinkle=smoothstep(0.03,0.09,starPhase)*(1.0-smoothstep(0.16,0.26,starPhase));
+    float settle=smoothstep(0.26,0.35,starPhase)*(1.0-smoothstep(0.45,0.62,starPhase));
+    color+=float3(star.b)*(twinkle*0.62-settle*0.24)*selected*star.a*u.atmosphere;
     if (u.atmosphere > 0.0) color += float3(0.20,0.29,0.36) * livingPrecipitation(uv,t,c.light.y,true) * haze * c.air.w;
     return float4(color,1);
 }
@@ -725,22 +749,25 @@ fragment float4 livingMountainsFragment(LivingSceneVertex in [[stage_in]],
             water *= 1.0 + u.motion * rippleStrength * (wave * 0.13 + cross * 0.065);
             color += (water - original) * lake;
         }
-        // Restrict wind to photographed grass clumps, with stems anchored at
-        // their bases. Grey rock material and the major foreground slabs remain
-        // stationary while blade tips respond to different phases and gusts.
-        float grass = max(max(livingOval(uv,float2(0.065,0.875),float2(0.06,0.06)),
-                              livingOval(uv,float2(0.27,0.946),float2(0.18,0.045))),
-                          max(livingOval(uv,float2(0.60,0.975),float2(0.22,0.03)),
-                              livingOval(uv,float2(0.90,0.865),float2(0.10,0.06))));
-        float vegetation = smoothstep(0.018,0.10,original.g - original.b)
-            * (1.0 - smoothstep(0.09,0.18,original.r - original.g));
-        float gust = smoothstep(0.05,0.85,sin(t * LIVING_MOUNTAINS_NEAR_FOG_SCALE * 0.47 + uv.x * 3.0));
-        float blades = sin(t * LIVING_MOUNTAINS_LAKE_RATE + uv.x * 73.0 + uv.y * 29.0);
-        // 3.14s dominant period; 8-12.8 artwork-pixel tip travel across
-        // 120-350px clumps (~4-8% for the dominant foreground clusters).
-        float sway = grass * vegetation * u.motion * (8.0 + gust * 4.8) * blades;
-        color += (artwork.sample(sampling,uv + float2(sway,sway * 0.12) / u.textureSize).rgb - original)
-            * grass * vegetation;
+        // Explicit grass-only patches traced against the 941x1672 photograph.
+        // Inward feather reserves >4 artwork pixels before any sample moves;
+        // lichen on the adjacent slabs cannot pass a colour-only selector.
+        const float2 grass0[]={float2(0.00531,0.84868),float2(0.02550,0.83911),float2(0.04888,0.84211),float2(0.07545,0.86483),float2(0.09564,0.87978),float2(0.07864,0.88876),float2(0.03188,0.87978),float2(0.00531,0.87919)};
+        const float2 grass1[]={float2(0.21467,0.89653),float2(0.24548,0.89175),float2(0.29330,0.90012),float2(0.34857,0.90730),float2(0.39214,0.91208),float2(0.43252,0.92584),float2(0.42189,0.93421),float2(0.37194,0.92823),float2(0.31243,0.92105),float2(0.26355,0.91208),float2(0.21785,0.90849)};
+        const float2 grass2[]={float2(0.38257,0.95574),float2(0.41339,0.95335),float2(0.44740,0.96411),float2(0.48884,0.97129),float2(0.49841,0.98385),float2(0.47396,0.98744),float2(0.43464,0.98026),float2(0.40276,0.96890)};
+        const float2 grass3[]={float2(0.90542,0.88457),float2(0.93943,0.87739),float2(0.97450,0.88577),float2(0.99362,0.89414),float2(0.99362,0.90969),float2(0.95643,0.90371),float2(0.92880,0.89952),float2(0.90329,0.89414)};
+        float grass=0;
+        grass=max(grass,livingWaterInterior(uv,grass0,8,0.0045,0.009));
+        // Retain the accepted fixed foreground envelope through y=0.90.
+        grass=max(grass,livingWaterInterior(uv,grass1,11,0.0045,0.009)*smoothstep(0.900,0.909,uv.y));
+        grass=max(grass,livingWaterInterior(uv,grass2,8,0.0045,0.009));
+        grass=max(grass,livingWaterInterior(uv,grass3,8,0.0045,0.009));
+        float vegetation=smoothstep(0.012,0.065,original.g-original.b);
+        float gust=smoothstep(0.05,0.85,sin(t*LIVING_MOUNTAINS_NEAR_FOG_SCALE*0.47+uv.x*3.0));
+        float blades=sin(t*LIVING_MOUNTAINS_LAKE_RATE+uv.x*73.0+uv.y*29.0);
+        float sway=grass*vegetation*u.motion*(1.6+gust*1.2)*blades;
+        color+=(artwork.sample(sampling,uv+float2(sway,sway*0.12)/u.textureSize).rgb-original)
+            *grass*vegetation;
     }
     if (night > 0.5) {
         color = livingNightSky(color,uv,t,sky,u.atmosphere,c,LIVING_MOUNTAINS_METEOR_PERIOD,
@@ -901,8 +928,12 @@ fragment float4 livingCanyonFragment(LivingSceneVertex in [[stage_in]],
         color += float3(0.11,0.055,0.018)*shafts*beamArea*(0.25+cloudShade*0.75)*u.atmosphere;
     }
     color = livingNightSky(color,uv,t,sky,u.atmosphere,c);
-    if (night > 0.5) color=livingBat(color,uv,u.textureSize,t,u.atmosphere>0.0 && u.motion>0.5);
-    else color=livingBird(color,uv,u.textureSize,t,u.atmosphere>0.0 && u.motion>0.5);
+    if (night > 0.5) {
+        color=livingBat(color,uv,u.textureSize,t,u.atmosphere>0.0 && u.motion>0.5);
+        // One companion has its own departure phase; preserve the established
+        // ledge-to-ledge event and all Canyon environmental motion.
+        color=livingBat(color,uv+float2(0.018,0.009),u.textureSize,t+3.7,u.atmosphere>0.0 && u.motion>0.5);
+    } else color=livingBird(color,uv,u.textureSize,t,u.atmosphere>0.0 && u.motion>0.5);
     return float4(color,1);
 }
 
@@ -987,6 +1018,7 @@ fragment float4 livingDesertFragment(LivingSceneVertex in [[stage_in]],
         dust+=area*gust*smoothstep(0.22,0.82,cells);
     }
     color=mix(color,float3(0.68,0.44,0.23),min(dust*0.48,0.48)*c.air.w*u.motion);
+    if (u.atmosphere>0.0 && u.motion>0.5) color=livingDesertBirds(color,uv,u.textureSize,t,sky);
     return float4(color,1);
 }
 

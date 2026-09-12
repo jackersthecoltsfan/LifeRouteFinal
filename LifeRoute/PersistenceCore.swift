@@ -2,9 +2,35 @@ import Foundation
 
 // BEGIN SESSION NOTE DRAFT PERSISTENCE CONTRACT
 struct SessionNoteDraft: Codable, Equatable, Sendable {
+    struct ClientDraft: Codable, Equatable, Sendable {
+        var sessionFacts: String
+        var generatedDraft: String
+    }
+
     var selectedClientCode: String
     var sessionFacts: String
     var generatedDraft: String
+    var inactiveClientDrafts: [String: ClientDraft] = [:]
+
+    init(selectedClientCode: String, sessionFacts: String, generatedDraft: String,
+         inactiveClientDrafts: [String: ClientDraft] = [:]) {
+        self.selectedClientCode = selectedClientCode
+        self.sessionFacts = sessionFacts
+        self.generatedDraft = generatedDraft
+        self.inactiveClientDrafts = inactiveClientDrafts
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case selectedClientCode, sessionFacts, generatedDraft, inactiveClientDrafts
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        selectedClientCode = try values.decode(String.self, forKey: .selectedClientCode)
+        sessionFacts = try values.decode(String.self, forKey: .sessionFacts)
+        generatedDraft = try values.decode(String.self, forKey: .generatedDraft)
+        inactiveClientDrafts = try values.decodeIfPresent([String: ClientDraft].self, forKey: .inactiveClientDrafts) ?? [:]
+    }
 
     static let empty = SessionNoteDraft(
         selectedClientCode: "",
@@ -13,7 +39,7 @@ struct SessionNoteDraft: Codable, Equatable, Sendable {
     )
 
     var isEmpty: Bool {
-        selectedClientCode.isEmpty && sessionFacts.isEmpty && generatedDraft.isEmpty
+        selectedClientCode.isEmpty && sessionFacts.isEmpty && generatedDraft.isEmpty && inactiveClientDrafts.isEmpty
     }
 }
 

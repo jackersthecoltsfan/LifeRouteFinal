@@ -224,6 +224,22 @@ enum SessionNoteDraftPersistenceTests {
         expect(reconstructed.loadSessionNoteDraft() == afterClear, "a new draft persists after explicit clear")
         expect(!reconstructed.loadSessionNoteDraft().sessionFacts.contains("alpha"), "cleared content cannot resurrect into a later draft")
 
+        let legacyDraft = try JSONDecoder().decode(SessionNoteDraft.self, from: Data(#"{"selectedClientCode":"SYN_A","sessionFacts":"Synthetic alpha facts.","generatedDraft":"Synthetic alpha prose."}"#.utf8))
+        expect(legacyDraft.inactiveClientDrafts.isEmpty && legacyDraft.sessionFacts == "Synthetic alpha facts.", "legacy three-field drafts decode with the active owner intact")
+        var separated = legacyDraft
+        separated.inactiveClientDrafts["SYN_B"] = .init(sessionFacts: "Synthetic beta facts.", generatedDraft: "Synthetic beta prose.")
+        reconstructed.saveSessionNoteDraft(separated)
+        await reconstructed.flushPendingWrites()
+        let separatedStore = LifeRoutePersistenceStore(fileManager: fileManager, applicationSupportDirectory: root)
+        expect(separatedStore.loadSessionNoteDraft() == separated, "active and inactive client drafts reconstruct from the existing disk store")
+        separated.sessionFacts = ""
+        separated.generatedDraft = ""
+        separatedStore.saveSessionNoteDraft(separated)
+        await separatedStore.flushPendingWrites()
+        let clearedOwner = LifeRoutePersistenceStore(fileManager: fileManager, applicationSupportDirectory: root).loadSessionNoteDraft()
+        expect(clearedOwner.selectedClientCode == "SYN_A" && clearedOwner.sessionFacts.isEmpty && clearedOwner.generatedDraft.isEmpty, "scoped Clear reconstructs empty active content with retained owner")
+        expect(clearedOwner.inactiveClientDrafts["SYN_B"]?.generatedDraft == "Synthetic beta prose.", "scoped Clear preserves the other client's draft on disk")
+
         let legacyRoot = fileManager.temporaryDirectory
             .appendingPathComponent("liferoute-session-note-legacy-\(UUID().uuidString)", isDirectory: true)
         defer { try? fileManager.removeItem(at: legacyRoot) }

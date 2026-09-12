@@ -161,7 +161,8 @@ enum LifeRouteIntelligenceCore {
         let packet = SessionNoteEvidencePacket.make(
             typedFacts: cleanNarrative,
             ocrEvidence: "",
-            savedTerminologyContext: compactSessionNoteClientContext(client),
+            // Profile identity is for scrubbing only; saved history is never session evidence.
+            savedTerminologyContext: "",
             profileCode: client?.code
         )
 

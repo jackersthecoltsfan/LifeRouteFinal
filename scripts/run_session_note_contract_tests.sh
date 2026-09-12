@@ -35,6 +35,8 @@ checks = [
     "VNRecognizeTextRequest()" in source and "VNImageRequestHandler(data: imageData" in source,
     sum(p.read_text().count("generateABASessionNote(") for p in root.glob("*.swift")) == 2,
     views.count("LifeRouteIntelligenceCore.generateABASessionNote(") == 1,
+    'savedTerminologyContext: ""' in note and 'compactSessionNoteClientContext(client)' not in note,
+    'profileCode: client?.code' in note,
 ]
 assert all(checks), [i + 1 for i, ok in enumerate(checks) if not ok]
 print(f"Session Note production photo-removal / role call-path assertions passed ({len(checks)} assertions).")

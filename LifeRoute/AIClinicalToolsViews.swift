@@ -78,7 +78,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
 
     @Published private(set) var state: SessionNoteGenerationState = .idle
     @Published var selectedClientCode: String {
-        didSet { recordDraftMutation(from: oldValue, to: selectedClientCode) }
+        didSet { changeDraftOwner(from: oldValue) }
     }
     @Published var narrative: String {
         didSet { recordDraftMutation(from: oldValue, to: narrative) }
@@ -104,6 +104,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
     private var requestDraftRevision: UInt64?
     private var pendingDraftPersistenceTask: Task<Void, Never>?
     private var isApplyingDraftSnapshot = false
+    private var inactiveClientDrafts: [String: SessionNoteDraft.ClientDraft] = [:]
 
     func reconcilePresentation(_ context: LifeRouteEffectContext) {
         let previous = presentationLeave
@@ -138,6 +139,8 @@ final class AISessionNoteRuntimeModel: ObservableObject {
         self.selectedClientCode = restored.selectedClientCode
         self.narrative = restored.sessionFacts
         self.generatedNote = restored.generatedDraft
+        self.inactiveClientDrafts = restored.inactiveClientDrafts
+        self.inactiveClientDrafts.removeValue(forKey: restored.selectedClientCode)
     }
 
     var isGenerating: Bool { state.isActive }
@@ -155,6 +158,13 @@ final class AISessionNoteRuntimeModel: ObservableObject {
             recordRuntimeDiagnostic(error.diagnosticCode)
             return
         } catch {
+            return
+        }
+
+        guard (client?.code ?? "") == selectedClientCode, narrative == self.narrative else {
+            state = .failed("Select the current client and session facts before generating.")
+            diagnosticReceipt = ""
+            recordRuntimeDiagnostic("clientOwnershipMismatch")
             return
         }
 
@@ -311,7 +321,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
     }
 
     var draftIsEmpty: Bool {
-        currentDraft.isEmpty
+        narrative.isEmpty && generatedNote.isEmpty
     }
 
     func flushDraftPersistence() {
@@ -334,7 +344,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
         completeness = .reviewRequired
 
         isApplyingDraftSnapshot = true
-        selectedClientCode = ""
+        inactiveClientDrafts.removeValue(forKey: selectedClientCode)
         narrative = ""
         generatedNote = ""
         isApplyingDraftSnapshot = false
@@ -346,8 +356,37 @@ final class AISessionNoteRuntimeModel: ObservableObject {
         SessionNoteDraft(
             selectedClientCode: selectedClientCode,
             sessionFacts: narrative,
-            generatedDraft: generatedNote
+            generatedDraft: generatedNote,
+            inactiveClientDrafts: inactiveClientDrafts
         )
+    }
+
+    private func changeDraftOwner(from previousCode: String) {
+        guard !isApplyingDraftSnapshot, previousCode != selectedClientCode else { return }
+        if narrative.isEmpty && generatedNote.isEmpty {
+            inactiveClientDrafts.removeValue(forKey: previousCode)
+        } else {
+            inactiveClientDrafts[previousCode] = .init(sessionFacts: narrative, generatedDraft: generatedNote)
+        }
+        let restored = inactiveClientDrafts.removeValue(forKey: selectedClientCode)
+        // Invalidate request identity before any suspended completion can publish.
+        activeRace?.cancel()
+        activeTask?.cancel()
+        activeRace = nil
+        activeTask = nil
+        draftLedger = SessionNoteDraftLedger()
+        requestDraftRevision = nil
+        cancellationRequestedID = nil
+        state = .idle
+        diagnosticReceipt = ""
+        extractionSummary = nil
+        completeness = .reviewRequired
+        isApplyingDraftSnapshot = true
+        narrative = restored?.sessionFacts ?? ""
+        generatedNote = restored?.generatedDraft ?? ""
+        isApplyingDraftSnapshot = false
+        draftRevision &+= 1
+        flushDraftPersistence()
     }
 
     private func recordDraftMutation(from oldValue: String, to newValue: String) {
@@ -604,7 +643,7 @@ struct AISessionNoteGeneratorView: View {
             }
             Button("Keep Draft", role: .cancel) {}
         } message: {
-            Text("Session facts, selected client context, and editable generated prose will be removed from this device.")
+            Text("Session facts and editable prose for the selected client will be cleared. Other clients’ drafts will be kept.")
         }
     }
 
@@ -677,11 +716,21 @@ struct AISessionNoteGeneratorView: View {
 
             Picker("Client", selection: $runtime.selectedClientCode) {
                 Text("General / no client").tag("")
+                if !runtime.selectedClientCode.isEmpty && selectedClient == nil {
+                    Text("Unavailable client: \(runtime.selectedClientCode)").tag(runtime.selectedClientCode)
+                }
                 ForEach(clientState.clients) { client in
                     Text(client.code).tag(client.code)
                 }
             }
             .pickerStyle(.menu)
+
+            Text("Drafting for \(runtime.selectedClientCode.isEmpty ? "General / no client" : runtime.selectedClientCode)")
+                .font(.subheadline.weight(.semibold))
+                .accessibilityIdentifier("session-note-owner")
+            Text("Each client keeps separate session facts and draft text. Switching clients restores their draft.")
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
 
             Menu {
                 if matchingScratchNotes.count > 1 {
@@ -750,11 +799,9 @@ struct AISessionNoteGeneratorView: View {
                 .foregroundStyle(runtime.narrative.count > 5_200 ? palette.accentSecondary : palette.textSecondary)
                 .accessibilityIdentifier("session-note-input-count")
 
-            if let selectedClient {
-                Text("Saved context for \(selectedClient.code) can help the model understand terminology, but it is explicitly told not to claim a target or behavior occurred unless your session facts support it.")
-                    .font(.caption)
-                    .foregroundStyle(palette.textSecondary)
-            }
+            Text("Only the current session facts supply content for this note.")
+                .font(.caption)
+                .foregroundStyle(palette.textSecondary)
         }
         .lifeRouteCard()
     }

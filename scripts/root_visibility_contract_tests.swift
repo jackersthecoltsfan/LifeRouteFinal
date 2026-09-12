@@ -4,7 +4,7 @@ import UIKit
 import SwiftUI
 import Combine
 
-struct LifeRouteClientProfile {}
+struct LifeRouteClientProfile { var code: String = "" }
 @MainActor final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
     static let shared = LifeRoutePersistenceStore()
     private var draft = SessionNoteDraft.empty
@@ -467,6 +467,86 @@ extension SessionNoteRequestRace {
             "an older generation result is rejected after a newer draft mutation"
         )
 
+        record("N0-C client ownership, visible facts admission, scoped Clear and reconstruction")
+        let ownerStore = SessionNoteDraftMemoryStore()
+        let ownerEndpoint = NoteEndpoint()
+        let ownerRuntime = AISessionNoteRuntimeModel(generator: ownerEndpoint, draftStore: ownerStore)
+        ownerRuntime.selectedClientCode = "SYN_A"
+        ownerRuntime.narrative = "Synthetic alpha facts."
+        ownerRuntime.generatedNote = "Synthetic alpha draft."
+        ownerRuntime.start(narrative: ownerRuntime.narrative, writerCredential: "RBT", client: LifeRouteClientProfile(code: "SYN_B"))
+        expect(ownerEndpoint.requests == 0 && ownerRuntime.diagnosticReceipt.contains("clientOwnershipMismatch"), "a stale profile cannot begin generation")
+        ownerRuntime.start(narrative: "Synthetic beta facts.", writerCredential: "RBT", client: LifeRouteClientProfile(code: "SYN_A"))
+        expect(ownerEndpoint.requests == 0 && ownerRuntime.diagnosticReceipt.contains("clientOwnershipMismatch"), "stale caller facts cannot be admitted under the visible client")
+        ownerRuntime.start(narrative: ownerRuntime.narrative, writerCredential: "RBT", client: LifeRouteClientProfile(code: "SYN_A"))
+        await drainTasks { ownerEndpoint.waitingForResult }
+        expect(ownerEndpoint.lastClientCode == "SYN_A" && ownerEndpoint.lastFacts == ownerRuntime.narrative, "Generate captures the visible current client and its facts")
+        ownerRuntime.selectedClientCode = "SYN_B"
+        expect(ownerRuntime.draftIsEmpty && !ownerRuntime.isGenerating, "A to B atomically isolates facts and cancels incompatible request")
+        ownerEndpoint.resolve()
+        for _ in 0..<20 { await Task.yield() }
+        expect(ownerRuntime.draftIsEmpty && ownerRuntime.state == .idle, "late A result cannot publish text or status on B")
+        ownerRuntime.narrative = "Synthetic beta facts."
+        ownerRuntime.generatedNote = "Synthetic beta draft."
+        ownerRuntime.selectedClientCode = "SYN_A"
+        expect(ownerRuntime.narrative == "Synthetic alpha facts." && ownerRuntime.generatedNote == "Synthetic alpha draft.", "A facts and edits stay with A after B to A")
+        let ownerRestored = AISessionNoteRuntimeModel(generator: ownerEndpoint, draftStore: ownerStore)
+        ownerRestored.selectedClientCode = "SYN_B"
+        expect(ownerRestored.narrative == "Synthetic beta facts." && ownerRestored.generatedNote == "Synthetic beta draft.", "reconstruction restores inactive B facts and edits")
+        ownerRestored.start(narrative: ownerRestored.narrative, writerCredential: "RBT", client: LifeRouteClientProfile(code: "SYN_B"))
+        await drainTasks { ownerEndpoint.waitingForResult }
+        expect(ownerEndpoint.lastClientCode == "SYN_B" && ownerEndpoint.lastFacts == "Synthetic beta facts.", "Regenerate remains owned by the current draft and client")
+        ownerRestored.clearDraft()
+        ownerEndpoint.resolve()
+        for _ in 0..<20 { await Task.yield() }
+        expect(ownerRestored.selectedClientCode == "SYN_B" && ownerRestored.draftIsEmpty, "Clear preserves visible selection and clears only its contents")
+        let afterScopedClear = AISessionNoteRuntimeModel(generator: NoteEndpoint(), draftStore: ownerStore)
+        expect(afterScopedClear.selectedClientCode == "SYN_B" && afterScopedClear.draftIsEmpty, "Clear survives reconstruction without late B resurrection")
+        afterScopedClear.selectedClientCode = "SYN_A"
+        expect(afterScopedClear.narrative == "Synthetic alpha facts." && afterScopedClear.generatedNote == "Synthetic alpha draft.", "clearing B preserves A facts and prose across relaunch")
+        afterScopedClear.selectedClientCode = ""
+        afterScopedClear.narrative = "Synthetic general facts."
+        afterScopedClear.selectedClientCode = "SYN_A"
+        afterScopedClear.clearDraft()
+        afterScopedClear.selectedClientCode = ""
+        expect(afterScopedClear.narrative == "Synthetic general facts.", "General draft is independently owned and survives another client's Clear")
+        afterScopedClear.selectedClientCode = "MISSING"
+        afterScopedClear.narrative = "Synthetic missing profile facts."
+        afterScopedClear.start(narrative: afterScopedClear.narrative, writerCredential: "RBT", client: nil)
+        expect(afterScopedClear.diagnosticReceipt.contains("clientOwnershipMismatch"), "unavailable client cannot silently generate as General")
+
+        record("N0-C selection versus completion races in both orders, including A to B to A")
+        for completeFirst in [false, true] {
+            let endpoint = NoteEndpoint()
+            let runtime = AISessionNoteRuntimeModel(generator: endpoint, draftStore: SessionNoteDraftMemoryStore())
+            runtime.selectedClientCode = "SYN_A"
+            runtime.narrative = "Synthetic race alpha facts."
+            runtime.generatedNote = "Synthetic race alpha edits."
+            runtime.start(narrative: runtime.narrative, writerCredential: "RBT", client: LifeRouteClientProfile(code: "SYN_A"))
+            await drainTasks { endpoint.waitingForResult }
+            if completeFirst { endpoint.resolve() }
+            runtime.selectedClientCode = "SYN_B"
+            runtime.narrative = "Synthetic race beta facts."
+            runtime.generatedNote = "Synthetic race beta edits."
+            if !completeFirst { endpoint.resolve() }
+            runtime.selectedClientCode = "SYN_A"
+            for _ in 0..<20 { await Task.yield() }
+            expect(runtime.generatedNote == "Synthetic race alpha edits." && runtime.state == .idle, "queued completion cannot resurrect after A to B to A in either ordering")
+            runtime.selectedClientCode = "SYN_B"
+            expect(runtime.narrative == "Synthetic race beta facts." && runtime.generatedNote == "Synthetic race beta edits.", "B remains isolated from queued A completion in either ordering")
+        }
+        let availabilityEndpoint = NoteEndpoint()
+        availabilityEndpoint.blockAvailability = true
+        let availabilityOwner = AISessionNoteRuntimeModel(generator: availabilityEndpoint, draftStore: SessionNoteDraftMemoryStore())
+        availabilityOwner.selectedClientCode = "SYN_A"
+        availabilityOwner.narrative = "Synthetic pending availability facts."
+        availabilityOwner.start(narrative: availabilityOwner.narrative, writerCredential: "RBT", client: LifeRouteClientProfile(code: "SYN_A"))
+        await drainTasks { availabilityEndpoint.waitingForAvailability }
+        availabilityOwner.selectedClientCode = "SYN_B"
+        availabilityEndpoint.resolveAvailability()
+        for _ in 0..<20 { await Task.yield() }
+        expect(availabilityEndpoint.requests == 0 && availabilityOwner.draftIsEmpty && availabilityOwner.state == .idle, "client switch cancels a request still checking availability")
+
         record("N0 regeneration, failed generation, role gate and clear during request")
         let lifecycleStore = SessionNoteDraftMemoryStore()
         let lifecycleEndpoint = NoteEndpoint()
@@ -476,27 +556,27 @@ extension SessionNoteRequestRace {
         lifecycleRuntime.generatedNote = "Previously edited synthetic draft."
         lifecycleRuntime.start(narrative: lifecycleRuntime.narrative, writerCredential: "credential-123", client: nil)
         expect(lifecycleEndpoint.requests == 0 && !lifecycleRuntime.isGenerating, "unresolved writer role never reaches generation")
-        lifecycleRuntime.start(narrative: lifecycleRuntime.narrative, writerCredential: "RBT", client: nil)
+        lifecycleRuntime.start(narrative: lifecycleRuntime.narrative, writerCredential: "RBT", client: LifeRouteClientProfile(code: "SYNT"))
         await drainTasks { lifecycleEndpoint.waitingForResult }
         lifecycleEndpoint.resolve()
         await drainTasks { !lifecycleRuntime.isGenerating }
         lifecycleRuntime.flushDraftPersistence()
         expect(lifecycleStore.draft.generatedDraft == NoteEndpoint.result.draft, "accepted regeneration persists the new narrative")
         expect(lifecycleStore.draft.sessionFacts == "Synthetic source facts." && lifecycleStore.draft.selectedClientCode == "SYNT", "regeneration preserves source facts and selected client")
-        lifecycleRuntime.start(narrative: lifecycleRuntime.narrative, writerCredential: "RBT", client: nil)
+        lifecycleRuntime.start(narrative: lifecycleRuntime.narrative, writerCredential: "RBT", client: LifeRouteClientProfile(code: "SYNT"))
         await drainTasks { lifecycleEndpoint.waitingForResult }
         lifecycleEndpoint.reject()
         await drainTasks { !lifecycleRuntime.isGenerating }
         lifecycleRuntime.flushDraftPersistence()
         expect(lifecycleStore.draft.generatedDraft == NoteEndpoint.result.draft, "failed regeneration preserves prior accepted prose")
-        lifecycleRuntime.start(narrative: lifecycleRuntime.narrative, writerCredential: "RBT", client: nil)
+        lifecycleRuntime.start(narrative: lifecycleRuntime.narrative, writerCredential: "RBT", client: LifeRouteClientProfile(code: "SYNT"))
         await drainTasks { lifecycleEndpoint.waitingForResult }
         lifecycleRuntime.clearDraft()
-        expect(lifecycleStore.draft.isEmpty, "clear immediately saves empty state during generation")
+        expect(lifecycleStore.draft.sessionFacts.isEmpty && lifecycleStore.draft.generatedDraft.isEmpty && lifecycleStore.draft.selectedClientCode == "SYNT", "clear immediately saves selected-owner empty content during generation")
         lifecycleEndpoint.resolve()
         await Task.yield()
         await Task.yield()
-        expect(lifecycleRuntime.draftIsEmpty && lifecycleStore.draft.isEmpty, "late result cannot resurrect a cleared draft")
+        expect(lifecycleRuntime.draftIsEmpty && lifecycleStore.draft.sessionFacts.isEmpty && lifecycleStore.draft.generatedDraft.isEmpty, "late result cannot resurrect a cleared draft")
         let lifecycleRestored = AISessionNoteRuntimeModel(generator: NoteEndpoint(), draftStore: lifecycleStore)
         expect(lifecycleRestored.draftIsEmpty, "clear during request remains empty after reconstruction")
 
@@ -515,7 +595,8 @@ extension SessionNoteRequestRace {
                     else { self.facts(hub,.today,from:.setup,generation:2);self.facts(hub,.setup,from:.today,generation:3) }
                 }
             }
-            runtime.start(narrative:"Synthetic session facts.",writerCredential:"RBT",client:nil)
+            runtime.narrative="Synthetic session facts."
+            runtime.start(narrative:runtime.narrative,writerCredential:"RBT",client:nil)
             await drainTasks { generator.waitingForResult }
             generator.resolve()
             await drainTasks { !runtime.isGenerating }
@@ -530,7 +611,8 @@ extension SessionNoteRequestRace {
         let (hub,scope)=fresh();let generator=NoteEndpoint();let runtime=AISessionNoteRuntimeModel(generator:generator)
         runtime.presentationScope=scope;runtime.generatedNote="first edit"
         hub.connect(UUID(),scope:scope.id) { runtime.reconcilePresentation($0) };hub.flushFixtureEvents()
-        runtime.start(narrative:"Synthetic facts.",writerCredential:"RBT",client:nil)
+        runtime.narrative="Synthetic facts."
+        runtime.start(narrative:runtime.narrative,writerCredential:"RBT",client:nil)
         await drainTasks { generator.waitingForResult }
         let request=runtime.fixtureRequestID
         facts(hub,.setup,generation:2,motion:.dragging,fractions:[.setup:0,.resources:1])
@@ -546,13 +628,14 @@ extension SessionNoteRequestRace {
         record("N2-E availability cancellation readiness")
         let (availabilityHub,availabilityScope)=fresh();let delayed=NoteEndpoint();delayed.blockAvailability=true
         let availability=AISessionNoteRuntimeModel(generator:delayed);availability.presentationScope=availabilityScope
-        availability.generatedNote="retained edit";availability.start(narrative:"Synthetic facts.",writerCredential:"RBT",client:nil)
+        availability.generatedNote="retained edit";availability.narrative="Synthetic facts.";availability.start(narrative:availability.narrative,writerCredential:"RBT",client:nil)
         await drainTasks { delayed.waitingForAvailability }
         availability.cancel();availability.cancel()
         expect(availability.state == .cancelled && !availability.isGenerating && availability.fixtureRequestID == nil, "availability cancellation clears loading and request once")
         expect(availability.generatedNote == "retained edit", "availability cancel preserves draft")
         delayed.resolveAvailability();await Task.yield();delayed.blockAvailability=false
-        availability.start(narrative:"Later synthetic request.",writerCredential:"RBT",client:nil)
+        availability.narrative="Later synthetic request."
+        availability.start(narrative:availability.narrative,writerCredential:"RBT",client:nil)
         await drainTasks { delayed.waitingForResult };delayed.resolve()
         await drainTasks { !availability.isGenerating }
         expect(availability.generatedNote == NoteEndpoint.result.draft, "later user request succeeds")
@@ -625,6 +708,8 @@ extension SessionNoteRequestRace {
     static let result=SessionNoteGenerationResult(draft:"A synthetic accepted note.",outcome:.generated,issueCodes:[])
     var blockAvailability=false
     var requests=0
+    var lastClientCode: String?
+    var lastFacts = ""
     private var availabilityContinuation: CheckedContinuation<SessionNoteModelAvailability,Never>?
     private var resultContinuation: CheckedContinuation<SessionNoteGenerationResult,Error>?
     var waitingForAvailability: Bool { availabilityContinuation != nil }
@@ -636,6 +721,8 @@ extension SessionNoteRequestRace {
     func resolveAvailability() { let continuation=availabilityContinuation;availabilityContinuation=nil;continuation?.resume(returning:.available) }
     func generateNote(narrative:String,writerRole:SessionNoteWriterRole,client:LifeRouteClientProfile?,progress:@escaping(SessionNoteGenerationProgress) async -> Void) async throws -> SessionNoteGenerationResult {
         requests += 1
+        lastClientCode = client?.code
+        lastFacts = narrative
         return try await withCheckedThrowingContinuation { resultContinuation=$0 }
     }
     func reject() { let continuation=resultContinuation;resultContinuation=nil;continuation?.resume(throwing: SessionNotePipelineError.rejected(.evidenceVerification)) }

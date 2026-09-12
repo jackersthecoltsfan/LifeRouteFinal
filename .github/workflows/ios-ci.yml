@@ -84,6 +84,12 @@ jobs:
       - name: Run SwiftUI Visual Timer feedback contract
         run: bash scripts/run_visual_timer_feedback_contract_tests.sh
 
+      - name: Run Apple-framework semantic contracts
+        run: |
+          command -v swiftc >/dev/null
+          bash scripts/run_visual_activity_contract_tests.sh
+          bash scripts/run_living_theme_tests.sh
+
       - name: Debug-equivalent app and extension compile
         run: |
           set -o pipefail

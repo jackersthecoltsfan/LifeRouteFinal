@@ -4,6 +4,20 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+VALIDATION_HOST="$(uname -s)"
+case "$VALIDATION_HOST" in
+  Darwin|Linux) ;;
+  *)
+    echo "LifeRoute full validation does not define contract placement for host: $VALIDATION_HOST" >&2
+    exit 2
+    ;;
+esac
+
+command -v swiftc >/dev/null || {
+  echo "LifeRoute full validation requires swiftc; executable contracts cannot be skipped." >&2
+  exit 1
+}
+
 python3 scripts/validate_current.py full
 bash scripts/run_day_route_contract_tests.sh
 bash scripts/run_calendar_edit_contract_tests.sh
@@ -13,9 +27,21 @@ bash scripts/run_session_note_refinement_tests.sh
 bash scripts/run_session_note_draft_persistence_tests.sh
 bash scripts/run_visual_timer_feedback_contract_tests.sh
 bash scripts/run_runtime_feedback_contract_tests.sh
-bash scripts/run_visual_activity_contract_tests.sh
+
+if [[ "$VALIDATION_HOST" == "Darwin" ]]; then
+  bash scripts/run_visual_activity_contract_tests.sh
+else
+  echo "Visual activity contract requires Combine; assigned to ios-ci native-validation on macos-26."
+fi
+
 bash scripts/run_scenery_effect_contract_tests.sh
-bash scripts/run_living_theme_tests.sh
+
+if [[ "$VALIDATION_HOST" == "Darwin" ]]; then
+  bash scripts/run_living_theme_tests.sh
+else
+  echo "Living Themes contract requires CoreGraphics; assigned to ios-ci native-validation on macos-26."
+fi
+
 python3 scripts/root_paging_ambient_suspension_contract_test.py
 python3 scripts/today_full_route_action_contract_test.py
 python3 scripts/theme_thumbnail_contract_test.py

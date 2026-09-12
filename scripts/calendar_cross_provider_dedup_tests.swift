@@ -40,6 +40,7 @@ struct CalendarCrossProviderDedupTests {
 
     @MainActor
     static func main() throws {
+        observedOccurrenceRepresentation()
         try exactCrossProviderDuplicate()
         multipleDuplicatePairs()
         distinctEventsDoNotMerge()
@@ -50,6 +51,76 @@ struct CalendarCrossProviderDedupTests {
 
         precondition(assertionCount >= 34, "Calendar B regression floor requires at least 34 assertions; found \(assertionCount).")
         print("Calendar B cross-provider deduplication fixtures passed (\(assertionCount) assertions).")
+    }
+
+    @MainActor
+    private static func observedOccurrenceRepresentation() {
+        let start = date("2026-09-09T14:00:00Z")
+        let unix = Int64(start.timeIntervalSince1970)
+        let reference = unix - 978_307_200
+        let uid = "synthetic-series-ABCD"
+        let occurrence = "instant:\(unix)"
+        func event(_ source: LifeRouteCalendarSource, _ id: String, _ external: String,
+                   recurrence: String? = nil, recurring: Bool = true) -> LifeRouteCalendarEvent {
+            providerEvent(source: source, id: id, externalIdentifier: external,
+                          recurrenceIdentifier: recurrence ?? occurrence, isRecurring: recurring,
+                          start: start, modifiedAt: start)
+        }
+        let apple = event(.apple, "apple-rid", uid + "/RID=\(reference)")
+        let google = event(.google, "google-base", uid)
+        expect(LifeRouteCalendarCanonicalizer.canonicalEvents(from: [apple, google]) == [google], "RID exact UID plus Apple epoch occurrence produces one canonical event")
+        expect(LifeRouteCalendarCanonicalizer.canonicalEvents(from: [google, apple]) == [google], "RID reverse order retains deterministic preferred record")
+        var moved = google
+        moved.start = start.addingTimeInterval(3600)
+        moved.end = moved.start.addingTimeInterval(3600)
+        moved.title = "Different provider display"
+        moved.location = "Different provider display address"
+        expect(LifeRouteCalendarCanonicalizer.canonicalEvents(from: [apple, moved]) == [moved], "RID uses original recurrence identity despite moved display fields")
+        let state = makeState(with: [apple, google], now: start)
+        expect(state.rawProviderEvents == [apple, google], "RID raw records and identifiers are unchanged")
+        expect(state.events.count == 1, "RID Calendar receives one event")
+        let appointments = state.events.map { LifeRouteRouteAppointment(id: $0.id, title: $0.title, address: $0.location, start: $0.start, end: $0.end, isAllDay: $0.isAllDay) }
+        expect(LifeRouteDaySequenceBuilder.waypoints(appointments: appointments, beforeStops: [], afterStops: []).count == 1, "RID downstream route receives one waypoint and no duplicate inter-event leg")
+        let secondApple = event(.apple, "apple-second", uid + "/RID=\(reference + 86400)", recurrence: "instant:\(unix + 86400)")
+        let secondGoogle = event(.google, "google-second", uid, recurrence: "instant:\(unix + 86400)")
+        let records = [apple, google, secondApple, secondGoogle]
+        for ordered in permutations(records) {
+            expect(Set(LifeRouteCalendarCanonicalizer.canonicalEvents(from: ordered).map(\.id)) == Set([google.id, secondGoogle.id]), "RID recurring instances stay separate across input permutations")
+        }
+        for malformed in ["", "-\(reference)", "+\(reference)", "\(reference).0", "\(reference)x", "0\(reference)", "99999999999999999999999", "１２３４５６７８９", "\(reference)/RID=\(reference)", "\(unix)", "\(reference + 1)"] {
+            let invalid = event(.apple, "invalid", uid + "/RID=" + malformed)
+            expect(LifeRouteCalendarCanonicalizer.canonicalEvents(from: [invalid, google]).count == 2, "RID rejects malformed, unsupported epoch, or mismatched occurrence suffix")
+        }
+        for invalid in [
+            event(.apple, "wrong-case", uid.lowercased() + "/RID=\(reference)"),
+            event(.apple, "wrong-base", "other" + "/RID=\(reference)"),
+            event(.apple, "wrong-delimiter", uid + "/rid=\(reference)"),
+            event(.apple, "not-recurring", uid + "/RID=\(reference)", recurring: false),
+            event(.apple, "wrong-recurrence", uid + "/RID=\(reference)", recurrence: "instant:\(unix + 1)")
+        ] {
+            expect(LifeRouteCalendarCanonicalizer.canonicalEvents(from: [invalid, google]).count == 2, "RID rejects case, base, delimiter, recurrence or classification mismatch")
+        }
+        var allDay = apple; allDay.isAllDay = true
+        expect(LifeRouteCalendarCanonicalizer.canonicalEvents(from: [allDay, google]).count == 2, "RID never aliases all-day identity")
+        let sameProvider = event(.apple, "apple-base", uid)
+        expect(LifeRouteCalendarCanonicalizer.canonicalEvents(from: [apple, sameProvider]).count == 2, "RID never merges within one provider")
+        let third = event(.apple, "apple-exact", uid)
+        let thirdGoogle = event(.google, "google-suffix", uid + "/RID=\(reference)")
+        for ambiguous in [[apple, google, third], [apple, google, thirdGoogle], [apple, google, event(.google, "second-account", uid)]] {
+            for ordered in permutations(ambiguous) {
+                expect(LifeRouteCalendarCanonicalizer.canonicalEvents(from: ordered) == ordered, "RID exact plus alias overlap retains entire ambiguous group")
+            }
+        }
+        let distinct = event(.google, "distinct", "separate-series")
+        expect(LifeRouteCalendarCanonicalizer.canonicalEvents(from: [apple, distinct]).count == 2, "RID same title/time/location does not establish identity")
+    }
+
+    private static func permutations<T>(_ values: [T]) -> [[T]] {
+        guard !values.isEmpty else { return [[]] }
+        return values.indices.flatMap { index in
+            var remainder = values; let first = remainder.remove(at: index)
+            return permutations(remainder).map { [first] + $0 }
+        }
     }
 
     @MainActor

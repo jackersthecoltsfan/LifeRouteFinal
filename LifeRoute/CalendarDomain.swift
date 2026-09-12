@@ -89,9 +89,37 @@ enum LifeRouteCalendarCanonicalizer {
             indicesByKey[key, default: []].append(index)
         }
 
+        // Join identity groups before applying uniqueness. An exact pair plus a
+        // representation alias is still ambiguous and must retain all records.
+        var parent = Array(rawEvents.indices)
+        func root(_ index: Int) -> Int {
+            var result = index
+            while parent[result] != result { result = parent[result] }
+            return result
+        }
+        func join(_ first: Int, _ second: Int) {
+            let left = root(first), right = root(second)
+            if left != right { parent[right] = left }
+        }
+        for indices in indicesByKey.values {
+            guard let first = indices.first else { continue }
+            for index in indices.dropFirst() { join(first, index) }
+        }
+        var googleByKey: [CrossProviderKey: [Int]] = [:]
+        for (index, event) in rawEvents.enumerated() where event.source == .google {
+            guard let key = strictTimedOccurrenceKey(for: event) else { continue }
+            googleByKey[key, default: []].append(index)
+        }
+        for (index, event) in rawEvents.enumerated() where event.source == .apple {
+            guard let alias = observedAppleOccurrenceAlias(for: event) else { continue }
+            for googleIndex in googleByKey[alias] ?? [] { join(index, googleIndex) }
+        }
+        var indicesByIdentity: [Int: [Int]] = [:]
+        for index in rawEvents.indices { indicesByIdentity[root(index), default: []].append(index) }
+
         var replacements: [Int: LifeRouteCalendarEvent] = [:]
         var suppressedIndices = Set<Int>()
-        for indices in indicesByKey.values {
+        for indices in indicesByIdentity.values {
             guard indices.count == 2 else { continue }
             let appleIndices = indices.filter { rawEvents[$0].source == .apple }
             let googleIndices = indices.filter { rawEvents[$0].source == .google }
@@ -128,6 +156,35 @@ enum LifeRouteCalendarCanonicalizer {
             )
         }
         return CrossProviderKey(externalIdentifier: externalIdentifier, occurrence: "single")
+    }
+
+    /// Empirical adapter for the QA-observed representation only; not a general
+    /// EventKit suffix rule. The exact base UID and both occurrence instants must
+    /// agree. No title, current start time, location or account label is evidence.
+    private static func observedAppleOccurrenceAlias(for event: LifeRouteCalendarEvent) -> CrossProviderKey? {
+        guard let original = strictTimedOccurrenceKey(for: event),
+              let identity = event.providerIdentity,
+              let occurrence = identity.recurrenceIdentifier else { return nil }
+        let pieces = original.externalIdentifier.components(separatedBy: "/RID=")
+        guard pieces.count == 2, !pieces[0].isEmpty,
+              pieces[1].utf8.count == 9,
+              pieces[1].utf8.allSatisfy({ $0 >= 48 && $0 <= 57 }),
+              let referenceSeconds = Int64(pieces[1]),
+              occurrence == "instant:\(referenceSeconds + 978_307_200)" else { return nil }
+        return CrossProviderKey(externalIdentifier: pieces[0], occurrence: original.occurrence)
+    }
+
+    private static func strictTimedOccurrenceKey(for event: LifeRouteCalendarEvent) -> CrossProviderKey? {
+        guard !event.isAllDay, let identity = event.providerIdentity, identity.isRecurring,
+              !identity.eventIdentifier.isEmpty, !identity.calendarIdentifier.isEmpty,
+              let uid = identity.externalIdentifier, !uid.isEmpty,
+              uid == uid.trimmingCharacters(in: .whitespacesAndNewlines),
+              let occurrence = identity.recurrenceIdentifier,
+              occurrence.hasPrefix("instant:") else { return nil }
+        let seconds = String(occurrence.dropFirst("instant:".count))
+        guard !seconds.isEmpty, seconds.utf8.allSatisfy({ $0 >= 48 && $0 <= 57 }),
+              let instant = Int64(seconds), seconds == String(instant) else { return nil }
+        return CrossProviderKey(externalIdentifier: uid, occurrence: "recurring:\(occurrence)")
     }
 
     private static func preferredCanonicalEvent(

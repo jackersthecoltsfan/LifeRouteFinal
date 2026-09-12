@@ -81,6 +81,9 @@ jobs:
       - name: Prepare canonical source
         run: bash scripts/prepare_build.sh
 
+      - name: Run SwiftUI Visual Timer feedback contract
+        run: bash scripts/run_visual_timer_feedback_contract_tests.sh
+
       - name: Debug-equivalent app and extension compile
         run: |
           set -o pipefail

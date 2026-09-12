@@ -13,8 +13,10 @@ struct VisualTimerFeedbackContractTests {
         testShortHorizonScheduler()
         testSharedPresentationCadence()
         testUrgencyHapticSubselection()
+#if canImport(SwiftUI)
         testOrganicShimmerWander()
         testVisualRenderingBudget()
+#endif
         testCompletionCueContract()
         testAccessibilityMilestones()
         testPreferenceDefaults()
@@ -238,6 +240,7 @@ struct VisualTimerFeedbackContractTests {
                "moving outside the final-fifteen window cancels haptic eligibility")
     }
 
+#if canImport(SwiftUI)
     private static func testOrganicShimmerWander() {
         let frames = stride(from: 1.5, through: 180.0, by: VisualTimerOrbMotionFrame.interval).map {
             VisualTimerOrbMotionFrame(elapsed: $0, progress: 0.55, urgency: 0.35)
@@ -323,6 +326,7 @@ struct VisualTimerFeedbackContractTests {
         expect(abs(VisualTimerFeedbackCurve.presentationPulseEnvelope(phase: 1)) < 0.000_001, "visual pulse settles before the next beat")
         expect(VisualTimerFeedbackCurve.presentationPulseEnvelope(phase: .infinity) == 0, "non-finite pulse phase is safely bounded")
     }
+#endif
 
     private static func testCompletionCueContract() {
         let beats = VisualTimerCompletionCue.hapticBeatMap

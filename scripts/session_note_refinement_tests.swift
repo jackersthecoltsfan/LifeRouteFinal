@@ -129,6 +129,61 @@ private struct SessionNoteRefinementTests {
             check(true, "unsafe fallback is explicitly rejected")
         }
         check(failedRepairCalls == 2, "failed completeness repair is bounded to two model requests")
+        try await physicalQARegressions()
         print("Session Note refinement fixtures passed (\(count) assertions).")
+    }
+
+    static func physicalQARegressions() async throws {
+        let concurrent = packet("The client completed a puzzle at the same time that the RBT provided gestural prompts.")
+        let paraphrase = "The client completed a puzzle while the RBT provided gestural prompts."
+        var calls = 0
+        let result = try await SessionNoteGenerationPipeline.generateNote(packet: concurrent, writerRole: .rbt, request: { _ in calls += 1; return paraphrase })
+        check(calls == 1 && result.outcome == .generated, "equivalent supplied simultaneity does not trigger a degrading rewrite")
+        check(result.draft == paraphrase && result.completeness == .reviewRequired, "accepted relationship preserves wording and human review")
+
+        let unrelated = packet("The client sorted cards while the RBT observed. The mother reported poor sleep. The client requested a break.")
+        let unsupported = "The client sorted cards while the RBT observed. The mother reported poor sleep while the client requested a break."
+        check(SessionNoteOutputValidator.validate(unsupported, evidence: unrelated).hardBlockerCodes.contains("SN-CHRONOLOGY-002"), "an unrelated source while cannot license a new relationship")
+        check(SessionNoteOutputValidator.validate("The client completed a puzzle throughout the session.", evidence: concurrent).hardBlockerCodes.contains("SN-CHRONOLOGY-002"), "concurrent evidence does not license whole-session duration")
+        let sequence = packet("During the session, the client sorted blocks and then completed a puzzle.")
+        check(SessionNoteOutputValidator.validate("The client sorted blocks while completing a puzzle.", evidence: sequence).hardBlockerCodes.contains("SN-CHRONOLOGY-002"), "session scope cannot turn sequential activities into simultaneity")
+        check(SessionNoteOutputValidator.validate("The client sorted blocks while completing a puzzle.", evidence: packet("During play, the client sorted blocks and completed a puzzle.")).hardBlockerCodes.contains("SN-CHRONOLOGY-002"), "a shared activity period does not establish concurrent tasks")
+
+        let source = "The RBT met with the client at home. The client completed a puzzle with gestural prompts. After this, the client requested a break using an AAC device. The mother reported that the client slept poorly. The RBT recorded two requests for help. The session ended with quiet play."
+        let polished = source.replacingOccurrences(of: "After this, the client", with: "After the puzzle, the client")
+        let copiedPacket = packet(source)
+        check(SessionNoteOutputValidator.sourceOverlapBasisPoints(polished, evidence: copiedPacket) >= 4500, "fixture retains detailed factual vocabulary")
+        check(SessionNoteOutputValidator.validate(polished, evidence: copiedPacket, requireMaterialCoverage: true).isProfessionallyReady, "factual overlap without rough structure is not a rewrite failure")
+        let rough = source.replacingOccurrences(of: "completed a puzzle", with: "did work")
+        check(SessionNoteOutputValidator.validate(rough, evidence: packet(rough)).issueCodes.contains("SN-QUALITY-004"), "rough copied prose still triggers quality repair")
+
+        let serious = packet("The mother reported that the client was assaulted by a peer and had a bruise on the left arm. The RBT observed the client request a break using an AAC device. The session ended with quiet play.")
+        let seriousResult = try await SessionNoteGenerationPipeline.generateNote(packet: serious, writerRole: .rbt, request: { _ in serious.typedFacts })
+        check(seriousResult.outcome == .generated && seriousResult.draft.contains("mother reported"), "serious supplied facts preserve report attribution without a deterministic content rejection")
+        check(!SessionNoteOutputValidator.validate(serious.typedFacts + " The client independently completed 99 trials.", evidence: serious).isSafe, "serious content handling does not allow unsupported measurements")
+
+        var repairCalls = 0
+        let fallback = try await SessionNoteGenerationPipeline.generateNote(packet: unrelated, writerRole: .rbt, request: { stage in
+            repairCalls += 1
+            if case .repair(let issues, let previousDraft) = stage {
+                check(previousDraft == unsupported, "repair receives the normalized original candidate")
+                check(!issues.isEmpty, "repair remains bounded to concrete validator issues")
+                return "The client independently completed 99 trials."
+            }
+            return unsupported
+        })
+        check(repairCalls == 2 && fallback.outcome == .fallback, "worse repair cannot be accepted and uses one conservative fallback")
+        check(SessionNoteMaterialCoverage.assess(fallback.draft, evidence: unrelated).missingFactIDs.isEmpty, "fallback retains all original material facts")
+
+        let sparse = packet("The session occurred at the client's home. The client's grandmother was present. The RBT used bubble play for pairing. The client transitioned to the table. The session ended when the client returned a blue folder to the grandmother.")
+        let locationLinks = "The session occurred at the client's home where the client's grandmother was present. The RBT used bubble play for pairing. The client transitioned to the table where the client returned a blue folder to the grandmother when the session ended."
+        var locationCalls = 0
+        let separated = try await SessionNoteGenerationPipeline.generateNote(packet: sparse, writerRole: .rbt, request: { _ in locationCalls += 1; return locationLinks })
+        check(locationCalls == 1 && separated.outcome == .generated, "unsupported where links between complete facts are separated without a model rewrite")
+        check(!separated.draft.contains("where") && separated.draft.contains("when the session ended"), "remove unsupported location inference while preserving supplied ending chronology")
+        check(SessionNoteMaterialCoverage.assess(separated.draft, evidence: sparse).missingFactIDs.isEmpty, "location-clause separation retains all material facts and actors")
+        let supportedLocation = packet("The client sat at the table where the RBT provided prompts.")
+        let supportedResult = try await SessionNoteGenerationPipeline.generateNote(packet: supportedLocation, writerRole: .rbt, request: { _ in supportedLocation.typedFacts })
+        check(supportedResult.draft == supportedLocation.typedFacts, "supplied location relationship is not removed")
     }
 }

@@ -20,6 +20,7 @@ private struct NarrativeEvaluationCase {
 }
 
 private struct EvaluationRecord: Codable {
+    var modelPasses: [EvaluationModelPass]? = nil
     let id: String
     let caseClass: String
     let outcome: String
@@ -42,6 +43,12 @@ private struct EvaluationRecord: Codable {
     let mechanicalTransitionCount: Int
     let plainNarrative: Bool
     let error: String?
+}
+
+private struct EvaluationModelPass: Codable {
+    let stage: String
+    let output: String
+    let issueCodes: [String]
 }
 
 private struct EvaluationReport: Codable {
@@ -74,6 +81,20 @@ private enum SessionNoteNarrativeCorpus {
                          probe("K17", "concluded", "conclusion", "assessment")],
             explicitOrder: [], ambiguousOrder: false, exactValues: [], duplicateProbe: nil,
             caseForbiddenPatterns: [("invented progress", #"(?i)\b(?:made progress|improved|independently|transitioned successfully)\b"#)], sparse: false
+        ),
+        NarrativeEvaluationCase(
+            id: "S", caseClass: "REPORTED ASSAULT AND INJURY WITHOUT UNSAFE REQUEST",
+            facts: """
+            The session occurred at home with the client, mother, and RBT present.
+            The mother reported that the client was assaulted by a peer before the session and had a bruise on the left arm.
+            The RBT observed the client request a break using an AAC device.
+            The RBT provided gestural prompts during a puzzle activity.
+            The client completed the puzzle with gestural prompts.
+            The session ended with quiet play.
+            """,
+            factProbes: [probe("S1", "mother"), probe("S2", "reported"), probe("S3", "assault"), probe("S4", "bruise"), probe("S5", "left arm"), probe("S6", "AAC"), probe("S7", "gestural"), probe("S8", "quiet play")],
+            explicitOrder: [], ambiguousOrder: false, exactValues: [], duplicateProbe: nil,
+            caseForbiddenPatterns: [], sparse: false
         ),
         NarrativeEvaluationCase(
             id: "A", caseClass: "SPARSE",
@@ -436,7 +457,9 @@ private struct SessionNoteNarrativeEvaluationMain {
             for record in previous.records where record.error == nil {
                 guard let item = evaluationCases.first(where: { $0.id == record.id }) else { continue }
                 let packet = SessionNoteEvidencePacket.make(typedFacts: item.facts, ocrEvidence: "", savedTerminologyContext: "", profileCode: nil)
-                let sanitized = SessionNoteOutputSanitizer.sanitize(record.output, scrubber: packet.scrubber)
+                let replayDraft = CommandLine.arguments.contains("--replay-initial")
+                    ? (record.modelPasses?.first?.output ?? record.output) : record.output
+                let sanitized = SessionNoteOutputSanitizer.sanitize(replayDraft, scrubber: packet.scrubber)
                 let initial = SessionNoteOutputValidator.validate(sanitized, evidence: packet, requireMaterialCoverage: true)
                 let repaired = SessionNoteDeterministicRepairer.repair(sanitized, validation: initial, evidence: packet)
                 let final = SessionNoteOutputValidator.validate(repaired.draft, evidence: packet, requireMaterialCoverage: true)
@@ -453,6 +476,7 @@ private struct SessionNoteNarrativeEvaluationMain {
 
         var records: [EvaluationRecord] = []
         for item in evaluationCases {
+            var passes: [EvaluationModelPass] = []
             let packet = SessionNoteEvidencePacket.make(
                 typedFacts: item.facts,
                 ocrEvidence: "",
@@ -465,32 +489,49 @@ private struct SessionNoteNarrativeEvaluationMain {
                     writerRole: .rbt
                 ) { stage in
                     var prompt = try packet.modelPrompt(compaction: stage.compaction)
-                    if case .repair(let issues) = stage {
-                        prompt += """
-
-                        DETERMINISTIC VALIDATION ISSUES TO CORRECT:
-                        \(issues.prefix(8).map { "- \($0)" }.joined(separator: "\n"))
-                        """
+                    if case .repair(let issues, let previousDraft) = stage {
+                        if #available(macOS 26.4, *) {
+                            let model = SystemLanguageModel(guardrails: .permissiveContentTransformations)
+                            prompt = try await SessionNoteStageInstructions.repairPrompt(
+                                packet: packet, issues: issues, previousDraft: previousDraft,
+                                tokenCount: { try await model.tokenCount(for: $0) }
+                            )
+                        } else {
+                            prompt = try await SessionNoteStageInstructions.repairPrompt(
+                                packet: packet, issues: issues, previousDraft: previousDraft
+                            )
+                        }
                     }
                     let session = LanguageModelSession(
+                        model: SystemLanguageModel(guardrails: .permissiveContentTransformations),
                         instructions: SessionNoteStageInstructions.instructions(for: stage)
                     )
                     let response = try await session.respond(
                         to: prompt,
                         options: GenerationOptions(maximumResponseTokens: 900)
                     )
+                    let clean = SessionNoteOutputSanitizer.sanitize(response.content, scrubber: packet.scrubber)
+                    passes.append(EvaluationModelPass(
+                        stage: stage == .standardDraft ? "initial" : stage == .compactDraft ? "compact" : "repair",
+                        output: response.content,
+                        issueCodes: SessionNoteOutputValidator.validate(clean, evidence: packet, requireMaterialCoverage: true).issueCodes
+                    ))
                     try SessionNoteOutputBoundary.validate(response.content)
                     return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
                 }
-                records.append(NarrativeEvaluator.evaluate(item, result: result))
+                var record = NarrativeEvaluator.evaluate(item, result: result)
+                record.modelPasses = passes
+                records.append(record)
             } catch {
-                records.append(NarrativeEvaluator.failure(item, error: error))
+                var record = NarrativeEvaluator.failure(item, error: error)
+                record.modelPasses = passes
+                records.append(record)
             }
         }
 
         let formatter = ISO8601DateFormatter()
         let report = EvaluationReport(
-            provider: "Apple FoundationModels SystemLanguageModel.default",
+            provider: "Apple FoundationModels SystemLanguageModel permissiveContentTransformations (Session Notes production mode)",
             modelAvailability: String(describing: availability),
             generatedAt: formatter.string(from: Date()),
             records: records

@@ -38,6 +38,7 @@ private struct SessionNoteContractFixtureRunner {
         try expect(donorAssertions == 472, "all 472 frozen donor assertions executed unchanged")
         try await finalProseAndClosingFixtures()
         try await narrativeSynthesisContractFixtures()
+        try await repairContextBudgetFixtures()
         print("Frozen donor assertions: \(donorAssertions); new final-prose assertions: \(assertionCount - donorAssertions).")
         print("Original assertions: \(existingAssertions); added assertions: \(assertionCount - existingAssertions).")
         precondition(
@@ -868,6 +869,26 @@ private struct SessionNoteContractFixtureRunner {
         }
     }
 
+    private static func repairContextBudgetFixtures() async throws {
+        let packet = boundaryPacket("The client completed a puzzle. The RBT provided a gestural prompt.")
+        let previous = "The client completed a puzzle with a verbal prompt."
+        let base = try await SessionNoteStageInstructions.repairPrompt(packet: packet, issues: ["Restore gestural prompt"], previousDraft: previous)
+        try expect(!base.contains("CANDIDATE TO CORRECT"), "older systems omit optional candidate when exact token counting is unavailable")
+        let fitting = try await SessionNoteStageInstructions.repairPrompt(packet: packet, issues: ["Restore gestural prompt"], previousDraft: previous, tokenCount: { _ in 1500 })
+        try expect(fitting.contains(previous) && fitting.contains("CANDIDATE TO CORRECT"), "fitting repair preserves entire normalized candidate")
+        let oversized = try await SessionNoteStageInstructions.repairPrompt(packet: packet, issues: ["Restore gestural prompt"], previousDraft: previous, tokenCount: { _ in 1600 })
+        try expect(oversized == base, "response and framing budget omit the optional candidate whole")
+        try expect(oversized.contains("gestural prompt"), "authoritative ledger remains intact when candidate does not fit")
+        let failedCount = try await SessionNoteStageInstructions.repairPrompt(packet: packet, issues: ["Restore gestural prompt"], previousDraft: previous, tokenCount: { _ in throw FixtureError.unavailable })
+        try expect(failedCount == base, "token-count failure retains bounded evidence-only repair")
+        do {
+            _ = try await SessionNoteStageInstructions.repairPrompt(packet: packet, issues: [], previousDraft: previous, tokenCount: { _ in throw CancellationError() })
+            try expect(false, "cancellation must propagate")
+        } catch is CancellationError {
+            try expect(true, "token budgeting never absorbs cancellation")
+        }
+    }
+
     private static func professionalPresentationRegressionFixtures() async throws {
         let physicalFacts = """
         RBT met at clients home. Present: RBT, LBS, grandma, mom, dad, brother, brother BHT. RBT began with pairing outside and working on FCT and full sentence manding and more time manding. Then transitioned client inside for work, had him wait, then back outside for more play. LBS and RBT then transitioned client inside and did work, then indoor cooperative play, then more work at which point client engaged in elopement and took many redirections to attend to the work. After this client earned his preferred outside time. LBS also instructed RBT on skill acquisition targets including new programs implemented.
@@ -917,7 +938,7 @@ private struct SessionNoteContractFixtureRunner {
         }
         let repairInstructions: [String]
         if stages.count == 2, stages.first == .standardDraft,
-           case .repair(let instructions) = stages.last {
+           case .repair(let instructions, _) = stages.last {
             repairInstructions = instructions
         } else {
             repairInstructions = []
@@ -1116,7 +1137,7 @@ private struct SessionNoteContractFixtureRunner {
             }
         }
         try expect(SessionNoteStageInstructions.instructions(for: .repair([])).contains("correct only the listed validation issues"), "repair retains bounded correction guidance")
-        try expect(SessionNoteStageInstructions.instructions(for: .standardDraft).contains("For style only"), "standard retains its reconstruction example")
+        try expect(SessionNoteStageInstructions.instructions(for: .standardDraft).contains("named actor and action") && !SessionNoteStageInstructions.instructions(for: .standardDraft).contains("RBT began pairing and FCT"), "standard explains reconstruction without leaking an illustrative clinical event into the evidence")
         try expect(SessionNoteStageInstructions.instructions(for: .compactDraft).contains("plain narrative only"), "compact retains its concise style guidance")
     }
 

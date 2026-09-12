@@ -9,7 +9,7 @@ enum SessionNoteClinicalInstructions {
     Never invent function, intent, emotion, cause, progress, training, supervision, treatment changes, recommendations, effectiveness, or causal relationships. Preserve explicitly supplied conclusions with their attribution and qualifications. Conservative synthesis may group preferred play explicitly used to build rapport as pairing, consolidate repeated teaching or modelling of communication requests as FCT, and describe explicitly supported movement between activities as transition support. Such synthesis must retain the actual activities, communication modality, prompting, and actors; it never establishes an outcome or treatment effect.
     Improve grammar, possessives, role clarity, sentence structure, transitions, and organization while preserving supplied meaning. Use chronology only when supported by explicit sequence words, times, or stated before/after relationships. A fact ledger's display order is bookkeeping, not timeline evidence. When order is unknown, group related facts coherently without adding first/then/after/later relationships or while/as/when/where/throughout relationships. Expand unambiguous abbreviations, such as functional communication training (FCT). Retain qualifications and attribution; clinical terminology is not a reason to remove a supplied fact.
     Write natural, useful prose with detail proportional to the evidence. Sparse evidence may be one short cohesive paragraph, with no minimum word, sentence, or paragraph count. Develop richer evidence into substantive paragraphs: make setting, participants, and the beginning clear; connect supplied interventions, activities, transitions, and community work in order; describe supplied behaviors, responses, reinforcement, and the session ending in context. Use these groups only where the facts exist and chronology allows; never require a fixed paragraph count. Expand shorthand into complete professional sentences and meaningfully connect related events instead of compressing a rich session into a few short sentences or converting each bullet mechanically. Do not repeat facts or add generic sentences to fill space.
-    A supplied “client responded well” may remain that response; it does not establish engagement, participation throughout the session, independent performance, improvement, or successful transitions. Do not invent prompting, reinforcement, redirection, caregiver involvement beyond presence, treatment-plan compliance, future plans, missing-data claims, or statements that no measurements or outcomes were recorded. Include these only when explicitly supplied, with their original qualifications and attribution. End when the supplied facts have been expressed; no mandatory summary or future-treatment-plan close.
+    Preserve a supplied qualitative response at its original specificity; it does not establish broader engagement, participation throughout the session, independent performance, improvement, or successful transitions. Do not invent prompting, reinforcement, redirection, caregiver involvement beyond presence, treatment-plan compliance, future plans, missing-data claims, or statements that no measurements or outcomes were recorded. Include these only when explicitly supplied, with their original qualifications and attribution. End when the supplied facts have been expressed; no mandatory summary or future-treatment-plan close.
     Use complete professional sentences, periods instead of semicolon chains, and varied sentence openings. Separate distinct session topics into readable paragraphs at supported changes in activity or focus; preserve related reports and their attribution together. Do not force a paragraph count or headings. Retain supplied session conclusions and closing activities, including observations raised to the BCBA. Return the complete session narrative only, without a standard closing sentence or writer credential. Finish every sentence within the response budget; do not sacrifice the ending to lengthen the prose. Return editable narrative paragraphs only, without headings, lists, markdown, fact IDs, template language, disclaimers, or commentary.
     """
 }
@@ -530,7 +530,7 @@ struct SessionNoteEvidencePacket {
 enum SessionNotePipelineStage: Equatable {
     case standardDraft
     case compactDraft
-    case repair([String])
+    case repair([String], previousDraft: String = "")
 
     var compaction: SessionNoteRequestCompaction {
         self == .standardDraft ? .standard : .compactRetry
@@ -846,7 +846,10 @@ enum SessionNoteGenerationPipeline {
 
         record(.repairAttempted(normalizedValidation.boundedModelRepairIssues.map(\.code).sorted()))
         await progress(.repairing)
-        let repairedRawDraft = try await boundedRequest(.repair(normalizedValidation.boundedModelRepairInstructions))
+        let repairedRawDraft = try await boundedRequest(.repair(
+            normalizedValidation.boundedModelRepairInstructions,
+            previousDraft: normalizedValidation.draft
+        ))
         let repairedSanitization = SessionNoteOutputSanitizer.sanitizeWithReport(
             repairedRawDraft,
             scrubber: packet.scrubber
@@ -1646,6 +1649,16 @@ struct SessionNoteMaterialCoverage {
         value.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
+    static func relationshipTokens(_ value: String) -> Set<String> {
+        let stripped = value.replacingOccurrences(
+            of: #"(?i)\b(?:while|during|throughout|when|where|upon|at the same time(?: that)?)\b"#,
+            with: "", options: .regularExpression
+        )
+        var result = tokens(stripped)
+        if matches(#"\bclient\b"#, in: value) { result.insert("client") }
+        return result
+    }
+
     private static func tokens(_ value: String) -> Set<String> {
         var normalized = value.lowercased().replacingOccurrences(of: "’", with: "'")
         let aliases: [(String, String)] = [
@@ -1986,6 +1999,24 @@ enum SessionNoteDeterministicRepairer {
 
         var repaired = value
         var repairs: [String] = []
+
+        if validation.issueCodes.contains("SN-CHRONOLOGY-002") {
+            let independentLocationClause = #"(?i)\s+where\s+(?=(?:the\s+)?(?:client(?:'s\s+(?:mother|father|grandmother))?|RBT|BCBA|LBS|BHT|mother|father|grandmother|caregiver|parent)\s+(?:was|were|is|used|provided|requested|returned|completed|transitioned|remained)\b)"#
+            let paragraphs = repaired.components(separatedBy: "\n\n").map { paragraph in
+                SessionNoteOutputSanitizer.splitSentences(paragraph).map { sentence in
+                    guard SessionNoteOutputValidator.containsUnsupportedSimultaneity(in: sentence, evidence: evidence, locationOnly: true) else { return sentence }
+                    let pieces = sentence.replacingOccurrences(of: independentLocationClause, with: "\n", options: .regularExpression).components(separatedBy: "\n")
+                    guard pieces.count > 1 else { return sentence }
+                    return pieces.enumerated().map { index, piece in
+                        let capitalized = index == 0 ? piece : piece.prefix(1).uppercased() + piece.dropFirst()
+                        return capitalized.last.map { ".!?".contains($0) } == true ? capitalized : capitalized + "."
+                    }.joined(separator: " ")
+                }.joined(separator: " ")
+            }
+            let separated = paragraphs.joined(separator: "\n\n")
+            if separated != repaired { repairs.append("SN-CHRONOLOGY-002") }
+            repaired = separated
+        }
 
         if validation.issueCodes.contains("SN-FORMAT-009") {
             let filtered = SessionNoteOutputSanitizer.splitSentences(repaired)
@@ -2536,20 +2567,42 @@ enum SessionNoteOutputValidator {
             evidence.typedFacts.range(of: chronologyPattern, options: .regularExpression) == nil
     }
 
-    private static func containsUnsupportedSimultaneity(
+    static func containsUnsupportedSimultaneity(
         in value: String,
-        evidence: SessionNoteEvidencePacket
+        evidence: SessionNoteEvidencePacket,
+        locationOnly: Bool = false
     ) -> Bool {
-        let relationshipPatterns = [
-            #"(?i)\bwhile\b"#,
-            #"(?i)\bthroughout\b"#,
-            #"(?i)\bas (?:the )?(?:client|RBT|LBS|BCBA|BHT|caregiver|mother|father|grandmother|parent)\b"#,
-            #"(?i)\bwhen\b"#,
-            #"(?i)\bwhere\b"#,
+        // Validate the relationship in its own sentence. A matching word in an
+        // unrelated fact cannot license a new link; equivalent temporal wording
+        // does not itself make a supplied relationship unsupported.
+        let concurrent = #"(?i)\b(?:while|at the same time(?: that)?|as (?:the )?(?:client|RBT|LBS|BCBA|BHT|caregiver|mother|father|grandmother|parent))\b"#
+        let relationships = [
+            (#"(?i)\bwhile\b|\bas (?:the )?(?:client|RBT|LBS|BCBA|BHT|caregiver|mother|father|grandmother|parent)\b"#, concurrent),
+            (#"(?i)\bthroughout\b"#, #"(?i)\bthroughout\b"#),
+            (#"(?i)\bwhen\b"#, #"(?i)\b(?:when|upon)\b"#),
+            (#"(?i)\bwhere\b"#, #"(?i)\bwhere\b"#),
         ]
-        return relationshipPatterns.contains { pattern in
-            value.range(of: pattern, options: .regularExpression) != nil &&
-                evidence.typedFacts.range(of: pattern, options: .regularExpression) == nil
+        let sourceSentences = SessionNoteOutputSanitizer.splitSentences(evidence.typedFacts)
+        return SessionNoteOutputSanitizer.splitSentences(value).contains { sentence in
+            relationships.contains { outputPattern, sourcePattern in
+                if locationOnly && sourcePattern != #"(?i)\bwhere\b"# { return false }
+                guard sentence.range(of: outputPattern, options: .regularExpression) != nil else { return false }
+                let claim = SessionNoteMaterialCoverage.relationshipTokens(sentence)
+                return !sourceSentences.contains { source in
+                    guard source.range(of: sourcePattern, options: .regularExpression) != nil else { return false }
+                    // A mixed sequence needs its actual clauses preserved; a bag
+                    // of activity tokens cannot turn then/after into while.
+                    if source.range(of: #"(?i)\b(?:then|before|after|following|followed)\b"#, options: .regularExpression) != nil,
+                       source.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        != sentence.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+                        return false
+                    }
+                    let support = SessionNoteMaterialCoverage.relationshipTokens(source)
+                    let anchors = claim.intersection(["client", "rbt", "bcba", "lbs", "bht", "mother", "father", "grandmother", "caregiver", "parent", "not", "report"])
+                    return !claim.isEmpty && anchors.isSubset(of: support)
+                        && Double(claim.intersection(support).count) / Double(claim.count) >= 0.8
+                }
+            }
         }
     }
 
@@ -2656,7 +2709,11 @@ enum SessionNoteOutputValidator {
             options: [.caseInsensitive]
         )
         guard comparisonTokens(in: candidateWithoutClose).count >= 30 else { return false }
-
+        // Detailed clinical facts naturally share vocabulary. Require retained
+        // rough structure in the candidate as well as high source overlap.
+        guard hasRoughSourceStructure(candidateWithoutClose)
+                || hasRoughDictationFragments(candidateWithoutClose)
+                || hasRepetitiveOpenings(candidateWithoutClose) else { return false }
         return sourceOverlapBasisPoints(value, evidence: evidence) >= 4_500
     }
 

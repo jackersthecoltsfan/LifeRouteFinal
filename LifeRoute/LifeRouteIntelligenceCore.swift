@@ -9,6 +9,38 @@ import FoundationModels
 // BEGIN SESSION NOTE PRODUCTION INSTRUCTIONS
 // The contract runner compiles this exact declaration, together with the shared policy.
 enum SessionNoteStageInstructions {
+    static func repairPrompt(
+        packet: SessionNoteEvidencePacket,
+        issues: [String],
+        previousDraft: String,
+        tokenCount: ((String) async throws -> Int)? = nil
+    ) async throws -> String {
+        let base = try packet.modelPrompt(compaction: .compactRetry) + """
+
+        DETERMINISTIC VALIDATION ISSUES TO CORRECT:
+        \(issues.prefix(8).map { "- \($0)" }.joined(separator: "\n"))
+        """
+        guard !previousDraft.isEmpty, let tokenCount else { return base }
+        let candidate = base + """
+
+        CANDIDATE TO CORRECT (not additional evidence):
+        \(previousDraft)
+        Preserve its supported details and paragraphing. Correct only the listed validation issues against the original fact ledger. The ledger is authoritative if the candidate conflicts with it.
+        """
+        do {
+            let instructionTokens = try await tokenCount(instructions(for: .repair(issues)))
+            let promptTokens = try await tokenCount(candidate)
+            // Preserve the full ledger and 900-token response allowance, plus
+            // framing headroom in the on-device 4096-token context. Optional
+            // candidate context is omitted whole, never clipped into evidence.
+            return instructionTokens + promptTokens + 900 + 128 <= 4096 ? candidate : base
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return base
+        }
+    }
+
     static func instructions(for stage: SessionNotePipelineStage) -> String {
         let guidance: String
         switch stage {
@@ -20,7 +52,7 @@ enum SessionNoteStageInstructions {
     }
 
     private static let standardReconstruction = """
-    Reconstruct one editable professional ABA session narrative from the supplied evidence only. Treat the REQUIRED FACT LEDGER as rough factual source material, never as prose to clean up or preserve. Silently map every output statement to one or more F-IDs before drafting, without printing the IDs. Rebuild each supplied event by identifying its actor, clinical action, and explicitly supported place in the sequence; replace dictated fragments and conversational transitions with natural objective ABA documentation. Do not copy the source clause structure or repeatedly begin with “Then” or “After this.” For style only, “RBT began pairing and FCT then moved to transitions” can become “The RBT began with pairing and functional communication training (FCT), followed by transitions”; never add the example's events unless supplied. Reorder facts only when their own words establish time or before/after relationships; the displayed F-ID order is not chronology. Translate generic “work” only as instructional activities or a work period without inventing its content. Use the shared evidence-proportional paragraph guidance; never append a detached data section, missing-data statement, unsupported summary, or future-plan close.
+    Reconstruct one editable professional ABA session narrative from the supplied evidence only. Treat the REQUIRED FACT LEDGER as rough factual source material, never as prose to clean up or preserve. Silently map every output statement to one or more F-IDs before drafting, without printing the IDs. Rebuild each supplied event by identifying its actor, clinical action, and explicitly supported place in the sequence; replace dictated fragments and conversational transitions with natural objective ABA documentation. Do not copy the source clause structure or repeatedly begin with “Then” or “After this.” Use complete sentences with a named actor and action, retaining only the supplied clinical terminology and relationships. Reorder facts only when their own words establish time or before/after relationships; the displayed F-ID order is not chronology. Translate generic “work” only as instructional activities or a work period without inventing its content. Use the shared evidence-proportional paragraph guidance; never append a detached data section, missing-data statement, unsupported summary, or future-plan close.
     """
 
     private static let compactReconstruction = """
@@ -28,7 +60,7 @@ enum SessionNoteStageInstructions {
     """
 
     private static let repairReconstruction = """
-    Re-create the professional ABA session narrative from the original evidence and correct only the listed validation issues. Silently account for every F-ID. Rebuild rough facts by supplied actor, clinical action, and explicitly supported chronology rather than copying source clauses or conversational transitions; F-ID order alone is not chronology. Translate generic work only as instructional activities or a work period without inventing content. Return only cohesive plain-text narrative using the shared evidence-proportional style guidance; do not append IDs, a detached data list, missing-data statement, unsupported summary, or future-plan close.
+    Revise the supplied candidate against the original evidence and correct only the listed validation issues. Preserve already-supported details and readable paragraphing; the candidate is not additional evidence. Silently account for every F-ID. Rebuild rough passages by supplied actor, clinical action, and explicitly supported chronology rather than copying conversational fragments; F-ID order alone is not chronology. Translate generic work only as instructional activities or a work period without inventing content. Return only cohesive plain-text narrative using the shared evidence-proportional style guidance; do not append IDs, a detached data list, missing-data statement, unsupported summary, or future-plan close.
     """
 }
 // END SESSION NOTE PRODUCTION INSTRUCTIONS
@@ -152,12 +184,19 @@ enum LifeRouteIntelligenceCore {
                             compaction: .compactRetry,
                             instructions: SessionNoteStageInstructions.instructions(for: .compactDraft)
                         )
-                    case .repair(let issues):
-                        let repairPrompt = try packet.modelPrompt(compaction: .compactRetry) + """
-
-                        DETERMINISTIC VALIDATION ISSUES TO CORRECT:
-                        \(issues.prefix(8).map { "- \($0)" }.joined(separator: "\n"))
-                        """
+                    case .repair(let issues, let previousDraft):
+                        let repairPrompt: String
+                        if #available(iOS 26.4, *) {
+                            let model = SystemLanguageModel(guardrails: .permissiveContentTransformations)
+                            repairPrompt = try await SessionNoteStageInstructions.repairPrompt(
+                                packet: packet, issues: issues, previousDraft: previousDraft,
+                                tokenCount: { try await model.tokenCount(for: $0) }
+                            )
+                        } else {
+                            repairPrompt = try await SessionNoteStageInstructions.repairPrompt(
+                                packet: packet, issues: issues, previousDraft: previousDraft
+                            )
+                        }
                         return try await generate(
                             instructions: SessionNoteStageInstructions.instructions(for: stage),
                             prompt: repairPrompt,
@@ -364,13 +403,18 @@ enum LifeRouteIntelligenceCore {
     ) async throws -> String {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            let model = SystemLanguageModel.default
+            // Session Notes transform supplied facts, including serious reported
+            // incidents. Apple's transformation mode permits that source material;
+            // all LifeRoute evidence/role/chronology/coverage guards still run.
+            let model = isSessionNote
+                ? SystemLanguageModel(guardrails: .permissiveContentTransformations)
+                : SystemLanguageModel.default
             guard model.isAvailable else {
                 throw LifeRouteIntelligenceError.unavailable
             }
 
             do {
-                let session = LanguageModelSession(instructions: instructions)
+                let session = LanguageModelSession(model: model, instructions: instructions)
                 let options = GenerationOptions(maximumResponseTokens: maximumResponseTokens)
                 let response = try await session.respond(to: prompt, options: options)
                 let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)

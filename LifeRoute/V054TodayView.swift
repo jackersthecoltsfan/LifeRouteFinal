@@ -278,7 +278,7 @@ struct V054TodayView: View {
                         .font(.caption2.weight(.black))
                         .tracking(0.8)
                         .foregroundStyle(scenicStyle.accent)
-                    Text(projection?.primaryTitle ?? (current ?? next)?.title ?? emptyDayStatus)
+                    Text(LifeRouteCalendarDisplay.title(projection?.primaryTitle ?? (current ?? next)?.title ?? emptyDayStatus))
                         .font(.headline.weight(.bold))
                         .foregroundStyle(scenicStyle.primaryText)
                         .lineLimit(2)
@@ -290,6 +290,7 @@ struct V054TodayView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+                if let guidance {
                 VStack(alignment: .trailing, spacing: 3) {
                     Text(departureEyebrow(guidance))
                         .font(.caption2.weight(.black))
@@ -297,13 +298,26 @@ struct V054TodayView: View {
                         .foregroundStyle(scenicStyle.secondaryText)
                     Text(departureHeadline(guidance))
                         .font(.title3.weight(.black))
-                        .foregroundStyle(guidance == nil ? scenicStyle.secondaryText : scenicStyle.accentReflection)
+                        .foregroundStyle(scenicStyle.accentReflection)
                         .multilineTextAlignment(.trailing)
-                    if let guidance {
+                    if Calendar.current.isDateInToday(selectedDay) {
                         Text("Leave by \(guidance.leaveBy.formatted(date: .omitted, time: .shortened))")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(scenicStyle.secondaryText)
                     }
+                }
+                } else if authoritativeItinerary == nil {
+                    Button {
+                        generateFullDay()
+                    } label: {
+                        VStack(spacing: 4) {
+                            if planState.isCalculating { ProgressView() }
+                            Text(planState.isCalculating ? "Generating day route…" : (selectedItinerary == nil ? "Generate route" : "Regenerate route"))
+                                .font(.caption.weight(.bold))
+                        }
+                    }
+                    .buttonStyle(ScenicRoyalSecondaryButtonStyle())
+                    .disabled(planState.isCalculating || !canGenerate)
                 }
             }
 
@@ -364,12 +378,15 @@ struct V054TodayView: View {
             Button {
                 generateFullDay()
             } label: {
+                HStack {
+                if planState.isCalculating { ProgressView() }
                 Label(
                     planState.isCalculating
-                        ? "Generating full day…"
+                        ? "Generating day route…"
                         : (selectedItinerary == nil ? "Generate Full Day" : "Regenerate Full Day"),
                     systemImage: "map.fill"
                 )
+                }
             }
             .buttonStyle(ScenicRoyalPrimaryButtonStyle())
             .disabled(planState.isCalculating || !canGenerate)
@@ -422,7 +439,7 @@ struct V054TodayView: View {
                     .foregroundStyle(scenicStyle.primaryText)
             }
 
-            if let message = planState.message {
+            if !planState.isCalculating, let message = planState.message {
                 Text(message)
                     .font(.caption)
                     .foregroundStyle(scenicStyle.secondaryText)
@@ -520,7 +537,7 @@ struct V054TodayView: View {
                             Text("\(durationLabel(leg.rawTravelSeconds)) drive")
                                 .font(.subheadline.weight(.bold))
                                 .foregroundStyle(scenicStyle.primaryText)
-                            let destination = nodes[leg.toNodeID]?.title ?? "next stop"
+                            let destination = LifeRouteCalendarDisplay.title(nodes[leg.toNodeID]?.title ?? "next stop")
                             Text("To \(destination) · \(distanceLabel(leg.rawDistanceMeters))")
                                 .font(.caption)
                                 .foregroundStyle(scenicStyle.secondaryText)
@@ -536,7 +553,7 @@ struct V054TodayView: View {
                         }
                     case .origin, .appointment, .stop, .home:
                         if let node = item.node {
-                            Text(node.title)
+                            Text(LifeRouteCalendarDisplay.title(node.title))
                                 .font(.subheadline.weight(.bold))
                                 .foregroundStyle(scenicStyle.primaryText)
                             if projection?.completedNodeIDs.contains(node.id) == true {
@@ -608,7 +625,7 @@ struct V054TodayView: View {
                     .frame(width: 22)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(waypoint.title)
+                    Text(LifeRouteCalendarDisplay.title(waypoint.title))
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(scenicStyle.primaryText)
                     Text(previewDetail(waypoint))
@@ -756,7 +773,7 @@ struct V054TodayView: View {
                         Text(projection.phaseLabel)
                             .font(.caption2.weight(.black))
                             .foregroundStyle(scenicStyle.accent)
-                        Text(projection.primaryTitle)
+                        Text(LifeRouteCalendarDisplay.title(projection.primaryTitle))
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(scenicStyle.primaryText)
                     }
@@ -801,7 +818,7 @@ struct V054TodayView: View {
             .font(.caption)
             .foregroundStyle(liveActivity.isLockScreenActive ? scenicStyle.accent : scenicStyle.secondaryText)
 
-            if let message = liveActivity.message {
+            if !liveActivity.isLockScreenActive, let message = liveActivity.message {
                 Text(message)
                     .font(.caption)
                     .foregroundStyle(scenicStyle.secondaryText)
@@ -977,15 +994,11 @@ struct V054TodayView: View {
         return event.location.isEmpty ? time : "\(time) · \(event.location)"
     }
 
-    private func departureEyebrow(_ guidance: LifeRouteDepartureGuidance?) -> String {
-        guard guidance != nil else { return "DEPARTURE" }
+    private func departureEyebrow(_ guidance: LifeRouteDepartureGuidance) -> String {
         return Calendar.current.isDateInToday(selectedDay) ? "ROUTE-AWARE" : "LEAVE BY"
     }
 
-    private func departureHeadline(_ guidance: LifeRouteDepartureGuidance?) -> String {
-        guard let guidance else {
-            return selectedItinerary == nil ? "Generate route" : "Regenerate"
-        }
+    private func departureHeadline(_ guidance: LifeRouteDepartureGuidance) -> String {
         guard Calendar.current.isDateInToday(selectedDay) else {
             return guidance.leaveBy.formatted(date: .omitted, time: .shortened)
         }

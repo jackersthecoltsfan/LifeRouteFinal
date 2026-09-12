@@ -2,6 +2,7 @@ import XCTest
 final class NativeUI: XCTestCase {
  @MainActor func testLivingNativeIntegration() throws {
   continueAfterFailure = false
+  XCUIDevice.shared.orientation = .portrait
   let app = XCUIApplication(bundleIdentifier: "Com.Brandongood.LifeRoute")
   app.launchArguments = ["-LifeRouteSectionOverride", "today", "-LifeRouteThemeOverride", "scenery.rainforest.day", "-LifeRouteLivingDiagnostics"]
   app.launch()
@@ -15,6 +16,9 @@ final class NativeUI: XCTestCase {
    }
   }
   print("NATIVE_UI_ROOTS_PASS")
+  let buildIdentity = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Source commit SOURCE_COMMIT_FROM_RUNNER")).firstMatch
+  XCTAssertTrue(buildIdentity.exists, "Visible Setup source identity matches the supplied app")
+  print("NATIVE_UI_BUILD_IDENTITY_PASS")
   print("NATIVE_UI_SETUP_TREE \(app.debugDescription)")
   let theme=app.buttons.matching(NSPredicate(format:"label CONTAINS %@", "Theme Center")).firstMatch
   for _ in 0..<5 { if theme.isHittable { break }; app.swipeUp() }
@@ -26,7 +30,7 @@ final class NativeUI: XCTestCase {
   XCTAssertTrue(app.staticTexts["12 themes"].exists)
   let names=["Rainforest Day","Rainforest Night","Ocean Day","Ocean Night","Arctic Day","Arctic Night","Mountains Day","Mountains Night","Canyon Day","Canyon Night","Desert Day","Desert Night"]
   for name in names {
-   let card=app.buttons[name+", LIVING THEMES theme, Living motion"].firstMatch
+   let card=app.buttons[name+", Living motion"].firstMatch
    for _ in 0..<8 {
     if card.isHittable && card.frame.minY > 130 && card.frame.maxY < 830 { break }
     if card.exists && card.frame.minY < 130 { app.swipeDown() } else { app.swipeUp() }
@@ -46,6 +50,18 @@ final class NativeUI: XCTestCase {
   XCUIDevice.shared.press(.home);app.activate()
   XCTAssertTrue(app.buttons["Setup"].waitForExistence(timeout:5))
   print("NATIVE_UI_BACKGROUND_FOREGROUND_PASS")
+  app.terminate()
+  app.launchArguments = ["-LifeRouteSectionOverride", "setup"]
+  app.launch()
+  XCTAssertTrue(app.buttons["Setup"].waitForExistence(timeout: 10))
+  let reopenedTheme = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Theme Center")).firstMatch
+  for _ in 0..<6 { if reopenedTheme.isHittable { break }; app.swipeUp() }
+  XCTAssertTrue(reopenedTheme.isHittable); reopenedTheme.tap()
+  XCTAssertTrue(app.navigationBars["Themes"].waitForExistence(timeout: 5))
+  let restoredTheme = app.buttons["Desert Night, Living motion"].firstMatch
+  for _ in 0..<8 { if restoredTheme.isHittable { break }; app.swipeUp() }
+  XCTAssertEqual(restoredTheme.value as? String, "Selected", "Selected theme persists across process relaunch without a theme override")
+  print("NATIVE_UI_THEME_RELAUNCH_PASS")
   app.terminate()
   app.launchArguments=["-LifeRouteSectionOverride","tools","-LifeRouteToolsDestinationOverride","visualTimer","-LifeRouteThemeOverride","scenery.ocean.night","-LifeRouteVisualTimerAutoStart","-LifeRouteLivingDiagnostics"]
   app.launch()

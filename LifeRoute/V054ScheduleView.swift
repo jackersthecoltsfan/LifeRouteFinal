@@ -655,7 +655,7 @@ struct V054ScheduleView: View {
                         }
                         .buttonStyle(ScenicRoyalSecondaryButtonStyle())
                         .confirmationDialog(
-                            "Delete \(event.title)?",
+                            "Delete \(event.displayTitle)?",
                             isPresented: $showingEditDeleteConfirmation,
                             titleVisibility: .visible
                         ) {
@@ -765,7 +765,7 @@ struct V054ScheduleView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-                    Text(event.title)
+                    Text(event.displayTitle)
                         .font(.title3.weight(.bold))
                         .foregroundStyle(scenicStyle.primaryText)
 

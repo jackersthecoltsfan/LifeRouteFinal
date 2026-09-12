@@ -23,7 +23,9 @@ out = a.output.resolve()
 assert ROOT not in out.parents and out != ROOT
 out.mkdir(parents=True, exist_ok=False)
 shutil.copytree(ROOT/'scripts/fixtures/living-theme-ui/NativeUI.xcodeproj', out/'NativeUI.xcodeproj')
-shutil.copy2(ROOT/'scripts/living_theme_ui_tests.swift', out/'NativeUI.swift')
+source_commit = (a.app/'LifeRouteSourceCommit.txt').read_text().strip()
+assert len(source_commit) == 7 and all(c in '0123456789abcdef' for c in source_commit)
+(out/'NativeUI.swift').write_text((ROOT/'scripts/living_theme_ui_tests.swift').read_text().replace('SOURCE_COMMIT_FROM_RUNNER', source_commit))
 (out/'manifest.json').write_text(json.dumps({'testSHA256':hashlib.sha256((out/'NativeUI.swift').read_bytes()).hexdigest(),
     'metallibSHA256':hashlib.sha256((a.app/'default.metallib').read_bytes()).hexdigest(), 'simulator':a.simulator}, indent=2)+'\n')
 subprocess.run(['xcrun','simctl','install',a.simulator,str(a.app)], check=True)

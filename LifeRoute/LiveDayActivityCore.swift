@@ -247,7 +247,7 @@ final class LiveDayActivityCore: ObservableObject {
     ) -> ActivityContent<LifeRouteLiveDayAttributes.ContentState> {
         let state = LifeRouteLiveDayAttributes.ContentState(
             phaseLabel: projection.phaseLabel,
-            primaryTitle: projection.primaryTitle,
+            primaryTitle: LifeRouteCalendarDisplay.title(projection.primaryTitle),
             secondaryText: projection.secondaryText ?? "Generated day schedule",
             countdownTarget: projection.countdownTarget,
             eventStart: projection.appointmentStart,

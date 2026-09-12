@@ -89,7 +89,7 @@ struct V054SetupView: View {
 
                 ScenicRoyalSetupDisclosureGroup(
                     title: "Navigation & Places",
-                    subtitle: "\(preferredNavigationApp.title) · \(routingState.savedPlaces.count) saved places",
+                    subtitle: preferredNavigationApp.title,
                     systemImage: "location.north.line.fill",
                     isExpanded: $navigationExpanded
                 ) {
@@ -303,8 +303,8 @@ struct V054SetupView: View {
             ScenicRoyalInsetRow(role: .passiveRow) {
                 ScenicRoyalSetupNavigationRow(
                     title: "Theme Center",
-                    subtitle: themeStore.selectedTheme.name,
-                    detail: "Color, scenery, and material system",
+                    subtitle: "Choose colors and scenery.",
+                    detail: nil,
                     systemImage: "sparkles"
                 )
             }
@@ -353,7 +353,7 @@ struct V054SetupView: View {
     private var savedPlacesCard: some View {
         ScenicRoyalSetupCard(
             title: "Saved Places",
-            subtitle: "\(routingState.savedPlaces.count) saved place\(routingState.savedPlaces.count == 1 ? "" : "s") for routing, stops, and gap planning.",
+            subtitle: "Destinations for routing, stops, and gap planning.",
             systemImage: "bookmark.fill"
         ) {
             if routingState.savedPlaces.isEmpty {

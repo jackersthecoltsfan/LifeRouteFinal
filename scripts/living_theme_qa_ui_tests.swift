@@ -270,7 +270,7 @@ final class NativeUI: XCTestCase {
         var prior = audit(app, scene: "scenery.ocean.day")
         openThemeCenter(app)
         prior = continued(app, from: prior, label: "Theme Center remains open and alive")
-        let card = app.buttons["Ocean Night, LIVING THEMES theme, Living motion"].firstMatch
+        let card = app.buttons["Ocean Night, Living motion"].firstMatch
         for _ in 0..<8 {
             if card.isHittable && card.frame.minY > 130 && card.frame.maxY < 830 { break }
             if card.exists && card.frame.minY < 130 { app.swipeDown() } else { app.swipeUp() }

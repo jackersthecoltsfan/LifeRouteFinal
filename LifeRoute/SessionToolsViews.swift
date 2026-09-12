@@ -3073,6 +3073,15 @@ struct SessionPlanOrganizerView: View {
                         .font(.headline)
                         .foregroundStyle(palette.textPrimary)
                     TextEditor(text: $targetsText)
+                        .accessibilityLabel("Supervisor-approved targets and priorities")
+                        .overlay(alignment: .topLeading) {
+                            if targetsText.isEmpty {
+                                Text("Enter approved targets, one per line.")
+                                    .foregroundStyle(palette.textSecondary)
+                                    .padding(.horizontal, 5).padding(.vertical, 8)
+                                    .allowsHitTesting(false).accessibilityHidden(true)
+                            }
+                        }
                         .frame(minHeight: 120)
                         .scrollContentBackground(.hidden)
                         .padding(10)
@@ -3085,6 +3094,15 @@ struct SessionPlanOrganizerView: View {
                         .font(.headline)
                         .foregroundStyle(palette.textPrimary)
                     TextEditor(text: $reinforcersText)
+                        .accessibilityLabel("Known reinforcers and useful activities")
+                        .overlay(alignment: .topLeading) {
+                            if reinforcersText.isEmpty {
+                                Text("Enter known reinforcers or useful activities.")
+                                    .foregroundStyle(palette.textSecondary)
+                                    .padding(.horizontal, 5).padding(.vertical, 8)
+                                    .allowsHitTesting(false).accessibilityHidden(true)
+                            }
+                        }
                         .frame(minHeight: 100)
                         .scrollContentBackground(.hidden)
                         .padding(10)

@@ -3,6 +3,18 @@ import Foundation
 import Combine
 #endif
 
+/// Presentation only: provider titles, persisted data and route fingerprints stay raw.
+enum LifeRouteCalendarDisplay {
+    private static let misplacedPossessive = try? NSRegularExpression(pattern: #"(?<=\p{L})[ \t]+(['’]s)(?=\s|$)"#)
+
+    static func title(_ value: String) -> String {
+        guard let expression = misplacedPossessive else { return value }
+        return expression.stringByReplacingMatches(
+            in: value, range: NSRange(value.startIndex..., in: value), withTemplate: "$1"
+        )
+    }
+}
+
 enum LifeRouteCalendarSource: String, Codable, CaseIterable, Hashable {
     case manual
     case apple
@@ -67,6 +79,8 @@ struct LifeRouteCalendarEvent: Identifiable, Codable, Hashable {
         self.source = source
         self.providerIdentity = providerIdentity
     }
+
+    var displayTitle: String { LifeRouteCalendarDisplay.title(title) }
 
     var durationMinutes: Int {
         guard !isAllDay else { return 0 }

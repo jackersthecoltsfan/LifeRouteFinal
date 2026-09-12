@@ -207,7 +207,7 @@ struct ScenicRoyalScheduleEventRow: View {
 
     private var eventDetails: some View {
         VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-            Text(event.title)
+            Text(event.displayTitle)
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(style.primaryText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -241,17 +241,15 @@ struct ScenicRoyalScheduleEventRow: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(.red)
-            .accessibilityLabel("Delete \(event.title)")
+            .accessibilityLabel("Delete \(event.displayTitle)")
             .accessibilityHint("Removes this LifeRoute appointment")
         }
     }
 
     private var sourceDescription: String {
-        if event.calendarTitle.isEmpty
-            || event.calendarTitle.compare(sourceLabel, options: .caseInsensitive) == .orderedSame {
-            return sourceLabel
-        }
-        return "\(sourceLabel), \(event.calendarTitle)"
+        // Calendar names can be full account addresses. Ordinary cards expose
+        // the bounded provider label; account management retains its detail.
+        sourceLabel
     }
 
     private var openHint: String {
@@ -456,7 +454,7 @@ struct ScenicRoyalRouteLegRow: View {
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                    Text("\(leg.fromTitle) → \(leg.toTitle)")
+                    Text("\(LifeRouteCalendarDisplay.title(leg.fromTitle)) → \(LifeRouteCalendarDisplay.title(leg.toTitle))")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(style.primaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -469,7 +467,7 @@ struct ScenicRoyalRouteLegRow: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Leg \(leg.sequence), from \(leg.fromTitle) to \(leg.toTitle)")
+        .accessibilityLabel("Leg \(leg.sequence), from \(LifeRouteCalendarDisplay.title(leg.fromTitle)) to \(LifeRouteCalendarDisplay.title(leg.toTitle))")
         .accessibilityValue("\(leg.durationLabel), \(leg.distanceLabel)")
     }
 }

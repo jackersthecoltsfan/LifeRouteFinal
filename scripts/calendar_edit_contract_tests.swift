@@ -49,6 +49,20 @@ struct CalendarEditContractTests {
 
     @MainActor
     static func main() throws {
+        for (raw, display) in [
+            ("Morgan Lane 's Birthday", "Morgan Lane's Birthday"),
+            ("Morgan Lane ’s Birthday", "Morgan Lane’s Birthday"),
+            ("Morgan's Birthday", "Morgan's Birthday"),
+            ("O’Neil visit", "O’Neil visit"),
+            ("Letter 's' practice", "Letter 's' practice"),
+            ("Two  words stay spaced", "Two  words stay spaced")
+        ] {
+            let event = LifeRouteCalendarEvent(title: raw, start: Date(timeIntervalSince1970: 0), end: Date(timeIntervalSince1970: 60))
+            expect(event.displayTitle == display, "bounded possessive title presentation")
+            expect(event.title == raw, "display does not mutate raw provider title")
+            let restored = try JSONDecoder().decode(LifeRouteCalendarEvent.self, from: JSONEncoder().encode(event))
+            expect(restored.title == raw && restored == event, "display preserves persisted identity and title")
+        }
         let calendar = Calendar(identifier: .gregorian)
         let firstDay = date("2026-09-01T12:00:00Z")
         let secondDay = date("2026-09-02T12:00:00Z")

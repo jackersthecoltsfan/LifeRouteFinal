@@ -113,7 +113,7 @@ struct DayRoutePlanningView: View {
                                         .foregroundStyle(scenicStyle.accent)
                                         .accessibilityHidden(true)
                                     VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                                        Text(event.title)
+                                        Text(event.displayTitle)
                                             .font(.headline)
                                             .foregroundStyle(scenicStyle.primaryText)
                                         Text(event.location.isEmpty ? "No route location" : event.location)
@@ -304,12 +304,15 @@ struct DayRoutePlanningView: View {
             Button {
                 buildRoute()
             } label: {
-                Label(planState.isCalculating ? "Generating route…" : "Generate full day route", systemImage: "map.fill")
+                HStack {
+                    if planState.isCalculating { ProgressView() }
+                    Label(planState.isCalculating ? "Generating day route…" : "Generate full day route", systemImage: "map.fill")
+                }
             }
             .buttonStyle(ScenicRoyalPrimaryButtonStyle())
             .disabled(planState.isCalculating || (routableDayEvents.isEmpty && stops.isEmpty))
 
-            if let routeMessage = planState.message {
+            if !planState.isCalculating, let routeMessage = planState.message {
                 Text(routeMessage)
                     .font(.caption)
                     .foregroundStyle(scenicStyle.secondaryText)
@@ -377,7 +380,7 @@ struct DayRoutePlanningView: View {
                         .foregroundStyle(scenicStyle.accentReflection)
                     if let appointmentID = stop.afterAppointmentID,
                        let appointment = dayEvents.first(where: { $0.id == appointmentID }) {
-                        Text("After \(appointment.title)")
+                        Text("After \(LifeRouteCalendarDisplay.title(appointment.title))")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(scenicStyle.accentReflection)
                     }

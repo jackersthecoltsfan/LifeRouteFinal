@@ -114,7 +114,7 @@ final class DayRoutePlanningCore: ObservableObject {
         nextSequentialLegIndex = nil
         hasStartedSequentialHandoff = false
         isCalculating = true
-        message = isRegeneration ? "Regenerating day route…" : "Building day route…"
+        message = "Generating day route…"
 
         let mode = self.routeMode
         let returnHome = self.returnHome

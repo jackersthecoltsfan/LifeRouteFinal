@@ -16,9 +16,9 @@ enum ScenicRoyalThemeCategory: String, CaseIterable, Identifiable {
     var sectionDescription: String {
         switch self {
         case .core:
-            return "12 still app-wide glass environments with no continuous ambient motion."
+            return "Still app-wide glass environments with no continuous ambient motion."
         case .living:
-            return "12 Scenic Royal Day/Night environments with flowing water, evolving weather, and a fixed camera."
+            return "Day/Night environments with flowing water, evolving weather, and a fixed camera."
         }
     }
 
@@ -57,7 +57,7 @@ struct ScenicRoyalSelectedThemeHeader: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "Active theme, \(theme.name), \(category.rawValue), \(theme.scenicRoyalMotionCharacter)"
+            "Active theme, \(theme.name), \(theme.scenicRoyalMotionCharacter)"
         )
         .accessibilityValue("Selected")
     }
@@ -98,7 +98,7 @@ struct ScenicRoyalSelectedThemeHeader: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Label(
-                "\(category.rawValue) · \(theme.scenicRoyalMotionCharacter)",
+                theme.scenicRoyalMotionCharacter,
                 systemImage: theme.scenicRoyalMotionSystemImage
             )
             .font(.subheadline.weight(.medium))
@@ -171,7 +171,7 @@ struct ScenicRoyalThemeCategoryPicker: View {
             }
             .buttonStyle(.plain)
             .font(.subheadline.weight(.semibold))
-            .accessibilityLabel("\(category.rawValue) themes")
+            .accessibilityLabel(category == .living ? "Living Themes" : "Core themes")
             .accessibilityValue(selection == category ? "Selected" : "Not selected")
             .accessibilityAddTraits(selection == category ? .isSelected : [])
         }
@@ -261,7 +261,7 @@ struct ScenicRoyalThemeCard: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "\(theme.name), \(category.rawValue) theme, \(theme.scenicRoyalMotionCharacter)"
+            "\(theme.name), \(theme.scenicRoyalMotionCharacter)"
         )
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
         .accessibilityHint(isSelected ? "Currently applied" : "Applies this theme immediately")
@@ -300,10 +300,6 @@ struct ScenicRoyalThemeCard: View {
                     .foregroundStyle(style.primaryText)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Text(category.rawValue.uppercased())
-                    .font(.caption2.weight(.bold))
-                    .tracking(0.5)
-                    .foregroundStyle(isSelected ? style.selectedControlIndicator : style.contentSecondaryForeground)
             }
 
             Spacer(minLength: 0)

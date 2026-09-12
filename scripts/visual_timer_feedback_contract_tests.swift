@@ -262,6 +262,7 @@ struct VisualTimerFeedbackContractTests {
         expect(VisualTimerOrbMotionFrame.still == VisualTimerOrbMotionFrame(elapsed: 0, progress: 0, urgency: 0),
                "Reduce Motion retains the accepted static shimmer frame")
     }
+#endif
 
     private static func testShortHorizonScheduler() {
         let rate: (TimeInterval) -> Double = { _ in VisualTimerFeedbackCurve.maximumPulsesPerSecond }
@@ -312,6 +313,7 @@ struct VisualTimerFeedbackContractTests {
         )
     }
 
+#if canImport(SwiftUI)
     private static func testVisualRenderingBudget() {
         let samplesPerFastestCycle = (1 / VisualTimerOrbMotionFrame.interval)
             / VisualTimerFeedbackCurve.maximumPulsesPerSecond

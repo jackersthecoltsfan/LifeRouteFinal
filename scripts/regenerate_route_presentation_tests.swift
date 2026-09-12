@@ -55,7 +55,7 @@ private final class RegenerateRoutePresentationChecks {
         await settle { DayRoutePlanningCore.fixtureBuildWaiting }
         expect(core.isCalculating, "initial generation is explicitly in flight")
         expect(core.generatedItinerary == nil && core.legs.isEmpty, "initial generation has no invented prior route")
-        expect(core.message == "Building day route…", "initial generation exposes its loading state")
+        expect(core.message == "Generating day route…", "initial generation exposes its loading state")
         DayRoutePlanningCore.fixtureBuildSuspended = false
         DayRoutePlanningCore.resumeFixtureBuild()
         await settle { !core.isCalculating }
@@ -80,7 +80,7 @@ private final class RegenerateRoutePresentationChecks {
         expect(core.isCalculating, "regeneration enters an explicit loading state")
         expect(core.generatedItinerary == baseline, "regeneration retains the visible route while loading")
         expect(core.legs == baselineLegs && core.fullRoutePlan != nil, "regeneration does not collapse route presentation")
-        expect(core.message == "Regenerating day route…", "regeneration identifies its visible loading state")
+        expect(core.message == "Generating day route…", "regeneration identifies its visible loading state")
         DayRoutePlanningCore.fixtureBuildSuspended = false
         DayRoutePlanningCore.resumeFixtureBuild()
         await settle { !core.isCalculating }

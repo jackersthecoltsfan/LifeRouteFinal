@@ -46,15 +46,27 @@ struct V054ScheduleView: View {
     @State private var message: String?
 
     var body: some View {
+        GeometryReader { geometry in
+        // Use the actual retained root viewport; its relayed size class can
+        // remain regular during rotation even after its bounds become wide.
+        let compactLandscape = geometry.size.width > geometry.size.height && !dynamicTypeSize.isAccessibilitySize
         ScrollView {
-            LazyVStack(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-                scheduleHeader
-                rangeControl
+            LazyVStack(spacing: compactLandscape ? ScenicRoyalDesignSystem.Spacing.compact : ScenicRoyalDesignSystem.Spacing.standard) {
+                if compactLandscape {
+                    HStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
+                        compactScheduleHeader
+                            .frame(maxWidth: 310)
+                        rangeControl
+                    }
+                } else {
+                    scheduleHeader
+                    rangeControl
+                }
 
                 if selectedRange == .month {
-                    monthGrid
+                    monthGrid(compact: compactLandscape)
                 } else {
-                    compactDateStrip
+                    compactDateStrip(compact: compactLandscape)
                 }
 
                 selectedDayDivider
@@ -71,6 +83,8 @@ struct V054ScheduleView: View {
             .padding(.horizontal, ScenicRoyalDesignSystem.Layout.pageHorizontal)
             .padding(.top, ScenicRoyalDesignSystem.Spacing.compact)
             .padding(.bottom, ScenicRoyalDesignSystem.Spacing.spacious * 2)
+        }
+        .accessibilityIdentifier("calendar.scroll")
         }
         .toolbar(.hidden, for: .navigationBar)
         .onChange(of: selectedRange) { _ in if visibility.active { LifeRouteHaptics.selection() } }
@@ -140,6 +154,22 @@ struct V054ScheduleView: View {
         }
     }
 
+    private var compactScheduleHeader: some View {
+        ScenicRoyalScreenHeader(
+            title: "Calendar",
+            subtitle: calendarState.periodLabel(for: selectedRange),
+            compact: true
+        ) {
+            ScenicRoyalCompactIconButton(systemImage: "calendar", accessibilityLabel: "Choose date") {
+                showingDatePicker = true
+                LifeRouteHaptics.selection()
+            }
+            ScenicRoyalCompactIconButton(systemImage: "plus", accessibilityLabel: "Add appointment") {
+                openAppointmentSheet()
+            }
+        }
+    }
+
     private var rangeControl: some View {
         ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
             HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
@@ -191,8 +221,8 @@ struct V054ScheduleView: View {
                     ) { range in
                         Text(rangeTitle(range))
                     }
-                    .accessibilityLabel("Calendar range")
-                    .accessibilityValue(rangeTitle(selectedRange))
+                    // Each segment retains its own spoken name and selected trait.
+                    // A label/value on this container overrides all three buttons.
                 }
 
                 ScenicRoyalCompactIconButton(
@@ -206,13 +236,13 @@ struct V054ScheduleView: View {
         }
     }
 
-    private var compactDateStrip: some View {
+    private func compactDateStrip(compact: Bool) -> some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
                     HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
                         ForEach(calendarState.weekDates(containing: calendarState.selectedDate), id: \.self) { date in
-                            dateChip(date)
+                            dateChip(date, compact: compact)
                                 .id(Calendar.current.startOfDay(for: date))
                         }
                     }
@@ -226,7 +256,7 @@ struct V054ScheduleView: View {
         // Deployment-target-safe: horizontal date browsing remains clipped by the ScrollView.
     }
 
-    private func dateChip(_ date: Date) -> some View {
+    private func dateChip(_ date: Date, compact: Bool) -> some View {
         let selected = Calendar.current.isDate(date, inSameDayAs: calendarState.selectedDate)
         let today = Calendar.current.isDateInToday(date)
         let count = calendarState.events(on: date).count
@@ -235,17 +265,18 @@ struct V054ScheduleView: View {
             date: date,
             eventCount: count,
             isSelected: selected,
-            isToday: today
+            isToday: today,
+            compact: compact
         ) {
             calendarState.selectedDate = date
             LifeRouteHaptics.selection()
         }
     }
 
-    private var monthGrid: some View {
+    private func monthGrid(compact: Bool) -> some View {
         VStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
             HStack(spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                ForEach(["M", "T", "W", "T", "F", "S", "S"], id: \.self) { label in
+                ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, label in
                     Text(label)
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(scenicStyle.secondaryText)
@@ -266,7 +297,8 @@ struct V054ScheduleView: View {
                 }
             }
         }
-        .scenicRoyalCard(role: .majorGroup, padding: ScenicRoyalDesignSystem.Spacing.standard)
+        .scenicRoyalCard(role: .majorGroup, padding: compact ? ScenicRoyalDesignSystem.Spacing.compact : ScenicRoyalDesignSystem.Spacing.standard)
+        .accessibilityIdentifier("calendar.monthGrid")
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 

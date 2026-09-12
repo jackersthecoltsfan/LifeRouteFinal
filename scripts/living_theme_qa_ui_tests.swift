@@ -148,6 +148,61 @@ final class NativeUI: XCTestCase {
         attachTree(app, "Normal five-root product with no QA entry")
     }
 
+    @MainActor func testLivingQACalendar() throws {
+        continueAfterFailure = false
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = XCUIApplication(bundleIdentifier: bundle)
+        app.launchArguments = ["-LifeRouteSectionOverride", "schedule", "-LifeRouteThemeOverride", "royal"]
+        app.launch()
+        XCTAssertTrue(app.buttons["Add appointment"].waitForExistence(timeout: 15))
+        let existing = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "QA landscape appointment")).firstMatch
+        if !existing.exists {
+        app.buttons["Add appointment"].tap()
+        let title = app.textFields["Appointment title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap(); title.typeText("QA landscape appointment")
+        let save = app.buttons["Save appointment"]
+        for _ in 0..<3 { if save.isHittable { break }; app.swipeUp() }
+        XCTAssertTrue(save.isHittable); save.tap()
+        }
+        XCTAssertTrue(app.scrollViews["calendar.scroll"].waitForExistence(timeout: 5))
+        for (label, orientation) in [("portrait", UIDeviceOrientation.portrait),
+                                     ("landscape-left", .landscapeLeft), ("landscape-right", .landscapeRight)] {
+            XCUIDevice.shared.orientation = orientation
+            Thread.sleep(forTimeInterval: 1)
+            let viewport = app.scrollViews["calendar.scroll"].frame
+            print("CALENDAR_VIEWPORT " + label + " " + String(describing: viewport))
+            if orientation != .portrait { XCTAssertGreaterThan(viewport.width, viewport.height) }
+            attachTree(app, "Calendar geometry " + label)
+            for range in ["Agenda", "Week", "Month"] {
+                let button = app.buttons[range].firstMatch
+                for _ in 0..<5 { if button.isHittable { break }; app.scrollViews["calendar.scroll"].swipeDown() }
+                XCTAssertTrue(button.isHittable, "Range reachable after rotation: " + range)
+                button.tap()
+                if orientation != .portrait {
+                    XCTAssertLessThan(abs(app.buttons["Choose date"].frame.midY - app.buttons["Previous period"].frame.midY), 12,
+                                      "Compact header and range share one row in landscape")
+                }
+                let event = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "QA landscape appointment")).firstMatch
+                let scroll = app.scrollViews["calendar.scroll"]
+                for _ in 0..<6 {
+                    if event.isHittable && event.frame.minY >= scroll.frame.minY && event.frame.maxY <= scroll.frame.maxY { break }
+                    scroll.swipeUp()
+                }
+                XCTAssertTrue(event.isHittable, "Event reachable below chrome: " + label + " " + range)
+                XCTAssertGreaterThanOrEqual(event.frame.minY, scroll.frame.minY)
+                XCTAssertLessThanOrEqual(event.frame.maxY, scroll.frame.maxY, "Full event stays above the root toolbar")
+                XCTAssertTrue(app.buttons["Calendar"].exists)
+                let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+                screenshot.name = "Calendar " + label + " " + range
+                screenshot.lifetime = .keepAlways; add(screenshot)
+            }
+        }
+        app.terminate()
+        print("LIVING_QA_CALENDAR_PASS: synthetic manual appointment reachable in all3 ranges across portrait and both landscapes")
+    }
+
     @MainActor func testLivingQANormal() throws {
         continueAfterFailure = false
         let app = XCUIApplication(bundleIdentifier: bundle)

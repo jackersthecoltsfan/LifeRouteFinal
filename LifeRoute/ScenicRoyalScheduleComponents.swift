@@ -8,6 +8,7 @@ struct ScenicRoyalCalendarDateChip: View {
     let eventCount: Int
     let isSelected: Bool
     let isToday: Bool
+    var compact = false
     let action: () -> Void
 
     var body: some View {
@@ -28,8 +29,9 @@ struct ScenicRoyalCalendarDateChip: View {
             .foregroundStyle(isSelected ? style.selectedControlForeground : style.contentPrimaryForeground)
             .frame(
                 width: dynamicTypeSize.isAccessibilitySize ? 88 : 44,
-                height: dynamicTypeSize.isAccessibilitySize ? 96 : 58
+                height: dynamicTypeSize.isAccessibilitySize ? 96 : (compact ? nil : 58)
             )
+            .frame(minHeight: compact ? 44 : nil)
             .background {
                 if isSelected {
                     ScenicRoyalSelectedControlMaterial(

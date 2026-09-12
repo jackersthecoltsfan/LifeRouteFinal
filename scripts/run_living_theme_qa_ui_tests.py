@@ -5,7 +5,7 @@ os.environ.pop('SDKROOT', None)
 root = pathlib.Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser(description=__doc__)
 p.add_argument('--simulator', required=True)
-p.add_argument('--gate', choices=['isolation', 'runtime', 'normal', 'release', 'continuity', 'systemmotion'], required=True)
+p.add_argument('--gate', choices=['isolation', 'runtime', 'normal', 'release', 'continuity', 'systemmotion', 'calendar'], required=True)
 p.add_argument('--app', type=pathlib.Path, required=True)
 p.add_argument('--output', type=pathlib.Path, required=True)
 a = p.parse_args()

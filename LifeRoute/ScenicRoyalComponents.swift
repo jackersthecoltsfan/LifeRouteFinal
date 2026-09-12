@@ -87,15 +87,18 @@ struct ScenicRoyalScreenHeader<Actions: View>: View {
 
     let title: String
     let subtitle: String
+    let compact: Bool
     private let actions: Actions
 
     init(
         title: String,
         subtitle: String,
+        compact: Bool = false,
         @ViewBuilder actions: () -> Actions
     ) {
         self.title = title
         self.subtitle = subtitle
+        self.compact = compact
         self.actions = actions()
     }
 
@@ -117,11 +120,11 @@ struct ScenicRoyalScreenHeader<Actions: View>: View {
         HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
                 Text(title)
-                    .font(.largeTitle.weight(.bold))
+                    .font((compact ? Font.headline : Font.largeTitle).weight(.bold))
                     .foregroundStyle(style.contentPrimaryForeground)
 
                 Text(subtitle)
-                    .font(.subheadline.weight(.medium))
+                    .font((compact ? Font.caption : Font.subheadline).weight(.medium))
                     .foregroundStyle(style.contentSecondaryForeground)
             }
             .accessibilityElement(children: .combine)

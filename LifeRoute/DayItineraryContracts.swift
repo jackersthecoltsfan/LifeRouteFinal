@@ -716,68 +716,187 @@ struct LifeRouteGeneratedItinerary: Identifiable, Codable, Hashable, Sendable {
     }
 }
 
+/// A clock projection of the plan, not evidence of physical arrival or departure.
+/// Both presentation and ActivityKit use these half-open schedule boundaries.
 struct LifeRouteLiveDayProjection: Codable, Hashable, Sendable {
-    let departure: LifeRouteDepartureGuidance
+    enum Phase: String, Codable, Hashable, Sendable {
+        case upcoming, departure, travelling, stopActive, eventActive, gap, dayCompleted
+    }
+
+    let phase: Phase
+    let currentNodeID: String?
+    let currentLegID: String?
+    let nextNodeID: String?
+    let completedNodeIDs: [String]
+    let nextTransition: Date?
+    let departure: LifeRouteDepartureGuidance?
     let phaseLabel: String
     let primaryTitle: String
     let secondaryText: String?
-    let countdownTarget: Date
-    let appointmentStart: Date
+    let countdownTarget: Date?
+    let appointmentStart: Date?
     let appointmentEnd: Date?
     let routeSummary: String
     let plannedStopSummary: String?
     let returnHomePlanned: Bool
 
-    static func make(
-        from itinerary: LifeRouteGeneratedItinerary,
-        at now: Date
-    ) -> Self? {
-        guard
-            let departure = itinerary.departureGuidance(at: now),
-            let appointment = itinerary.nodes.first(where: {
-                $0.id == departure.appointmentNodeID
-            })
-        else {
-            return nil
-        }
+    private struct Window {
+        let phase: Phase
+        let node: LifeRouteItineraryNode
+        let legID: String?
+        let start: Date
+        let end: Date
+    }
 
-        let phaseLabel: String
-        let countdownTarget: Date
-        switch departure.state {
-        case .leaveIn:
-            phaseLabel = "LEAVE IN"
-            countdownTarget = departure.leaveBy
-        case .leaveNow:
-            phaseLabel = "LEAVE NOW"
-            countdownTarget = departure.appointmentStart
-        case .overdue:
-            phaseLabel = "LEAVE NOW · DUE IN"
-            countdownTarget = departure.appointmentStart
-        }
-
-        let rawMinutes = roundedUpMinutes(departure.rawTravelSeconds)
-        let bufferMinutes = roundedUpMinutes(departure.bufferSeconds)
-        let routeSummary = bufferMinutes > 0
-            ? "\(rawMinutes) min drive · +\(bufferMinutes) min buffer"
-            : "\(rawMinutes) min drive · no buffer"
-        let stopsByID = Dictionary(uniqueKeysWithValues: itinerary.nodes.map { ($0.id, $0) })
-        let stopLabels = departure.intermediateStopNodeIDs.compactMap { id -> String? in
-            guard let stop = stopsByID[id] else {
-                return nil
+    static func make(from itinerary: LifeRouteGeneratedItinerary, at now: Date) -> Self? {
+        let nodes = itinerary.nodes
+        let events = nodes.filter { $0.kind == .appointment && !$0.isAllDay && $0.start != nil }
+        let byID = Dictionary(uniqueKeysWithValues: nodes.map { ($0.id, $0) })
+        var windows: [Window] = []
+        var boundaries: [Date] = []
+        // Keep raw route math and the once-per-appointment buffer authoritative.
+        for event in events {
+            let start = event.start!
+            boundaries.append(start)
+            if let end = event.end, end > start { boundaries.append(end) }
+            guard let guidance = itinerary.departureGuidance(at: start),
+                  guidance.appointmentNodeID == event.id,
+                  let origin = nodes.firstIndex(where: { $0.id == guidance.routeOriginNodeID }),
+                  let target = nodes.firstIndex(where: { $0.id == event.id }), origin < target else { continue }
+            let route = nodes[origin...target].filter { $0.isRoutable && !$0.isAllDay }
+            var cursor = guidance.leaveBy
+            boundaries += [cursor.addingTimeInterval(-15 * 60), cursor]
+            for (from, to) in zip(route, route.dropFirst()) {
+                guard let leg = itinerary.legs.first(where: { $0.fromNodeID == from.id && $0.toNodeID == to.id }) else { break }
+                let arrival = cursor.addingTimeInterval(leg.rawTravelSeconds)
+                windows.append(Window(phase: .travelling, node: to, legID: leg.id, start: cursor, end: arrival))
+                boundaries += [cursor, arrival]
+                cursor = arrival
+                if to.kind == .stop {
+                    let end = cursor.addingTimeInterval(to.stopDurationSeconds)
+                    windows.append(Window(phase: .stopActive, node: to, legID: nil, start: cursor, end: end))
+                    boundaries.append(end)
+                    cursor = end
+                }
             }
-            return "\(stop.title) · \(roundedUpMinutes(stop.stopDurationSeconds)) min"
         }
-
+        // A virtual commitment supplies a deadline but no physical destination.
+        // Anchor intervening errands to the previous event end when the whole
+        // interval fits; never invent travel to a virtual meeting.
+        for (eventIndex, event) in events.enumerated() where !event.isRoutable && eventIndex > 0 {
+            let previous = events[eventIndex - 1]
+            guard let previousEnd = previous.end,
+                  let previousIndex = nodes.firstIndex(where: { $0.id == previous.id }),
+                  let targetIndex = nodes.firstIndex(where: { $0.id == event.id }), previousIndex < targetIndex,
+                  let origin = nodes[...previousIndex].last(where: { $0.isRoutable && !$0.isAllDay }),
+                  origin.kind != .stop || windows.contains(where: { $0.node.id == origin.id && $0.phase == .stopActive }) else { continue }
+            var source = origin
+            var cursor = max(previous.start!, previousEnd)
+            var proposed: [Window] = []
+            var complete = true
+            for stop in nodes[(previousIndex + 1)..<targetIndex] where stop.kind == .stop && stop.isRoutable {
+                guard let leg = itinerary.legs.first(where: { $0.fromNodeID == source.id && $0.toNodeID == stop.id }) else { complete = false; break }
+                let arrival = cursor.addingTimeInterval(leg.rawTravelSeconds)
+                let end = arrival.addingTimeInterval(stop.stopDurationSeconds)
+                proposed.append(Window(phase: .travelling, node: stop, legID: leg.id, start: cursor, end: arrival))
+                proposed.append(Window(phase: .stopActive, node: stop, legID: nil, start: arrival, end: end))
+                cursor = end
+                source = stop
+            }
+            if complete && cursor <= event.start! {
+                windows += proposed
+                boundaries += proposed.flatMap { [$0.start, $0.end] }
+            }
+        }
+        // Trailing errands/return-home are planned from the final commitment's end.
+        // An untimed stop-only route has no clock anchor and remains upcoming.
+        if let last = events.last, let end = last.end,
+           let lastIndex = nodes.firstIndex(where: { $0.id == last.id }) {
+            var cursor = max(last.start!, events.compactMap(\.end).max() ?? end)
+            var source = nodes[...lastIndex].last { $0.isRoutable && !$0.isAllDay }
+            for node in nodes.dropFirst(lastIndex + 1) where node.isRoutable && !node.isAllDay {
+                guard let from = source,
+                      from.kind != .stop || windows.contains(where: { $0.node.id == from.id && $0.phase == .stopActive }),
+                      let leg = itinerary.legs.first(where: { $0.fromNodeID == from.id && $0.toNodeID == node.id }) else { break }
+                let arrival = cursor.addingTimeInterval(leg.rawTravelSeconds)
+                windows.append(Window(phase: .travelling, node: node, legID: leg.id, start: cursor, end: arrival))
+                boundaries += [cursor, arrival]
+                cursor = arrival
+                if node.kind == .stop {
+                    let end = cursor.addingTimeInterval(node.stopDurationSeconds)
+                    windows.append(Window(phase: .stopActive, node: node, legID: nil, start: cursor, end: end))
+                    boundaries.append(end)
+                    cursor = end
+                }
+                source = node
+            }
+        }
+        windows.sort { $0.start < $1.start }
+        let completed = nodes.filter { node in
+            if node.kind == .appointment, !node.isAllDay, let start = node.start {
+                return max(start, node.end ?? start) <= now
+            }
+            return windows.contains { $0.node.id == node.id && $0.end <= now &&
+                ($0.phase == .stopActive || node.kind == .home) }
+        }.map(\.id)
+        let active = events.first { node in
+            node.start! <= now && now < (node.end ?? node.start!)
+        }
+        let nextEvent = events.first { $0.start! > now }
+        let window = windows.first { $0.start <= now && now < $0.end &&
+            !completed.contains($0.node.id) }
+        let nextWindow = windows.first { $0.start > now && !completed.contains($0.node.id) }
+        let guidance = itinerary.departureGuidance(at: now)
+        let phase: Phase
+        let node: LifeRouteItineraryNode?
+        let target: Date?
+        let label: String
+        if let active {
+            phase = .eventActive; node = active; target = active.end; label = "EVENT ACTIVE · ENDS AT"
+        } else if let window {
+            phase = window.phase; node = window.node; target = window.end
+            label = phase == .travelling ? "PLANNED TRAVEL · UNTIL" : "PLANNED STOP · UNTIL"
+        } else if let nextEvent {
+            node = nextEvent
+            if let guidance, guidance.appointmentNodeID == nextEvent.id, guidance.leaveBy > now {
+                phase = completed.isEmpty ? (guidance.leaveBy.timeIntervalSince(now) <= 900 ? .departure : .upcoming) : .gap
+                target = guidance.leaveBy; label = phase == .gap ? "GAP · LEAVE AT" : "LEAVE AT"
+            } else {
+                phase = completed.isEmpty ? .upcoming : .gap
+                target = nextEvent.start; label = phase == .gap ? "GAP · NEXT AT" : "UPCOMING · STARTS AT"
+            }
+        } else if let nextWindow {
+            phase = .gap; node = nextWindow.node; target = nextWindow.start; label = "GAP · NEXT AT"
+        } else if let untimed = nodes.first(where: { candidate in candidate.kind != .origin && !candidate.isAllDay && !completed.contains(candidate.id) &&
+            !windows.contains(where: { $0.node.id == candidate.id }) }) {
+            phase = .upcoming; node = untimed; target = nil; label = "UPCOMING · TIME NOT SET"
+        } else {
+            guard !nodes.isEmpty else { return nil }
+            phase = .dayCompleted; node = nil; target = nil; label = "DAY COMPLETE"
+        }
+        let futureCandidates: [(Date, String)] = [
+            nextEvent.flatMap { event in event.start.map { ($0, event.id) } },
+            nextWindow.map { ($0.start, $0.node.id) }
+        ].compactMap { $0 }
+        let nextNodeID = active == nil && window?.phase == .travelling
+            ? window?.node.id
+            : futureCandidates.min(by: { $0.0 < $1.0 })?.1 ?? (active == nil ? node?.id : nil)
+        let displayGuidance = guidance?.appointmentNodeID == node?.id ? guidance : nil
+        let routeSummary = displayGuidance.map {
+            "\(roundedUpMinutes($0.rawTravelSeconds)) min drive · +\(roundedUpMinutes($0.bufferSeconds)) min buffer"
+        } ?? (phase == .dayCompleted ? "Scheduled day finished" : "Following the generated schedule")
+        let stopLabels = displayGuidance?.intermediateStopNodeIDs.compactMap { id -> String? in
+            guard let stop = byID[id], !completed.contains(id) else { return nil }
+            return "\(stop.title) · \(roundedUpMinutes(stop.stopDurationSeconds)) min"
+        } ?? []
         return Self(
-            departure: departure,
-            phaseLabel: phaseLabel,
-            primaryTitle: appointment.title,
-            secondaryText: appointment.address.isEmpty ? nil : appointment.address,
-            countdownTarget: countdownTarget,
-            appointmentStart: departure.appointmentStart,
-            appointmentEnd: appointment.end,
-            routeSummary: routeSummary,
-            plannedStopSummary: stopLabels.isEmpty ? nil : stopLabels.joined(separator: " · "),
+            phase: phase, currentNodeID: active?.id ?? window?.node.id,
+            currentLegID: active == nil ? window?.legID : nil, nextNodeID: nextNodeID,
+            completedNodeIDs: completed, nextTransition: boundaries.filter { $0 > now }.min(),
+            departure: displayGuidance, phaseLabel: label, primaryTitle: node?.title ?? "All scheduled stops complete",
+            secondaryText: node?.address.isEmpty == false ? node?.address : nil,
+            countdownTarget: target, appointmentStart: node?.start, appointmentEnd: node?.end,
+            routeSummary: routeSummary, plannedStopSummary: stopLabels.isEmpty ? nil : stopLabels.joined(separator: " · "),
             returnHomePlanned: itinerary.returnHome
         )
     }

@@ -6,9 +6,9 @@ struct LifeRouteLiveDayAttributes: ActivityAttributes {
         var phaseLabel: String
         var primaryTitle: String
         var secondaryText: String
-        var countdownTarget: Date
-        var eventStart: Date
-        var eventEnd: Date
+        var countdownTarget: Date?
+        var eventStart: Date?
+        var eventEnd: Date?
         var routeSummary: String
         var plannedStopSummary: String?
         var returnHomePlanned: Bool

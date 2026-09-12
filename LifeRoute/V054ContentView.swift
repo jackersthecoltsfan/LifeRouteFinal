@@ -176,6 +176,11 @@ struct V054ContentView: View {
                 LifeRouteAppearance.refreshVisibleChrome(theme: themeStore.selectedTheme)
             }
         }
+        .task(id: "\(scenePhase)-\(liveDayActivity.run?.startedAt.timeIntervalSince1970 ?? 0)-\(dayPlanState.generatedItinerary?.fingerprint ?? "")") {
+            guard scenePhase == .active, let itinerary = dayPlanState.generatedItinerary,
+                  liveDayActivity.run?.matches(itinerary) == true else { return }
+            await liveDayActivity.followWhileActive(itinerary: itinerary)
+        }
         .onChange(of: router.selectedSection) { section in
             LifeRouteHaptics.rootNavigation()
         }

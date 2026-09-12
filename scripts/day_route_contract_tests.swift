@@ -5,6 +5,7 @@ struct DayRouteContractTests {
     private static var assertionCount = 0
 
     static func main() throws {
+        testClockProgression()
         let calendar = Calendar(identifier: .gregorian)
         let day = ISO8601DateFormatter().date(from: "2026-08-30T12:00:00Z")!
         let nextDay = calendar.date(byAdding: .day, value: 1, to: day)!
@@ -165,8 +166,8 @@ struct DayRouteContractTests {
             return
         }
         expect(
-            LifeRouteLiveDayProjection.make(from: stopOnly, at: now) == nil,
-            "ActivityKit projection remains independently unavailable without a timed departure"
+            LifeRouteLiveDayProjection.make(from: stopOnly, at: now)?.countdownTarget == nil,
+            "an untimed stop may project without fabricating a timed departure"
         )
 
         let invalid = LifeRouteGeneratedItinerary(
@@ -242,7 +243,7 @@ struct DayRouteContractTests {
 
         let live = LifeRouteLiveDayProjection.make(from: itinerary, at: now)
         expect(live?.departure == guidance, "Today and Live Day consume the exact same departure result")
-        expect(live?.phaseLabel == "LEAVE IN", "Live Day projects the route-aware departure phase")
+        expect(live?.phaseLabel == "LEAVE AT", "Live Day projects the route-aware departure phase")
         expect(live?.primaryTitle == "LiFe", "Live Day projects the appointment title")
         expect(live?.countdownTarget == leaveBy, "Live Day counts down to Leave By rather than event start")
         expect(live?.routeSummary == "42 min drive · +10 min buffer", "Live Day keeps raw drive and buffer transparent")
@@ -454,7 +455,7 @@ struct DayRouteContractTests {
         expect(stopOnly.timeline.map(\.kind) == [.origin, .drive, .stop, .drive, .home], "stop-only itinerary remains fully displayable")
         expect(stopOnly.totalRawTravelSeconds == 17 * 60, "stop-only itinerary retains raw travel")
         expect(stopOnly.departureGuidance(at: date("2026-09-01T09:00:00Z")) == nil, "stop-only itinerary fabricates no appointment Leave By")
-        expect(LifeRouteLiveDayProjection.make(from: stopOnly, at: date("2026-09-01T09:00:00Z")) == nil, "stop-only itinerary fabricates no Live Day departure")
+        expect(LifeRouteLiveDayProjection.make(from: stopOnly, at: date("2026-09-01T09:00:00Z"))?.departure == nil, "stop-only itinerary fabricates no Live Day departure")
     }
 
     // Catches the planner silently bridging missing route data or turning an
@@ -990,6 +991,72 @@ struct DayRouteContractTests {
         expect(itinerary.nodes.map(\.id) == ["origin", "stop:first", "stop:second", "event"], "duplicate node ID is removed without reordering distinct visits")
         expect(itinerary.legs.map(\.id) == ["leg:first", "leg:second", "leg:third"], "duplicate leg ID is removed without reordering legs")
         expect(itinerary.nodes.filter { $0.address == "2 Main" }.count == 2, "distinct stable stop IDs may intentionally revisit one address")
+    }
+
+    private static func testClockProgression() {
+        let original = exampleIntermediateStopItinerary()
+        func projection(_ time: String) -> LifeRouteLiveDayProjection {
+            LifeRouteLiveDayProjection.make(from: original, at: date("2026-09-01T" + time + "Z"))!
+        }
+        expect(projection("10:24:00").phase == .upcoming, "before departure is upcoming")
+        expect(projection("10:40:00").phase == .departure, "15-minute preparation window is explicit")
+        expect(projection("10:48:00").phase == .travelling, "exact departure begins planned travel")
+        expect(projection("10:48:00").currentLegID == "leg:home-dunkin", "first leg points to intermediate stop")
+        expect(projection("11:06:00").phase == .stopActive, "arrival begins planned stop")
+        expect(projection("11:06:00").currentNodeID == "stop:dunkin", "intermediate stop becomes current")
+        expect(projection("11:26:00").currentLegID == "leg:dunkin-life", "stop end advances to second leg")
+        expect(projection("11:50:00").phase == .gap, "arrival buffer does not claim physical travel")
+        expect(projection("11:59:40").nextTransition == date("2026-09-01T12:00:00Z"), "expiry is exact event start even within 60 seconds")
+        expect(projection("12:00:00").phase == .eventActive, "exact event start is active")
+        expect(projection("12:00:01").phase == .eventActive, "event does not vanish one second after start")
+        expect(projection("13:59:59").currentNodeID == "event:life", "active event remains until end")
+        expect(projection("14:00:00").phase == .dayCompleted, "half-open event end completes day")
+        expect(projection("14:00:00").completedNodeIDs.contains("event:life"), "event completion is derived")
+        expect(projection("14:00:00").countdownTarget == nil, "completed day has no expired countdown")
+        expect(projection("12:30:00").phase == .eventActive, "backward clock jump recomputes instead of caching completion")
+        let second = LifeRouteItineraryNode(id: "event:second", kind: .appointment, title: "Second", address: "4 Road", start: date("2026-09-01T16:00:00Z"), end: date("2026-09-01T17:00:00Z"))
+        let home = LifeRouteItineraryNode(id: "home", kind: .home, title: "Home", address: "1 Home Street")
+        let itinerary = LifeRouteGeneratedItinerary(id: "two", selectedDay: original.selectedDay, generatedAt: original.generatedAt, returnHome: true, routeBuffer: .tenMinutes, inputFingerprint: "two", nodes: original.nodes + [second, home], legs: original.legs + [
+            .init(id: "between", sequence: 3, fromNodeID: "event:life", toNodeID: second.id, rawTravelSeconds: 1800, rawDistanceMeters: 10000),
+            .init(id: "return", sequence: 4, fromNodeID: second.id, toNodeID: home.id, rawTravelSeconds: 1200, rawDistanceMeters: 8000)
+        ])
+        func secondProjection(_ time: String) -> LifeRouteLiveDayProjection {
+            LifeRouteLiveDayProjection.make(from: itinerary, at: date("2026-09-01T" + time + "Z"))!
+        }
+        expect(secondProjection("11:50:00").nextNodeID == "event:life", "arrival buffer keeps imminent appointment ahead of later return-home window")
+        expect(secondProjection("14:00:00").phase == .gap, "completed first event advances to gap")
+        expect(secondProjection("14:00:00").nextNodeID == second.id, "next event replaces first")
+        expect(secondProjection("15:20:00").phase == .travelling, "second departure advances on the clock")
+        expect(secondProjection("16:00:00").currentNodeID == second.id, "second event becomes active at start")
+        expect(secondProjection("17:00:00").phase == .travelling, "return-home travel precedes whole day completion")
+        expect(secondProjection("17:00:00").nextNodeID == home.id, "return home becomes next destination")
+        expect(secondProjection("17:20:00").phase == .dayCompleted, "return-home schedule ends day")
+        expect(secondProjection("23:00:00").phase == .dayCompleted, "large forward clock jump does not replay first stop")
+        let virtual = LifeRouteItineraryNode(id: "virtual", kind: .appointment, title: "Remote", address: "", start: date("2026-09-01T11:59:50Z"), end: date("2026-09-01T12:10:00Z"))
+        let allDay = LifeRouteItineraryNode(id: "all-day", kind: .appointment, title: "Context", address: "", start: original.selectedDay, end: date("2026-09-02T00:00:00Z"), isAllDay: true)
+        let overlap = LifeRouteGeneratedItinerary(id: "overlap", selectedDay: original.selectedDay, generatedAt: original.generatedAt, returnHome: false, routeBuffer: .tenMinutes, inputFingerprint: "overlap", nodes: [original.nodes[0], allDay, virtual, original.nodes[2]], legs: [.init(id: "direct", sequence: 1, fromNodeID: original.nodes[0].id, toNodeID: original.nodes[2].id, rawTravelSeconds: 600, rawDistanceMeters: 1000)])
+        let before = LifeRouteLiveDayProjection.make(from: overlap, at: date("2026-09-01T11:59:40Z"))!
+        expect(before.nextTransition == virtual.start, "earliest overlapping virtual boundary controls stale expiry")
+        let during = LifeRouteLiveDayProjection.make(from: overlap, at: date("2026-09-01T12:00:00Z"))!
+        expect(during.phase == .eventActive && during.currentNodeID == virtual.id, "virtual commitment and canonical overlap order beat departure")
+        expect(LifeRouteLiveDayProjection.make(from: overlap, at: date("2026-09-01T14:00:00Z"))?.phase == .dayCompleted, "all-day context does not pin timed completion")
+        let remoteFirst = LifeRouteItineraryNode(id: "remote-first", kind: .appointment, title: "Remote first", address: "", start: date("2026-09-01T11:00:00Z"), end: date("2026-09-01T11:10:00Z"))
+        let withRemote = LifeRouteGeneratedItinerary(id: "remote-first", selectedDay: original.selectedDay, generatedAt: original.generatedAt, returnHome: false, routeBuffer: .tenMinutes, inputFingerprint: "remote-first", nodes: [original.nodes[0], remoteFirst, second], legs: [.init(id: "later-drive", sequence: 1, fromNodeID: original.nodes[0].id, toNodeID: second.id, rawTravelSeconds: 600, rawDistanceMeters: 1000)])
+        let remoteUpcoming = LifeRouteLiveDayProjection.make(from: withRemote, at: date("2026-09-01T10:00:00Z"))!
+        expect(remoteUpcoming.primaryTitle == remoteFirst.title && remoteUpcoming.countdownTarget == remoteFirst.start, "upcoming virtual title uses its own start, not later physical departure")
+        expect(remoteUpcoming.nextNodeID == remoteFirst.id && remoteUpcoming.departure == nil, "nearer virtual commitment precedes later route window")
+        let remoteLast = LifeRouteItineraryNode(id: "remote-last", kind: .appointment, title: "Remote last", address: "", start: date("2026-09-01T15:00:00Z"), end: date("2026-09-01T16:00:00Z"))
+        let coffee = LifeRouteItineraryNode(id: "coffee", kind: .stop, title: "Coffee", address: "Coffee road", stopDurationSeconds: 1200)
+        let virtualTail = LifeRouteGeneratedItinerary(id: "virtual-tail", selectedDay: original.selectedDay, generatedAt: original.generatedAt, returnHome: true, routeBuffer: .tenMinutes, inputFingerprint: "virtual-tail", nodes: original.nodes + [coffee, remoteLast, home], legs: original.legs + [
+            .init(id: "to-coffee", sequence: 3, fromNodeID: "event:life", toNodeID: coffee.id, rawTravelSeconds: 600, rawDistanceMeters: 1000),
+            .init(id: "coffee-home", sequence: 4, fromNodeID: coffee.id, toNodeID: home.id, rawTravelSeconds: 900, rawDistanceMeters: 1000)
+        ])
+        expect(LifeRouteLiveDayProjection.make(from: virtualTail, at: date("2026-09-01T14:10:00Z"))?.currentNodeID == coffee.id, "stop before virtual event is anchored to prior event end")
+        expect(LifeRouteLiveDayProjection.make(from: virtualTail, at: date("2026-09-01T15:10:00Z"))?.currentNodeID == remoteLast.id, "virtual event advances after intervening stop")
+        expect(LifeRouteLiveDayProjection.make(from: virtualTail, at: date("2026-09-01T16:15:00Z"))?.phase == .dayCompleted, "virtual tail and return home complete without reviving prior errand")
+        let untimed = LifeRouteGeneratedItinerary(id: "untimed", selectedDay: original.selectedDay, generatedAt: original.generatedAt, returnHome: false, routeBuffer: .none, inputFingerprint: "untimed", nodes: [original.nodes[0], original.nodes[1]], legs: [original.legs[0]])
+        let unknown = LifeRouteLiveDayProjection.make(from: untimed, at: date("2026-09-02T12:00:00Z"))!
+        expect(unknown.phase == .upcoming && unknown.countdownTarget == nil && unknown.completedNodeIDs.isEmpty, "untimed errands are never marked done from generation time")
     }
 
     private static func exampleIntermediateStopItinerary() -> LifeRouteGeneratedItinerary {

@@ -214,6 +214,7 @@ struct V054TodayView: View {
     private func commandStatusContent(now: Date) -> some View {
         let current = currentEvent(at: now)
         let next = nextEvent(at: now)
+        let projection = authoritativeItinerary.flatMap { LifeRouteLiveDayProjection.make(from: $0, at: now) }
         let guidance = authoritativeItinerary?.departureGuidance(
             at: Calendar.current.isDateInToday(selectedDay) ? now : selectedDay
         )
@@ -273,15 +274,15 @@ struct V054TodayView: View {
 
             HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(current == nil ? "NEXT" : "RIGHT NOW")
+                    Text(projection?.phaseLabel ?? (current == nil ? "NEXT" : "RIGHT NOW"))
                         .font(.caption2.weight(.black))
                         .tracking(0.8)
                         .foregroundStyle(scenicStyle.accent)
-                    Text((current ?? next)?.title ?? emptyDayStatus)
+                    Text(projection?.primaryTitle ?? (current ?? next)?.title ?? emptyDayStatus)
                         .font(.headline.weight(.bold))
                         .foregroundStyle(scenicStyle.primaryText)
                         .lineLimit(2)
-                    if let event = current ?? next {
+                    if projection == nil, let event = current ?? next {
                         Text(eventStatusLine(event, now: now))
                             .font(.caption)
                             .foregroundStyle(scenicStyle.secondaryText)
@@ -483,14 +484,17 @@ struct V054TodayView: View {
                 result[node.id] = node
             }
         }
-        ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-            VStack(spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                ForEach(timelineItems.dropLast()) { item in
-                    timelineRow(item, nodes: nodes)
-                    ScenicRoyalPassiveRowSeparator()
-                }
-                if let finalItem = timelineItems.last {
-                    timelineRow(finalItem, nodes: nodes)
+        TimelineView(LifeRoutePresentationClock(interval: 1, active: visibility.active)) { context in
+            let projection = LifeRouteLiveDayProjection.make(from: itinerary, at: context.date)
+            ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
+                VStack(spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
+                    ForEach(timelineItems.dropLast()) { item in
+                        timelineRow(item, nodes: nodes, projection: projection)
+                        ScenicRoyalPassiveRowSeparator()
+                    }
+                    if let finalItem = timelineItems.last {
+                        timelineRow(finalItem, nodes: nodes, projection: projection)
+                    }
                 }
             }
         }
@@ -498,7 +502,8 @@ struct V054TodayView: View {
 
     private func timelineRow(
         _ item: LifeRouteItineraryTimelineItem,
-        nodes: [String: LifeRouteItineraryNode]
+        nodes: [String: LifeRouteItineraryNode],
+        projection: LifeRouteLiveDayProjection?
     ) -> some View {
         ScenicRoyalInsetRow(role: item.kind == .usableGap ? .selectedControl : .passiveRow) {
             HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
@@ -534,6 +539,12 @@ struct V054TodayView: View {
                             Text(node.title)
                                 .font(.subheadline.weight(.bold))
                                 .foregroundStyle(scenicStyle.primaryText)
+                            if projection?.completedNodeIDs.contains(node.id) == true {
+                                Text("Scheduled complete").font(.caption2.weight(.semibold))
+                            } else if projection?.currentNodeID == node.id {
+                                Text(projection?.phase == .eventActive ? "Active now" : "Current in plan")
+                                    .font(.caption2.weight(.semibold))
+                            }
                             Text(nodeDetail(node))
                                 .font(.caption)
                                 .foregroundStyle(scenicStyle.secondaryText)
@@ -734,11 +745,12 @@ struct V054TodayView: View {
                 }
             }
 
-            Text("The in-app status and optional Lock Screen projection use this generated itinerary and the same route-aware departure deadline.")
+            Text("Follows the generated schedule. The Lock Screen shows when a phase needs an update.")
                 .font(.caption)
                 .foregroundStyle(scenicStyle.secondaryText)
 
-            if let projection = LifeRouteLiveDayProjection.make(from: itinerary, at: Date()) {
+            TimelineView(LifeRoutePresentationClock(interval: 1, active: visibility.active)) { context in
+                if let projection = LifeRouteLiveDayProjection.make(from: itinerary, at: context.date) {
                 HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(projection.phaseLabel)
@@ -749,9 +761,12 @@ struct V054TodayView: View {
                             .foregroundStyle(scenicStyle.primaryText)
                     }
                     Spacer()
-                    Text(projection.countdownTarget.formatted(date: .omitted, time: .shortened))
-                        .font(.headline.weight(.black))
-                        .foregroundStyle(scenicStyle.accentReflection)
+                    if let deadline = projection.countdownTarget {
+                        Text(deadline.formatted(date: .omitted, time: .shortened))
+                            .font(.headline.weight(.black))
+                            .foregroundStyle(scenicStyle.accentReflection)
+                    }
+                }
                 }
             }
 

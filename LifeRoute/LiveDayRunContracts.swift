@@ -66,7 +66,7 @@ enum LifeRouteLiveActivityDeliveryStatus: String, Equatable, Sendable {
         case .disabled:
             return "Lock Screen Live Activities are disabled for LifeRoute in Settings."
         case .noUpcomingDeparture:
-            return "Lock Screen projection needs an upcoming timed departure."
+            return "Lock Screen projection needs a generated day schedule."
         case .failed:
             return "Lock Screen Live Activity could not start."
         }

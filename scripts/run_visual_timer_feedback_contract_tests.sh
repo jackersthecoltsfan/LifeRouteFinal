@@ -7,10 +7,19 @@ COMPLETION_CUE="LifeRoute/Assets.xcassets/TimerCompletionCue.dataset/TIMER_SOUND
 EXPECTED_COMPLETION_CUE_SHA256="ddde780da9eb13cc1b7f00f0f7ba03d7f4bd50e8f480574078fd20092174e52b"
 test -f "$COMPLETION_CUE"
 test "$(shasum -a 256 "$COMPLETION_CUE" | awk '{print $1}')" = "$EXPECTED_COMPLETION_CUE_SHA256"
-COMPLETION_CUE_INFO="$(afinfo "$COMPLETION_CUE")"
-grep -Fq "2 ch,  44100 Hz" <<<"$COMPLETION_CUE_INFO"
-grep -Fq "24-bit little-endian signed integer" <<<"$COMPLETION_CUE_INFO"
-grep -Fq "estimated duration: 3.000000 sec" <<<"$COMPLETION_CUE_INFO"
+python3 - "$COMPLETION_CUE" <<'PY'
+import sys
+import wave
+
+completion_cue = sys.argv[1]
+with wave.open(completion_cue, "rb") as wav:
+    # wave only opens PCM WAVE streams; NONE additionally rejects compression.
+    assert wav.getcomptype() == "NONE", "completion cue must be uncompressed PCM"
+    assert wav.getnchannels() == 2, "completion cue must be stereo"
+    assert wav.getframerate() == 44_100, "completion cue must be 44,100 Hz"
+    assert wav.getsampwidth() == 3, "completion cue must be 24-bit PCM"
+    assert wav.getnframes() == wav.getframerate() * 3, "completion cue must be exactly 3.000 seconds"
+PY
 echo "Approved completion WAV hash and media properties verified."
 
 bash "$SCRIPT_DIRECTORY/run_swift_contract_test.sh" \

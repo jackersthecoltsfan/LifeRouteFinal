@@ -80,6 +80,11 @@ struct VisualTimerView: View {
             .padding(.horizontal, ScenicRoyalDesignSystem.Layout.pageHorizontal)
             .padding(.top, ScenicRoyalDesignSystem.Spacing.compact)
             .padding(.bottom, ScenicRoyalDesignSystem.Spacing.spacious * 2)
+            // Preserve the live anchor and timer ownership while the root Hero
+            // owns presentation. Restore only after collapse/fallback settles.
+            .opacity(hero.blocksNavigation ? 0 : 1)
+            .allowsHitTesting(!hero.blocksNavigation)
+            .accessibilityHidden(hero.blocksNavigation)
         }
         // Keep the timer's scrollable presentation below the NavigationStack's
         // live top safe area and retain a small, token-based breathing margin.
@@ -105,6 +110,9 @@ struct VisualTimerView: View {
                 .accessibilityLabel("Open timer full screen")
                 .accessibilityHint("Expands the current timer without changing it")
                 .accessibilityIdentifier("visualTimer.expand")
+                .opacity(hero.blocksNavigation ? 0 : 1)
+                .disabled(hero.blocksNavigation)
+                .accessibilityHidden(hero.blocksNavigation)
             }
         }
         .navigationBarBackButtonHidden(hero.blocksNavigation)

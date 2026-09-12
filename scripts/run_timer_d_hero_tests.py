@@ -29,3 +29,7 @@ assert 'VisualTimerCore(' not in hero and 'VisualTimerOrbPresentationDriver(' no
 assert 'transition.takeSettledNavigation()' in hero
 assert 'scroll.observe(\\.contentOffset' in hero
 print('PASS D integration: single Orb construction, shared authorities, live anchor, settlement navigation')
+
+assert '.opacity(hero.blocksNavigation ? 0 : 1)' in view
+assert '.allowsHitTesting(!hero.blocksNavigation)' in view and '.accessibilityHidden(hero.blocksNavigation)' in view
+print('PASS D presentation: embedded content retains anchor layout but hides during Hero ownership')

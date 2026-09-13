@@ -38,6 +38,69 @@ struct LifeRouteCalendarProviderIdentity: Codable, Hashable {
     let revision: Int?
 }
 
+/// EventKit identifies a recurring series separately from its original occurrence.
+/// Keep this contract shared by import and legacy cache normalization.
+struct LifeRouteAppleEventIdentity {
+    let baseIdentifier: String
+    let isRecurring: Bool
+    let recurrenceIdentifier: String?
+
+    init(
+        eventIdentifier: String?,
+        calendarItemIdentifier: String,
+        hasRecurrenceRules: Bool,
+        isDetached: Bool,
+        occurrenceDate: Date?,
+        isAllDay: Bool,
+        timeZone: TimeZone
+    ) {
+        baseIdentifier = eventIdentifier ?? calendarItemIdentifier
+        isRecurring = hasRecurrenceRules || isDetached
+        recurrenceIdentifier = isRecurring
+            ? Self.recurrenceIdentifier(for: occurrenceDate, isAllDay: isAllDay, timeZone: timeZone)
+            : nil
+    }
+
+    var lifeRouteID: String {
+        Self.eventID(baseIdentifier: baseIdentifier, isRecurring: isRecurring,
+                     recurrenceIdentifier: recurrenceIdentifier)
+    }
+
+    static func recurrenceIdentifier(for date: Date?, isAllDay: Bool, timeZone: TimeZone) -> String? {
+        guard let date else { return nil }
+        if isAllDay {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = timeZone
+            let components = calendar.dateComponents([.year, .month, .day], from: date)
+            guard let year = components.year, let month = components.month,
+                  let day = components.day else { return nil }
+            return String(format: "date:%04d-%02d-%02d", year, month, day)
+        }
+        return "instant:\(Int64(date.timeIntervalSince1970.rounded()))"
+    }
+
+    static func legacyID(baseIdentifier: String) -> String { "apple-\(baseIdentifier)" }
+
+    private static func eventID(baseIdentifier: String, isRecurring: Bool, recurrenceIdentifier: String?) -> String {
+        guard isRecurring, let occurrence = recurrenceIdentifier, !occurrence.isEmpty else {
+            // Missing occurrence evidence cannot safely be invented from the current start.
+            return legacyID(baseIdentifier: baseIdentifier)
+        }
+        // Base64 fields cannot contain ':'; the namespace also differs from legacy 'apple-'.
+        let base = Data(baseIdentifier.utf8).base64EncodedString()
+        let instance = Data(occurrence.utf8).base64EncodedString()
+        return "appleOccurrence:v1:\(base):\(instance)"
+    }
+
+    static func normalizedID(for event: LifeRouteCalendarEvent) -> String {
+        guard event.source == .apple, let identity = event.providerIdentity,
+              !identity.eventIdentifier.isEmpty,
+              event.id == legacyID(baseIdentifier: identity.eventIdentifier) else { return event.id }
+        return eventID(baseIdentifier: identity.eventIdentifier, isRecurring: identity.isRecurring,
+                       recurrenceIdentifier: identity.recurrenceIdentifier)
+    }
+}
+
 enum LifeRouteCalendarRange: String, CaseIterable, Identifiable, Hashable {
     case day = "Day"
     case week = "Week"

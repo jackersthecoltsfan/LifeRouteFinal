@@ -1,5 +1,13 @@
 import Foundation
 
+#if !canImport(Combine)
+protocol ObservableObject: AnyObject {}
+@propertyWrapper struct Published<Value> {
+    var wrappedValue: Value
+    init(wrappedValue: Value) { self.wrappedValue = wrappedValue }
+}
+#endif
+
 struct LifeRouteClientProfile: Codable {
     var id = UUID()
     var first2 = "AA"
@@ -51,48 +59,6 @@ struct LifeRouteTodo: Codable {
     var completed: Bool
     var createdAt: Date
     var completedAt: Date?
-}
-
-struct LifeRouteDayStop: Codable {}
-enum LifeRouteDayStopCollection {
-    static func sanitized(_ input: [LifeRouteDayStop]) -> [LifeRouteDayStop] { input }
-}
-
-enum LifeRouteCalendarSource: String, Codable { case manual, apple, google }
-struct LifeRouteCalendarProviderIdentity: Codable {}
-
-struct LifeRouteCalendarEvent: Codable {
-    var id: String
-    var title: String
-    var start: Date
-    var end: Date
-    var location: String
-    var calendarTitle: String
-    var isAllDay: Bool
-    var source: LifeRouteCalendarSource
-    var providerIdentity: LifeRouteCalendarProviderIdentity?
-
-    init(
-        id: String,
-        title: String,
-        start: Date,
-        end: Date,
-        location: String,
-        calendarTitle: String,
-        isAllDay: Bool,
-        source: LifeRouteCalendarSource,
-        providerIdentity: LifeRouteCalendarProviderIdentity? = nil
-    ) {
-        self.id = id
-        self.title = title
-        self.start = start
-        self.end = end
-        self.location = location
-        self.calendarTitle = calendarTitle
-        self.isAllDay = isAllDay
-        self.source = source
-        self.providerIdentity = providerIdentity
-    }
 }
 
 struct ClientVisualIcon {

@@ -215,10 +215,17 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
         let predicate = eventStore.predicateForEvents(withStart: start, end: end, calendars: nil)
 
         return eventStore.events(matching: predicate).map { event in
-            let eventIdentifier = event.eventIdentifier ?? event.calendarItemIdentifier
-            let isRecurring = event.hasRecurrenceRules || event.isDetached
+            let identity = LifeRouteAppleEventIdentity(
+                eventIdentifier: event.eventIdentifier,
+                calendarItemIdentifier: event.calendarItemIdentifier,
+                hasRecurrenceRules: event.hasRecurrenceRules,
+                isDetached: event.isDetached,
+                occurrenceDate: event.occurrenceDate,
+                isAllDay: event.isAllDay,
+                timeZone: .current
+            )
             return LifeRouteCalendarEvent(
-                id: "apple-\(eventIdentifier)",
+                id: identity.lifeRouteID,
                 title: event.title ?? "Calendar event",
                 start: event.startDate,
                 end: event.endDate,
@@ -227,12 +234,10 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
                 isAllDay: event.isAllDay,
                 source: .apple,
                 providerIdentity: LifeRouteCalendarProviderIdentity(
-                    eventIdentifier: eventIdentifier,
+                    eventIdentifier: identity.baseIdentifier,
                     externalIdentifier: event.calendarItemExternalIdentifier,
-                    recurrenceIdentifier: isRecurring
-                        ? recurrenceIdentifier(for: event.occurrenceDate, isAllDay: event.isAllDay)
-                        : nil,
-                    isRecurring: isRecurring,
+                    recurrenceIdentifier: identity.recurrenceIdentifier,
+                    isRecurring: identity.isRecurring,
                     calendarIdentifier: event.calendar.calendarIdentifier,
                     accountIdentifier: event.calendar.source.sourceIdentifier,
                     timeZoneIdentifier: event.timeZone?.identifier,
@@ -642,17 +647,7 @@ final class CalendarProviderCore: NSObject, ObservableObject, ASWebAuthenticatio
     }
 
     private func recurrenceIdentifier(for date: Date?, isAllDay: Bool) -> String? {
-        guard let date else { return nil }
-        if isAllDay {
-            var calendar = Calendar(identifier: .gregorian)
-            calendar.timeZone = .current
-            let components = calendar.dateComponents([.year, .month, .day], from: date)
-            guard let year = components.year,
-                  let month = components.month,
-                  let day = components.day else { return nil }
-            return String(format: "date:%04d-%02d-%02d", year, month, day)
-        }
-        return "instant:\(Int64(date.timeIntervalSince1970.rounded()))"
+        LifeRouteAppleEventIdentity.recurrenceIdentifier(for: date, isAllDay: isAllDay, timeZone: .current)
     }
 
     private func randomURLSafeString(byteCount: Int) -> String {

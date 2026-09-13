@@ -569,6 +569,7 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
 
     func saveProviderCalendarEvents(_ events: [LifeRouteCalendarEvent]) {
         var next = state
+        next.dayStops = Self.normalizedAppleOccurrenceAnchors(next.dayStops, events: events)
         next.providerCalendarEvents = Self.sanitizedProviderCalendarEvents(events)
         state = next
         persist()
@@ -673,7 +674,9 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
         let savedPlaces = sanitizedSavedPlaces(input.savedPlaces)
         let savedPlaceIDs = Set(savedPlaces.map(\.id))
         let todos = sanitizedTodos(input.todos, savedPlaceIDs: savedPlaceIDs)
-        let dayStops = LifeRouteDayStopCollection.sanitized(input.dayStops)
+        let dayStops = LifeRouteDayStopCollection.sanitized(
+            normalizedAppleOccurrenceAnchors(input.dayStops, events: input.providerCalendarEvents)
+        )
         let manualCalendarEvents = sanitizedManualCalendarEvents(input.manualCalendarEvents)
         let providerCalendarEvents = sanitizedProviderCalendarEvents(input.providerCalendarEvents)
 
@@ -792,10 +795,11 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
         let sanitized = input.compactMap { event -> LifeRouteCalendarEvent? in
             guard event.source != .manual,
                   event.end >= event.start else { return nil }
-            let dedupeKey = "\(event.source.rawValue):\(event.id)"
+            let id = LifeRouteAppleEventIdentity.normalizedID(for: event)
+            let dedupeKey = "\(event.source.rawValue):\(id)"
             guard seenProviderEventIDs.insert(dedupeKey).inserted else { return nil }
             return LifeRouteCalendarEvent(
-                id: event.id,
+                id: id,
                 title: event.title,
                 start: event.start,
                 end: event.end,
@@ -811,6 +815,28 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
             return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
         }
         return Array(sanitized.prefix(providerCalendarEventLimit))
+    }
+
+    /// Upgrade only a legacy anchor with exactly one occurrence on the stop's day.
+    /// Missing cache records and overlapping ambiguous occurrences remain untouched.
+    private static func normalizedAppleOccurrenceAnchors(
+        _ stops: [LifeRouteDayStop], events: [LifeRouteCalendarEvent]
+    ) -> [LifeRouteDayStop] {
+        stops.map { stop in
+            guard let anchor = stop.afterAppointmentID,
+                  let day = Calendar.current.dateInterval(of: .day, for: stop.day) else { return stop }
+            let candidates = Set(events.compactMap { event -> String? in
+                guard event.source == .apple, let identity = event.providerIdentity, identity.isRecurring,
+                      anchor == LifeRouteAppleEventIdentity.legacyID(baseIdentifier: identity.eventIdentifier),
+                      event.start < day.end, event.end > day.start else { return nil }
+                let id = LifeRouteAppleEventIdentity.normalizedID(for: event)
+                return id == anchor ? nil : id
+            })
+            guard candidates.count == 1, let id = candidates.first else { return stop }
+            var normalized = stop
+            normalized.afterAppointmentID = id
+            return normalized
+        }
     }
 
     private static func sanitizedClients(_ input: [LifeRouteClientProfile]) -> [LifeRouteClientProfile] {

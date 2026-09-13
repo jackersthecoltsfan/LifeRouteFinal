@@ -22,6 +22,7 @@ python3 scripts/validate_current.py full
 bash scripts/run_day_route_contract_tests.sh
 bash scripts/run_calendar_edit_contract_tests.sh
 bash scripts/run_calendar_cross_provider_dedup_tests.sh
+bash scripts/run_apple_occurrence_identity_tests.sh
 bash scripts/run_session_note_contract_tests.sh
 bash scripts/run_session_note_refinement_tests.sh
 bash scripts/run_session_note_draft_persistence_tests.sh

@@ -363,7 +363,6 @@ struct V054ContentView: View {
 /// use tint and a compact indicator rather than layered material or capsules.
 @available(iOS 26.0, *)
 private struct LifeRouteRootPagingToolbar: View {
-    @Environment(\.scenicRoyalThemeStyle) private var style
 
     @Binding var selection: AppSection
 
@@ -373,41 +372,19 @@ private struct LifeRouteRootPagingToolbar: View {
                 Button {
                     selection = section
                 } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: section.systemImage)
-                            .font(.system(size: 16, weight: .semibold))
-                        Text(section.title)
-                            .font(.caption2.weight(.semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.76)
-                        Capsule()
-                            .fill(section == selection ? style.selectedControlIndicator : .clear)
-                            .frame(width: 14, height: 3)
-                    }
-                    .foregroundStyle(section == selection ? style.selectedControlForeground : style.contentSecondaryForeground)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background {
-                        if section == selection {
-                            ScenicRoyalSelectedControlMaterial(
-                                shape: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            )
-                        }
-                    }
-                    .contentShape(Rectangle())
+                    UI01DockLabel(section: section, selected: section == selection)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(section.title)
                 .accessibilityValue(section == selection ? "Selected" : "")
+                .accessibilityAddTraits(section == selection ? .isSelected : [])
                 .accessibilityHint("Switches root destination")
             }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 7)
-        .overlay {
-            Capsule()
-                .stroke(style.accent.opacity(0.16), lineWidth: 0.8)
-        }
-        .glassEffect(.clear.tint(style.accent.opacity(0.12)), in: .capsule)
+        .modifier(UI01ReadingZone())
+        .glassEffect(.clear.tint(UI01Material.navy.opacity(0.12)), in: .capsule)
         .accessibilityElement(children: .contain)
     }
 }

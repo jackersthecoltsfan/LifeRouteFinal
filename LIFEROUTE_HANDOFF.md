@@ -1,3 +1,11 @@
+# UI-01 native Today proof — September 14, 2026 UTC
+
+- Current authority: canonical `/Users/brand/Documents/GitHub/LifeRouteFinal`, Local mode, one registered worktree. Branch `feature/ui-01-locked-today-proof` starts from clean main `2bd20d730e84b4f087eebaf42a939c04b0c52b0b`. Historical checkout claims below are superseded for this task.
+- Scope: live Today presentation, the shared serif/material/action/trail primitives it uses, and presentation of the existing five-root dock. Existing route actions, Calendar occurrence identity, persistence, navigation owners, Living Themes and accepted timer remain protected.
+- Design authority: unchanged locked Today JPEG and the supplied UI-01 PTH/design handoff. Fonts are system Didot/Baskerville; marble, gold texture and dock instruments are native approximations for owner review, not extracted raster assets.
+- Qualification, exact candidate source/artifact identities, screenshots, installation status and warning caveats are owned by `/Users/brand/Documents/LifeRouteCheckpoints/ui-01-native-today-20260914T031920Z/UI01_RECEIPT.md`. Preliminary runs remain separately retained there.
+- Stop boundary: Brandon's physical visual acceptance. Other screen-family bodies remain unimplemented. No merge, push, TestFlight, release, branch deletion or full-overhaul acceptance is authorized. Keep this unmerged candidate branch for review.
+
 # Post-physical-QA repair candidate — September 11, 2026
 
 - Authority: frozen QA baseline `6ada7e153321dc2347a0bbce5779ad77e075feaa` and tag `qa-candidate-6ada7e1` remain preserved. Source work is solely in `/Users/brand/Documents/GitHub/LifeRouteFinal-post-qa-repair-6ada7e1`, branch `feature/post-qa-repair-6ada7e1`. Root is the only source-changing owner; helpers reviewed read-only.

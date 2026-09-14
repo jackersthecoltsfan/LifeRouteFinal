@@ -836,15 +836,15 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     require_all(
         today,
         [
-            "LifeRouteBrandMark(variant: .small)",
-            'Text("Built by an RBT for the days only RBTs understand.")',
-            "ScenicRoyalGlassEffectContainer",
-            ".scenicRoyalCard(",
-            ".scenicRoyalInteractiveSurface(",
+            'UI01MarbleText(title: "LifeRoute"',
+            'UI01MarbleText(title: "Today"',
+            "UI01TrailRow(",
+            ".modifier(UI01ReadingZone())",
+            ".buttonStyle(UI01GoldButtonStyle(",
             '"Generate Full Day"',
             "authoritativeItinerary",
         ],
-        "Today Scenic Royal command center",
+        "UI-01 native Today presentation",
     )
     require("LifeRouteTodaySelectedExemplarArtwork" not in today, "Today must use the persistent root scenery instead of a screen-local exemplar background")
 

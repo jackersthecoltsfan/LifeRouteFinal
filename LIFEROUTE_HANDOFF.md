@@ -1,3 +1,15 @@
+# Image-generation prompt discipline — September 14, 2026
+
+- Current authority: canonical `/Users/brand/Documents/GitHub/LifeRouteFinal`, Local mode, exactly one registered worktree. Candidate branch is `fix/image-generation-prompt-discipline`, from verified clean main/origin-main `2bd20d730e84b4f087eebaf42a939c04b0c52b0b`. Preserved UI branch `feature/ui-01-locked-today-proof` stays at `e1265918d5e1d5426b33e74f4ee395d357a12389`; UI-02 and its unresolved navigation work remain frozen.
+- Read-only trace confirmed internal ABA/child-readable fallback prose, a long mixed-purpose master prompt and an ABA extraction title entering Apple's image concepts. `VisualSupportImagePrompt` now owns bounded subject/user appearance/reference guidance and fixed style/composition/background/no-text constraints. Short `.text` concepts replace long-form extraction. Exact TV normalizes to television; other concepts remain literal. The original display label remains owned by UI/persistence.
+- Camera, Photo Library, source-image handoff, regeneration, media admission/cancellation, square normalization, previews and explicit Save are unchanged. The old substring interpreter no longer substitutes child/scene templates for user intent. No new text-bearing mode, provider, OCR rejection/retry, persistence, navigation or visual redesign was added.
+- Qualification: 250 prompt assertions; preparation, fast/full validation; Debug and Release app/widget Simulator compilation PASS. No new compiler-warning class versus a freshly built main baseline. Absolute warning-assessor failure remains inherited Timer `#ImplicitStrongCapture` and Xcode 27 AppIntents notice formatting; no allowlist or unrelated code was changed.
+- OCR: INVESTIGATED / DEFERRED. Local Vision is feasible, but confidence/size/language thresholds, false positives and latency need measured follow-up. RUNTIME IMAGE-GENERATION PROOF: PENDING PHYSICAL QA. No new generated artwork, physical installation or product acceptance is claimed.
+- Exact commit/tree, final clean status, changed files, raw qualification logs, before/after prompt inputs, warning comparison and runtime checklist belong to `/Users/brand/Documents/LifeRouteCheckpoints/image-generation-prompt-20260914/IMAGE_GENERATION_PROMPT_RECEIPT.md`. The prescribed worktree-count script is absent; direct Git census confirms one checkout before/after. Hooks/config were left intact.
+- STOP FOR BRANDON REVIEW after committing this bounded candidate. No push, main merge, UI-branch changes, additional worktree, physical install, hosted CI, TestFlight or release is authorized. Earlier handoffs below are historical and do not override this PTH.
+
+---
+
 # Post-physical-QA repair candidate — September 11, 2026
 
 - Authority: frozen QA baseline `6ada7e153321dc2347a0bbce5779ad77e075feaa` and tag `qa-candidate-6ada7e1` remain preserved. Source work is solely in `/Users/brand/Documents/GitHub/LifeRouteFinal-post-qa-repair-6ada7e1`, branch `feature/post-qa-repair-6ada7e1`. Root is the only source-changing owner; helpers reviewed read-only.

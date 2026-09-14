@@ -14,6 +14,7 @@
 		A10000000000000000000010 /* RoutingLocationDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* RoutingLocationDomain.swift */; };
 		A10000000000000000000011 /* ClientProfileDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* ClientProfileDomain.swift */; };
 		A10000000000000000000013 /* SessionToolsDomain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* SessionToolsDomain.swift */; };
+		D91400000000000000000001 /* VisualSupportImagePrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91400000000000000000002 /* VisualSupportImagePrompt.swift */; };
 		A10000000000000000000014 /* SessionToolsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* SessionToolsViews.swift */; };
 		A10000000000000000000015 /* CalendarProviderCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* CalendarProviderCore.swift */; };
 		A10000000000000000000016 /* PersistenceCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* PersistenceCore.swift */; };
@@ -107,6 +108,7 @@
 		A20000000000000000000011 /* ClientProfileDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientProfileDomain.swift; sourceTree = "<group>"; };
 		A20000000000000000000012 /* ClientViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClientViews.swift; sourceTree = "<group>"; };
 		A20000000000000000000013 /* SessionToolsDomain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionToolsDomain.swift; sourceTree = "<group>"; };
+		D91400000000000000000002 /* VisualSupportImagePrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualSupportImagePrompt.swift; sourceTree = "<group>"; };
 		A20000000000000000000014 /* SessionToolsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionToolsViews.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* CalendarProviderCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarProviderCore.swift; sourceTree = "<group>"; };
 		A20000000000000000000016 /* PersistenceCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceCore.swift; sourceTree = "<group>"; };
@@ -238,6 +240,7 @@
 				A20000000000000000000012 /* ClientViews.swift */,
 				A20000000000000000000032 /* V054ClientViews.swift */,
 				A20000000000000000000013 /* SessionToolsDomain.swift */,
+				D91400000000000000000002 /* VisualSupportImagePrompt.swift */,
 				A20000000000000000000014 /* SessionToolsViews.swift */,
 				A20000000000000000000018 /* LifeRouteIntelligenceCore.swift */,
 				A20000000000000000000035 /* SessionNoteContracts.swift */,
@@ -445,6 +448,7 @@
 				A10000000000000000000011 /* ClientProfileDomain.swift in Sources */,
 				A10000000000000000000032 /* V054ClientViews.swift in Sources */,
 				A10000000000000000000013 /* SessionToolsDomain.swift in Sources */,
+				D91400000000000000000001 /* VisualSupportImagePrompt.swift in Sources */,
 				A10000000000000000000014 /* SessionToolsViews.swift in Sources */,
 				A10000000000000000000018 /* LifeRouteIntelligenceCore.swift in Sources */,
 				A10000000000000000000035 /* SessionNoteContracts.swift in Sources */,

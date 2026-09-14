@@ -1549,31 +1549,6 @@ private struct VisualSupportCameraPicker: UIViewControllerRepresentable {
     }
 }
 
-// v0.8.0 ABA visual-support generator foundation:
-// The system model creates artwork; LifeRoute owns the exact label, library, and protected persistence.
-private enum ABAVisualSupportPrompt {
-    static func make(label: String, visualDescription: String, hasReference: Bool) -> String {
-        let cleanLabel = String(label.trimmingCharacters(in: .whitespacesAndNewlines).prefix(120))
-        let cleanDescription = String(visualDescription.trimmingCharacters(in: .whitespacesAndNewlines).prefix(700))
-        let functionalConcept = ABAVisualSupportConceptInterpreter.describe(
-            label: cleanLabel,
-            visualDescription: cleanDescription,
-            hasReference: hasReference
-        )
-
-        return """
-        Create one ABA visual-support icon for the exact user label “\(cleanLabel)”.
-        Functional concept: \(functionalConcept)
-
-        Create a realistically illustrated cartoon that remains clearly recognizable as the real object, location, activity, or concept. Use clean bold outlines, soft natural shading, bright but natural colors, strong visual contrast, and a simple child-friendly ABA visual-support presentation. Use a clean white background. Center one primary subject and let it occupy most of a square 1:1 composition. Remove distracting or irrelevant background information. Preserve identifying characteristics needed for recognition. Do not introduce unrelated objects or scenery. Do not include people unless a person is necessary to communicate the concept.
-
-        Treat the result as part of one coordinated professionally designed ABA visual-support library. Keep the illustration style, line weight, shading, proportions, neutral front or three-quarter viewing angle, pure-white background treatment, and icon scale consistent. Prioritize immediate functional recognition and visual clarity over decorative detail for use in visual schedules, choice boards, First/Then boards, communication books, transition supports, and activity schedules.
-
-        Do not render letters, words, captions, labels, logos, borders, or watermarks inside the artwork. LifeRoute renders the exact user label beneath the artwork separately so spelling and typography remain correct.
-        """
-    }
-}
-
 private enum ABAVisualSupportImageProcessor {
     static func normalizedSquarePNG(from url: URL) async -> Data? {
         await Task.detached(priority: .userInitiated) {
@@ -1648,16 +1623,11 @@ private struct ABAVisualSupportImageGeneratorButton: View {
 
 
     private var concepts: [ImagePlaygroundConcept] {
-        [
-            .extracted(
-                from: ABAVisualSupportPrompt.make(
-                    label: cleanLabel,
-                    visualDescription: visualDescription,
-                    hasReference: referencePhotoData != nil
-                ),
-                title: "ABA visual-support icon"
-            )
-        ]
+        VisualSupportImagePrompt(
+            label: cleanLabel,
+            visualDescription: visualDescription,
+            hasReference: referencePhotoData != nil
+        ).conceptDescriptions.map { .text($0) }
     }
 
     private var options: ImagePlaygroundOptions {
@@ -1722,7 +1692,7 @@ private struct ABAVisualSupportImageGeneratorButton: View {
 
             Text(
                 supportsImagePlayground
-                    ? "Apple’s Image Playground opens for review. Illustration style, square output, disabled person personalization, and the Master ABA visual prompt are preconfigured."
+                    ? "Apple’s Image Playground opens for review. Illustration style, square output, disabled person personalization, and text-free artwork guidance are preconfigured."
                     : "Image generation is unavailable in the current device, language, region, or Apple Intelligence settings."
             )
             .font(.caption)

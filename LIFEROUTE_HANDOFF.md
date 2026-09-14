@@ -1,3 +1,18 @@
+# UI-02 rollout resumed after Today visual PASS — September 14, 2026 UTC
+
+- Brandon explicitly accepted the corrected Today screenshot: the unwanted grey/black shading is gone. The full UI-02 PTH is now resumed, including active screen families, final qualification, a committed clean candidate and in-place physical install.
+- Preserve the accepted `UI01ReadingZone` correction and the existing type/gold/trail/dock/navigation language. Root is the only source editor; Luna helpers own read-only reviews and external mechanical evidence.
+- Continue on the same canonical feature branch with one worktree. Final stop is Brandon's physical visual review after exact-candidate install; no merge, push, release, TestFlight, branch deletion or cleanup.
+- Evidence remains under `/Users/brand/Documents/LifeRouteCheckpoints/ui-02-full-native-20260914T042714Z/`. The earlier screenshot gate and receipt below are retained as historical checkpoint evidence, superseded only by this explicit PASS/resumption.
+
+# UI-02 Today readability checkpoint — September 14, 2026 UTC
+
+- Current authority: canonical `/Users/brand/Documents/GitHub/LifeRouteFinal`, Local mode, one registered worktree; continue `feature/ui-01-locked-today-proof` from accepted UI-01 `1442364f4dd6f5eed6f98293e9789aba0e035f54`.
+- Brandon's latest gate is Simulator-only: remove the rejected grey/black scenic text backplates, render the corrected Today proof, provide its screenshot, then STOP. Do not install on the physical device at this checkpoint. Broader screen/theme rollout remains pending explicit Brandon screenshot PASS; it is not cancelled or completed.
+- `UI01ReadingZone` replaces its padded navy/blur background (including the opaque accessibility rectangle) with native glyph-edge/contact shadows and deterministic light/dark foreground roles. The accepted Today composition, typography/materials, gold actions, trail, dock and navigation owners remain unchanged. No other screen-family presentation is restyled.
+- Source identity/diff, qualification and native captures are owned by `/Users/brand/Documents/LifeRouteCheckpoints/ui-02-full-native-20260914T042714Z/UI02_TODAY_READABILITY_CHECKPOINT_RECEIPT.md`. The correction remains uncommitted on the accepted UI-01 HEAD for screenshot review. No physical artifact/install is claimed.
+- Stop boundary: explicit Brandon screenshot PASS on corrected Today. No broader propagation or physical install before that gate. No merge, push, TestFlight, release, branch deletion, new worktree or cleanup.
+
 # UI-01 native Today proof — September 14, 2026 UTC
 
 - Current authority: canonical `/Users/brand/Documents/GitHub/LifeRouteFinal`, Local mode, one registered worktree. Branch `feature/ui-01-locked-today-proof` starts from clean main `2bd20d730e84b4f087eebaf42a939c04b0c52b0b`. Historical checkout claims below are superseded for this task.

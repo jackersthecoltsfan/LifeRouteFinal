@@ -62,36 +62,37 @@ struct UI01MarbleText: View {
     }
 }
 
+/// Stable foreground roles, never sampled from moving scenery. Today and the
+/// material titles use silver; existing dark environmental copy uses the
+/// theme role. A light composition can explicitly request dark lettering.
+enum UI01TextRole {
+    case silver, dark, environmental
+}
+
 struct UI01ReadingZone: ViewModifier {
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    var role: UI01TextRole = .silver
+    @Environment(\.scenicRoyalThemeStyle) private var theme
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var darkLettering: Bool {
+        switch role {
+        case .silver: return false
+        case .dark: return true
+        case .environmental: return theme.isBrightEnvironment
+        }
+    }
 
     func body(content: Content) -> some View {
-        content.background {
-            if reduceTransparency {
-                UI01Material.navy
-                    .padding(.horizontal, -8)
-                    .padding(.vertical, -10)
-            } else {
-            LinearGradient(
-                stops: [
-                    .init(color: UI01Material.navy.opacity(contrast == .increased ? 0.94 : 0.80), location: 0),
-                    .init(color: UI01Material.navy.opacity(contrast == .increased ? 0.90 : 0.66), location: 0.68),
-                    .init(color: UI01Material.navy.opacity(contrast == .increased ? 0.90 : 0.62), location: 1)
-                ],
-                startPoint: .leading, endPoint: .trailing
-            )
-            .mask(LinearGradient(
-                stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.06),
-                        .init(color: .black, location: 0.94), .init(color: .clear, location: 1)],
-                startPoint: .top, endPoint: .bottom
-            ))
-            .padding(.horizontal, -12)
-            .padding(.vertical, -10)
-            .blur(radius: contrast == .increased ? 0 : 6)
-            .allowsHitTesting(false)
-            }
-        }
+        // Native alpha-following shadows form a sub-point glyph edge and a
+        // short contact shadow. No background, mask, duplicate semantic text,
+        // animated texture, offscreen rasterization or rectangular scrim.
+        let edge = darkLettering ? UI01Material.silver : Color.black
+        let strong = contrast == .increased || typeSize.isAccessibilitySize
+        content
+            .shadow(color: edge, radius: strong ? 0.8 : 0.55)
+            .shadow(color: edge.opacity(strong ? 0.95 : 0.8), radius: 0.4, x: 0, y: 0.6)
+            .shadow(color: edge.opacity(0.55), radius: 1, x: 0, y: 1)
     }
 }
 

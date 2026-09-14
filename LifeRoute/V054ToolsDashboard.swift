@@ -41,7 +41,7 @@ struct V054ToolsDashboard: View {
                 )
 
                 ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-                    LazyVGrid(columns: toolColumns, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                    LazyVStack(spacing: 0) {
                         NavigationLink {
                             VisualTimerView(timer: toolsState.timer)
                                 .lifeRouteDeepDestination()
@@ -130,6 +130,7 @@ struct V054ToolsDashboard: View {
                 .foregroundStyle(scenicStyle.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.hairline)
+                .ui01ScenicText()
                 .accessibilityElement(children: .combine)
             }
             .padding(.horizontal, ScenicRoyalDesignSystem.Layout.pageHorizontal)
@@ -204,7 +205,7 @@ struct V054ToolsDashboard: View {
                 Image(systemName: "person.2")
                     .foregroundStyle(scenicStyle.accent)
                     .frame(width: 34, height: 34)
-                    .scenicRoyalSurface(role: .passiveRow, cornerRadius: 17)
+                    .ui01ScenicText()
                     .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -283,10 +284,9 @@ struct VisualAIAssistedStudioView: View {
                 .foregroundStyle(palette.accentSecondary)
                 .padding(.horizontal, 11)
                 .frame(minHeight: 34)
-                .background(palette.panelElevated.opacity(0.34), in: Capsule())
+                .ui01ScenicText()
         }
-        .padding(12)
-        .background(palette.panel.opacity(0.58), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .ui01OpenSection()
     }
 
     private var libraryCard: some View {
@@ -511,7 +511,7 @@ struct VisualAIAssistedStudioView: View {
         }
         .padding(11)
         .frame(minHeight: 54)
-        .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(alignment: .bottom) { UI01Hairline().opacity(0.5) }
         .contentShape(Rectangle())
     }
 
@@ -537,7 +537,7 @@ struct VisualAIAssistedStudioView: View {
                 }
                 .foregroundStyle(palette.textPrimary)
                 .padding(13)
-                .background(palette.accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .ui01ScenicText()
             }
             .buttonStyle(.plain)
             .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })

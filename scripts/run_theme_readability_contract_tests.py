@@ -49,6 +49,8 @@ source += '}\n'
 source += '\n' + block(app, 'final class LifeRouteThemeStore:') + '\n'
 source += 'enum LifeRouteAppearance { static func configure(theme: LifeRouteTheme, updateVisibleWindows: Bool) {} }\n'
 
+source += '\n' + block((ROOT / 'LifeRoute/UI01Presentation.swift').read_text(), 'enum UI01Material {') + '\n'
+
 harness = r'''
 import SwiftUI
 import Foundation
@@ -77,6 +79,16 @@ final class CountingThemeDefaults: UserDefaults {
   }
   func ratio(_ a: [Double], _ b: [Double]) -> Double {
    (max(lum(a),lum(b))+0.05)/(min(lum(a),lum(b))+0.05)
+  }
+  // Exact UI-01 tokens reused by the rollout's bounded editing planes and
+  // gold actions. Scenic glyph-edge legibility remains a native capture gate.
+  for backdrop in [Color.black, Color.white] {
+   let navy = composite(rgba(UI01Material.navy.opacity(0.94)), rgba(backdrop))
+   expect(ratio(rgba(UI01Material.silver), navy) >= 4.5, "UI02 reading-plane body text")
+   expect(ratio(rgba(UI01Material.secondary), navy) >= 4.5, "UI02 reading-plane metadata and field prompt")
+  }
+  for gold in [UI01Material.gold, UI01Material.goldLight] {
+   expect(ratio(rgba(UI01Material.navy), rgba(gold)) >= 4.5, "UI01 reused gold-action foreground")
   }
   let expected = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]))) as! [String:Any]
   let core = LifeRouteTheme.phaseOneCoreGlassCatalog
@@ -191,9 +203,15 @@ with tempfile.TemporaryDirectory(prefix='theme-contracts-', dir=cache) as direct
 # Verify state/appearance wiring where ButtonStyle.Configuration is framework-owned.
 components = (ROOT/'LifeRoute/ScenicRoyalComponents.swift').read_text()
 secondary = block(components, 'struct ScenicRoyalSecondaryButtonStyle:')
-assert r'@Environment(\.isEnabled)' in secondary
-assert '.opacity(isEnabled ? (configuration.isPressed ? 0.78 : 1) : 0.46)' in secondary
-assert 'configuration.isPressed && !reduceMotion' in secondary
+assert 'UI01SecondaryButtonStyle().makeBody(configuration: configuration)' in secondary
+presentation = (ROOT/'LifeRoute/UI01Presentation.swift').read_text()
+secondary_material = block(presentation, 'struct UI01SecondaryButtonStyle:')
+assert 'configuration.role == .destructive' in secondary_material
+assert 'UI01GoldButtonStyle(compact: true).makeBody(configuration: configuration)' in secondary_material
+button = block(presentation, 'struct UI01GoldButtonStyle:')
+assert r'@Environment(\.isEnabled)' in button
+assert 'enabled ? UI01Material.navy : UI01Material.silver' in button
+assert 'configuration.isPressed && !reduceMotion' in button
 assert '.tint(style.nativeControlTint)' in (ROOT/'LifeRoute/ScenicRoyalEnvironment.swift').read_text()
 assert 'surfaceShape.fill(style.accessibleSurfaceFill.opacity(accessibleSurfaceOpacity))' in (ROOT/'LifeRoute/ScenicRoyalMaterials.swift').read_text()
 print('Secondary enabled/disabled/pressed/Reduce Motion and shared appearance wiring passed; native focused/disabled appearance remains a capture gate.')

@@ -733,9 +733,7 @@ enum LifeRouteHaptics {
 
 struct LifeRouteCardModifier: ViewModifier {
     func body(content: Content) -> some View {
-        content
-            .padding(LifeRouteDesign.Spacing.comfortable)
-            .scenicRoyalSurface(role: .card, cornerRadius: LifeRouteDesign.Radius.card)
+        content.ui01OpenSection()
     }
 }
 
@@ -745,47 +743,21 @@ struct LifeRouteReadableTextSurfaceModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .scrollContentBackground(.hidden)
-            .padding(8)
-            .scenicRoyalSurface(role: .readability, cornerRadius: cornerRadius)
+            .foregroundStyle(UI01Material.silver)
+            .font(.body)
+            .ui01ReadingPlane(padding: 12)
     }
 }
 
 struct LifeRoutePrimaryButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.lifeRoutePalette) private var palette
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.body.weight(.bold))
-            .foregroundStyle(Color.black.opacity(0.78))
-            .frame(maxWidth: .infinity, minHeight: LifeRouteDesign.Layout.primaryControlHeight)
-            .padding(.horizontal, 16)
-            .background(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).fill(palette.accentGradient))
-            .overlay { RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).stroke(Color.white.opacity(0.23), lineWidth: 0.8) }
-            .shadow(color: palette.accent.opacity(configuration.isPressed ? 0.10 : 0.18), radius: configuration.isPressed ? 7 : 11, y: configuration.isPressed ? 2 : 4)
-            .opacity(configuration.isPressed ? 0.86 : (isEnabled ? 1 : 0.48))
-            .scaleEffect(configuration.isPressed ? 0.972 : 1)
-            .animation(reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.78), value: configuration.isPressed)
+        UI01GoldButtonStyle().makeBody(configuration: configuration)
     }
 }
 
 struct LifeRouteSecondaryButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.lifeRoutePalette) private var palette
-    @Environment(\.lifeRouteTheme) private var theme
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(theme.scenicRoyalStyle.filledPanelForeground)
-            .frame(maxWidth: .infinity, minHeight: LifeRouteDesign.Layout.secondaryControlHeight)
-            .padding(.horizontal, 14)
-            .background(RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).fill(palette.panelElevated.opacity(configuration.isPressed ? 0.94 : 0.68)))
-            .overlay { RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.control, style: .continuous).stroke(palette.accent.opacity(configuration.isPressed ? 0.46 : 0.28), lineWidth: 1) }
-            .shadow(color: palette.accent.opacity(configuration.isPressed ? 0.03 : 0.07), radius: 7, y: 3)
-            .scaleEffect(configuration.isPressed ? 0.978 : 1)
-            .animation(reduceMotion ? nil : .spring(response: 0.2, dampingFraction: 0.82), value: configuration.isPressed)
+        UI01SecondaryButtonStyle().makeBody(configuration: configuration)
     }
 }
 
@@ -1012,14 +984,13 @@ struct LifeRouteScreenHeader: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(theme.scenicRoyalStyle.contentPrimaryForeground)
+                UI01MarbleText(title: title, size: 30, relativeTo: .title)
+                    .ui01ScenicText()
                     .accessibilityAddTraits(.isHeader)
                 if let subtitle {
                     Text(subtitle)
                         .font(.subheadline)
-                    .foregroundStyle(theme.scenicRoyalStyle.contentSecondaryForeground)
+                    .foregroundStyle(palette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -1036,7 +1007,8 @@ struct LifeRouteModalChromeModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .scrollContentBackground(.hidden)
-            .background(palette.backgroundGradient.ignoresSafeArea())
+            .background(UI01Material.navy.ignoresSafeArea())
+            .environment(\.colorScheme, .dark)
             .presentationDragIndicator(.visible)
             .tint(theme.scenicRoyalStyle.selectedControlFill)
     }
@@ -3633,6 +3605,7 @@ struct LifeRouteApp: App {
                 LifeRouteVisualFixtureView(fixture: fixture)
             } else if ProcessInfo.processInfo.arguments.contains("-LifeRouteSessionNoteReadabilityFixture") {
                 SessionNoteReadabilityFixtureView()
+                    .ui01ContentStyle()
                     .lifeRouteChrome()
                     .environmentObject(themeStore)
                     .environmentObject(visualActivityCoordinator)

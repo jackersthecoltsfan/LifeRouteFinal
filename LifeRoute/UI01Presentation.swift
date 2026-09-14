@@ -106,6 +106,120 @@ struct UI01Hairline: View {
     }
 }
 
+private struct UI01TextEdgeAppliedKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+private extension EnvironmentValues {
+    var ui01TextEdgeApplied: Bool {
+        get { self[UI01TextEdgeAppliedKey.self] }
+        set { self[UI01TextEdgeAppliedKey.self] = newValue }
+    }
+}
+
+/// The rollout composes open groups and rows. Apply the accepted edge once
+/// per group so nested sections cannot accumulate a thick shadow.
+private struct UI01ScopedReadingZone: ViewModifier {
+    @Environment(\.ui01TextEdgeApplied) private var edgeApplied
+    @ViewBuilder func body(content: Content) -> some View {
+        if edgeApplied {
+            content
+        } else {
+            content.environment(\.ui01TextEdgeApplied, true)
+                .modifier(UI01ReadingZone())
+        }
+    }
+}
+
+/// Foreground-only palette. The existing environment above the navigation
+/// stacks continues to render the selected theme and owns all scene motion.
+struct UI01ContentStyle: ViewModifier {
+    @Environment(\.lifeRouteTheme) private var theme
+
+    func body(content: Content) -> some View {
+        let source = theme.palette
+        let palette = LifeRouteThemePalette(
+            backgroundTop: source.backgroundTop, backgroundBottom: source.backgroundBottom,
+            panel: UI01Material.navy, panelElevated: Color(red: 0.04, green: 0.11, blue: 0.19),
+            accent: UI01Material.gold, accentSecondary: UI01Material.goldLight,
+            textPrimary: UI01Material.silver, textSecondary: UI01Material.secondary
+        )
+        content
+            .environment(\.lifeRoutePalette, palette)
+            .environment(\.scenicRoyalThemeStyle, ScenicRoyalThemeStyle(
+                family: theme.scenicRoyalStyle.family, palette: palette, isBrightEnvironment: false
+            ))
+            .environment(\.colorScheme, .dark)
+            .foregroundStyle(UI01Material.silver)
+            .font(.custom("Baskerville", size: 17, relativeTo: .body))
+            .tint(UI01Material.goldLight)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+    }
+}
+
+/// A bounded, stable plane is reserved for actual input/long reading regions.
+/// It never supplies the backdrop for a scenic title or directory row.
+struct UI01ReadingPlane: ViewModifier {
+    var padding: CGFloat = 16
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func body(content: Content) -> some View {
+        content
+            .padding(padding)
+            .background(UI01Material.navy.opacity(reduceTransparency || contrast == .increased ? 1 : 0.94),
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(UI01Material.silver.opacity(contrast == .increased ? 0.5 : 0.16), lineWidth: 0.5)
+                    .allowsHitTesting(false)
+            }
+    }
+}
+
+/// A selected choice is an action material, while unselected choices stay open.
+struct UI01SelectionSurface: ViewModifier {
+    let selected: Bool
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(selected ? UI01Material.navy : UI01Material.silver)
+            .background {
+                if selected {
+                    Capsule().fill(UI01Material.goldGradient)
+                        .overlay(Capsule().strokeBorder(UI01Material.goldLight, lineWidth: 0.8))
+                }
+            }
+    }
+}
+
+struct UI01SecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        if configuration.role == .destructive {
+            configuration.label
+                .foregroundStyle(.red)
+                .font(.body.weight(.semibold))
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+        } else {
+            UI01GoldButtonStyle(compact: true).makeBody(configuration: configuration)
+        }
+    }
+}
+
+extension View {
+    func ui01ScenicText() -> some View { modifier(UI01ScopedReadingZone()) }
+    func ui01ContentStyle() -> some View { modifier(UI01ContentStyle()) }
+    func ui01OpenSection() -> some View {
+        frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 12)
+            .ui01ScenicText()
+    }
+    func ui01ReadingPlane(padding: CGFloat = 16) -> some View {
+        modifier(UI01ReadingPlane(padding: padding))
+    }
+}
+
 struct UI01GoldButtonStyle: ButtonStyle {
     var compact = false
     @Environment(\.isEnabled) private var enabled

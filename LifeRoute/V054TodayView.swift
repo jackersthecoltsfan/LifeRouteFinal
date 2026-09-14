@@ -351,6 +351,7 @@ struct V054TodayView: View {
                     planState: planState,
                     day: selectedDay
                 )
+                .ui01ContentStyle()
                 .lifeRouteDeepDestination()
             } label: {
                 Label("Edit stops & route options", systemImage: "slider.horizontal.3")

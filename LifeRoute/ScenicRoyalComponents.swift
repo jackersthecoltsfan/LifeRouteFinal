@@ -17,8 +17,7 @@ struct ScenicRoyalCard<Content: View>: View {
 
     var body: some View {
         content
-            .padding(ScenicRoyalDesignSystem.Spacing.comfortable)
-            .scenicRoyalSurface(role: role, cornerRadius: cornerRadius)
+            .ui01OpenSection()
     }
 }
 
@@ -45,9 +44,8 @@ struct ScenicRoyalSectionHeader: View {
             }
 
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                Text(title)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(style.contentPrimaryForeground)
+                UI01MarbleText(title: title, size: 23, relativeTo: .title3)
+                    .accessibilityAddTraits(.isHeader)
 
                 if let subtitle {
                     Text(subtitle)
@@ -58,6 +56,7 @@ struct ScenicRoyalSectionHeader: View {
 
             Spacer(minLength: 0)
         }
+        .ui01ScenicText()
         .accessibilityElement(children: .combine)
     }
 }
@@ -72,15 +71,13 @@ struct ScenicRoyalIconBadge: View {
             .font(.title3.weight(.semibold))
             .foregroundStyle(style.accent)
             .frame(width: 48, height: 48)
-            .scenicRoyalSurface(
-                role: .passiveRow,
-                cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
-            )
+            .ui01ScenicText()
             .accessibilityHidden(true)
     }
 }
 
 struct ScenicRoyalScreenHeader<Actions: View>: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.scenicRoyalThemeStyle) private var style
@@ -102,40 +99,29 @@ struct ScenicRoyalScreenHeader<Actions: View>: View {
         self.actions = actions()
     }
 
-    @ViewBuilder
     var body: some View {
-        if reduceTransparency || colorSchemeContrast == .increased {
-            headerContent
-                .padding(ScenicRoyalDesignSystem.Spacing.standard)
-                .scenicRoyalSurface(
-                    role: .readability,
-                    cornerRadius: ScenicRoyalDesignSystem.Radius.card
-                )
-        } else {
-            headerContent
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 16))
+        layout {
+            titles
+            if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 8) }
+            actions
         }
+        .ui01ScenicText()
     }
 
-    private var headerContent: some View {
-        HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-            VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                Text(title)
-                    .font((compact ? Font.headline : Font.largeTitle).weight(.bold))
-                    .foregroundStyle(style.contentPrimaryForeground)
-
-                Text(subtitle)
-                    .font((compact ? Font.caption : Font.subheadline).weight(.medium))
-                    .foregroundStyle(style.contentSecondaryForeground)
+    private var titles: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !compact {
+                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2)
             }
-            .accessibilityElement(children: .combine)
-
-            Spacer(minLength: ScenicRoyalDesignSystem.Spacing.compact)
-
-            ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                HStack(spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                    actions
-                }
-            }
+            UI01MarbleText(title: title, size: compact ? 26 : 38, relativeTo: compact ? .title2 : .largeTitle)
+                .accessibilityAddTraits(.isHeader)
+            Text(subtitle)
+                .font(.custom("Baskerville", size: compact ? 14 : 17, relativeTo: .subheadline))
+                .foregroundStyle(UI01Material.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -151,16 +137,13 @@ struct ScenicRoyalCompactIconButton: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.subheadline.weight(.bold))
-                .foregroundStyle(style.selectedControlForeground)
+                .foregroundStyle(UI01Material.navy)
                 .frame(
                     width: ScenicRoyalDesignSystem.Layout.minimumTouchTarget,
                     height: ScenicRoyalDesignSystem.Layout.minimumTouchTarget
                 )
                 .contentShape(Circle())
-                .scenicRoyalInteractiveSurface(
-                    role: .selectedControl,
-                    cornerRadius: ScenicRoyalDesignSystem.Layout.minimumTouchTarget / 2
-                )
+                .modifier(UI01SelectionSurface(selected: true))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
@@ -171,6 +154,7 @@ struct ScenicRoyalCompactIconButton: View {
 /// semantic selected material instead of a flat platform tint.
 struct ScenicRoyalSegmentedControl<Option: Identifiable & Hashable, Label: View>: View {
     @Environment(\.scenicRoyalThemeStyle) private var style
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @Binding var selection: Option
     let options: [Option]
@@ -187,25 +171,18 @@ struct ScenicRoyalSegmentedControl<Option: Identifiable & Hashable, Label: View>
     }
 
     var body: some View {
-        HStack(spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+        layout {
             ForEach(options) { option in
                 Button {
                     selection = option
                 } label: {
                     label(option)
                         .font(.headline.weight(.semibold))
-                        .foregroundStyle(selection == option ? style.selectedControlForeground : style.contentSecondaryForeground)
+                        .foregroundStyle(selection == option ? UI01Material.navy : UI01Material.silver)
                         .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
-                        .background {
-                            if selection == option {
-                                ScenicRoyalSelectedControlMaterial(
-                                    shape: RoundedRectangle(
-                                        cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl,
-                                        style: .continuous
-                                    )
-                                )
-                            }
-                        }
+                        .modifier(UI01SelectionSurface(selected: selection == option))
                         .contentShape(
                             RoundedRectangle(
                                 cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl,
@@ -217,11 +194,6 @@ struct ScenicRoyalSegmentedControl<Option: Identifiable & Hashable, Label: View>
                 .accessibilityAddTraits(selection == option ? .isSelected : [])
             }
         }
-        .padding(ScenicRoyalDesignSystem.Spacing.hairline)
-        .scenicRoyalSurface(
-            role: .passiveRow,
-            cornerRadius: ScenicRoyalDesignSystem.Radius.control
-        )
     }
 }
 
@@ -239,11 +211,9 @@ struct ScenicRoyalInsetRow<Content: View>: View {
 
     var body: some View {
         content
-            .padding(ScenicRoyalDesignSystem.Spacing.standard)
-            .scenicRoyalSurface(
-                role: role,
-                cornerRadius: ScenicRoyalDesignSystem.Radius.control
-            )
+            .padding(.vertical, 12)
+            .overlay(alignment: .bottom) { UI01Hairline().opacity(0.45) }
+            .ui01ScenicText()
     }
 }
 
@@ -262,56 +232,14 @@ struct ScenicRoyalPassiveRowSeparator: View {
 }
 
 struct ScenicRoyalPrimaryButtonStyle: ButtonStyle {
-    @Environment(\.scenicRoyalThemeStyle) private var style
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.isEnabled) private var isEnabled
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.subheadline.weight(.bold))
-            .foregroundStyle(ScenicRoyalDesignSystem.ColorToken.brandNavyDeep)
-            .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
-            .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
-            .background(
-                LinearGradient(
-                    colors: [style.accent, ScenicRoyalDesignSystem.ColorToken.brandGoldBright],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                in: RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
-                    .stroke(Color.white.opacity(0.24), lineWidth: ScenicRoyalDesignSystem.Stroke.subtle)
-            }
-            .opacity(isEnabled ? (configuration.isPressed ? 0.84 : 1) : 0.46)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
-            .animation(
-                reduceMotion ? nil : ScenicRoyalDesignSystem.Motion.selection,
-                value: configuration.isPressed
-            )
+        UI01GoldButtonStyle().makeBody(configuration: configuration)
     }
 }
 
 struct ScenicRoyalSecondaryButtonStyle: ButtonStyle {
-    @Environment(\.scenicRoyalThemeStyle) private var style
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.isEnabled) private var isEnabled
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(style.contentPrimaryForeground)
-            .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
-            .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
-            .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous))
-            .scenicRoyalInteractiveSurface(role: .selectedControl)
-            .opacity(isEnabled ? (configuration.isPressed ? 0.78 : 1) : 0.46)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
-            .animation(
-                reduceMotion ? nil : ScenicRoyalDesignSystem.Motion.selection,
-                value: configuration.isPressed
-            )
+        UI01SecondaryButtonStyle().makeBody(configuration: configuration)
     }
 }
 
@@ -322,16 +250,15 @@ extension View {
         padding: CGFloat = ScenicRoyalDesignSystem.Spacing.comfortable
     ) -> some View {
         self
-            .padding(padding)
-            .scenicRoyalSurface(role: role, cornerRadius: cornerRadius)
+            .padding(.vertical, padding)
+            .ui01ScenicText()
     }
 
     func scenicRoyalField() -> some View {
         self
-            .padding(ScenicRoyalDesignSystem.Spacing.standard)
-            .scenicRoyalInteractiveSurface(
-                role: .control,
-                cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
-            )
+            .padding(12)
+            .frame(minHeight: 44)
+            .background(UI01Material.navy, in: RoundedRectangle(cornerRadius: 8))
+            .overlay(alignment: .bottom) { UI01Hairline().padding(.horizontal, 8) }
     }
 }

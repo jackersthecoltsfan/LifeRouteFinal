@@ -65,9 +65,9 @@ struct ScenicRoyalSelectedThemeHeader: View {
     private var preview: some View {
         ScenicRoyalThemePreview(theme: theme)
             .frame(
-                maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : 96,
-                minHeight: dynamicTypeSize.isAccessibilitySize ? 112 : 78,
-                maxHeight: dynamicTypeSize.isAccessibilitySize ? 112 : 78
+                maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : 132,
+                minHeight: dynamicTypeSize.isAccessibilitySize ? 140 : 110,
+                maxHeight: dynamicTypeSize.isAccessibilitySize ? 140 : 110
             )
             .clipShape(
                 RoundedRectangle(
@@ -92,9 +92,7 @@ struct ScenicRoyalSelectedThemeHeader: View {
                 .tracking(0.7)
                 .foregroundStyle(style.accentReflection)
 
-            Text(theme.name)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(style.primaryText)
+            UI01MarbleText(title: theme.name, size: 28, relativeTo: .title2)
                 .fixedSize(horizontal: false, vertical: true)
 
             Label(
@@ -152,22 +150,14 @@ struct ScenicRoyalThemeCategoryPicker: View {
                     Text(category.rawValue)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .foregroundStyle(selection == category ? style.selectedControlForeground : style.contentPrimaryForeground)
+                .foregroundStyle(selection == category ? UI01Material.navy : UI01Material.silver)
                 .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
                 .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
-                .background {
-                    if selection == category {
-                        ScenicRoyalSelectedControlMaterial(
-                            shape: RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
-                        )
-                    }
-                }
+                .modifier(UI01SelectionSurface(selected: selection == category))
                 .contentShape(
                     RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous)
                 )
-                .scenicRoyalInteractiveSurface(
-                    role: selection == category ? .selectedControl : .passiveRow
-                )
+
             }
             .buttonStyle(.plain)
             .font(.subheadline.weight(.semibold))
@@ -235,7 +225,7 @@ struct ScenicRoyalThemeCard: View {
                 preview
                 titleBlock
             }
-            .padding(ScenicRoyalDesignSystem.Spacing.compact)
+            .padding(2)
             .frame(maxWidth: .infinity, minHeight: 154, alignment: .topLeading)
             .contentShape(
                 RoundedRectangle(
@@ -243,17 +233,13 @@ struct ScenicRoyalThemeCard: View {
                     style: .continuous
                 )
             )
-            .scenicRoyalSurface(
-                role: .passiveRow,
-                cornerRadius: ScenicRoyalDesignSystem.Radius.control
-            )
             .overlay {
                 RoundedRectangle(
                     cornerRadius: ScenicRoyalDesignSystem.Radius.control,
                     style: .continuous
                 )
                 .stroke(
-                    isSelected ? style.selectedControlIndicator : Color.white.opacity(contrast == .increased ? 0.30 : 0.08),
+                    isSelected ? UI01Material.gold : Color.clear,
                     lineWidth: isSelected ? ScenicRoyalDesignSystem.Stroke.selected : ScenicRoyalDesignSystem.Stroke.subtle
                 )
             }
@@ -285,8 +271,8 @@ struct ScenicRoyalThemeCard: View {
                 .tracking(0.5)
                 .foregroundStyle(.white)
                 .padding(6)
-                .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                .padding(ScenicRoyalDesignSystem.Spacing.compact)
+                .ui01ScenicText()
+                .padding(2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }
         .accessibilityHidden(true)
@@ -295,9 +281,7 @@ struct ScenicRoyalThemeCard: View {
     private var titleBlock: some View {
         HStack(alignment: .firstTextBaseline, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                Text(theme.name)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(style.primaryText)
+                UI01MarbleText(title: theme.name, size: 23, relativeTo: .title3)
                     .fixedSize(horizontal: false, vertical: true)
 
             }

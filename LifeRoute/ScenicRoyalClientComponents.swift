@@ -27,9 +27,7 @@ struct ScenicRoyalClientHeader: View {
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-            Text("Clients")
-                .font(.largeTitle.weight(.bold))
-                .foregroundStyle(style.primaryText)
+            UI01MarbleText(title: "Clients", size: 38, relativeTo: .largeTitle)
 
             Text("ABA-style client codes and practical session context.")
                 .font(.subheadline.weight(.medium))
@@ -99,7 +97,7 @@ struct ScenicRoyalClientAddRow<Destination: View>: View {
                     style: .continuous
                 )
             )
-            .scenicRoyalInteractiveSurface(role: .selectedControl)
+            .overlay(alignment: .bottom) { UI01Hairline() }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Add client")
@@ -168,10 +166,7 @@ struct ScenicRoyalClientSummaryCard<Destination: View>: View {
                 .font(.title3.weight(.bold))
                 .foregroundStyle(style.accent)
                 .frame(minWidth: 64, minHeight: 48)
-                .scenicRoyalSurface(
-                    role: .selectedControl,
-                    cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
-                )
+                .ui01ScenicText()
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
@@ -262,10 +257,7 @@ private struct ScenicRoyalClientMetric: View {
         }
         .frame(maxWidth: .infinity, minHeight: 40)
         .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.compact)
-        .scenicRoyalSurface(
-            role: .ambient,
-            cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
-        )
+        .ui01ScenicText()
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(value) \(label.lowercased())")
     }
@@ -305,12 +297,13 @@ struct ScenicRoyalClientEditorCard<Content: View>: View {
     }
 
     var body: some View {
-        ScenicRoyalCard(role: .readability) {
+        Group {
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                 ScenicRoyalSectionHeader(title, subtitle: subtitle, systemImage: systemImage)
                 content
             }
         }
+        .ui01ReadingPlane()
     }
 }
 
@@ -330,11 +323,7 @@ struct ScenicRoyalClientTextEditor: View {
             TextEditor(text: $text)
                 .frame(minHeight: minimumHeight)
                 .scrollContentBackground(.hidden)
-                .padding(ScenicRoyalDesignSystem.Spacing.compact)
-                .scenicRoyalInteractiveSurface(
-                    role: .ambient,
-                    cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
-                )
+                .lifeRouteReadableTextSurface()
                 .accessibilityLabel(title)
         }
     }

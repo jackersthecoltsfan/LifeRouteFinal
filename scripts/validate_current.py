@@ -821,16 +821,12 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     require_all(environment, ["ScenicRoyalEnvironmentHost", "accessibilityReduceMotion", "accessibilityReduceTransparency", "scenePhase == .active"], "persistent environment accessibility boundary")
     require_all(bridge, ["sceneryCanyonDay", "sceneryArcticDay", "sceneryRainforestDay", "royalCurrent", "scenicRoyalThemeStyle"], "theme-to-material bridge")
     require_all(components, ["ScenicRoyalCard", "ScenicRoyalSectionHeader", "ScenicRoyalIconBadge", "ScenicRoyalPrimaryButtonStyle", "ScenicRoyalSecondaryButtonStyle"], "shared Scenic Royal components")
-    require_all(
-        components,
-        [
-            "@Environment(\\.colorSchemeContrast) private var colorSchemeContrast",
-            "@Environment(\\.accessibilityReduceTransparency) private var reduceTransparency",
-            "if reduceTransparency || colorSchemeContrast == .increased",
-            "role: .readability",
-        ],
-        "Scenic Royal root-header accessibility readability floor",
-    )
+    require_all(components, ["dynamicTypeSize.isAccessibilitySize", ".ui01ScenicText()"], "UI-02 native scenic header and accessible layout")
+    presentation = sources["UI01Presentation.swift"]
+    reading_zone = presentation.split("struct UI01ReadingZone:", 1)[1].split("struct UI01Hairline:", 1)[0]
+    require_all(reading_zone, ["contrast == .increased", "typeSize.isAccessibilitySize", "case .environmental: return theme.isBrightEnvironment", ".shadow(color: edge"], "UI-02 deterministic native text edge")
+    require(".background" not in reading_zone and ".blur(" not in reading_zone, "Open scenic text must not regain a backplate or blur slab")
+    require_all(presentation, ["struct UI01ReadingPlane", "reduceTransparency || contrast == .increased ? 1 : 0.94"], "UI-02 dense input plane accessibility")
     require_count(toolbar, "ForEach(AppSection.allCases)", 1, "five-root Scenic Royal toolbar")
     require_all(toolbar, ["accessibilityReduceMotion", "dynamicTypeSize", 'accessibilityLabel("Main navigation")', 'accessibilityValue(isSelected ? "Selected" : "")'], "toolbar accessibility contract")
     require_all(
@@ -1041,7 +1037,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         "Scenic Royal Tools dashboard and six approved entry points",
     )
     require("ClientVisualScheduleBuilderView(" not in dashboard, "Visual Schedule must remain hidden from the active Tools dashboard")
-    require_all(tool_components, ["struct ScenicRoyalToolTile", "role: .control"], "semantic Tools navigation controls")
+    require_all(tool_components, ["struct ScenicRoyalToolTile", ".contentShape(Rectangle())", ".ui01ScenicText()", ".accessibilityHint(\"Opens \\(title)\")"], "semantic Tools open navigation controls")
     require_all(
         clinical,
         [
@@ -1159,7 +1155,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         app,
         [
             "LifeRouteReadableTextSurfaceModifier",
-            ".scenicRoyalSurface(role: .readability",
+            ".ui01ReadingPlane(padding: 12)",
             "lifeRouteReadableTextSurface",
         ],
         "accessible dense-text readability floor inside retained glass cards",
@@ -1272,7 +1268,7 @@ def validate_calendar_routing_and_persistence(sources: dict[str, str]) -> None:
         ],
         "Schedule readability, Dynamic Type, and accessibility components",
     )
-    require_count(schedule, ".scenicRoyalSurface(role: .majorGroup)", 2, "day and week Calendar agenda group ownership")
+    require_count(schedule, ".ui01ScenicText()", 2, "day and week Calendar open agenda groups")
     require("palette.panel" not in schedule, "Schedule must not restore duplicated legacy panel styling")
     require_all(routing, ["CLLocationManager", "requestWhenInUseAuthorization", "allowsBackgroundLocationUpdates = false", "savedPlaces", "todos", "dayStops", "addDayStop", "removeDayStop", "MKDirections", "openInMaps"], "foreground routing and saved-place ownership")
     require_all(

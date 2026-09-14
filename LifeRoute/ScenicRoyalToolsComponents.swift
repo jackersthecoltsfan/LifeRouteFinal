@@ -1,42 +1,34 @@
 import SwiftUI
 
 struct ScenicRoyalToolTile: View {
-    @Environment(\.scenicRoyalThemeStyle) private var style
-
     let title: String
     let subtitle: String
     let systemImage: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-            HStack(alignment: .top) {
-                ScenicRoyalIconBadge(systemImage: systemImage)
-                Spacer(minLength: ScenicRoyalDesignSystem.Spacing.compact)
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(style.accentReflection)
-                    .accessibilityHidden(true)
-            }
-
-            VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                Text(title)
-                    .font(.headline.weight(.semibold))
-                    .foregroundStyle(style.primaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-
+        HStack(alignment: .top, spacing: 18) {
+            Image(systemName: systemImage)
+                .font(.system(size: title == "Visual Timer" ? 38 : 25, weight: .light))
+                .foregroundStyle(UI01Material.goldGradient)
+                .frame(width: 48, height: 48)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 6) {
+                UI01MarbleText(title: title, size: title == "Visual Timer" ? 30 : 25, relativeTo: .title2)
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(style.secondaryText)
+                    .font(.custom("Baskerville", size: 17, relativeTo: .body))
+                    .foregroundStyle(UI01Material.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .foregroundStyle(UI01Material.silver)
+                .accessibilityHidden(true)
         }
-        .frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
-        .padding(ScenicRoyalDesignSystem.Spacing.comfortable)
-        .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.card, style: .continuous))
-        .scenicRoyalInteractiveSurface(
-            role: .control,
-            cornerRadius: ScenicRoyalDesignSystem.Radius.card
-        )
+        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+        .padding(.vertical, title == "Visual Timer" ? 20 : 14)
+        .ui01ScenicText()
+        .overlay(alignment: .bottom) { UI01Hairline().opacity(0.5) }
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(title). \(subtitle)")
         .accessibilityHint("Opens \(title)")

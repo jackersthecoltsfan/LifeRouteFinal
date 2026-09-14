@@ -202,7 +202,7 @@ struct V054ClientEditorView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(style.accentReflection)
 
-            TextField(placeholder, text: text)
+            TextField(placeholder, text: text, prompt: Text(placeholder).foregroundColor(UI01Material.secondary))
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .scenicRoyalField()

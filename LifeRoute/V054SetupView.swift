@@ -250,6 +250,7 @@ struct V054SetupView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(style.accentReflection)
         }
+        .ui01ReadingPlane()
     }
 
     private var navigationAppCard: some View {
@@ -348,6 +349,7 @@ struct V054SetupView: View {
                 ScenicRoyalSetupStatusText(message: message)
             }
         }
+        .ui01ReadingPlane()
     }
 
     private var savedPlacesCard: some View {
@@ -431,7 +433,7 @@ struct V054SetupView: View {
             subtitle: "Create a flexible task with optional place and timing context.",
             systemImage: "plus.circle.fill"
         ) {
-            TextField("What needs to get done?", text: $todoTitle)
+            TextField("What needs to get done?", text: $todoTitle, prompt: Text("What needs to get done?").foregroundColor(UI01Material.secondary))
                 .submitLabel(.next)
                 .scenicRoyalField()
 
@@ -498,7 +500,7 @@ struct V054SetupView: View {
                 .tint(style.selectedControlFill)
                 .scenicRoyalField()
 
-            TextField("Notes (optional)", text: $todoNotes, axis: .vertical)
+            TextField("Notes (optional)", text: $todoNotes, prompt: Text("Notes (optional)").foregroundColor(UI01Material.secondary), axis: .vertical)
                 .lineLimit(2...4)
                 .scenicRoyalField()
 
@@ -511,6 +513,7 @@ struct V054SetupView: View {
                 ScenicRoyalSetupStatusText(message: todoMessage)
             }
         }
+        .ui01ReadingPlane()
     }
 
     private var addPlaceCard: some View {
@@ -519,7 +522,7 @@ struct V054SetupView: View {
             subtitle: "Save a reusable stop for routing, Generate Full Day, and gap planning.",
             systemImage: "mappin.and.ellipse"
         ) {
-            TextField("Place name", text: $placeName)
+            TextField("Place name", text: $placeName, prompt: Text("Place name").foregroundColor(UI01Material.secondary))
                 .textInputAutocapitalization(.words)
                 .submitLabel(.next)
                 .scenicRoyalField()
@@ -549,6 +552,7 @@ struct V054SetupView: View {
             }
             .buttonStyle(ScenicRoyalPrimaryButtonStyle())
         }
+        .ui01ReadingPlane()
     }
 
     private var privacyCard: some View {
@@ -608,7 +612,7 @@ struct V054SetupView: View {
     }
 
     private func profileField(_ placeholder: String, text: Binding<String>, contentType: UITextContentType?) -> some View {
-        TextField(placeholder, text: text)
+        TextField(placeholder, text: text, prompt: Text(placeholder).foregroundColor(UI01Material.secondary))
             .textContentType(contentType)
             .textInputAutocapitalization(.words)
             .scenicRoyalField()

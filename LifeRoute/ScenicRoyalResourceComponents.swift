@@ -27,10 +27,9 @@ struct ScenicRoyalResourceHeader: View {
     }
 
     private var titleBlock: some View {
-        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-            Text("Resources")
-                .font(.largeTitle.weight(.bold))
-                .foregroundStyle(style.primaryText)
+        VStack(alignment: .leading, spacing: 8) {
+                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2)
+            UI01MarbleText(title: "Resources", size: 38, relativeTo: .largeTitle)
 
             Text("Clinical, work, training, and company portals.")
                 .font(.subheadline.weight(.medium))
@@ -134,15 +133,12 @@ struct ScenicRoyalResourceRow: View {
                         width: ScenicRoyalDesignSystem.Layout.minimumTouchTarget,
                         height: ScenicRoyalDesignSystem.Layout.minimumTouchTarget
                     )
-                    .scenicRoyalSurface(
-                        role: .passiveRow,
-                        cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
-                    )
+                    .ui01ScenicText()
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
                     Text(portal.title)
-                        .font(.subheadline.weight(.bold))
+                        .font(.custom("Baskerville", size: 22, relativeTo: .headline))
                         .foregroundStyle(style.primaryText)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -211,7 +207,7 @@ struct ScenicRoyalCustomPortalForm: View {
     let onSave: () -> Void
 
     var body: some View {
-        ScenicRoyalCard(role: .majorGroup) {
+        Group {
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                 ScenicRoyalSectionHeader(
                     "Add company portal",
@@ -219,11 +215,11 @@ struct ScenicRoyalCustomPortalForm: View {
                     systemImage: "plus.app"
                 )
 
-                TextField("Portal name", text: $title)
+                TextField("Portal name", text: $title, prompt: Text("Portal name").foregroundColor(UI01Material.secondary))
                     .textContentType(.organizationName)
                     .scenicRoyalField()
 
-                TextField("Website address", text: $urlString)
+                TextField("Website address", text: $urlString, prompt: Text("Website address").foregroundColor(UI01Material.secondary))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(.URL)
@@ -251,6 +247,7 @@ struct ScenicRoyalCustomPortalForm: View {
                 }
             }
         }
+        .ui01ReadingPlane()
     }
 }
 

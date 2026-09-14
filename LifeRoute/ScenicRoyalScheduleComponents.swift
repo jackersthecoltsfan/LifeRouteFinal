@@ -19,26 +19,20 @@ struct ScenicRoyalCalendarDateChip: View {
                     .lineLimit(1)
 
                 Text(date.formatted(.dateTime.day()))
-                    .font(.headline.weight(.bold))
+                    .font(.custom("Baskerville", size: 22, relativeTo: .title3))
                     .lineLimit(1)
 
                 Circle()
                     .fill(eventCount > 0 ? eventIndicatorColor : .clear)
                     .frame(width: 5, height: 5)
             }
-            .foregroundStyle(isSelected ? style.selectedControlForeground : style.contentPrimaryForeground)
+            .foregroundStyle(isSelected ? UI01Material.navy : UI01Material.silver)
             .frame(
                 width: dynamicTypeSize.isAccessibilitySize ? 88 : 44,
                 height: dynamicTypeSize.isAccessibilitySize ? 96 : (compact ? nil : 58)
             )
             .frame(minHeight: compact ? 44 : nil)
-            .background {
-                if isSelected {
-                    ScenicRoyalSelectedControlMaterial(
-                        shape: RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl, style: .continuous)
-                    )
-                }
-            }
+            .modifier(UI01SelectionSurface(selected: isSelected))
             .overlay {
                 RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl, style: .continuous)
                     .stroke(
@@ -47,10 +41,7 @@ struct ScenicRoyalCalendarDateChip: View {
                     )
             }
             .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl, style: .continuous))
-            .scenicRoyalInteractiveSurface(
-                role: isSelected ? .selectedControl : .passiveRow,
-                cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
-            )
+
         }
         .buttonStyle(.plain)
         .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
@@ -59,7 +50,7 @@ struct ScenicRoyalCalendarDateChip: View {
     }
 
     private var eventIndicatorColor: Color {
-        isSelected ? style.selectedControlIndicator.opacity(0.72) : style.accent
+        isSelected ? UI01Material.navy.opacity(0.72) : UI01Material.gold
     }
 }
 
@@ -77,7 +68,7 @@ struct ScenicRoyalCalendarMonthDay: View {
             ZStack(alignment: .bottom) {
                 Text(date.formatted(.dateTime.day()))
                     .font(.caption.weight(isSelected ? .bold : .semibold))
-                    .foregroundStyle(isSelected ? style.selectedControlForeground : style.contentPrimaryForeground)
+                    .foregroundStyle(isSelected ? UI01Material.navy : UI01Material.silver)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 Circle()
@@ -85,16 +76,10 @@ struct ScenicRoyalCalendarMonthDay: View {
                     .frame(width: 4, height: 4)
                     .padding(.bottom, 3)
             }
-            .frame(minHeight: 40)
-            .background {
-                if isSelected {
-                    ScenicRoyalSelectedControlMaterial(
-                        shape: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    )
-                } else {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(isToday ? style.accent.opacity(0.14) : .clear)
-                }
+            .frame(minHeight: 44)
+            .modifier(UI01SelectionSurface(selected: isSelected))
+            .overlay {
+                Capsule().strokeBorder(isToday && !isSelected ? UI01Material.gold : .clear, lineWidth: 1)
             }
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
@@ -106,7 +91,7 @@ struct ScenicRoyalCalendarMonthDay: View {
     }
 
     private var eventIndicatorColor: Color {
-        isSelected ? style.selectedControlIndicator.opacity(0.72) : style.accent
+        isSelected ? UI01Material.navy.opacity(0.72) : UI01Material.gold
     }
 }
 
@@ -129,11 +114,9 @@ struct ScenicRoyalScheduleEventRow: View {
                 compactLayout
             }
         }
-        .scenicRoyalCard(
-            role: .passiveRow,
-            cornerRadius: ScenicRoyalDesignSystem.Radius.control,
-            padding: ScenicRoyalDesignSystem.Spacing.standard
-        )
+        .padding(.vertical, 12)
+        .ui01ScenicText()
+        .overlay(alignment: .bottom) { UI01Hairline().opacity(0.5) }
         .accessibilityElement(children: .contain)
     }
 

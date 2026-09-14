@@ -672,7 +672,7 @@ struct AISessionNoteGeneratorView: View {
             .foregroundStyle(palette.accentSecondary)
             .padding(.horizontal, 11)
             .frame(minHeight: 34)
-            .background(palette.panelElevated.opacity(0.34), in: Capsule())
+            .ui01ScenicText()
 
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "exclamationmark.triangle.fill")
@@ -700,12 +700,7 @@ struct AISessionNoteGeneratorView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Experimental AI Tool. AI-generated Session Notes may be incomplete or inaccurate. Review and edit every note before use. Do not rely on this tool as final clinical documentation.")
         }
-        .padding(12)
-        .background(palette.panel.opacity(0.58), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                .stroke(palette.accent.opacity(0.17), lineWidth: 1)
-        }
+        .ui01OpenSection()
     }
 
     private var inputCard: some View {
@@ -1208,14 +1203,9 @@ struct AISessionPlanBuilderView: View {
                 .foregroundStyle(palette.accentSecondary)
                 .padding(.horizontal, 11)
                 .frame(minHeight: 34)
-                .background(palette.panelElevated.opacity(0.34), in: Capsule())
+                .ui01ScenicText()
         }
-        .padding(12)
-        .background(palette.panel.opacity(0.58), in: RoundedRectangle(cornerRadius: 17, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 17, style: .continuous)
-                .stroke(palette.accent.opacity(0.17), lineWidth: 1)
-        }
+        .ui01OpenSection()
     }
 
     private var contextCard: some View {
@@ -1237,7 +1227,7 @@ struct AISessionPlanBuilderView: View {
             }
             .pickerStyle(.menu)
         }
-        .lifeRouteCard()
+        .ui01ReadingPlane()
     }
 
     private var inputsCard: some View {

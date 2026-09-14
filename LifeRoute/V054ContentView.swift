@@ -324,6 +324,7 @@ struct V054ContentView: View {
             V054ScheduleView(calendarState: calendarState, providerState: providerState)
                 .lifeRouteRootScope()
         }
+        .ui01ContentStyle()
     }
 
     private var toolsRoot: some View {
@@ -340,12 +341,14 @@ struct V054ContentView: View {
 #endif
         }
         .environmentObject(timerHero)
+        .ui01ContentStyle()
     }
 
     private var resourcesRoot: some View {
         LifeRouteRootNavigationStack(path: $router.resourcesPath) {
             ResourcePortalHubView().lifeRouteRootScope()
         }
+        .ui01ContentStyle()
     }
 
     private var setupRoot: some View {
@@ -356,6 +359,7 @@ struct V054ContentView: View {
             )
             .lifeRouteRootScope()
         }
+        .ui01ContentStyle()
     }
 }
 

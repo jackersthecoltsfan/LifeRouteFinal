@@ -82,8 +82,7 @@ struct DayRoutePlanningView: View {
                 .font(.caption.weight(.black))
                 .tracking(1.2)
                 .foregroundStyle(scenicStyle.accent)
-            Text("Stops belong in the plan.")
-                .font(.system(size: 29, weight: .black, design: .rounded))
+            UI01MarbleText(title: "Day Route", size: 32, relativeTo: .title)
                 .foregroundStyle(scenicStyle.primaryText)
             Text("Add errands before or after an appointment, decide whether you’re returning home, and see each travel leg before you leave.")
                 .font(.subheadline)
@@ -170,10 +169,10 @@ struct DayRoutePlanningView: View {
             }
             .pickerStyle(.segmented)
 
-            TextField("Stop name", text: $stopTitle)
+            TextField("Stop name", text: $stopTitle, prompt: Text("Stop name").foregroundColor(UI01Material.secondary))
                 .scenicRoyalField()
 
-            TextField("Stop address", text: $stopAddress)
+            TextField("Stop address", text: $stopAddress, prompt: Text("Stop address").foregroundColor(UI01Material.secondary))
                 .textContentType(.fullStreetAddress)
                 .focused($stopAddressFocused)
                 .onChange(of: stopAddress) { value in
@@ -261,7 +260,7 @@ struct DayRoutePlanningView: View {
                     .foregroundStyle(scenicStyle.secondaryText)
             }
         }
-        .scenicRoyalCard(role: .readability)
+        .ui01ReadingPlane()
     }
 
     private var routeOptionsCard: some View {
@@ -296,7 +295,7 @@ struct DayRoutePlanningView: View {
                     .foregroundStyle(scenicStyle.secondaryText)
             }
         }
-        .scenicRoyalCard(role: .readability)
+        .ui01ReadingPlane()
     }
 
     private var buildCard: some View {

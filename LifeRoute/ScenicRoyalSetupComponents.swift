@@ -27,14 +27,9 @@ struct ScenicRoyalSetupHeader: View {
 
     private var titleBlock: some View {
         HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-            LifeRouteBrandMark(variant: .small)
-                .frame(width: 48, height: 48)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                Text("Setup")
-                    .font(.largeTitle.weight(.bold))
-                    .foregroundStyle(style.primaryText)
+            VStack(alignment: .leading, spacing: 8) {
+                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2)
+                UI01MarbleText(title: "Setup", size: 38, relativeTo: .largeTitle)
 
                 Text("Your LifeRoute control center.")
                     .font(.subheadline.weight(.medium))
@@ -96,16 +91,11 @@ struct ScenicRoyalSetupDisclosureGroup<Content: View>: View {
                             width: ScenicRoyalDesignSystem.Layout.minimumTouchTarget,
                             height: ScenicRoyalDesignSystem.Layout.minimumTouchTarget
                         )
-                        .scenicRoyalSurface(
-                            role: isExpanded ? .selectedControl : .passiveRow,
-                            cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl
-                        )
+                        .ui01ScenicText()
                         .accessibilityHidden(true)
 
                     VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-                        Text(title)
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(style.primaryText)
+                        UI01MarbleText(title: title, size: 24, relativeTo: .title3)
                             .fixedSize(horizontal: false, vertical: true)
 
                         Text(subtitle)
@@ -140,7 +130,8 @@ struct ScenicRoyalSetupDisclosureGroup<Content: View>: View {
                 .transition(reduceMotion ? .identity : .opacity.combined(with: .move(edge: .top)))
             }
         }
-        .scenicRoyalSurface(role: isExpanded ? .majorGroup : .control)
+        .overlay(alignment: .bottom) { UI01Hairline().opacity(0.5) }
+        .ui01ScenicText()
     }
 
     private func toggle() {

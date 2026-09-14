@@ -482,8 +482,6 @@ struct QuickSessionNotesView: View {
             LazyVStack(spacing: 16) {
                 HStack(alignment: .top, spacing: 14) {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(palette.accent.opacity(0.16))
                         Image(systemName: "note.text.badge.plus")
                             .font(.system(size: 22, weight: .bold))
                             .foregroundStyle(palette.accent)
@@ -491,9 +489,7 @@ struct QuickSessionNotesView: View {
                     .frame(width: 54, height: 54)
 
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Quick capture")
-                            .font(.system(size: 28, weight: .black, design: .rounded))
-                            .foregroundStyle(palette.textPrimary)
+                        UI01MarbleText(title: "Quick capture", size: 30, relativeTo: .title)
                         Text("Hold onto session details without interrupting the flow of your work.")
                             .font(.subheadline)
                             .foregroundStyle(palette.textSecondary)
@@ -523,13 +519,7 @@ struct QuickSessionNotesView: View {
 
                     TextEditor(text: $noteText)
                         .frame(minHeight: 130)
-                        .scrollContentBackground(.hidden)
-                        .padding(10)
-                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(Color.white.opacity(0.07), lineWidth: 1)
-                        }
+                        .lifeRouteReadableTextSurface()
 
                     Button("Save note") {
                         do {
@@ -600,8 +590,8 @@ struct QuickSessionNotesView: View {
                                 }
                                 .font(.caption.weight(.semibold))
                             }
-                            .padding(13)
-                            .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .padding(.vertical, 13)
+                            .overlay(alignment: .bottom) { UI01Hairline().opacity(0.5) }
                         }
                     }
                 }
@@ -667,7 +657,7 @@ struct ClientVisualSupportCenter: View {
                         .foregroundStyle(palette.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    LazyVGrid(columns: columns, spacing: 10) {
+                    LazyVStack(spacing: 8) {
                         NavigationLink {
                             ClientVisualIconLibraryView(visualState: visualState, clientCode: selectedClientCode)
                             .lifeRouteDeepDestination()
@@ -777,8 +767,6 @@ struct ClientVisualSupportCenter: View {
     private var visualHero: some View {
         HStack(alignment: .top, spacing: 14) {
             ZStack {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(palette.accent.opacity(0.16))
                 Image(systemName: "rectangle.3.group.fill")
                     .font(.system(size: 23, weight: .bold))
                     .foregroundStyle(palette.accent)
@@ -786,9 +774,7 @@ struct ClientVisualSupportCenter: View {
             .frame(width: 54, height: 54)
 
             VStack(alignment: .leading, spacing: 5) {
-                Text("Visual workspace")
-                    .font(.system(size: 28, weight: .black, design: .rounded))
-                    .foregroundStyle(palette.textPrimary)
+                UI01MarbleText(title: "Visual workspace", size: 30, relativeTo: .title)
                 Text("Create general or client-specific icons, choice boards, and First / Then visuals.")
                     .font(.subheadline)
                     .foregroundStyle(palette.textSecondary)
@@ -826,31 +812,7 @@ private struct VisualWorkspaceCard: View {
     let systemImage: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .fill(palette.accent.opacity(0.14))
-                Image(systemName: systemImage)
-                    .font(.system(size: 19, weight: .bold))
-                    .foregroundStyle(palette.accent)
-            }
-            .frame(width: 44, height: 44)
-
-            Text(title)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(palette.textPrimary)
-            Text(subtitle)
-                .font(.caption2)
-                .foregroundStyle(palette.textSecondary)
-                .lineLimit(2)
-        }
-        .frame(maxWidth: .infinity, minHeight: 125, alignment: .leading)
-        .padding(14)
-        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(palette.accent.opacity(0.22), lineWidth: 1)
-        }
+        ScenicRoyalToolTile(title: title, subtitle: subtitle, systemImage: systemImage)
     }
 }
 
@@ -1052,18 +1014,16 @@ struct ClientVisualIconLibraryView: View {
                         }
                     }
 
-                    TextField("Exact icon label", text: $label)
+                    TextField("Exact icon label", text: $label, prompt: Text("Exact icon label").foregroundColor(UI01Material.secondary))
                         .focused($focusedInput, equals: .label)
                         .textInputAutocapitalization(.words)
-                        .padding(12)
-                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .scenicRoyalField()
 
-                    TextField("Optional visual description", text: $visualDescription, axis: .vertical)
+                    TextField("Optional visual description", text: $visualDescription, prompt: Text("Optional visual description").foregroundColor(UI01Material.secondary), axis: .vertical)
                         .focused($focusedInput, equals: .description)
                         .textInputAutocapitalization(.sentences)
                         .lineLimit(2...4)
-                        .padding(12)
-                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .scenicRoyalField()
 
                     Text("Describe only what helps identify the real item, place, activity, or concept. The exact label stays editable and is rendered by LifeRoute beneath the artwork.")
                         .font(.caption)
@@ -1109,8 +1069,8 @@ struct ClientVisualIconLibraryView: View {
                                     .multilineTextAlignment(.center)
                                     .frame(maxWidth: .infinity)
                             }
-                            .padding(12)
-                            .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .padding(2)
+                            .background(Color.white)
                             .overlay {
                                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                                     .stroke(palette.accent.opacity(0.32), lineWidth: 1)
@@ -1124,7 +1084,7 @@ struct ClientVisualIconLibraryView: View {
                                     requestID: photoPreviewID,
                                     maximumHeight: 230
                                 )
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
 
                                 Text(displayLabel)
                                     .font(.system(size: 20, weight: .black, design: .rounded))
@@ -1132,8 +1092,8 @@ struct ClientVisualIconLibraryView: View {
                                     .multilineTextAlignment(.center)
                                     .frame(maxWidth: .infinity)
                             }
-                            .padding(12)
-                            .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .padding(2)
+                            .background(Color.white)
                             .overlay {
                                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                                     .stroke(palette.accent.opacity(0.28), lineWidth: 1)
@@ -1225,10 +1185,11 @@ struct ClientVisualIconLibraryView: View {
                                     Image(systemName: "trash")
                                         .font(.caption.weight(.bold))
                                 }
+                                .frame(minWidth: 44, minHeight: 44)
                                 .accessibilityLabel("Delete \(icon.label)")
                             }
-                            .padding(12)
-                            .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .padding(.vertical, 8)
+                            .overlay(alignment: .bottom) { UI01Hairline().opacity(0.5) }
                         }
                     }
                 }
@@ -1744,7 +1705,7 @@ struct ClientChoiceBoardBuilderView: View {
     @State private var previewBoard: ClientChoiceBoard?
 
     private var selectionColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 10), count: 2)
+        Array(repeating: GridItem(.flexible(), spacing: 8), count: 2)
     }
 
     var body: some View {
@@ -1758,19 +1719,18 @@ struct ClientChoiceBoardBuilderView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Board setup")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(palette.textPrimary)
+                    UI01MarbleText(title: "Board setup", size: 27, relativeTo: .title3)
+                        .accessibilityAddTraits(.isHeader)
 
-                    TextField("Board title", text: $boardTitle)
-                        .padding(12)
-                        .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    TextField("Board title", text: $boardTitle, prompt: Text("Board title").foregroundColor(UI01Material.secondary))
+                        .scenicRoyalField()
 
                     Picker("Columns", selection: $columns) {
                         Text("2 columns · up to 8").tag(2)
                         Text("3 columns · up to 9").tag(3)
                     }
                     .pickerStyle(.segmented)
+                    .scenicRoyalField()
 
                     HStack {
                         Label("\(selectedIconIDs.count) selected", systemImage: "checkmark.circle.fill")
@@ -1782,12 +1742,11 @@ struct ClientChoiceBoardBuilderView: View {
                             .foregroundStyle(palette.textSecondary)
                     }
                 }
-                .lifeRouteCard()
+                .ui01ReadingPlane(padding: 12)
 
-                VStack(alignment: .leading, spacing: 11) {
-                    Text("Choose from \(libraryName)’s icons")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(palette.textPrimary)
+                VStack(alignment: .leading, spacing: 8) {
+                    UI01MarbleText(title: "Choose from \(libraryName)’s icons", size: 27, relativeTo: .title3)
+                        .accessibilityAddTraits(.isHeader)
 
                     let icons = visualState.icons(for: clientCode)
                     if icons.isEmpty {
@@ -1797,38 +1756,36 @@ struct ClientChoiceBoardBuilderView: View {
                             systemImage: "square.grid.2x2"
                         )
                     } else {
-                        LazyVGrid(columns: selectionColumns, spacing: 10) {
+                        LazyVGrid(columns: selectionColumns, spacing: 8) {
                             ForEach(icons) { icon in
                                 Button {
                                     toggle(icon.id)
                                 } label: {
-                                    VStack(spacing: 8) {
-                                        ZStack(alignment: .topTrailing) {
-                                            ClientVisualIconThumbnail(icon: icon, size: 92)
-                                            Image(systemName: selectedIconIDs.contains(icon.id) ? "checkmark.circle.fill" : "circle")
-                                                .font(.title3)
-                                                .foregroundStyle(selectedIconIDs.contains(icon.id) ? palette.accent : palette.textSecondary)
-                                                .background(Color.black.opacity(0.38), in: Circle())
-                                                .offset(x: 5, y: -5)
-                                        }
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        ClientVisualIconThumbnail(icon: icon, size: 92)
                                         Text(icon.label)
                                             .font(.caption.weight(.bold))
-                                            .foregroundStyle(palette.textPrimary)
-                                            .lineLimit(2)
-                                            .multilineTextAlignment(.center)
+                                            .foregroundStyle(UI01Material.silver)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        HStack(spacing: 4) {
+                                            Image(systemName: selectedIconIDs.contains(icon.id) ? "checkmark.circle.fill" : "circle")
+                                                .font(.caption)
+                                                .foregroundStyle(selectedIconIDs.contains(icon.id) ? UI01Material.gold : UI01Material.secondary)
+                                                .accessibilityHidden(true)
+                                        }
                                     }
-                                    .frame(maxWidth: .infinity, minHeight: 132)
-                                    .padding(10)
-                                    .background(
-                                        (selectedIconIDs.contains(icon.id) ? palette.accent.opacity(0.12) : palette.panelElevated.opacity(0.30)),
-                                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    )
+                                    .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
+                                    .padding(2)
                                     .overlay {
                                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                            .stroke(selectedIconIDs.contains(icon.id) ? palette.accent.opacity(0.56) : Color.white.opacity(0.06), lineWidth: 1)
+                                            .stroke(selectedIconIDs.contains(icon.id) ? UI01Material.gold.opacity(0.70) : UI01Material.secondary.opacity(0.22), lineWidth: 0.75)
                                     }
                                 }
                                 .buttonStyle(.plain)
+                                .accessibilityLabel(icon.label)
+                                .accessibilityValue(selectedIconIDs.contains(icon.id) ? "Selected" : "Not selected")
+                                .accessibilityAddTraits(selectedIconIDs.contains(icon.id) ? .isSelected : [])
                             }
                         }
                     }
@@ -1843,17 +1800,15 @@ struct ClientChoiceBoardBuilderView: View {
                             .foregroundStyle(palette.textSecondary)
                     }
                 }
-                .lifeRouteCard()
+                .ui01OpenSection()
 
-                VStack(alignment: .leading, spacing: 11) {
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Saved \(libraryName) boards")
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(palette.textPrimary)
+                        UI01MarbleText(title: "Saved \(libraryName) boards", size: 27, relativeTo: .title3)
                         Spacer()
                         Text("\(visualState.choiceBoards(for: clientCode).count)")
                             .font(.caption.weight(.black))
-                            .foregroundStyle(palette.accent)
+                            .foregroundStyle(UI01Material.gold)
                     }
 
                     let boards = visualState.choiceBoards(for: clientCode)
@@ -1902,12 +1857,12 @@ struct ClientChoiceBoardBuilderView: View {
                                         .font(.caption.weight(.semibold))
                                 }
                             }
-                            .padding(13)
-                            .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .padding(.vertical, 8)
+                            .overlay(alignment: .bottom) { UI01Hairline().opacity(0.45) }
                         }
                     }
                 }
-                .lifeRouteCard()
+                .ui01OpenSection()
             }
             .padding(18)
             .padding(.bottom, 24)
@@ -1966,6 +1921,8 @@ struct ClientChoiceBoardBuilderView: View {
 
 struct ClientFirstThenVisualView: View {
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @ObservedObject var visualState: ClientVisualSupportCore
     @ObservedObject var clientState: ClientProfileCore
     @State private var selectedClientCode: String
@@ -1986,53 +1943,36 @@ struct ClientFirstThenVisualView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 16) {
-                HStack(alignment: .top, spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(palette.accent.opacity(0.16))
-                        Image(systemName: "arrow.right.circle.fill")
-                            .font(.system(size: 23, weight: .bold))
-                            .foregroundStyle(palette.accent)
-                    }
-                    .frame(width: 54, height: 54)
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("First → Then")
-                            .font(.system(size: 28, weight: .black, design: .rounded))
-                            .foregroundStyle(palette.textPrimary)
-                        Text("Build a clear two-step visual using text or icons from the selected visual library.")
-                            .font(.subheadline)
-                            .foregroundStyle(palette.textSecondary)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .lifeRouteCard()
+                VisualBuilderHero(
+                    title: "First → Then",
+                    subtitle: "Build a clear two-step visual using text or icons from the selected visual library.",
+                    clientCode: libraryName,
+                    systemImage: "arrow.right.circle.fill"
+                )
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Visual library")
-                        .font(.headline)
-                        .foregroundStyle(palette.textPrimary)
+                    UI01MarbleText(title: "Visual library", size: 25, relativeTo: .title3)
+                        .accessibilityAddTraits(.isHeader)
                     Picker("Visual library", selection: $selectedClientCode) {
                         Text(ClientVisualSupportCore.generalDisplayName)
                             .tag(ClientVisualSupportCore.generalClientCode)
                         ForEach(clientState.clients) { client in Text(client.code).tag(client.code) }
                     }
                     .pickerStyle(.menu)
+                    .scenicRoyalField()
                 }
-                .lifeRouteCard()
+                .ui01ReadingPlane(padding: 12)
 
                 let icons = visualState.icons(for: selectedClientCode)
 
                 VStack(alignment: .leading, spacing: 13) {
                     HStack {
-                        Text("Build sequence")
-                            .font(.headline)
-                            .foregroundStyle(palette.textPrimary)
+                        UI01MarbleText(title: "Build sequence", size: 25, relativeTo: .title3)
                         Spacer()
                         Text(libraryName.uppercased())
                             .font(.caption2.weight(.black))
                             .tracking(1)
-                            .foregroundStyle(palette.accent)
+                            .foregroundStyle(UI01Material.gold)
                     }
 
                     VStack(alignment: .leading, spacing: 7) {
@@ -2040,30 +1980,32 @@ struct ClientFirstThenVisualView: View {
                             .font(.caption2.weight(.black))
                             .tracking(1.4)
                             .foregroundStyle(palette.accentSecondary)
-                        TextField("First activity", text: $firstText)
+                        TextField("First activity", text: $firstText, prompt: Text("First activity").foregroundColor(UI01Material.secondary))
+                            .scenicRoyalField()
                         Picker("First visual", selection: $firstIconID) {
                             Text("Text only").tag("")
                             ForEach(icons) { icon in Text(icon.label).tag(icon.id.uuidString) }
                         }
                         .pickerStyle(.menu)
+                        .scenicRoyalField()
                     }
-                    .padding(12)
-                    .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                    .ui01ReadingPlane(padding: 10)
 
                     VStack(alignment: .leading, spacing: 7) {
                         Text("THEN")
                             .font(.caption2.weight(.black))
                             .tracking(1.4)
                             .foregroundStyle(palette.accentSecondary)
-                        TextField("Then activity", text: $thenText)
+                        TextField("Then activity", text: $thenText, prompt: Text("Then activity").foregroundColor(UI01Material.secondary))
+                            .scenicRoyalField()
                         Picker("Then visual", selection: $thenIconID) {
                             Text("Text only").tag("")
                             ForEach(icons) { icon in Text(icon.label).tag(icon.id.uuidString) }
                         }
                         .pickerStyle(.menu)
+                        .scenicRoyalField()
                     }
-                    .padding(12)
-                    .background(palette.panelElevated.opacity(0.34), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                    .ui01ReadingPlane(padding: 10)
 
                     Button("Swap First / Then") {
                         (firstText, thenText) = (thenText, firstText)
@@ -2071,9 +2013,8 @@ struct ClientFirstThenVisualView: View {
                     }
                     .buttonStyle(LifeRouteSecondaryButtonStyle())
 
-                    TextField("Saved visual title", text: $sequenceTitle)
-                        .padding(10)
-                        .background(palette.panelElevated.opacity(0.28), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    TextField("Saved visual title", text: $sequenceTitle, prompt: Text("Saved visual title").foregroundColor(UI01Material.secondary))
+                        .scenicRoyalField()
 
                     Text("Only icons saved to \(libraryName) are available here. Saving First / Then stores it as a reusable two-step Visual Schedule in that same library.")
                         .font(.caption)
@@ -2085,13 +2026,11 @@ struct ClientFirstThenVisualView: View {
                             .foregroundStyle(palette.textSecondary)
                     }
                 }
-                .lifeRouteCard()
+                .ui01OpenSection()
 
-                VStack(alignment: .leading, spacing: 11) {
+                VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("Live preview")
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(palette.textPrimary)
+                        UI01MarbleText(title: "Live preview", size: 27, relativeTo: .title3)
                         Spacer()
                         Button {
                             showingFullScreenPreview = true
@@ -2104,8 +2043,7 @@ struct ClientFirstThenVisualView: View {
                         .foregroundStyle(palette.accent)
                     }
 
-                    // v0.7.0 horizontal First Then preview: FIRST reads left-to-right into THEN.
-                    HStack(alignment: .center, spacing: 8) {
+                    previewLayout {
                         VisualSupportPreviewCard(
                             label: "FIRST",
                             icon: selectedIcon(idString: firstIconID),
@@ -2114,7 +2052,7 @@ struct ClientFirstThenVisualView: View {
                         )
                         .frame(maxWidth: .infinity)
 
-                        Image(systemName: "arrow.right.circle.fill")
+                        Image(systemName: dynamicTypeSize.isAccessibilitySize ? "arrow.down.circle.fill" : "arrow.right.circle.fill")
                             .font(.title2)
                             .foregroundStyle(palette.accent)
                             .accessibilityLabel("Then")
@@ -2128,6 +2066,7 @@ struct ClientFirstThenVisualView: View {
                         .frame(maxWidth: .infinity)
                     }
                 }
+                .ui01OpenSection()
             }
             .padding(18)
             .padding(.bottom, 24)
@@ -2180,6 +2119,12 @@ struct ClientFirstThenVisualView: View {
 
     private var libraryName: String {
         selectedClientCode == ClientVisualSupportCore.generalClientCode ? "General" : selectedClientCode
+    }
+
+    private var previewLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .center, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 8))
     }
 
     private var resolvedFirstText: String {
@@ -2511,28 +2456,19 @@ struct ClientChoiceBoardPreviewView: View {
     let clientCode: String
 
     private var gridColumns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: 12), count: board.columns == 3 ? 3 : 2)
+        Array(repeating: GridItem(.flexible(), spacing: 8), count: board.columns == 3 ? 3 : 2)
     }
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [palette.backgroundTop, palette.backgroundBottom, Color.black],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-
-            ScrollView {
-                VStack(spacing: 18) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .top, spacing: 12) {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(board.title)
-                                .font(.system(size: 30, weight: .black, design: .rounded))
-                                .foregroundStyle(palette.textPrimary)
+                            UI01MarbleText(title: board.title, size: 34, relativeTo: .largeTitle)
+                                .accessibilityAddTraits(.isHeader)
                             Text("Choice Board · \(libraryName)")
                                 .font(.caption.weight(.bold))
-                                .foregroundStyle(palette.textSecondary)
+                                .foregroundStyle(UI01Material.secondary)
                         }
                         Spacer(minLength: 8)
                         Button {
@@ -2540,33 +2476,28 @@ struct ClientChoiceBoardPreviewView: View {
                         } label: {
                             Image(systemName: "xmark")
                                 .font(.subheadline.weight(.black))
-                                .foregroundStyle(palette.textPrimary)
+                                .foregroundStyle(UI01Material.silver)
                                 .frame(width: 44, height: 44)
-                                .background(.ultraThinMaterial, in: Circle())
                         }
                         .buttonStyle(.plain)
+                        .ui01ScenicText()
                         .accessibilityLabel("Close board preview")
                     }
+                    .ui01OpenSection()
 
-                    LazyVGrid(columns: gridColumns, spacing: 12) {
+                    LazyVGrid(columns: gridColumns, spacing: 8) {
                         ForEach(board.iconIDs, id: \.self) { iconID in
                             if let icon = visualState.icon(id: iconID, for: clientCode) {
-                                VStack(spacing: 9) {
+                                VStack(spacing: 8) {
                                     ClientVisualIconThumbnail(icon: icon, size: board.columns == 3 ? 94 : 142)
-                                    Text(icon.label)
-                                        .font(board.columns == 3 ? .subheadline.weight(.bold) : .headline.weight(.bold))
-                                        .foregroundStyle(palette.textPrimary)
+                                        Text(icon.label)
+                                            .font(board.columns == 3 ? .subheadline.weight(.bold) : .headline.weight(.bold))
+                                        .foregroundStyle(UI01Material.silver)
                                         .multilineTextAlignment(.center)
-                                        .lineLimit(2)
-                                        .minimumScaleFactor(0.76)
+                                        .fixedSize(horizontal: false, vertical: true)
                                 }
                                 .frame(maxWidth: .infinity, minHeight: board.columns == 3 ? 148 : 200)
-                                .padding(10)
-                                .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                        .stroke(palette.accent.opacity(0.26), lineWidth: 1)
-                                }
+                                .padding(2)
                             }
                         }
                     }
@@ -2574,9 +2505,9 @@ struct ClientChoiceBoardPreviewView: View {
                 .padding(.horizontal, 14)
                 .padding(.top, 12)
                 .padding(.bottom, 38)
-            }
-            .scrollIndicators(.hidden)
         }
+        .background(palette.backgroundGradient.ignoresSafeArea())
+        .scrollIndicators(.hidden)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
     }
@@ -2672,6 +2603,8 @@ struct ClientVisualSchedulePreviewView: View {
 
 struct ClientFirstThenSessionPreviewView: View {
     @Environment(\.lifeRoutePalette) private var palette
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dismiss) private var dismiss
     let libraryName: String
     let firstIcon: ClientVisualIcon?
@@ -2680,53 +2613,44 @@ struct ClientFirstThenSessionPreviewView: View {
     let thenText: String
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [palette.backgroundTop, palette.backgroundBottom, Color.black],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-
-            VStack(spacing: 18) {
+        ScrollView {
+            VStack(spacing: 8) {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("First / Then")
-                            .font(.system(size: 30, weight: .black, design: .rounded))
-                            .foregroundStyle(palette.textPrimary)
+                        UI01MarbleText(title: "First / Then", size: 34, relativeTo: .largeTitle)
+                            .accessibilityAddTraits(.isHeader)
                         Text(libraryName)
                             .font(.caption.weight(.bold))
-                            .foregroundStyle(palette.textSecondary)
+                            .foregroundStyle(UI01Material.secondary)
                     }
                     Spacer()
                     Button { dismiss() } label: {
                         Image(systemName: "xmark")
                             .font(.subheadline.weight(.black))
-                            .foregroundStyle(palette.textPrimary)
+                            .foregroundStyle(UI01Material.silver)
                             .frame(width: 44, height: 44)
-                            .background(.ultraThinMaterial, in: Circle())
                     }
                     .buttonStyle(.plain)
+                    .ui01ScenicText()
                     .accessibilityLabel("Close First Then preview")
                 }
+                .ui01OpenSection()
 
-                Spacer(minLength: 2)
-
-                HStack(alignment: .center, spacing: 10) {
+                previewLayout {
                     sessionCard(label: "FIRST", icon: firstIcon, text: firstText)
-                    Image(systemName: "arrow.right.circle.fill")
+                    Image(systemName: dynamicTypeSize.isAccessibilitySize ? "arrow.down.circle.fill" : "arrow.right.circle.fill")
                         .font(.system(size: 32, weight: .bold))
-                        .foregroundStyle(palette.accent)
+                        .foregroundStyle(UI01Material.gold)
                         .accessibilityLabel("Then")
                     sessionCard(label: "THEN", icon: thenIcon, text: thenText)
                 }
-
-                Spacer(minLength: 14)
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
             .padding(.bottom, 28)
         }
+        .background(palette.backgroundGradient.ignoresSafeArea())
+        .scrollIndicators(.hidden)
         .toolbar(.hidden, for: .navigationBar)
         .toolbar(.hidden, for: .tabBar)
     }
@@ -2736,83 +2660,65 @@ struct ClientFirstThenSessionPreviewView: View {
             Text(label)
                 .font(.headline.weight(.black))
                 .tracking(1.7)
-                .foregroundStyle(palette.accentSecondary)
+                .foregroundStyle(UI01Material.goldLight)
 
             if let icon {
                 ClientVisualIconThumbnail(icon: icon, size: 132)
             } else {
                 Image(systemName: "rectangle.and.pencil.and.ellipsis")
                     .font(.system(size: 48, weight: .medium))
-                    .foregroundStyle(palette.accent.opacity(0.72))
+                    .foregroundStyle(UI01Material.secondary)
                     .frame(height: 132)
             }
 
             Text(text)
                 .font(.title3.weight(.black))
-                .foregroundStyle(palette.textPrimary)
+                .foregroundStyle(UI01Material.silver)
                 .multilineTextAlignment(.center)
-                .lineLimit(3)
-                .minimumScaleFactor(0.72)
+                .fixedSize(horizontal: false, vertical: true)
+
         }
-        .frame(maxWidth: .infinity, minHeight: 300)
-        .padding(14)
-        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(palette.accent.opacity(0.26), lineWidth: 1)
-        }
+        .frame(maxWidth: .infinity, minHeight: horizontalSizeClass == .compact ? 220 : 260)
+        .padding(2)
+    }
+
+    private var previewLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .center, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
     }
 }
 
 private struct VisualBuilderHero: View {
-    @Environment(\.lifeRoutePalette) private var palette
     let title: String
     let subtitle: String
     let clientCode: String
     let systemImage: String
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
-                .fill(palette.panelGradient)
-            Circle()
-                .fill(palette.accent.opacity(0.18))
-                .frame(width: 170, height: 170)
-                .offset(x: 195, y: -65)
-            VStack(alignment: .leading, spacing: 9) {
-                HStack {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(palette.accent.opacity(0.16))
-                        Image(systemName: systemImage)
-                            .font(.system(size: 21, weight: .bold))
-                            .foregroundStyle(palette.accent)
-                    }
-                    .frame(width: 48, height: 48)
-                    Spacer()
-                    Text(clientCode)
-                        .font(.caption2.weight(.black))
-                        .tracking(1)
-                        .foregroundStyle(palette.accentSecondary)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 6)
-                        .background(.black.opacity(0.18), in: Capsule())
-                }
-                Text(title)
-                    .font(.system(size: 28, weight: .black, design: .rounded))
-                    .foregroundStyle(palette.textPrimary)
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(palette.textSecondary)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
+                Image(systemName: systemImage)
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(UI01Material.gold)
+                    .accessibilityHidden(true)
+                Spacer(minLength: 8)
+                Text(clientCode)
+                    .font(.caption2.weight(.black))
+                    .tracking(1)
+                    .foregroundStyle(UI01Material.goldLight)
             }
-            .padding(20)
+
+            UI01MarbleText(title: title, size: 34, relativeTo: .largeTitle)
+                .accessibilityAddTraits(.isHeader)
+
+            Text(subtitle)
+                .font(.custom("Baskerville", size: 17, relativeTo: .subheadline))
+                .foregroundStyle(UI01Material.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(minHeight: 190)
-        .overlay {
-            RoundedRectangle(cornerRadius: LifeRouteDesign.Radius.hero, style: .continuous)
-                .stroke(palette.accent.opacity(0.26), lineWidth: 1)
-        }
-        .shadow(color: palette.accent.opacity(0.09), radius: 22, y: 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .ui01OpenSection()
     }
 }
 
@@ -2941,7 +2847,10 @@ private struct ClientVisualIconThumbnail: View {
 
         Group {
             if let thumbnail {
-                Image(uiImage: thumbnail).resizable().scaledToFill()
+                Image(uiImage: thumbnail)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(2)
             } else {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10).fill(.quaternary)
@@ -2950,7 +2859,6 @@ private struct ClientVisualIconThumbnail: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
         .task(id: LifeRouteThumbnailActivity(request: request, active: visibility.active)) {
             guard visibility.active, completedRequest != request else { return }
             guard let imageData = icon.imageData else {
@@ -2969,40 +2877,35 @@ private struct ClientVisualIconThumbnail: View {
 }
 
 private struct VisualSupportPreviewCard: View {
-    @Environment(\.lifeRoutePalette) private var palette
     let label: String
     let icon: ClientVisualIcon?
     let fallbackText: String
     var compact = false
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             Text(label)
                 .font(.caption2.weight(.black))
                 .tracking(1.6)
-                .foregroundStyle(palette.accent)
+                .foregroundStyle(UI01Material.gold)
 
             if let icon {
                 ClientVisualIconThumbnail(icon: icon, size: compact ? 96 : 150)
                 Text(fallbackText == "First activity" || fallbackText == "Then activity" ? icon.label : fallbackText)
                     .font(compact ? .headline.weight(.black) : .title2.weight(.black))
-                    .foregroundStyle(palette.textPrimary)
+                    .foregroundStyle(UI01Material.silver)
             } else {
                 Image(systemName: "rectangle.dashed")
                     .font(.system(size: 30, weight: .medium))
-                    .foregroundStyle(palette.textSecondary)
+                    .foregroundStyle(UI01Material.secondary)
                 Text(fallbackText)
                     .font(compact ? .headline.weight(.black) : .title2.weight(.black))
-                    .foregroundStyle(palette.textPrimary)
+                    .foregroundStyle(UI01Material.silver)
             }
         }
         .frame(maxWidth: .infinity, minHeight: compact ? 158 : 190)
-        .padding(compact ? 10 : 16)
-        .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(palette.accent.opacity(0.22), lineWidth: 1)
-        }
+        .padding(2)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

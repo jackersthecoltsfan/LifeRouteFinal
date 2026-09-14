@@ -62,7 +62,7 @@ struct V054AddressField: View {
                 .foregroundStyle(style.accent)
                 .accessibilityHidden(true)
 
-            TextField(placeholder, text: $text)
+            TextField(placeholder, text: $text, prompt: Text(placeholder).foregroundColor(UI01Material.secondary))
                 .textFieldStyle(.plain)
                 .textContentType(mode == .standard ? .fullStreetAddress : nil)
                 .submitLabel(.done)

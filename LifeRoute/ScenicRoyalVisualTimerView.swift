@@ -3,6 +3,7 @@ import UIKit
 import Combine
 
 struct VisualTimerView: View {
+    @Environment(\.lifeRouteTheme) private var theme
     @EnvironmentObject private var visibility: LifeRouteVisibilityOwner
     @Environment(\.lifeRoutePresentation) private var visibilityScope
     @State private var hapticsActive = false
@@ -45,9 +46,8 @@ struct VisualTimerView: View {
         ScrollView {
             VStack(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                 HStack {
-                    Text("Visual Timer")
-                        .font(.title2.weight(.bold))
-                        .foregroundStyle(style.contentPrimaryForeground)
+                    UI01MarbleText(title: "Visual Timer", size: 30, relativeTo: .title)
+                        .modifier(UI01ReadingZone())
                         .accessibilityAddTraits(.isHeader)
                     Spacer()
                     Image(systemName: "timer").foregroundStyle(style.accent)
@@ -62,6 +62,7 @@ struct VisualTimerView: View {
                     hero: hero,
                     announce: presentation.announceIfNeeded
                 )
+                .environment(\.scenicRoyalThemeStyle, theme.scenicRoyalStyle)
                 durationCard
                 if timer.isRunning {
                     ScenicRoyalTimerControls(timer: timer, reset: presentation.reset)
@@ -536,7 +537,7 @@ struct ScenicRoyalFullScreenTimerView: View {
             }
             .accessibilityIdentifier("visualTimer.back")
             Spacer(minLength: 0)
-            Text("Visual Timer").font(.headline)
+            UI01MarbleText(title: "Visual Timer", size: 22, relativeTo: .headline)
             Spacer(minLength: 0)
             Button { hero.presentation?.expand() } label: {
                 Image(systemName: "arrow.up.left.and.arrow.down.right").frame(width: 44, height: 44)
@@ -551,7 +552,8 @@ struct ScenicRoyalFullScreenTimerView: View {
             .accessibilityIdentifier("visualTimer.close")
         }
         .buttonStyle(.plain)
-        .foregroundStyle(style.contentPrimaryForeground)
+        .foregroundStyle(UI01Material.silver)
+        .modifier(UI01ReadingZone())
         .accessibilityAction(.escape) { hero.presentation?.close() }
     }
 }

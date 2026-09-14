@@ -203,14 +203,11 @@ struct V054ScheduleView: View {
                                 .font(.caption.weight(.bold))
                                 .accessibilityHidden(true)
                         }
-                        .foregroundStyle(scenicStyle.primaryText)
+                        .foregroundStyle(UI01Material.navy)
                         .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
                         .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
                         .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous))
-                        .scenicRoyalInteractiveSurface(
-                            role: .control,
-                            cornerRadius: ScenicRoyalDesignSystem.Radius.control
-                        )
+                        .modifier(UI01SelectionSurface(selected: true))
                     }
                     .accessibilityLabel("Calendar range")
                     .accessibilityValue(rangeTitle(selectedRange))
@@ -359,7 +356,7 @@ struct V054ScheduleView: View {
                 }
             }
             .padding(ScenicRoyalDesignSystem.Spacing.standard)
-            .scenicRoyalSurface(role: .majorGroup)
+            .ui01ScenicText()
         }
     }
 
@@ -387,7 +384,7 @@ struct V054ScheduleView: View {
                 }
             }
             .padding(ScenicRoyalDesignSystem.Spacing.standard)
-            .scenicRoyalSurface(role: .majorGroup)
+            .ui01ScenicText()
         }
     }
 
@@ -503,6 +500,8 @@ struct V054ScheduleView: View {
                 }
             }
         }
+        .background(UI01Material.navy.ignoresSafeArea())
+        .environment(\.colorScheme, .dark)
         .presentationDetents([.medium, .large])
     }
 
@@ -565,6 +564,8 @@ struct V054ScheduleView: View {
                 }
             }
         }
+        .background(UI01Material.navy.ignoresSafeArea())
+        .environment(\.colorScheme, .dark)
         .presentationDetents([.medium, .large])
     }
 
@@ -601,15 +602,7 @@ struct V054ScheduleView: View {
                     LifeRouteHaptics.primaryAction()
                     action()
                 }
-                .font(.caption.weight(.bold))
-                .foregroundStyle(scenicStyle.primaryText)
-                .frame(minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
-                .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.compact)
-                .contentShape(Capsule())
-                .scenicRoyalInteractiveSurface(
-                    role: .selectedControl,
-                    cornerRadius: ScenicRoyalDesignSystem.Layout.minimumTouchTarget / 2
-                )
+                .buttonStyle(UI01GoldButtonStyle(compact: true))
                 .disabled(busy)
                 .accessibilityHint(connected ? "Refreshes read-only calendar events" : "Connects read-only calendar access")
             }
@@ -620,7 +613,7 @@ struct V054ScheduleView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    TextField("Appointment title", text: $title)
+                    TextField("Appointment title", text: $title, prompt: Text("Appointment title").foregroundColor(UI01Material.secondary))
                         .scenicRoyalField()
 
                     VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
@@ -685,6 +678,8 @@ struct V054ScheduleView: View {
                 }
             }
         }
+        .background(UI01Material.navy.ignoresSafeArea())
+        .environment(\.colorScheme, .dark)
         .presentationDetents([.large])
     }
 
@@ -792,6 +787,8 @@ struct V054ScheduleView: View {
                 }
             }
         }
+        .background(UI01Material.navy.ignoresSafeArea())
+        .environment(\.colorScheme, .dark)
         .presentationDetents([.medium, .large])
     }
 

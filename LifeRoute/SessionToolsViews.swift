@@ -1696,6 +1696,7 @@ private struct ABAVisualSupportImageGeneratorButton: View {
 struct ClientChoiceBoardBuilderView: View {
     @Environment(\.lifeRoutePalette) private var palette
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject var visualState: ClientVisualSupportCore
     let clientCode: String
     @State private var boardTitle = "Choices"
@@ -1870,7 +1871,7 @@ struct ClientChoiceBoardBuilderView: View {
         .navigationTitle("Choice Boards")
         .navigationBarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 8) {
+            (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))) {
                 Button {
                     dismiss()
                 } label: {
@@ -1883,7 +1884,7 @@ struct ClientChoiceBoardBuilderView: View {
                 } label: {
                     Label("Save & Preview", systemImage: "rectangle.on.rectangle.angled")
                 }
-                .buttonStyle(LifeRoutePrimaryButtonStyle())
+                .buttonStyle(UI01GoldButtonStyle(compact: true))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
@@ -2075,7 +2076,7 @@ struct ClientFirstThenVisualView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 8) {
+            (dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))) {
                 NavigationLink {
                     ClientVisualSupportCenter(
                         visualState: visualState,
@@ -2093,7 +2094,7 @@ struct ClientFirstThenVisualView: View {
                 } label: {
                     Label("Save & Preview", systemImage: "rectangle.on.rectangle.angled")
                 }
-                .buttonStyle(LifeRoutePrimaryButtonStyle())
+                .buttonStyle(UI01GoldButtonStyle(compact: true))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)

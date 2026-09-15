@@ -20,6 +20,7 @@ command -v swiftc >/dev/null || {
 
 python3 scripts/validate_current.py full
 bash scripts/run_visual_support_prompt_contract_tests.sh
+bash scripts/run_visual_support_persistence_tests.sh
 bash scripts/run_day_route_contract_tests.sh
 bash scripts/run_calendar_edit_contract_tests.sh
 bash scripts/run_calendar_cross_provider_dedup_tests.sh

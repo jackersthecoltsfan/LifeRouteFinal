@@ -69,6 +69,8 @@
 		A10000000000000000000067 /* LivingThemeQAViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000067 /* LivingThemeQAViewer.swift */; };
 		A10000000000000000000062 /* LivingThemeEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000062 /* LivingThemeEnvironment.swift */; };
 		A10000000000000000000063 /* LivingRainforest.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000063 /* LivingRainforest.metal */; };
+		D91500000000000000000001 /* BoardArtifact.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91500000000000000000011 /* BoardArtifact.swift */; };
+		D91500000000000000000002 /* BoardEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91500000000000000000012 /* BoardEditor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -164,6 +166,8 @@
 		A20000000000000000000067 /* LivingThemeQAViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivingThemeQAViewer.swift; sourceTree = "<group>"; };
 		A20000000000000000000062 /* LivingThemeEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivingThemeEnvironment.swift; sourceTree = "<group>"; };
 		A20000000000000000000063 /* LivingRainforest.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = LivingRainforest.metal; sourceTree = "<group>"; };
+		D91500000000000000000011 /* BoardArtifact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardArtifact.swift; sourceTree = "<group>"; };
+		D91500000000000000000012 /* BoardEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardEditor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -245,6 +249,8 @@
 				A20000000000000000000013 /* SessionToolsDomain.swift */,
 				D91400000000000000000002 /* VisualSupportImagePrompt.swift */,
 				A20000000000000000000014 /* SessionToolsViews.swift */,
+				D91500000000000000000012 /* BoardEditor.swift */,
+				D91500000000000000000011 /* BoardArtifact.swift */,
 				A20000000000000000000018 /* LifeRouteIntelligenceCore.swift */,
 				A20000000000000000000035 /* SessionNoteContracts.swift */,
 				A20000000000000000000019 /* AIClinicalToolsViews.swift */,
@@ -454,6 +460,8 @@
 				A10000000000000000000013 /* SessionToolsDomain.swift in Sources */,
 				D91400000000000000000001 /* VisualSupportImagePrompt.swift in Sources */,
 				A10000000000000000000014 /* SessionToolsViews.swift in Sources */,
+				D91500000000000000000002 /* BoardEditor.swift in Sources */,
+				D91500000000000000000001 /* BoardArtifact.swift in Sources */,
 				A10000000000000000000018 /* LifeRouteIntelligenceCore.swift in Sources */,
 				A10000000000000000000035 /* SessionNoteContracts.swift in Sources */,
 				A10000000000000000000019 /* AIClinicalToolsViews.swift in Sources */,

@@ -1177,7 +1177,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
     require("ABAVisualSupportConceptInterpreter" not in tools_domain + tools_views, "image generation must not substitute internal cue templates")
     require('VisualWorkspaceCard(title: "Schedules"' not in tools_views, "Visual Schedule must remain hidden from the visual workspace")
     require(dashboard.count("scheduleAICard") == 1, "Visual Schedule AI card must remain dormant rather than exposed")
-    require("ClientVisualScheduleBuilderView(" not in dashboard, "Tools dashboard must not expose the dormant Visual Schedule builder")
+    require("ClientVisualScheduleBuilderView(" not in dashboard, "Visual Schedule belongs under Boards, not the Tools root")
     require_all(
         dashboard,
         [
@@ -1194,9 +1194,16 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
     )
     tools_root = dashboard.split("struct VisualAIAssistedStudioView:", 1)[0]
     require("ClientFirstThenVisualView(" not in tools_root, "First / Then lives under Boards rather than Tools root")
-    require_all(tools_views, ['.navigationTitle("Boards")', 'Text("Saved boards")',
+    require_all(tools_views, ['.navigationTitle("Boards")', 'BoardSavedLibrary(',
                              'if presentation != .library', 'if presentation != .generator'],
                 "Boards remain distinct from image creation and saved assets")
+    require_all(sources["BoardEditor.swift"], ['Text("Saved boards")', 'kind: .token',
+                'updateChoiceBoard(', 'updateSchedule(', 'updateTokenBoard('],
+                "four reusable board types preserve saved identity while editing")
+    require_all(sources["BoardArtifact.swift"], ['struct BoardCanvas: View', 'ImageRenderer(content: canvas)',
+                'CGImageDestinationAddImage', 'pdf.beginPDFPage', '.scaledToFit()',
+                'PHPhotoLibrary.requestAuthorization(for: .addOnly)'],
+                "shared board-only image and PDF export with aspect-fit imagery")
     require_all(
         tools_views,
         [

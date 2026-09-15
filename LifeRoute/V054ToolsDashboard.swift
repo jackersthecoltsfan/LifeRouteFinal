@@ -422,7 +422,7 @@ struct VisualAIAssistedStudioView: View {
                 )
                 .lifeRouteDeepDestination()
             } label: {
-                ScenicRoyalToolTile(title: "Boards", subtitle: "Choice Boards, First / Then, and saved boards.", systemImage: "square.grid.2x2.fill")
+                ScenicRoyalToolTile(title: "Boards", subtitle: "First / Then, Choice Boards, Visual Schedules, and Token Boards.", systemImage: "square.grid.2x2.fill")
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("visualSupports.boards")

@@ -392,6 +392,7 @@ enum VisualSupportPersistenceTests {
 
         try fileManager.removeItem(at: imageDirectory)
         try fileManager.createDirectory(at: imageDirectory, withIntermediateDirectories: true)
+        expect(core.boardSaveWarning != nil, "failed save remains visibly unconfirmed in the board library")
         let retried = try core.updateTokenBoard(
             id: failedBoard.id, clientCode: "AABB", title: "Retry succeeded", tokenCount: 4,
             rewardIconID: nil, rewardLabel: "Break"
@@ -400,6 +401,7 @@ enum VisualSupportPersistenceTests {
         expect(retried.createdAt == failedBoard.createdAt, "retry preserves the failed draft createdAt")
         try await core.confirmSavedBoards()
         expect(store.recoveryMessage == nil, "successful retry clears the writer error")
+        expect(core.boardSaveWarning == nil, "confirmed retry clears the visible unsaved-change warning")
 
         let reopened = LifeRoutePersistenceStore(fileManager: fileManager, applicationSupportDirectory: root)
             .loadClientVisualSupports()

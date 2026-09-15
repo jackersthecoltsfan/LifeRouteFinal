@@ -921,6 +921,7 @@ final class ClientVisualSupportCore: ObservableObject {
     @Published private(set) var choiceBoards: [ClientChoiceBoard]
     @Published private(set) var schedules: [ClientVisualSchedule]
     @Published private(set) var tokenBoards: [ClientTokenBoard]
+    @Published private(set) var boardSaveWarning: String?
 
     private let persistenceStore: LifeRoutePersistenceStore
     private var iconsByClientID: [UUID: [ClientVisualIcon]] = [:]
@@ -969,8 +970,10 @@ final class ClientVisualSupportCore: ObservableObject {
     func confirmSavedBoards() async throws {
         await persistenceStore.flushPendingWrites()
         if persistenceStore.recoveryMessage != nil {
+            boardSaveWarning = "A board change has not been saved to this iPhone. Reopen its editor and tap Save & Preview to retry."
             throw ClientVisualSupportError.persistenceUnavailable
         }
+        boardSaveWarning = nil
     }
 
     @discardableResult

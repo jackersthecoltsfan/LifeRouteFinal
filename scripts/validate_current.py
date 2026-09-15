@@ -145,6 +145,7 @@ def validate_active_build_path() -> None:
     require("run_visual_timer_feedback_contract_tests.sh" in full, "validate_full must run executable Visual Timer feedback contracts")
     require("run_runtime_feedback_contract_tests.sh" in full, "validate_full must run executable runtime feedback contracts")
     require("run_visual_activity_contract_tests.sh" in full, "validate_full must run executable visual-activity contracts")
+    require("run_visual_support_prompt_contract_tests.sh" in full, "validate_full must run executable visual-support prompt contracts")
     require("run_scenery_effect_contract_tests.sh" in full, "validate_full must run executable scenery-effect contracts")
     require("root_paging_ambient_suspension_contract_test.py" in full, "validate_full must run the Prototype B paging contract")
     require("theme_thumbnail_contract_test.py" in full, "validate_full must run Theme Center raster contracts")
@@ -1167,30 +1168,13 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         ],
         "accessible dense-text readability floor inside retained glass cards",
     )
-    require_all(
-        tools_domain,
-        [
-            "enum ABAVisualSupportConceptInterpreter",
-            "water play",
-            "outside",
-            "break",
-            "help",
-            "more",
-            "bathroom",
-            "eat",
-            "sleep",
-        ],
-        "functional ABA visual-concept interpretation",
-    )
-    require_all(
-        tools_views + dashboard,
-        [
-            "ABAVisualSupportConceptInterpreter.describe",
-            "Functional concept:",
-            "Do not render letters, words, captions, labels",
-        ],
-        "interpreted visual-support prompt contract",
-    )
+    prompt = sources["VisualSupportImagePrompt.swift"]
+    require_all(prompt, ["struct VisualSupportImagePrompt", "let subject:", "let visualDescription:", "let style", "let composition", "let background", "let constraints", "var conceptDescriptions:", "No words, letters, numbers, captions, labels, text-bearing logos, watermarks, or UI elements."], "structured text-free image prompt")
+    require("VisualSupportImagePrompt.swift in Sources" in read(PROJECT), "prompt builder must compile in the app target")
+    generator = tools_views.split("private struct ABAVisualSupportImageGeneratorButton: View", 1)[1].split("struct ClientChoiceBoardBuilderView", 1)[0]
+    require_all(generator, ["VisualSupportImagePrompt(", "label: cleanLabel", "visualDescription: visualDescription", "hasReference: referencePhotoData != nil", ".conceptDescriptions.map { .text($0) }", ".imagePlaygroundSheet(", "sourceImage: sourceImage", "options.personalization = .disabled", ".imagePlaygroundGenerationStyle(.illustration, in: [.illustration])"], "text/photo/regeneration Apple prompt handoff")
+    require(".extracted(" not in generator, "image prompt must not extract product/helper wording")
+    require("ABAVisualSupportConceptInterpreter" not in tools_domain + tools_views, "image generation must not substitute internal cue templates")
     require('VisualWorkspaceCard(title: "Schedules"' not in tools_views, "Visual Schedule must remain hidden from the visual workspace")
     require(dashboard.count("scheduleAICard") == 1, "Visual Schedule AI card must remain dormant rather than exposed")
     require("ClientVisualScheduleBuilderView(" not in dashboard, "Tools dashboard must not expose the dormant Visual Schedule builder")

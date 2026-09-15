@@ -114,7 +114,8 @@ struct ScenicRoyalScreenHeader<Actions: View>: View {
     private var titles: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !compact {
-                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true)
+                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true, metallic: true)
+                UI01BrandFilament()
             }
             UI01MarbleText(title: title, size: compact ? 26 : 38, relativeTo: compact ? .title2 : .largeTitle)
                 .accessibilityAddTraits(.isHeader)

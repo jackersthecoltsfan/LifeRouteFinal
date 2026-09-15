@@ -3,7 +3,7 @@ import UIKit
 
 #if DEBUG
 private enum LifeRouteBuildIdentity {
-    static let shortCommit: String = {
+    static let sourceCommit: String = {
         guard let url = Bundle.main.url(forResource: "LifeRouteSourceCommit", withExtension: "txt"),
               let contents = try? String(contentsOf: url, encoding: .utf8) else {
             return "unavailable"
@@ -11,7 +11,7 @@ private enum LifeRouteBuildIdentity {
 
         let value = contents.trimmingCharacters(in: .whitespacesAndNewlines)
         let hexadecimalDigits = Set("0123456789abcdef")
-        return value.count == 7 && value.allSatisfy(hexadecimalDigits.contains) ? value : "unavailable"
+        return value.count == 40 && value.allSatisfy(hexadecimalDigits.contains) ? value : "unavailable"
     }()
 }
 
@@ -155,19 +155,20 @@ struct V054SetupView: View {
             subtitle: "Development QA",
             systemImage: "number"
         ) {
-            HStack {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Source commit")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(style.primaryText)
 
-                Spacer()
-
-                Text(verbatim: LifeRouteBuildIdentity.shortCommit)
-                    .font(.system(.subheadline, design: .monospaced).weight(.bold))
+                Text(verbatim: LifeRouteBuildIdentity.sourceCommit)
+                    .font(.system(.footnote, design: .monospaced).weight(.semibold))
                     .foregroundStyle(style.accentReflection)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Source commit \(LifeRouteBuildIdentity.shortCommit)")
+            .accessibilityLabel("Source commit \(LifeRouteBuildIdentity.sourceCommit)")
+            .accessibilityIdentifier("buildIdentity.sourceCommit")
 
         }
     }

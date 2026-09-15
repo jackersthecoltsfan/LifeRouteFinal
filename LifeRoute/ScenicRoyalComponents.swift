@@ -114,14 +114,15 @@ struct ScenicRoyalScreenHeader<Actions: View>: View {
     private var titles: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !compact {
-                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2)
+                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true)
             }
             UI01MarbleText(title: title, size: compact ? 26 : 38, relativeTo: compact ? .title2 : .largeTitle)
                 .accessibilityAddTraits(.isHeader)
-            Text(subtitle)
-                .font(.custom("Baskerville", size: compact ? 14 : 17, relativeTo: .subheadline))
+            if !subtitle.isEmpty { Text(subtitle)
+                .font(.subheadline)
                 .foregroundStyle(UI01Material.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }
@@ -137,13 +138,13 @@ struct ScenicRoyalCompactIconButton: View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.subheadline.weight(.bold))
-                .foregroundStyle(UI01Material.navy)
+                .foregroundStyle(UI01Material.silver)
                 .frame(
                     width: ScenicRoyalDesignSystem.Layout.minimumTouchTarget,
                     height: ScenicRoyalDesignSystem.Layout.minimumTouchTarget
                 )
                 .contentShape(Circle())
-                .modifier(UI01SelectionSurface(selected: true))
+                .modifier(UI01CompactControlSurface())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)

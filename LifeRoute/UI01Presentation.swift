@@ -1,16 +1,18 @@
 import SwiftUI
 
-/// UI-01's small, static material vocabulary. The existing environment remains
-/// the only scenery owner; these roles belong to foreground reading zones.
+/// R2 foreground roles. The existing environment remains the only scenery owner.
 enum UI01Material {
-    static let silver = Color(red: 0.95, green: 0.97, blue: 0.98)
-    static let secondary = Color(red: 0.79, green: 0.84, blue: 0.88)
-    static let navy = Color(red: 0.02, green: 0.055, blue: 0.085)
-    static let gold = Color(red: 0.90, green: 0.71, blue: 0.30)
-    static let goldLight = Color(red: 1, green: 0.85, blue: 0.47)
-    static let goldShade = Color(red: 0.59, green: 0.36, blue: 0.10)
+    static let silver = Color(red: 250 / 255, green: 246 / 255, blue: 238 / 255)
+    static let secondary = Color(red: 214 / 255, green: 224 / 255, blue: 232 / 255)
+    static let navy = Color(red: 6 / 255, green: 26 / 255, blue: 59 / 255)
+    static let royal = Color(red: 22 / 255, green: 49 / 255, blue: 95 / 255)
+    static let royalLight = Color(red: 49 / 255, green: 94 / 255, blue: 141 / 255)
+    static let gold = Color(red: 242 / 255, green: 186 / 255, blue: 66 / 255)
+    static let goldLight = Color(red: 1, green: 240 / 255, blue: 168 / 255)
+    static let goldShade = Color(red: 155 / 255, green: 91 / 255, blue: 11 / 255)
+    static let destructive = Color(red: 1, green: 184 / 255, blue: 176 / 255)
     static let goldGradient = LinearGradient(
-        colors: [goldLight, gold, goldLight, Color(red: 0.78, green: 0.56, blue: 0.22), gold],
+        colors: [goldLight, gold],
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
 }
@@ -19,45 +21,13 @@ struct UI01MarbleText: View {
     let title: String
     var size: CGFloat = 26
     var relativeTo: Font.TextStyle = .title2
-    @Environment(\.scenicRoyalThemeStyle) private var theme
-    @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.dynamicTypeSize) private var typeSize
-
-    private var lettering: Text {
-        Text(title).font(.custom("Didot", size: size, relativeTo: relativeTo))
-    }
+    // Only explicit wordmarks and the accepted Today hero use the branded serif.
+    var branded = false
 
     var body: some View {
-        lettering
-            .foregroundStyle(LinearGradient(
-                colors: [UI01Material.silver, .white, UI01Material.secondary, .white],
-                startPoint: .top, endPoint: .bottom
-            ))
-            .overlay {
-                if contrast != .increased && !typeSize.isAccessibilitySize {
-                    Canvas { context, bounds in
-                        // Sparse fixed veins, masked to semantic text, never animated.
-                        for index in 0..<7 {
-                            let x = bounds.width * CGFloat(index) / 6
-                            var vein = Path()
-                            vein.move(to: CGPoint(x: x - 10, y: 0))
-                            vein.addLines([
-                                CGPoint(x: x + 2, y: bounds.height * 0.32),
-                                CGPoint(x: x - 3, y: bounds.height * 0.58),
-                                CGPoint(x: x + 12, y: bounds.height)
-                            ])
-                            context.stroke(vein, with: .color(theme.glassTint.opacity(0.48)), lineWidth: 1.2)
-                            if index.isMultiple(of: 3) {
-                                context.stroke(vein, with: .color(UI01Material.gold.opacity(0.60)), lineWidth: 0.45)
-                            }
-                        }
-                    }
-                    .mask(lettering)
-                    .accessibilityHidden(true)
-                    .allowsHitTesting(false)
-                }
-            }
-            .shadow(color: .black.opacity(0.9), radius: 2, x: 0, y: 2)
+        Text(title)
+            .font(branded ? .custom("Didot", size: size, relativeTo: relativeTo) : .system(relativeTo).weight(.semibold))
+            .foregroundStyle(UI01Material.silver)
             .fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -71,28 +41,11 @@ enum UI01TextRole {
 
 struct UI01ReadingZone: ViewModifier {
     var role: UI01TextRole = .silver
-    @Environment(\.scenicRoyalThemeStyle) private var theme
-    @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.dynamicTypeSize) private var typeSize
-
-    private var darkLettering: Bool {
-        switch role {
-        case .silver: return false
-        case .dark: return true
-        case .environmental: return theme.isBrightEnvironment
-        }
-    }
 
     func body(content: Content) -> some View {
-        // Native alpha-following shadows form a sub-point glyph edge and a
-        // short contact shadow. No background, mask, duplicate semantic text,
-        // animated texture, offscreen rasterization or rectangular scrim.
-        let edge = darkLettering ? UI01Material.silver : Color.black
-        let strong = contrast == .increased || typeSize.isAccessibilitySize
+        // Compatibility for existing open-content call sites. Reading support
+        // belongs to the full-width environment veil, never individual glyphs.
         content
-            .shadow(color: edge, radius: strong ? 0.8 : 0.55)
-            .shadow(color: edge.opacity(strong ? 0.95 : 0.8), radius: 0.4, x: 0, y: 0.6)
-            .shadow(color: edge.opacity(0.55), radius: 1, x: 0, y: 1)
     }
 }
 
@@ -100,34 +53,9 @@ struct UI01Hairline: View {
     @Environment(\.colorSchemeContrast) private var contrast
     var body: some View {
         Rectangle()
-            .fill(UI01Material.silver.opacity(contrast == .increased ? 0.95 : 0.65))
+            .fill(UI01Material.silver.opacity(contrast == .increased ? 0.65 : 0.25))
             .frame(height: contrast == .increased ? 1 : 0.5)
             .accessibilityHidden(true)
-    }
-}
-
-private struct UI01TextEdgeAppliedKey: EnvironmentKey {
-    static let defaultValue = false
-}
-
-private extension EnvironmentValues {
-    var ui01TextEdgeApplied: Bool {
-        get { self[UI01TextEdgeAppliedKey.self] }
-        set { self[UI01TextEdgeAppliedKey.self] = newValue }
-    }
-}
-
-/// The rollout composes open groups and rows. Apply the accepted edge once
-/// per group so nested sections cannot accumulate a thick shadow.
-private struct UI01ScopedReadingZone: ViewModifier {
-    @Environment(\.ui01TextEdgeApplied) private var edgeApplied
-    @ViewBuilder func body(content: Content) -> some View {
-        if edgeApplied {
-            content
-        } else {
-            content.environment(\.ui01TextEdgeApplied, true)
-                .modifier(UI01ReadingZone())
-        }
     }
 }
 
@@ -140,7 +68,7 @@ struct UI01ContentStyle: ViewModifier {
         let source = theme.palette
         let palette = LifeRouteThemePalette(
             backgroundTop: source.backgroundTop, backgroundBottom: source.backgroundBottom,
-            panel: UI01Material.navy, panelElevated: Color(red: 0.04, green: 0.11, blue: 0.19),
+            panel: UI01Material.navy, panelElevated: UI01Material.royal,
             accent: UI01Material.gold, accentSecondary: UI01Material.goldLight,
             textPrimary: UI01Material.silver, textSecondary: UI01Material.secondary
         )
@@ -151,7 +79,7 @@ struct UI01ContentStyle: ViewModifier {
             ))
             .environment(\.colorScheme, .dark)
             .foregroundStyle(UI01Material.silver)
-            .font(.custom("Baskerville", size: 17, relativeTo: .body))
+            .font(.body)
             .tint(UI01Material.goldLight)
             .toolbarColorScheme(.dark, for: .navigationBar)
     }
@@ -168,9 +96,9 @@ struct UI01ReadingPlane: ViewModifier {
         content
             .padding(padding)
             .background(UI01Material.navy.opacity(reduceTransparency || contrast == .increased ? 1 : 0.94),
-                        in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .strokeBorder(UI01Material.silver.opacity(contrast == .increased ? 0.5 : 0.16), lineWidth: 0.5)
                     .allowsHitTesting(false)
             }
@@ -194,21 +122,54 @@ struct UI01SelectionSurface: ViewModifier {
 
 struct UI01SecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        if configuration.role == .destructive {
+        Content(configuration: configuration)
+    }
+
+    // Legacy style adapters call makeBody directly. Read the environment in a
+    // mounted View so disabled and motion settings still reach the material.
+    private struct Content: View {
+        let configuration: ButtonStyleConfiguration
+        @Environment(\.isEnabled) private var enabled
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+        var body: some View {
             configuration.label
-                .foregroundStyle(.red)
-                .font(.body.weight(.semibold))
-                .padding(.horizontal, 12)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(configuration.role == .destructive ? UI01Material.destructive : UI01Material.silver)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
                 .frame(minHeight: 44)
-                .contentShape(Rectangle())
+                .modifier(UI01CompactControlSurface())
+                .opacity(enabled ? 1 : 0.5)
+                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+                .contentShape(Capsule())
+        }
+    }
+}
+
+/// One compact material owner for controls and grouped navigation. Dense input
+/// surfaces use UI01ReadingPlane and never nest Liquid Glass.
+struct UI01CompactControlSurface: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func body(content: Content) -> some View {
+        if reduceTransparency || contrast == .increased {
+            content.background(UI01Material.royal, in: Capsule())
+                .overlay(Capsule().strokeBorder(UI01Material.secondary.opacity(0.5), lineWidth: 1).allowsHitTesting(false))
+        } else if #available(iOS 26.0, *) {
+            content.glassEffect(.regular.tint(UI01Material.royal.opacity(0.75)), in: .capsule)
         } else {
-            UI01GoldButtonStyle(compact: true).makeBody(configuration: configuration)
+            content.background(UI01Material.royal.opacity(0.94), in: Capsule())
+                .overlay(Capsule().strokeBorder(UI01Material.secondary.opacity(0.22), lineWidth: 0.5).allowsHitTesting(false))
         }
     }
 }
 
 extension View {
-    func ui01ScenicText() -> some View { modifier(UI01ScopedReadingZone()) }
+    func ui01ScenicText() -> some View { modifier(UI01ReadingZone()) }
     func ui01ContentStyle() -> some View { modifier(UI01ContentStyle()) }
     func ui01OpenSection() -> some View {
         frame(maxWidth: .infinity, alignment: .leading)
@@ -222,55 +183,39 @@ extension View {
 
 struct UI01GoldButtonStyle: ButtonStyle {
     var compact = false
-    @Environment(\.isEnabled) private var enabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.dynamicTypeSize) private var typeSize
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.custom("Baskerville", size: compact ? 16 : 25, relativeTo: compact ? .subheadline : .title2).weight(.semibold))
-            .foregroundStyle(enabled ? UI01Material.navy : UI01Material.silver)
-            .multilineTextAlignment(.center)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, compact ? 15 : 22)
-            .padding(.vertical, compact ? 9 : 13)
-            .frame(maxWidth: compact ? nil : .infinity, minHeight: compact ? 44 : 56)
-            .background {
-                Capsule().fill(enabled ? UI01Material.goldGradient : LinearGradient(
-                    colors: [Color(red: 0.15, green: 0.22, blue: 0.28), UI01Material.navy],
-                    startPoint: .top, endPoint: .bottom
-                ))
-                .overlay {
-                    if enabled && contrast != .increased && !typeSize.isAccessibilitySize {
-                        Canvas { context, bounds in
-                            // Mirrored fine hammered facets. A calm central midtone
-                            // keeps the dark letter interiors readable.
-                            for index in 0..<90 {
-                                let unit = CGFloat(index)
-                                let x = abs(sin(unit * 127.1 + 3.7)) * bounds.width * 0.32
-                                let y = abs(sin(unit * 311.7 + 9.2)) * bounds.height
-                                for mirrored in [false, true] {
-                                    let origin = mirrored ? bounds.width - x : x
-                                    var facet = Path()
-                                    facet.move(to: CGPoint(x: origin, y: y))
-                                    facet.addLine(to: CGPoint(x: origin + (mirrored ? -2 : 2), y: y + 1))
-                                    facet.addLine(to: CGPoint(x: origin + (mirrored ? -3 : 3), y: y - 2))
-                                    context.stroke(facet, with: .color(index.isMultiple(of: 2) ? .white.opacity(0.17) : UI01Material.goldShade.opacity(0.19)), lineWidth: 0.4)
-                                }
-                            }
-                        }
-                        .clipShape(Capsule())
-                    }
+        Content(configuration: configuration, compact: compact)
+    }
+
+    private struct Content: View {
+        let configuration: ButtonStyleConfiguration
+        let compact: Bool
+        @Environment(\.isEnabled) private var enabled
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @Environment(\.colorSchemeContrast) private var contrast
+        var body: some View {
+            configuration.label
+                .font(compact ? .subheadline.weight(.semibold) : .headline)
+                .foregroundStyle(enabled ? UI01Material.navy : UI01Material.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, compact ? 16 : 24)
+                .padding(.vertical, 12)
+                .frame(maxWidth: compact ? nil : .infinity, minHeight: compact ? 44 : 56)
+                .background {
+                    Capsule().fill(enabled ? UI01Material.goldGradient : LinearGradient(
+                        colors: [UI01Material.royal, UI01Material.navy],
+                        startPoint: .top, endPoint: .bottom
+                    ))
+                    .overlay(Capsule().strokeBorder(
+                        enabled ? UI01Material.goldLight : UI01Material.secondary.opacity(0.25),
+                        lineWidth: contrast == .increased ? 1.5 : 0.75
+                    ))
                 }
-                .overlay(Capsule().strokeBorder(
-                    LinearGradient(colors: [.white.opacity(0.9), UI01Material.goldLight.opacity(0.3), UI01Material.goldLight], startPoint: .top, endPoint: .bottom),
-                    lineWidth: contrast == .increased ? 1.5 : 0.85
-                ))
-                .shadow(color: .black.opacity(0.55), radius: 4, x: 0, y: configuration.isPressed ? 1 : 3)
-            }
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
-            .contentShape(Capsule())
+                .opacity(enabled ? 1 : 0.65)
+                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+                .contentShape(Capsule())
+        }
     }
 }
 
@@ -393,7 +338,6 @@ struct UI01DockInstrument: View {
             }
         }
         .frame(width: 28, height: 28)
-        .shadow(color: .black.opacity(0.8), radius: 1, x: 0, y: 1)
         .accessibilityHidden(true)
     }
 }
@@ -406,7 +350,7 @@ struct UI01DockLabel: View {
         VStack(spacing: 4) {
             UI01DockInstrument(section: section, selected: selected)
             Text(section.title)
-                .font(.custom("Baskerville", size: 12, relativeTo: .caption2))
+                .font(.caption2.weight(selected ? .semibold : .medium))
                 .foregroundStyle(selected ? UI01Material.goldLight : UI01Material.silver)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
@@ -419,6 +363,17 @@ struct UI01DockLabel: View {
         // the full unabridged name is always exposed to VoiceOver.
         .dynamicTypeSize(.xSmall ... .xxxLarge)
         .frame(maxWidth: .infinity, minHeight: 54)
+        .padding(.vertical, 4)
+        .background {
+            if selected {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(UI01Material.royalLight.opacity(0.6))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .strokeBorder(UI01Material.gold.opacity(0.75), lineWidth: 1)
+                    }
+            }
+        }
         .contentShape(Rectangle())
     }
 }

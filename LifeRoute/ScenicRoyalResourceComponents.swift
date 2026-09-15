@@ -28,7 +28,7 @@ struct ScenicRoyalResourceHeader: View {
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 8) {
-                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2)
+                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true)
             UI01MarbleText(title: "Resources", size: 38, relativeTo: .largeTitle)
 
             Text("Clinical, work, training, and company portals.")
@@ -138,7 +138,7 @@ struct ScenicRoyalResourceRow: View {
 
                 VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
                     Text(portal.title)
-                        .font(.custom("Baskerville", size: 22, relativeTo: .headline))
+                        .font(.headline)
                         .foregroundStyle(style.primaryText)
                         .fixedSize(horizontal: false, vertical: true)
 

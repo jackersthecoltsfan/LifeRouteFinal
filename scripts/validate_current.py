@@ -821,12 +821,16 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     require_all(environment, ["ScenicRoyalEnvironmentHost", "accessibilityReduceMotion", "accessibilityReduceTransparency", "scenePhase == .active"], "persistent environment accessibility boundary")
     require_all(bridge, ["sceneryCanyonDay", "sceneryArcticDay", "sceneryRainforestDay", "royalCurrent", "scenicRoyalThemeStyle"], "theme-to-material bridge")
     require_all(components, ["ScenicRoyalCard", "ScenicRoyalSectionHeader", "ScenicRoyalIconBadge", "ScenicRoyalPrimaryButtonStyle", "ScenicRoyalSecondaryButtonStyle"], "shared Scenic Royal components")
-    require_all(components, ["dynamicTypeSize.isAccessibilitySize", ".ui01ScenicText()"], "UI-02 native scenic header and accessible layout")
+    require_all(components, ["dynamicTypeSize.isAccessibilitySize", ".ui01ScenicText()"], "R2 native scenic header and accessible layout")
     presentation = sources["UI01Presentation.swift"]
     reading_zone = presentation.split("struct UI01ReadingZone:", 1)[1].split("struct UI01Hairline:", 1)[0]
-    require_all(reading_zone, ["contrast == .increased", "typeSize.isAccessibilitySize", "case .environmental: return theme.isBrightEnvironment", ".shadow(color: edge"], "UI-02 deterministic native text edge")
-    require(".background" not in reading_zone and ".blur(" not in reading_zone, "Open scenic text must not regain a backplate or blur slab")
-    require_all(presentation, ["struct UI01ReadingPlane", "reduceTransparency || contrast == .increased ? 1 : 0.94"], "UI-02 dense input plane accessibility")
+    require(not any(token in reading_zone for token in [".shadow(", ".background", ".blur("]), "R2 open scenic text must not regain a glyph halo or local backplate")
+    lettering = presentation.split("struct UI01MarbleText:", 1)[1].split("enum UI01TextRole", 1)[0]
+    require(".system(relativeTo)" in lettering and "var branded = false" in lettering, "R2 operational headings use semantic system typography; serif is explicit branding")
+    require(not any(token in lettering for token in [".shadow(", "Canvas", ".mask("]), "R2 operational headings cannot restore marble veins or glyph shadows")
+    require_all(environment, ["UI01Material.navy.opacity(density", "UI01Material.royal.opacity", "location: 0.22", "location: 0.64", "contrast == .increased"], "R2 smooth full-width feathered royal reading support")
+    require_all(presentation, ["struct UI01CompactControlSurface", "content.background(UI01Material.royal, in: Capsule())", "accessibilityReduceTransparency"], "R2 compact controls retain an opaque royal accessibility fallback")
+    require_all(presentation, ["struct UI01ReadingPlane", "reduceTransparency || contrast == .increased ? 1 : 0.94"], "R2 dense input plane accessibility")
     require_count(toolbar, "ForEach(AppSection.allCases)", 1, "five-root Scenic Royal toolbar")
     require_all(toolbar, ["accessibilityReduceMotion", "dynamicTypeSize", 'accessibilityLabel("Main navigation")', 'accessibilityValue(isSelected ? "Selected" : "")'], "toolbar accessibility contract")
     require_all(
@@ -1027,7 +1031,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
             "QuickSessionNotesView",
             "AISessionPlanBuilderView",
             "AISessionNoteGeneratorView",
-            'title: "Visual Timer"',
+            "ScenicRoyalVisualTimerEntry()",
             'title: "First / Then"',
             'title: "Visual Supports"',
             'title: "Quick Notes"',
@@ -1036,6 +1040,10 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         ],
         "Scenic Royal Tools dashboard and six approved entry points",
     )
+    require_count(dashboard, "VisualTimerView(timer: toolsState.timer)", 1, "R2 Tools hero retains exactly one existing timer destination")
+    hero_entry = tool_components.split("struct ScenicRoyalVisualTimerEntry:", 1)[1]
+    require_all(hero_entry, ['Image("orb_v04_accepted_material")', '.renderingMode(.original)', '.scaledToFit()', 'Text("Visual Timer")'], "R2 Tools hero reuses accepted production Orb artwork")
+    require(not any(token in hero_entry for token in ["@State", "VisualTimerCore(", "VisualTimerPresentationState(", "Timer.scheduledTimer"]), "R2 Tools hero must not create timer state or another engine")
     require("ClientVisualScheduleBuilderView(" not in dashboard, "Visual Schedule must remain hidden from the active Tools dashboard")
     require_all(tool_components, ["struct ScenicRoyalToolTile", ".contentShape(Rectangle())", ".ui01ScenicText()", ".accessibilityHint(\"Opens \\(title)\")"], "semantic Tools open navigation controls")
     require_all(

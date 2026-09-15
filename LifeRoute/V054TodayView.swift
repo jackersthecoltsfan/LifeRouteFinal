@@ -149,19 +149,19 @@ struct V054TodayView: View {
         VStack(alignment: .leading, spacing: 12) {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top) {
-                    UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2)
+                    UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true)
                         .modifier(UI01ReadingZone())
                     Spacer(minLength: 16)
                     liveLocationAction
                 }
                 VStack(alignment: .leading, spacing: 12) {
-                    UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2)
+                    UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true)
                         .modifier(UI01ReadingZone())
                     liveLocationAction
                 }
             }
             dayControls.modifier(UI01ReadingZone())
-            UI01MarbleText(title: "Today", size: 58, relativeTo: .largeTitle)
+            UI01MarbleText(title: "Today", size: 58, relativeTo: .largeTitle, branded: true)
                 .modifier(UI01ReadingZone())
                 .accessibilityAddTraits(.isHeader)
                 .padding(.top, 8)
@@ -185,7 +185,7 @@ struct V054TodayView: View {
                     Text(routingState.liveLocationEnabled ? "Stop Live" : "Use Live")
                     Text("Location")
                 }
-                .font(.custom("Baskerville", size: 14, relativeTo: .caption))
+                .font(.caption)
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(routingState.liveLocationEnabled ? "Stop Live Location" : "Use Live Location")
@@ -207,7 +207,7 @@ struct V054TodayView: View {
                 LifeRouteHaptics.selection()
             } label: {
                 Text("\(dayContextTitle.uppercased()) · \(selectedDay.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()).uppercased())")
-                    .font(.custom("Baskerville", size: 13, relativeTo: .caption))
+                    .font(.caption)
                     .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
             }
@@ -402,7 +402,7 @@ struct V054TodayView: View {
                 .padding(.top, ScenicRoyalDesignSystem.Spacing.compact)
             } label: {
                 Label("Route settings", systemImage: "gearshape.2")
-                    .font(.custom("Baskerville", size: 19, relativeTo: .headline))
+                    .font(.headline)
                     .foregroundStyle(UI01Material.silver)
             }
 
@@ -550,7 +550,7 @@ struct V054TodayView: View {
                     Text("Starting from").font(.caption)
                         .foregroundStyle(UI01Material.secondary)
                     Text(startingPointLabel)
-                        .font(.custom("Baskerville", size: 18, relativeTo: .body))
+                        .font(.body)
                         .foregroundStyle(UI01Material.silver)
                 }
             }
@@ -582,18 +582,18 @@ struct V054TodayView: View {
             VStack(alignment: .leading, spacing: 3) {
                 if let appointment {
                     Text(appointment.isAllDay ? "All day" : "\(appointment.start.formatted(date: .omitted, time: .shortened)) – \(appointment.end.formatted(date: .omitted, time: .shortened))")
-                        .font(.custom("Baskerville", size: 16, relativeTo: .subheadline))
+                        .font(.subheadline)
                         .foregroundStyle(active ? UI01Material.goldLight : UI01Material.silver)
                 }
                 UI01MarbleText(title: LifeRouteCalendarDisplay.title(waypoint.title), size: 26, relativeTo: .title2)
                 if appointment != nil {
                     Text(waypoint.address.isEmpty ? "No physical location" : waypoint.address)
-                        .font(.custom("Baskerville", size: 17, relativeTo: .body))
+                        .font(.body)
                         .foregroundStyle(UI01Material.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Text(previewDetail(waypoint, now: now))
-                        .font(.custom("Baskerville", size: 17, relativeTo: .body))
+                        .font(.body)
                         .foregroundStyle(UI01Material.secondary)
                 }
                 Text(active ? "Event · Active now" : waypoint.kind == .stop ? "Stop" : "Event")

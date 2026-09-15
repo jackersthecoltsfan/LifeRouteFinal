@@ -81,7 +81,7 @@ final class CountingThemeDefaults: UserDefaults {
    (max(lum(a),lum(b))+0.05)/(min(lum(a),lum(b))+0.05)
   }
   // Exact UI-01 tokens reused by the rollout's bounded editing planes and
-  // gold actions. Scenic glyph-edge legibility remains a native capture gate.
+  // gold actions. Scenic atmosphere and composited legibility remain native capture gates.
   for backdrop in [Color.black, Color.white] {
    let navy = composite(rgba(UI01Material.navy.opacity(0.94)), rgba(backdrop))
    expect(ratio(rgba(UI01Material.silver), navy) >= 4.5, "UI02 reading-plane body text")
@@ -207,10 +207,13 @@ assert 'UI01SecondaryButtonStyle().makeBody(configuration: configuration)' in se
 presentation = (ROOT/'LifeRoute/UI01Presentation.swift').read_text()
 secondary_material = block(presentation, 'struct UI01SecondaryButtonStyle:')
 assert 'configuration.role == .destructive' in secondary_material
-assert 'UI01GoldButtonStyle(compact: true).makeBody(configuration: configuration)' in secondary_material
+assert 'UI01GoldButtonStyle' not in secondary_material, 'Supporting actions must not share primary gold styling'
+assert r'@Environment(\.isEnabled)' in secondary_material
+assert 'enabled ? 1 : 0.5' in secondary_material
+assert 'UI01CompactControlSurface()' in secondary_material
 button = block(presentation, 'struct UI01GoldButtonStyle:')
 assert r'@Environment(\.isEnabled)' in button
-assert 'enabled ? UI01Material.navy : UI01Material.silver' in button
+assert 'enabled ? UI01Material.navy : UI01Material.secondary' in button
 assert 'configuration.isPressed && !reduceMotion' in button
 assert '.tint(style.nativeControlTint)' in (ROOT/'LifeRoute/ScenicRoyalEnvironment.swift').read_text()
 assert 'surfaceShape.fill(style.accessibleSurfaceFill.opacity(accessibleSurfaceOpacity))' in (ROOT/'LifeRoute/ScenicRoyalMaterials.swift').read_text()

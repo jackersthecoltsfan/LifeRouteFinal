@@ -387,8 +387,7 @@ private struct LifeRouteRootPagingToolbar: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 7)
-        .modifier(UI01ReadingZone())
-        .glassEffect(.clear.tint(UI01Material.navy.opacity(0.12)), in: .capsule)
+        .modifier(UI01CompactControlSurface())
         .accessibilityElement(children: .contain)
     }
 }

@@ -32,7 +32,14 @@ struct V054ToolsDashboard: View {
                     ScenicRoyalIconBadge(systemImage: "wrench.and.screwdriver")
                 }
 
-                readinessCard
+                NavigationLink {
+                    VisualTimerView(timer: toolsState.timer)
+                        .lifeRouteDeepDestination()
+                } label: {
+                    ScenicRoyalVisualTimerEntry()
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("tools.visualTimer")
 
                 ScenicRoyalSectionHeader(
                     "Session toolkit",
@@ -42,18 +49,6 @@ struct V054ToolsDashboard: View {
 
                 ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                     LazyVStack(spacing: 0) {
-                        NavigationLink {
-                            VisualTimerView(timer: toolsState.timer)
-                                .lifeRouteDeepDestination()
-                        } label: {
-                            ScenicRoyalToolTile(
-                                title: "Visual Timer",
-                                subtitle: "A calm countdown with visual, tone, and haptic choices.",
-                                systemImage: "timer"
-                            )
-                        }
-                        .buttonStyle(.plain)
-
                         NavigationLink {
                             ClientFirstThenVisualView(visualState: visualState, clientState: clientState)
                                 .lifeRouteDeepDestination()
@@ -120,6 +115,7 @@ struct V054ToolsDashboard: View {
                     }
                 }
 
+                readinessCard
                 clientContextCard
 
                 Label(

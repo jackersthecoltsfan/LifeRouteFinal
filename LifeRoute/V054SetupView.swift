@@ -134,6 +134,7 @@ struct V054SetupView: View {
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle("Setup")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             if homeDraft.isEmpty { homeDraft = routingState.homeAddress }
             if !routeBufferPresets.contains(routingState.routeBufferMinutes) {

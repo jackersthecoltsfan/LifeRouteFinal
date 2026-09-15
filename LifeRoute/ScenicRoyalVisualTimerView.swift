@@ -885,14 +885,12 @@ private struct ScenicRoyalTimerOrb: View {
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
                     .monospacedDigit()
                     .foregroundStyle(style.primaryText)
-                    .shadow(color: Color.black.opacity(0.42), radius: 5, y: 2)
                     .minimumScaleFactor(0.72)
 
                 Text(snapshot.isFinished ? "TIME IS UP" : "REMAINING")
                     .font(.caption2.weight(.bold))
                     .tracking(1.3)
                     .foregroundStyle(style.primaryText.opacity(0.92))
-                    .shadow(color: Color.black.opacity(0.35), radius: 3, y: 1)
             }
             .accessibilityHidden(true)
         }

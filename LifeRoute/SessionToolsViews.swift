@@ -1888,7 +1888,7 @@ struct ClientChoiceBoardBuilderView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
+            .background(UI01Material.navy)
         }
         .toolbar(.hidden, for: .tabBar)
         .fullScreenCover(item: $previewBoard) { board in
@@ -2098,7 +2098,7 @@ struct ClientFirstThenVisualView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
+            .background(UI01Material.navy)
         }
         .fullScreenCover(isPresented: $showingFullScreenPreview) {
             ClientFirstThenSessionPreviewView(
@@ -2370,7 +2370,7 @@ struct ClientVisualScheduleBuilderView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(.ultraThinMaterial)
+            .background(UI01Material.navy)
         }
         .toolbar(.hidden, for: .tabBar)
         .fullScreenCover(item: $previewSchedule) { schedule in
@@ -2528,7 +2528,7 @@ struct ClientVisualSchedulePreviewView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [palette.backgroundTop, palette.backgroundBottom, Color.black],
+                colors: [UI01Material.royal, UI01Material.navy],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -2539,7 +2539,7 @@ struct ClientVisualSchedulePreviewView: View {
                     HStack(alignment: .top, spacing: 12) {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(schedule.title)
-                                .font(.system(size: 30, weight: .black, design: .rounded))
+                                .font(.largeTitle.weight(.semibold))
                                 .foregroundStyle(palette.textPrimary)
                             Text("Visual Schedule · \(libraryName)")
                                 .font(.caption.weight(.bold))
@@ -2553,7 +2553,7 @@ struct ClientVisualSchedulePreviewView: View {
                                 .font(.subheadline.weight(.black))
                                 .foregroundStyle(palette.textPrimary)
                                 .frame(width: 44, height: 44)
-                                .background(.ultraThinMaterial, in: Circle())
+                                .modifier(UI01CompactControlSurface())
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Close schedule preview")
@@ -2562,27 +2562,27 @@ struct ClientVisualSchedulePreviewView: View {
                     VStack(spacing: 10) {
                         ForEach(Array(schedule.steps.enumerated()), id: \.element.id) { index, step in
                             HStack(spacing: 13) {
-                                Text("\(index + 1)")
-                                    .font(.headline.weight(.black))
-                                    .foregroundStyle(Color.black.opacity(0.80))
-                                    .frame(width: 38, height: 38)
-                                    .background(palette.accent, in: Circle())
-
                                 if let iconID = step.iconID,
                                    let icon = visualState.icon(id: iconID, for: clientCode) {
-                                    ClientVisualIconThumbnail(icon: icon, size: 76)
+                                    ClientVisualIconThumbnail(icon: icon, size: 112)
                                 }
 
-                                Text(step.label)
-                                    .font(.title3.weight(.bold))
-                                    .foregroundStyle(palette.textPrimary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("\(index + 1)")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(UI01Material.secondary)
+                                    Text(step.label)
+                                        .font(.title3.weight(.semibold))
+                                        .foregroundStyle(UI01Material.silver)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
                             .padding(12)
-                            .background(palette.panelGradient, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .background(UI01Material.royal, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                             .overlay {
                                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(palette.accent.opacity(0.22), lineWidth: 1)
+                                    .stroke(UI01Material.secondary.opacity(0.18), lineWidth: 0.5)
                             }
                         }
                     }
@@ -2714,7 +2714,7 @@ private struct VisualBuilderHero: View {
                 .accessibilityAddTraits(.isHeader)
 
             Text(subtitle)
-                .font(.custom("Baskerville", size: 17, relativeTo: .subheadline))
+                .font(.subheadline)
                 .foregroundStyle(UI01Material.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -2818,7 +2818,6 @@ private struct ClientVisualDraftPhotoPreview: View {
         }
         .frame(maxHeight: maximumHeight)
         .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
         .task(id: LifeRouteThumbnailActivity(request: request, active: visibility.active)) {
             guard visibility.active, completedRequest != request else { return }
             let decoded = await ClientVisualThumbnailCache.shared.thumbnail(

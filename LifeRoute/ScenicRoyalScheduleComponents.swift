@@ -19,7 +19,7 @@ struct ScenicRoyalCalendarDateChip: View {
                     .lineLimit(1)
 
                 Text(date.formatted(.dateTime.day()))
-                    .font(.custom("Baskerville", size: 22, relativeTo: .title3))
+                    .font(.title3)
                     .lineLimit(1)
 
                 Circle()
@@ -97,142 +97,74 @@ struct ScenicRoyalCalendarMonthDay: View {
 
 struct ScenicRoyalScheduleEventRow: View {
     @Environment(\.scenicRoyalThemeStyle) private var style
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let event: LifeRouteCalendarEvent
     let sourceLabel: String
     let sourceIcon: String
     let sourceAccent: Color
+    var isActive = false
     let onOpen: () -> Void
     let onDelete: (() -> Void)?
 
     var body: some View {
-        Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                accessibilityLayout
-            } else {
-                compactLayout
+        HStack(alignment: .top, spacing: 12) {
+            Button(action: onOpen) {
+                HStack(alignment: .top, spacing: 12) {
+                    Capsule().fill(sourceAccent)
+                        .frame(width: 3, height: 36)
+                        .padding(.top, 4)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(event.displayTitle)
+                            .font(.headline)
+                            .foregroundStyle(style.primaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        if !event.isAllDay {
+                            Text("\(event.start.formatted(date: .omitted, time: .shortened)) – \(event.end.formatted(date: .omitted, time: .shortened))")
+                                .font(.subheadline)
+                                .foregroundStyle(style.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if !event.location.isEmpty {
+                            Label(event.location, systemImage: "mappin.and.ellipse")
+                                .font(.subheadline)
+                                .foregroundStyle(style.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Label(sourceLabel, systemImage: sourceIcon)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(style.secondaryText)
+                        if isActive {
+                            Label("Active now", systemImage: "clock.fill")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(UI01Material.goldLight)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(event.isAllDay ? "All day" : "")
+            .accessibilityHint(openHint)
+
+            if let onDelete {
+                Button(role: .destructive, action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(UI01Material.destructive)
+                .accessibilityLabel("Delete \(event.displayTitle)")
+                .accessibilityHint("Removes this LifeRoute appointment")
             }
         }
         .padding(.vertical, 12)
-        .ui01ScenicText()
-        .overlay(alignment: .bottom) { UI01Hairline().opacity(0.5) }
+        .overlay(alignment: .bottom) { UI01Hairline() }
         .accessibilityElement(children: .contain)
-    }
-
-    private var compactLayout: some View {
-        HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-            Button(action: onOpen) {
-                HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-                    timeBlock
-                        .frame(width: 68, alignment: .leading)
-
-                    sourceAccent
-                        .frame(width: 3)
-                        .clipShape(Capsule())
-
-                    eventDetails
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint(openHint)
-
-            deleteButton
-        }
-    }
-
-    private var accessibilityLayout: some View {
-        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-            HStack(alignment: .firstTextBaseline) {
-                Button(action: onOpen) {
-                    timeBlock
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint(openHint)
-
-                Spacer(minLength: ScenicRoyalDesignSystem.Spacing.compact)
-                deleteButton
-            }
-
-            Button(action: onOpen) {
-                VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
-                    Rectangle()
-                        .fill(sourceAccent)
-                        .frame(height: 3)
-                        .clipShape(Capsule())
-
-                    eventDetails
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint(openHint)
-        }
-    }
-
-    private var timeBlock: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(event.isAllDay ? "All day" : event.start.formatted(date: .omitted, time: .shortened))
-                .font(.caption.weight(.bold))
-                .foregroundStyle(event.isAllDay ? sourceAccent : style.primaryText)
-                .lineLimit(1)
-
-            if !event.isAllDay {
-                Text(event.end.formatted(date: .omitted, time: .shortened))
-                    .font(.caption2)
-                    .foregroundStyle(style.secondaryText)
-                    .lineLimit(1)
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private var eventDetails: some View {
-        VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
-            Text(event.displayTitle)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(style.primaryText)
-                .fixedSize(horizontal: false, vertical: true)
-
-            if !event.location.isEmpty {
-                Label(event.location, systemImage: "mappin.and.ellipse")
-                    .font(.caption)
-                    .foregroundStyle(style.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Label(sourceDescription, systemImage: sourceIcon)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(sourceAccent)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-    }
-
-    @ViewBuilder
-    private var deleteButton: some View {
-        if let onDelete {
-            Button(role: .destructive, action: onDelete) {
-                Image(systemName: "trash")
-                    .font(.caption.weight(.bold))
-                    .frame(
-                        width: ScenicRoyalDesignSystem.Layout.minimumTouchTarget,
-                        height: ScenicRoyalDesignSystem.Layout.minimumTouchTarget
-                    )
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.red)
-            .accessibilityLabel("Delete \(event.displayTitle)")
-            .accessibilityHint("Removes this LifeRoute appointment")
-        }
-    }
-
-    private var sourceDescription: String {
-        // Calendar names can be full account addresses. Ordinary cards expose
-        // the bounded provider label; account management retains its detail.
-        sourceLabel
     }
 
     private var openHint: String {
@@ -266,9 +198,9 @@ struct ScenicRoyalTravelPlanLabel: View {
                 }
             }
         }
-        .padding(ScenicRoyalDesignSystem.Spacing.standard)
-        .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.card, style: .continuous))
-        .scenicRoyalInteractiveSurface(role: .control, cornerRadius: ScenicRoyalDesignSystem.Radius.card)
+        .padding(.vertical, ScenicRoyalDesignSystem.Spacing.standard)
+        .contentShape(Rectangle())
+        .overlay(alignment: .bottom) { UI01Hairline() }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Travel plan")
         .accessibilityValue(accessibilityValue)
@@ -281,7 +213,6 @@ struct ScenicRoyalTravelPlanLabel: View {
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(style.accent)
                 .frame(width: 42, height: 42)
-                .scenicRoyalSurface(role: .passiveRow, cornerRadius: ScenicRoyalDesignSystem.Radius.compactControl)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {

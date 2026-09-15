@@ -96,16 +96,20 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
 }
 
 private struct ScenicRoyalEnvironmentReadabilityVeil: View {
+    @Environment(\.colorSchemeContrast) private var contrast
     let style: ScenicRoyalThemeStyle
     let reduceTransparency: Bool
 
     var body: some View {
         ZStack {
+            // A single atmospheric royal grade spans the scene. Its smooth
+            // vertical stops support open content without text-local boxes.
             LinearGradient(
-                colors: [
-                    Color.black.opacity(topOpacity),
-                    Color.clear,
-                    Color.black.opacity(bottomOpacity),
+                stops: [
+                    .init(color: UI01Material.navy.opacity(density * 0.45), location: 0),
+                    .init(color: UI01Material.navy.opacity(density), location: 0.22),
+                    .init(color: UI01Material.royal.opacity(density * 0.9), location: 0.64),
+                    .init(color: UI01Material.navy.opacity(density * 0.6), location: 1),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -113,9 +117,9 @@ private struct ScenicRoyalEnvironmentReadabilityVeil: View {
 
             LinearGradient(
                 colors: [
-                    style.glassTint.opacity(reduceTransparency ? 0 : 0.018),
+                    UI01Material.royal.opacity(0.12),
                     Color.clear,
-                    style.accentReflection.opacity(reduceTransparency ? 0 : 0.008),
+                    UI01Material.royal.opacity(0.04),
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -126,17 +130,8 @@ private struct ScenicRoyalEnvironmentReadabilityVeil: View {
         .accessibilityHidden(true)
     }
 
-    private var topOpacity: Double {
-        if reduceTransparency {
-            return min(0.28, style.environmentScrimOpacity + 0.06)
-        }
-        return min(0.10, style.environmentScrimOpacity * 0.34)
-    }
-
-    private var bottomOpacity: Double {
-        if reduceTransparency {
-            return min(0.34, style.environmentScrimOpacity + 0.13)
-        }
-        return min(0.14, (style.environmentScrimOpacity + 0.07) * 0.34)
+    private var density: Double {
+        let base = style.isBrightEnvironment ? 0.58 : 0.28
+        return min(0.78, base + (contrast == .increased ? 0.16 : 0) + (reduceTransparency ? 0.04 : 0))
     }
 }

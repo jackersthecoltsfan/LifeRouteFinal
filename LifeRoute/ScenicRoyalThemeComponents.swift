@@ -225,7 +225,7 @@ struct ScenicRoyalThemeCard: View {
                 preview
                 titleBlock
             }
-            .padding(2)
+            .padding(8)
             .frame(maxWidth: .infinity, minHeight: 154, alignment: .topLeading)
             .contentShape(
                 RoundedRectangle(
@@ -239,8 +239,8 @@ struct ScenicRoyalThemeCard: View {
                     style: .continuous
                 )
                 .stroke(
-                    isSelected ? UI01Material.gold : Color.clear,
-                    lineWidth: isSelected ? ScenicRoyalDesignSystem.Stroke.selected : ScenicRoyalDesignSystem.Stroke.subtle
+                    isSelected ? UI01Material.gold : UI01Material.secondary.opacity(contrast == .increased ? 0.6 : 0.28),
+                    lineWidth: isSelected ? 1.5 : ScenicRoyalDesignSystem.Stroke.subtle
                 )
             }
         }
@@ -256,8 +256,7 @@ struct ScenicRoyalThemeCard: View {
     }
 
     private var preview: some View {
-        ZStack(alignment: .bottomLeading) {
-            ScenicRoyalThemePreview(theme: theme)
+        ScenicRoyalThemePreview(theme: theme)
                 .frame(height: 92)
                 .clipShape(
                     RoundedRectangle(
@@ -266,15 +265,6 @@ struct ScenicRoyalThemeCard: View {
                     )
                 )
 
-            Text(theme.scenicRoyalMotionCharacter.uppercased())
-                .font(.caption2.weight(.bold))
-                .tracking(0.5)
-                .foregroundStyle(.white)
-                .padding(6)
-                .ui01ScenicText()
-                .padding(2)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-        }
         .accessibilityHidden(true)
     }
 
@@ -283,16 +273,19 @@ struct ScenicRoyalThemeCard: View {
             VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.hairline) {
                 UI01MarbleText(title: theme.name, size: 23, relativeTo: .title3)
                     .fixedSize(horizontal: false, vertical: true)
-
+                Text(theme.scenicRoyalMotionCharacter)
+                    .font(.caption)
+                    .foregroundStyle(UI01Material.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Label("Selected", systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(UI01Material.goldLight)
+                    .opacity(isSelected ? 1 : 0)
+                    .accessibilityHidden(true)
             }
 
             Spacer(minLength: 0)
 
-            if isSelected {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(style.selectedControlIndicator)
-                    .accessibilityHidden(true)
-            }
         }
     }
 }

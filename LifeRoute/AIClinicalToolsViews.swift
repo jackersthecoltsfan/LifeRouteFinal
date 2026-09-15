@@ -770,6 +770,7 @@ struct AISessionNoteGeneratorView: View {
                 .background(palette.panelElevated.opacity(0.30), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
             .disabled(matchingScratchNotes.isEmpty)
+            .opacity(matchingScratchNotes.isEmpty ? 0.5 : 1)
 
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $runtime.narrative)

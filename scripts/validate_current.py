@@ -572,7 +572,8 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
         app,
         [
             "static func configure(theme: LifeRouteTheme, updateVisibleWindows: Bool)",
-            "configure(theme: selectedTheme, updateVisibleWindows: false)",
+            "guard !appearanceUpdateScheduled else { return }",
+            "configure(theme: self.selectedTheme, updateVisibleWindows: false)",
             "LifeRouteAppearance.configure(theme: theme, updateVisibleWindows: true)",
             "if updateVisibleWindows {",
             "UIWindow.appearance().backgroundColor = background",

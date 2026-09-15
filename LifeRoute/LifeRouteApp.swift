@@ -424,9 +424,11 @@ final class LifeRouteThemeStore: ObservableObject {
     // v0.7.0 Theme Phase 1 persistence: one owner, stable identifiers, deterministic legacy migration.
     private static let storageKey = "liferoute.selectedTheme"
     private let defaults: UserDefaults
+    private var appearanceUpdateScheduled = false
 
     @Published var selectedTheme: LifeRouteTheme {
         didSet {
+            guard oldValue != selectedTheme else { return }
             let normalized = Self.shippingTheme(Self.resolveStoredTheme(selectedTheme.rawValue))
             if selectedTheme != normalized { selectedTheme = normalized }
             if defaults.string(forKey: Self.storageKey) != selectedTheme.rawValue {
@@ -434,7 +436,15 @@ final class LifeRouteThemeStore: ObservableObject {
             }
             // The mounted Scenic Royal root owns a live theme change. Do not
             // repaint an already-visible UIWindow fallback underneath it.
-            LifeRouteAppearance.configure(theme: selectedTheme, updateVisibleWindows: false)
+            // Keep UIKit proxy updates off the synchronous selection action.
+            // Rapid selections apply the latest value once on the next main turn.
+            guard !appearanceUpdateScheduled else { return }
+            appearanceUpdateScheduled = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.appearanceUpdateScheduled = false
+                LifeRouteAppearance.configure(theme: self.selectedTheme, updateVisibleWindows: false)
+            }
         }
     }
 

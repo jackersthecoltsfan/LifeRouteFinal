@@ -54,7 +54,12 @@ struct VisualTimerPresentationTests {
             && count("VisualTimerHeroController(hero:") == 1
             && root.contains("rootShellContent.overlay{VisualTimerHeroLayer(hero:timerHero,router:router)")
             && hero.contains("VisualTimerHeroLayer:UIViewControllerRepresentable")
-            && hero.contains("addChild(host)") && hero.contains("host.didMove(toParent:self)")
+            && hero.contains("addChild(host)")
+            && ["orbHost!", "controlsHost!", "headerHost!"].allSatisfy { host in
+                guard let attached = hero.range(of: "addSubview(\(host).view)"),
+                      let contained = hero.range(of: "\(host).didMove(toParent:self)") else { return false }
+                return attached.lowerBound < contained.lowerBound
+            }
             && hero.contains("letwindow=view.window") && hero.contains("slot.window===window")
             && !all.contains(".fullScreenCover(") && !all.contains(".sheet(")
             && !all.contains(".present(") && !all.contains("UIWindow(") && !all.contains("UIWindow.init(")

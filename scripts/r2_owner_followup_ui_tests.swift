@@ -59,6 +59,31 @@ final class R2OwnerFollowupUI: XCTestCase {
         exerciseTimerEntrySequence(launch("tools"))
     }
 
+    func testTimerCancelledReturn() {
+        let app = launch("tools")
+        defer { app.terminate() }
+        app.buttons["tools.visualTimer"].tap()
+        let expand = app.buttons["visualTimer.expand"]
+        XCTAssertTrue(expand.waitForExistence(timeout: 5))
+        // A short edge gesture exercises UIKit's cancelled interactive return.
+        let edge = app.coordinate(withNormalizedOffset: CGVector(dx: 0.01, dy: 0.5))
+        let partial = app.coordinate(withNormalizedOffset: CGVector(dx: 0.20, dy: 0.5))
+        edge.press(forDuration: 0.05, thenDragTo: partial, withVelocity: .slow, thenHoldForDuration: 0.5)
+        XCTAssertTrue(expand.waitForExistence(timeout: 5), "Cancelled return retains the Timer destination")
+        capture(app, "timer-cancelled-return")
+        expand.tap()
+        let close = app.buttons["visualTimer.close"]
+        XCTAssertTrue(close.waitForExistence(timeout: 5))
+        close.tap()
+        XCTAssertTrue(expand.waitForExistence(timeout: 5))
+        back("Visual Timer", in: app)
+        XCTAssertTrue(app.buttons["tools.visualTimer"].waitForExistence(timeout: 5))
+        app.buttons["Today"].tap()
+        app.buttons["Tools"].tap()
+        XCTAssertTrue(app.buttons["tools.visualTimer"].waitForExistence(timeout: 5))
+        capture(app, "timer-root-return")
+    }
+
     func testTimerEntryDiagnostics() {
         let app = XCUIApplication(bundleIdentifier: "Com.Brandongood.LifeRoute")
         app.activate()

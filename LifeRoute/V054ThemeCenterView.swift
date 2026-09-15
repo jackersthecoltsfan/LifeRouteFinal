@@ -60,7 +60,8 @@ struct V054ThemeCenterView: View {
         // Keep the iOS 16 deployment path; this single-value overload is
         // availability-safe until the app's minimum OS moves to iOS 17.
         .onChange(of: themeStore.selectedTheme) { theme in
-            selectedCategory = category(for: theme)
+            let category = category(for: theme)
+            if selectedCategory != category { selectedCategory = category }
         }
     }
 
@@ -90,7 +91,7 @@ struct V054ThemeCenterView: View {
     }
 
     private func select(_ theme: LifeRouteTheme) {
-        themeStore.selectedTheme = theme
+        if themeStore.selectedTheme != theme { themeStore.selectedTheme = theme }
         LifeRouteHaptics.success()
     }
 }

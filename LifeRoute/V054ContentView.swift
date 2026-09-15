@@ -184,9 +184,13 @@ struct V054ContentView: View {
         .onChange(of: router.selectedSection) { section in
             LifeRouteHaptics.rootNavigation()
         }
-        .onChange(of: themeStore.selectedTheme) { theme in
-            DispatchQueue.main.async {
-                LifeRouteAppearance.refreshVisibleChrome(theme: theme)
+        .onChange(of: themeStore.selectedTheme) { _ in
+            // Native glass containers were made transparent when the root mounted.
+            // Only legacy themed chrome needs another hierarchy walk per selection.
+            if LifeRouteRuntimeFeedbackPolicy.allowsRuntimeUIKitChromeRefresh(ProcessInfo.processInfo.operatingSystemVersion) {
+                DispatchQueue.main.async {
+                    LifeRouteAppearance.refreshVisibleChrome(theme: themeStore.selectedTheme)
+                }
             }
             LifeRouteThemeFeedbackSound.shared.play()
         }

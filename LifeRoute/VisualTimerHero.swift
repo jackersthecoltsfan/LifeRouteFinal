@@ -277,6 +277,13 @@ final class VisualTimerHeroController: UIViewController {
     private var pendingNavigation: (() -> Void)?
     private var geometryPending = false
     private var clipFrame = CGRect.zero
+    private var navigationTransition: UIViewControllerTransitionCoordinator?
+    private weak var completedNavigationTransition: AnyObject?
+    private weak var navigationAnchor: UIView?
+    private weak var anchorNavigationController: UINavigationController?
+#if DEBUG
+    private var tracedVisibleOrb = false
+#endif
 
     init(hero: VisualTimerHeroCoordinator, themeStore: LifeRouteThemeStore, environment: EnvironmentValues) {
         self.hero = hero
@@ -302,7 +309,6 @@ final class VisualTimerHeroController: UIViewController {
         if #available(iOS 16.4, *) { host.safeAreaRegions = [] }
         addChild(host)
         host.view.backgroundColor = .clear
-        host.didMove(toParent: self)
         return host
     }
     private func styled<V: View>(_ content: V) -> AnyView {
@@ -316,17 +322,27 @@ final class VisualTimerHeroController: UIViewController {
 
     func installOrb(_ presentation: VisualTimerPresentationState) {
         loadViewIfNeeded()
+#if DEBUG
+        tracedVisibleOrb = false
+#endif
+        trace("orb.install.begin")
         // A new destination may bind later, but expansion/collapse NEVER enters this branch.
         for old in [orbHost, controlsHost, headerHost].compactMap({ $0 }) {
             old.willMove(toParent: nil); old.view.removeFromSuperview(); old.removeFromParent()
         }
         orbHost = host(ScenicRoyalHeroOrbReadout(hero: hero, presentation: presentation))
+        trace("orb.host.created")
         orbHost!.view.bounds = CGRect(x: 0, y: 0, width: 340, height: 340)
         orbClip.addSubview(orbHost!.view)
+        orbHost!.didMove(toParent: self)
+        trace("orb.host.attached")
         controlsHost = host(controls(presentation))
         headerHost = host(ScenicRoyalFullScreenTimerView(hero: hero))
         view.addSubview(controlsHost!.view)
         view.addSubview(headerHost!.view)
+        controlsHost!.didMove(toParent: self)
+        headerHost!.didMove(toParent: self)
+        trace("chrome.hosts.attached")
         refreshGeometry()
         trace("orb.installed")
     }
@@ -379,13 +395,14 @@ final class VisualTimerHeroController: UIViewController {
         var anchor: CGRect?
         clipFrame = view.bounds
         if let slot = hero.anchorView, slot.window === window {
-            anchor = slot.convert(slot.bounds, to: view)
+            observeNavigationTransition(containing: slot)
+            anchor = presentedBounds(slot.bounds, of: slot)
             // Respect every clipping scroll/host ancestor while collapsed.
             var ancestor = slot.superview
             while let current = ancestor, current !== window {
                 if current.clipsToBounds {
                     let bounds = (current as? UIScrollView).map { $0.bounds.inset(by: $0.adjustedContentInset) } ?? current.bounds
-                    clipFrame = clipFrame.intersection(current.convert(bounds, to: view))
+                    clipFrame = clipFrame.intersection(presentedBounds(bounds, of: current))
                 }
                 ancestor = current.superview
             }
@@ -398,6 +415,69 @@ final class VisualTimerHeroController: UIViewController {
         render()
         startFramesIfNeeded()
         trace("geometry")
+    }
+
+    /// Incoming destinations acquire semantic activity after UIKit's push finishes.
+    /// During that push, draw the existing Orb at its actual animated anchor without
+    /// activating its motion, timer feedback, or another navigation owner.
+    private func observeNavigationTransition(containing slot: UIView) {
+        guard navigationTransition == nil, slot.window?.windowScene?.activationState == .foregroundActive else { return }
+        if navigationAnchor !== slot {
+            navigationAnchor = slot
+            anchorNavigationController = nil
+        }
+        var responder: UIResponder? = slot
+        while let current = responder {
+            if let owner = current as? UIViewController,
+               let navigation = owner.navigationController ?? anchorNavigationController,
+               let coordinator = navigation.transitionCoordinator,
+               navigation.viewIfLoaded?.window === slot.window,
+               coordinator.containerView.isDescendant(of: navigation.view),
+               coordinator.isAnimated,
+               [UITransitionContextViewControllerKey.from, .to].contains(where: { key in
+                   guard let endpoint = coordinator.viewController(forKey: key), endpoint.isViewLoaded else { return false }
+                   return slot.isDescendant(of: endpoint.view)
+               }) {
+                anchorNavigationController = navigation
+                let identity = ObjectIdentifier(coordinator as AnyObject)
+                guard completedNavigationTransition !== coordinator as AnyObject else { return }
+                navigationTransition = coordinator
+                let registered = coordinator.animate(alongsideTransition: nil) { [weak self, weak coordinator] _ in
+                    guard let self, self.navigationTransition.map({ ObjectIdentifier($0 as AnyObject) }) == identity else { return }
+                    self.completedNavigationTransition = coordinator as AnyObject?
+                    self.navigationTransition = nil
+                    self.scheduleGeometry()
+                }
+                if !registered { navigationTransition = nil }
+                if registered { trace("navigation.tracking") }
+                return
+            }
+            responder = current.next
+        }
+    }
+
+    private func presentedBounds(_ bounds: CGRect, of source: UIView) -> CGRect {
+        if navigationTransition != nil,
+           let sourceLayer = source.layer.presentation(), let destinationLayer = view.layer.presentation() {
+            let insets = UIEdgeInsets(top: bounds.minY - source.bounds.minY,
+                                      left: bounds.minX - source.bounds.minX,
+                                      bottom: source.bounds.maxY - bounds.maxY,
+                                      right: source.bounds.maxX - bounds.maxX)
+            return sourceLayer.convert(sourceLayer.bounds.inset(by: insets), to: destinationLayer)
+        }
+        return source.convert(bounds, to: view)
+    }
+
+    private var nativeTransitionOpacity: CGFloat {
+        guard navigationTransition != nil, let slot = hero.anchorView else { return 1 }
+        var opacity: CGFloat = 1
+        var current: UIView? = slot
+        while let ancestor = current, ancestor !== view.window {
+            if ancestor.isHidden { return 0 }
+            opacity *= CGFloat(ancestor.layer.presentation()?.opacity ?? ancestor.layer.opacity)
+            current = ancestor.superview
+        }
+        return opacity
     }
 
     private func presentedOrbFrame() -> CGRect? {
@@ -429,6 +509,7 @@ final class VisualTimerHeroController: UIViewController {
         displayLink?.invalidate()
         displayLink = nil
         pendingNavigation = nil
+        navigationTransition = nil
         transition = VisualTimerHeroTransition()
         hero.setBlocked(false)
         hero.router?.collapseTimerHeroBeforeNavigation = nil
@@ -436,7 +517,7 @@ final class VisualTimerHeroController: UIViewController {
     }
 
     private func startFramesIfNeeded() {
-        guard transition.needsFrames, displayLink == nil else { return }
+        guard transition.needsFrames || navigationTransition != nil, displayLink == nil else { return }
         previousUptime = CACurrentMediaTime()
         let link = CADisplayLink(target: self, selector: #selector(tick(_:)))
         link.add(to: .main, forMode: .common)
@@ -446,8 +527,9 @@ final class VisualTimerHeroController: UIViewController {
         let now = CACurrentMediaTime()
         transition.advance(by: now - (previousUptime ?? now))
         previousUptime = now
-        render()
-        if !transition.needsFrames {
+        if navigationTransition != nil { refreshGeometry() }
+        else { render() }
+        if !transition.needsFrames && navigationTransition == nil {
             link.invalidate(); displayLink = nil; previousUptime = nil
             if !transition.blocksNavigation { hero.presentation?.close() }
             trace("settled")
@@ -475,16 +557,24 @@ final class VisualTimerHeroController: UIViewController {
         let clipping = blocked ? view.bounds : clipFrame
         orbClip.frame = clipping.isNull ? .zero : clipping
         guard let frame = transition.frame, let orb = orbHost?.view else { orbClip.alpha = 0; return }
-        orbClip.alpha = (hero.orbActive || blocked) ? transition.orbOpacity : 0
+        let nativeTransitionVisible = navigationTransition != nil && view.window?.windowScene?.activationState == .foregroundActive
+        orbClip.alpha = (hero.orbActive || blocked || nativeTransitionVisible) ? transition.orbOpacity : 0
+        if !blocked { orbClip.alpha *= nativeTransitionOpacity }
         // The expensive accepted hierarchy remains a fixed 340-point canvas.
         // Only its enclosing transform/position and simple alpha change each frame.
         orb.transform = CGAffineTransform(scaleX: frame.width / 340, y: frame.height / 340)
         orb.center = CGPoint(x: frame.midX - orbClip.frame.minX, y: frame.midY - orbClip.frame.minY)
+#if DEBUG
+        if !tracedVisibleOrb, orbClip.alpha > 0, !orbClip.frame.isEmpty {
+            tracedVisibleOrb = true
+            trace("orb.visible.requested")
+        }
+#endif
     }
     private func trace(_ event: String) {
 #if DEBUG
         guard ProcessInfo.processInfo.arguments.contains("-LifeRouteVisualTimerDiagnostics") else { return }
-        print("TIMER_D event=\(event) progress=\(transition.progress) velocity=\(transition.velocity) target=\(transition.target) blocked=\(transition.blocksNavigation) fallback=\(transition.isFading) frame=\(String(describing: transition.frame)) anchor=\(String(describing: transition.anchor)) orb=\(String(describing: orbHost.map(ObjectIdentifier.init))) timer=\(String(describing: hero.presentation.map { ObjectIdentifier($0.timer) }))")
+        FileHandle.standardError.write(Data("TIMER_D event=\(event) uptime=\(ProcessInfo.processInfo.systemUptime) active=\(hero.orbActive) progress=\(transition.progress) velocity=\(transition.velocity) target=\(transition.target) blocked=\(transition.blocksNavigation) fallback=\(transition.isFading) frame=\(String(describing: transition.frame)) anchor=\(String(describing: transition.anchor)) orb=\(String(describing: orbHost.map(ObjectIdentifier.init))) timer=\(String(describing: hero.presentation.map { ObjectIdentifier($0.timer) }))\n".utf8))
 #endif
     }
 }

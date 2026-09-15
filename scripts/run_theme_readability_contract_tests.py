@@ -47,7 +47,7 @@ for marker in ['var thumbnailAssetName:', 'var sceneryThumbnailAssetName:', 'var
 source += '}\n'
 
 source += '\n' + block(app, 'final class LifeRouteThemeStore:') + '\n'
-source += 'enum LifeRouteAppearance { static func configure(theme: LifeRouteTheme, updateVisibleWindows: Bool) {} }\n'
+source += 'enum LifeRouteAppearance { static var applied: [LifeRouteTheme] = []; static func configure(theme: LifeRouteTheme, updateVisibleWindows: Bool) { applied.append(theme) } }\n'
 
 source += '\n' + block((ROOT / 'LifeRoute/UI01Presentation.swift').read_text(), 'enum UI01Material {') + '\n'
 
@@ -129,6 +129,7 @@ final class CountingThemeDefaults: UserDefaults {
    expect(reopened.selectedTheme == first.selectedTheme && preferences.selectionWrites == 0, "restart has no repeat migration")
   }
   let selectedStore = LifeRouteThemeStore(defaults: preferences)
+  LifeRouteAppearance.applied.removeAll()
   var publications = 0
   let subscription = selectedStore.$selectedTheme.dropFirst().sink { _ in publications += 1 }
   preferences.selectionWrites = 0
@@ -137,6 +138,23 @@ final class CountingThemeDefaults: UserDefaults {
   selectedStore.selectedTheme = .oceanGlass
   expect(selectedStore.selectedTheme == .sceneryOceanNight, "direct retired selection normalizes")
   expect(preferences.string(forKey: "liferoute.selectedTheme") == "scenery.ocean.night", "direct retired choice persists current identity")
+  expect(LifeRouteAppearance.applied.isEmpty, "appearance work does not run on the selection call stack")
+  RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+  expect(LifeRouteAppearance.applied == [.sceneryOceanNight], "coalesced apply uses the final normalized selection")
+  LifeRouteAppearance.applied.removeAll()
+  selectedStore.selectedTheme = .sceneryOceanDay
+  selectedStore.selectedTheme = .sceneryMountainsNight
+  selectedStore.selectedTheme = .royal
+  expect(preferences.string(forKey: "liferoute.selectedTheme") == "royal", "rapid sequence persists its latest selection immediately")
+  RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+  expect(LifeRouteAppearance.applied == [.royal], "rapid selections apply only the latest theme")
+  LifeRouteAppearance.applied.removeAll()
+  preferences.selectionWrites = 0
+  let priorPublications = publications
+  selectedStore.selectedTheme = .royal
+  RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+  expect(LifeRouteAppearance.applied.isEmpty && preferences.selectionWrites == 0, "same selection avoids persistence and appearance work")
+  expect(publications == priorPublications + 1, "direct Published assignment still emits; Theme Center guards before assignment")
   withExtendedLifetime(subscription) {}
   expect(Set(visible).isDisjoint(with: dynamic), "legacy eight absent from active catalogue")
   expect(Set(LivingThemeRegistration.all.map(\.themeIdentifier)) == Set(scenery.map(\.rawValue)), "one registry covers exact twelve")

@@ -91,7 +91,8 @@ try:
                "-destination", "platform=iOS Simulator,id=" + args.simulator,
                "-derivedDataPath", str(out / "derived-data"), "-resultBundlePath", str(out / "boards.xcresult"),
                "-parallel-testing-enabled", "NO", "CODE_SIGNING_ALLOWED=NO"]
-    for test in args.test or ["testCreateFirstThen", "testCreateChoiceBoard", "testCreateSchedule", "testCreateTokenBoard"]:
+    for test in args.test or ["testCreateFirstThen", "testCreateChoiceBoard", "testCreateSchedule", "testCreateTokenBoard",
+                              "testExportActions", "testDockAndThemeReentry"]:
         command.append("-only-testing:NativeUI/BoardProductionUI/" + test)
     with (out / "xcodebuild.log").open("w") as log:
         result = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT)

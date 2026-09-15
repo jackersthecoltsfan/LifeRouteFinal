@@ -140,4 +140,85 @@ final class BoardProductionUI: XCTestCase {
         app.buttons["Break"].tap()
         saveAndInspect(app, title: "QA Tokens", kind: "Token Board")
     }
+    func testExportActions() {
+        let app = launch(); defer { XCUIDevice.shared.orientation = .portrait; app.terminate() }
+        openBoards(app); create("FirstThen", app: app)
+        fill(app.textFields["Board title"], "QA Image Export")
+        for (index, name) in [(1, "Book"), (2, "Break")] {
+            let pick = app.buttons["Choose image for step \(index)"]
+            reveal(pick, in: app); pick.tap()
+            XCTAssertTrue(app.navigationBars["Choose saved image"].waitForExistence(timeout: 5))
+            app.buttons[name].tap()
+        }
+        app.buttons["Save & Preview"].tap()
+        XCTAssertTrue(app.buttons["Close board preview"].waitForExistence(timeout: 8))
+        capture(app, "image-backed-first-then")
+        for action in ["Share Image", "Share PDF / Save to Files"] {
+            app.buttons["Export"].tap()
+            app.buttons[action].tap()
+            XCTAssertTrue(app.cells["Copy"].waitForExistence(timeout: 10), "System sharing must receive the finished artifact")
+            XCTAssertTrue(app.cells["Save to Files"].exists)
+            capture(app, action)
+            XCTAssertTrue(app.buttons["Close"].isHittable)
+            app.buttons["Close"].tap()
+            XCTAssertTrue(app.buttons["Close board preview"].waitForExistence(timeout: 5))
+        }
+        XCUIDevice.shared.orientation = .landscapeRight
+        let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [landscape], timeout: 5), .completed)
+        XCTAssertTrue(app.buttons["Close board preview"].isHittable)
+        capture(app, "image-backed-first-then-landscape")
+    }
+
+    func testDockAndThemeReentry() {
+        let app = launch(); defer { app.terminate() }
+        let names = ["Today", "Calendar", "Tools", "Resources", "Setup"]
+        func dock(_ name: String) -> XCUIElement {
+            // Calendar also has a Today range button. The permanent dock is
+            // the lowest matching control, regardless of retained root history.
+            app.buttons.matching(NSPredicate(format: "label == %@", name))
+                .allElementsBoundByIndex.max(by: { $0.frame.midY < $1.frame.midY })!
+        }
+        var previousX: CGFloat = -1
+        for name in names {
+            let control = dock(name)
+            XCTAssertTrue(control.isHittable)
+            XCTAssertGreaterThan(control.frame.midX, previousX)
+            XCTAssertGreaterThanOrEqual(control.frame.width, 44)
+            XCTAssertGreaterThanOrEqual(control.frame.height, 44)
+            previousX = control.frame.midX
+            control.tap()
+            XCTAssertEqual(control.value as? String, "Selected")
+        }
+        for name in names.reversed() { dock(name).tap() }
+        dock("Setup").tap()
+        let entry = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Theme Center")).firstMatch
+        reveal(entry, in: app)
+        app.staticTexts["Theme Center"].tap()
+        XCTAssertTrue(app.navigationBars["Themes"].waitForExistence(timeout: 6))
+        let living = app.buttons["Living Themes"]
+        reveal(living, in: app); living.tap()
+        let ocean = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Ocean Day")).firstMatch
+        reveal(ocean, in: app); ocean.tap()
+        XCTAssertEqual(ocean.value as? String, "Selected")
+        ocean.tap()
+        XCTAssertEqual(ocean.value as? String, "Selected")
+        capture(app, "theme-same-selection")
+        app.navigationBars["Themes"].buttons.element(boundBy: 0).tap()
+        reveal(entry, in: app)
+        app.staticTexts["Theme Center"].tap()
+        XCTAssertTrue(app.navigationBars["Themes"].waitForExistence(timeout: 6))
+        XCTAssertEqual(ocean.value as? String, "Selected")
+        capture(app, "theme-return-selected-living")
+        app.terminate()
+        app.launchArguments = ["-LifeRouteSectionOverride", "setup"]
+        app.launch()
+        reveal(entry, in: app)
+        app.staticTexts["Theme Center"].tap()
+        XCTAssertTrue(app.navigationBars["Themes"].waitForExistence(timeout: 6))
+        XCTAssertEqual(ocean.value as? String, "Selected")
+        capture(app, "theme-relaunch-selected-living")
+    }
 }

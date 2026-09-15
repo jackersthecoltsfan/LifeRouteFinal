@@ -154,12 +154,30 @@ struct UI01SelectionSurface: ViewModifier {
     let selected: Bool
     func body(content: Content) -> some View {
         content
-            .foregroundStyle(selected ? UI01Material.navy : UI01Material.silver)
+            .foregroundStyle(UI01Material.silver)
             .background {
                 if selected {
-                    Capsule().fill(UI01Material.moltenGold)
-                        .overlay(Capsule().strokeBorder(UI01Material.goldLight, lineWidth: 0.8))
-                        .shadow(color: UI01Material.gold.opacity(0.28), radius: 8, y: 2)
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.28),
+                                    UI01Material.gold.opacity(0.18)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .overlay(
+                            Capsule().strokeBorder(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.55), UI01Material.goldLight.opacity(0.42)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 0.6
+                            )
+                        )
                 }
             }
     }
@@ -205,10 +223,10 @@ struct UI01CompactControlSurface: ViewModifier {
             content.background(UI01Material.royal, in: Capsule())
                 .overlay(Capsule().strokeBorder(UI01Material.secondary.opacity(0.5), lineWidth: 1).allowsHitTesting(false))
         } else if #available(iOS 26.0, *) {
-            content.glassEffect(.regular.tint(UI01Material.royal.opacity(0.72)), in: .capsule)
+            content.glassEffect(.regular.tint(UI01Material.royal.opacity(0.22)), in: .capsule)
                 .overlay(Self.jewelRim.allowsHitTesting(false))
         } else {
-            content.background(UI01Material.royal.opacity(0.94), in: Capsule())
+            content.background(.ultraThinMaterial.opacity(0.92), in: Capsule())
                 .overlay(Self.jewelRim.allowsHitTesting(false))
         }
     }
@@ -217,14 +235,14 @@ struct UI01CompactControlSurface: ViewModifier {
         Capsule().strokeBorder(
             LinearGradient(
                 colors: [
-                    UI01Material.goldLight.opacity(0.58),
-                    UI01Material.silver.opacity(0.16),
-                    UI01Material.gold.opacity(0.28)
+                    Color.white.opacity(0.62),
+                    UI01Material.goldLight.opacity(0.34),
+                    Color.white.opacity(0.14)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
-            lineWidth: 0.8
+            lineWidth: 0.6
         )
     }
 }
@@ -253,47 +271,58 @@ struct UI01GoldButtonStyle: ButtonStyle {
         let compact: Bool
         @Environment(\.isEnabled) private var enabled
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
         @Environment(\.colorSchemeContrast) private var contrast
         var body: some View {
             configuration.label
                 .font(compact ? .subheadline.weight(.semibold) : .headline)
-                .foregroundStyle(enabled ? UI01Material.navy : UI01Material.secondary)
+                .foregroundStyle(enabled ? UI01Material.silver : UI01Material.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, compact ? 16 : 24)
                 .padding(.vertical, 12)
                 .frame(maxWidth: compact ? nil : .infinity, minHeight: compact ? 44 : 56)
-                .background {
-                    Capsule().fill(enabled ? UI01Material.moltenGold : LinearGradient(
-                        colors: [UI01Material.royal, UI01Material.navy],
-                        startPoint: .top, endPoint: .bottom
-                    ))
-                    .overlay(alignment: .top) {
-                        if enabled {
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.white.opacity(0.42), Color.white.opacity(0)],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                                .frame(height: compact ? 11 : 16)
-                                .padding(.horizontal, compact ? 10 : 16)
-                                .offset(y: 3)
-                                .allowsHitTesting(false)
-                        }
-                    }
-                    .overlay(Capsule().strokeBorder(
-                        enabled ? UI01Material.goldLight : UI01Material.secondary.opacity(0.25),
-                        lineWidth: contrast == .increased ? 1.5 : 0.85
-                    ))
-                    .shadow(color: enabled ? UI01Material.gold.opacity(0.36) : .clear, radius: 10, y: 4)
-                }
-                .opacity(enabled ? 1 : 0.65)
-                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+                .modifier(LiquidPrimaryGlass(reduceTransparency: reduceTransparency, contrast: contrast, enabled: enabled))
+                .opacity(enabled ? 1 : 0.55)
+                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
                 .contentShape(Capsule())
         }
+    }
+}
+
+private struct LiquidPrimaryGlass: ViewModifier {
+    let reduceTransparency: Bool
+    let contrast: ColorSchemeContrast
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if reduceTransparency || contrast == .increased {
+            content.background(UI01Material.royal, in: Capsule())
+                .overlay(Capsule().strokeBorder(UI01Material.goldLight.opacity(enabled ? 0.7 : 0.3), lineWidth: 1).allowsHitTesting(false))
+        } else if #available(iOS 26.0, *) {
+            content.glassEffect(.regular.tint(UI01Material.gold.opacity(enabled ? 0.26 : 0.08)), in: .capsule)
+                .overlay(primaryRim.allowsHitTesting(false))
+        } else {
+            content
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay(Capsule().fill(UI01Material.gold.opacity(enabled ? 0.18 : 0.06)))
+                .overlay(primaryRim.allowsHitTesting(false))
+        }
+    }
+
+    private var primaryRim: some View {
+        Capsule().strokeBorder(
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.7),
+                    UI01Material.goldLight.opacity(0.55),
+                    Color.white.opacity(0.16)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            ),
+            lineWidth: 0.7
+        )
     }
 }
 
@@ -371,7 +400,6 @@ struct UI01DockInstrument: View {
             .symbolRenderingMode(.hierarchical)
             .font(.system(size: selected ? 24 : 22, weight: .semibold))
             .foregroundStyle(selected ? UI01Material.goldLight : UI01Material.secondary)
-            .shadow(color: selected ? UI01Material.gold.opacity(0.45) : .clear, radius: 5, y: 0)
             .frame(width: 28, height: 28)
             .accessibilityHidden(true)
     }
@@ -382,18 +410,14 @@ struct UI01DockLabel: View {
     let selected: Bool
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 3) {
             UI01DockInstrument(section: section, selected: selected)
             Text(section.title)
-                .font(.caption2.weight(selected ? .bold : .medium))
-                .foregroundStyle(selected ? UI01Material.goldLight : UI01Material.silver)
+                .font(.caption2.weight(selected ? .semibold : .regular))
+                .foregroundStyle(selected ? UI01Material.silver : UI01Material.secondary)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Circle().fill(selected ? UI01Material.goldGradient : LinearGradient(colors: [.clear, .clear], startPoint: .top, endPoint: .bottom))
-                .frame(width: selected ? 6 : 5, height: selected ? 6 : 5)
-                .shadow(color: selected ? UI01Material.gold.opacity(0.7) : .clear, radius: 4, y: 0)
-                .accessibilityHidden(true)
         }
         // Navigation remains simultaneously available at accessibility sizes;
         // the full unabridged name is always exposed to VoiceOver.
@@ -402,29 +426,21 @@ struct UI01DockLabel: View {
         .padding(.vertical, 4)
         .background {
             if selected {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                UI01Material.navy.opacity(0.22),
-                                UI01Material.royal.opacity(0.78)
+                                Color.white.opacity(0.28),
+                                Color.white.opacity(0.08)
                             ],
                             startPoint: .top,
                             endPoint: .bottom
                         )
                     )
                     .overlay {
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .strokeBorder(
-                                LinearGradient(
-                                    colors: [UI01Material.goldLight, UI01Material.gold.opacity(0.42)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                ),
-                                lineWidth: 1.15
-                            )
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.32), lineWidth: 0.5)
                     }
-                    .shadow(color: UI01Material.gold.opacity(0.22), radius: 8, y: 0)
             }
         }
         .contentShape(Rectangle())

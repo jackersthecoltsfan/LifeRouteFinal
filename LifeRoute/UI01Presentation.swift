@@ -217,32 +217,35 @@ struct UI01SecondaryButtonStyle: ButtonStyle {
 struct UI01CompactControlSurface: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.lifeRouteTheme) private var theme
 
     func body(content: Content) -> some View {
+        let shade = theme.palette.backgroundTop
         if reduceTransparency || contrast == .increased {
             content.background(UI01Material.royal, in: Capsule())
                 .overlay(Capsule().strokeBorder(UI01Material.secondary.opacity(0.5), lineWidth: 1).allowsHitTesting(false))
         } else if #available(iOS 26.0, *) {
-            content.glassEffect(.regular.tint(UI01Material.royal.opacity(0.22)), in: .capsule)
-                .overlay(Self.jewelRim.allowsHitTesting(false))
+            content.glassEffect(.clear.tint(shade.opacity(0.05)), in: .capsule)
+                .overlay(jewelRim.allowsHitTesting(false))
         } else {
-            content.background(.ultraThinMaterial.opacity(0.92), in: Capsule())
-                .overlay(Self.jewelRim.allowsHitTesting(false))
+            content.background(.ultraThinMaterial.opacity(0.18), in: Capsule())
+                .overlay(Capsule().fill(shade.opacity(0.04)))
+                .overlay(jewelRim.allowsHitTesting(false))
         }
     }
 
-    private static var jewelRim: some View {
+    private var jewelRim: some View {
         Capsule().strokeBorder(
             LinearGradient(
                 colors: [
-                    Color.white.opacity(0.62),
-                    UI01Material.goldLight.opacity(0.34),
-                    Color.white.opacity(0.14)
+                    Color.white.opacity(0.5),
+                    theme.palette.backgroundTop.opacity(0.28),
+                    Color.white.opacity(0.12)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
-            lineWidth: 0.6
+            lineWidth: 0.55
         )
     }
 }
@@ -294,18 +297,20 @@ private struct LiquidPrimaryGlass: ViewModifier {
     let reduceTransparency: Bool
     let contrast: ColorSchemeContrast
     let enabled: Bool
+    @Environment(\.lifeRouteTheme) private var theme
 
     func body(content: Content) -> some View {
+        let shade = theme.palette.backgroundTop
         if reduceTransparency || contrast == .increased {
             content.background(UI01Material.royal, in: Capsule())
                 .overlay(Capsule().strokeBorder(UI01Material.goldLight.opacity(enabled ? 0.7 : 0.3), lineWidth: 1).allowsHitTesting(false))
         } else if #available(iOS 26.0, *) {
-            content.glassEffect(.regular.tint(UI01Material.gold.opacity(enabled ? 0.26 : 0.08)), in: .capsule)
+            content.glassEffect(.clear.tint(shade.opacity(enabled ? 0.06 : 0.03)), in: .capsule)
                 .overlay(primaryRim.allowsHitTesting(false))
         } else {
             content
-                .background(.ultraThinMaterial, in: Capsule())
-                .overlay(Capsule().fill(UI01Material.gold.opacity(enabled ? 0.18 : 0.06)))
+                .background(.ultraThinMaterial.opacity(0.14), in: Capsule())
+                .overlay(Capsule().fill(shade.opacity(enabled ? 0.05 : 0.02)))
                 .overlay(primaryRim.allowsHitTesting(false))
         }
     }
@@ -314,14 +319,14 @@ private struct LiquidPrimaryGlass: ViewModifier {
         Capsule().strokeBorder(
             LinearGradient(
                 colors: [
-                    Color.white.opacity(0.7),
-                    UI01Material.goldLight.opacity(0.55),
-                    Color.white.opacity(0.16)
+                    Color.white.opacity(0.55),
+                    theme.palette.backgroundTop.opacity(0.35),
+                    UI01Material.goldLight.opacity(0.28)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
-            lineWidth: 0.7
+            lineWidth: 0.65
         )
     }
 }

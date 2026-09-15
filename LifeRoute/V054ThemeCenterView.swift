@@ -5,7 +5,9 @@ struct V054ThemeCenterView: View {
     @EnvironmentObject private var themeStore: LifeRouteThemeStore
 
     @StateObject private var visibilityEpisode = LifeRouteThemeVisibilityEpisode()
-    @State private var selectedCategory: ScenicRoyalThemeCategory = .core
+    // A newly pushed selector must describe the selected theme immediately,
+    // before the navigation exposure callback arrives after the transition.
+    @State private var selectedCategory: ScenicRoyalThemeCategory?
     /// Sol/Terra can observe Theme Center visibility without a second global
     /// coordinator. `true` is emitted when the catalog becomes visible and
     /// `false` when navigation removes it, including back-navigation.
@@ -24,12 +26,12 @@ struct V054ThemeCenterView: View {
                 )
 
                 ScenicRoyalThemeCategoryPicker(
-                    selection: $selectedCategory,
+                    selection: Binding(get: { displayedCategory }, set: { selectedCategory = $0 }),
                     onSelection: LifeRouteHaptics.selection
                 )
 
                 ScenicRoyalThemeSectionHeading(
-                    category: selectedCategory,
+                    category: displayedCategory,
                     count: filteredThemes.count
                 )
 
@@ -37,7 +39,7 @@ struct V054ThemeCenterView: View {
                     ForEach(filteredThemes) { theme in
                         ScenicRoyalThemeCard(
                             theme: theme,
-                            category: selectedCategory,
+                            category: displayedCategory,
                             isSelected: themeStore.selectedTheme == theme,
                             action: {
                                 select(theme)
@@ -54,7 +56,7 @@ struct V054ThemeCenterView: View {
         .navigationBarTitleDisplayMode(.inline)
         .lifeRouteReconcile { context in
             visibilityEpisode.reconcile(context, initialize: {
-                selectedCategory = category(for: themeStore.selectedTheme)
+                if selectedCategory == nil { selectedCategory = category(for: themeStore.selectedTheme) }
             }, visibilityChanged: onVisibilityChanged)
         }
         // Keep the iOS 16 deployment path; this single-value overload is
@@ -76,12 +78,16 @@ struct V054ThemeCenterView: View {
     }
 
     private var filteredThemes: [LifeRouteTheme] {
-        switch selectedCategory {
+        switch displayedCategory {
         case .core:
             return LifeRouteTheme.phaseOneCoreGlassCatalog
         case .living:
             return LifeRouteTheme.livingThemeCatalog
         }
+    }
+
+    private var displayedCategory: ScenicRoyalThemeCategory {
+        selectedCategory ?? category(for: themeStore.selectedTheme)
     }
 
     private func category(for theme: LifeRouteTheme) -> ScenicRoyalThemeCategory {

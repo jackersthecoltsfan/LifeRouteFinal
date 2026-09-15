@@ -391,7 +391,7 @@ private struct LifeRouteRootPagingToolbar: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 7)
-        .modifier(UI01CompactControlSurface())
+        .modifier(UI01DockSurface())
         .accessibilityElement(children: .contain)
     }
 }

@@ -29,7 +29,7 @@ struct ScenicRoyalToolbar: View {
             }
         }
         .padding(4)
-        .modifier(UI01CompactControlSurface())
+        .modifier(UI01DockSurface())
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Main navigation")
         .animation(

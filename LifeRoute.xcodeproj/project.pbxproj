@@ -71,6 +71,7 @@
 		A10000000000000000000063 /* LivingRainforest.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000063 /* LivingRainforest.metal */; };
 		D91500000000000000000001 /* BoardArtifact.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91500000000000000000011 /* BoardArtifact.swift */; };
 		D91500000000000000000002 /* BoardEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91500000000000000000012 /* BoardEditor.swift */; };
+		D91500000000000000000003 /* LifeRouteDockGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91500000000000000000013 /* LifeRouteDockGlyph.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -168,6 +169,7 @@
 		A20000000000000000000063 /* LivingRainforest.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = LivingRainforest.metal; sourceTree = "<group>"; };
 		D91500000000000000000011 /* BoardArtifact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardArtifact.swift; sourceTree = "<group>"; };
 		D91500000000000000000012 /* BoardEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoardEditor.swift; sourceTree = "<group>"; };
+		D91500000000000000000013 /* LifeRouteDockGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeRouteDockGlyph.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -214,6 +216,7 @@
 				A20000000000000000000040 /* ScenicRoyalThemeBridge.swift */,
 				A20000000000000000000041 /* ScenicRoyalComponents.swift */,
 				A20000000000000000000042 /* ScenicRoyalToolbar.swift */,
+				D91500000000000000000013 /* LifeRouteDockGlyph.swift */,
 				A20000000000000000000068 /* UI01Presentation.swift */,
 				A20000000000000000000044 /* ScenicRoyalScheduleComponents.swift */,
 				A20000000000000000000046 /* ScenicRoyalToolsComponents.swift */,
@@ -426,6 +429,7 @@
 				A10000000000000000000040 /* ScenicRoyalThemeBridge.swift in Sources */,
 				A10000000000000000000041 /* ScenicRoyalComponents.swift in Sources */,
 				A10000000000000000000042 /* ScenicRoyalToolbar.swift in Sources */,
+				D91500000000000000000003 /* LifeRouteDockGlyph.swift in Sources */,
 				A10000000000000000000068 /* UI01Presentation.swift in Sources */,
 				A10000000000000000000044 /* ScenicRoyalScheduleComponents.swift in Sources */,
 				A10000000000000000000046 /* ScenicRoyalToolsComponents.swift in Sources */,

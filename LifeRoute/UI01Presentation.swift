@@ -270,63 +270,70 @@ struct UI01TrailRow<Content: View>: View {
     }
 }
 
-/// Native symbols share one optical treatment inside the existing dock buttons.
-struct UI01DockInstrument: View {
-    let section: AppSection
-    let selected: Bool
+/// The dock owns one native glass surface independently of other compact controls.
+struct UI01DockSurface: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
 
-    static func symbolName(for section: AppSection) -> String {
-        switch section {
-        case .today: return "sun.max.fill"
-        case .schedule: return "calendar"
-        case .tools: return "wrench.and.screwdriver.fill"
-        case .resources: return "book.fill"
-        case .setup: return "gearshape.fill"
+    func body(content: Content) -> some View {
+        if reduceTransparency || contrast == .increased {
+            content.background(UI01Material.royal, in: Capsule())
+                .overlay(Capsule().strokeBorder(UI01Material.secondary.opacity(0.5), lineWidth: 1).allowsHitTesting(false))
+        } else if #available(iOS 26.0, *) {
+            content.glassEffect(.clear.interactive(), in: .capsule)
+        } else {
+            content.background(UI01Material.royal.opacity(0.94), in: Capsule())
+                .overlay(Capsule().strokeBorder(UI01Material.secondary.opacity(0.22), lineWidth: 0.5).allowsHitTesting(false))
         }
     }
+}
+
+/// Fixed vector silhouettes share one stroke and route-node vocabulary.
+struct UI01DockInstrument: View {
+    let section: AppSection
 
     var body: some View {
-        Image(systemName: Self.symbolName(for: section))
-            .symbolRenderingMode(.hierarchical)
-            .font(.system(size: 23, weight: .semibold))
-            .foregroundStyle(selected ? UI01Material.goldLight : UI01Material.secondary)
+        LifeRouteDockGlyph(section: section)
+            .stroke(style: StrokeStyle(lineWidth: 1.65, lineCap: .round, lineJoin: .round))
             .frame(width: 28, height: 28)
             .accessibilityHidden(true)
     }
 }
 
 struct UI01DockLabel: View {
+    @Environment(\.scenicRoyalThemeStyle) private var themeStyle
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
     let section: AppSection
     let selected: Bool
 
+    private var foreground: Color {
+        if #available(iOS 26.0, *), !reduceTransparency, contrast != .increased,
+           themeStyle.isBrightEnvironment {
+            return selected ? UI01Material.goldShade : themeStyle.contentPrimaryForeground
+        }
+        return selected ? UI01Material.goldLight : UI01Material.silver
+    }
+
     var body: some View {
         VStack(spacing: 4) {
-            UI01DockInstrument(section: section, selected: selected)
+            UI01DockInstrument(section: section)
             Text(section.title)
                 .font(.caption2.weight(selected ? .semibold : .medium))
-                .foregroundStyle(selected ? UI01Material.goldLight : UI01Material.silver)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Circle().fill(selected ? UI01Material.goldGradient : LinearGradient(colors: [.clear, .clear], startPoint: .top, endPoint: .bottom))
+            Circle().fill(selected ? foreground : .clear)
                 .frame(width: 5, height: 5)
                 .accessibilityHidden(true)
         }
+        .foregroundStyle(foreground)
         // Navigation remains simultaneously available at accessibility sizes;
         // the full unabridged name is always exposed to VoiceOver.
         .dynamicTypeSize(.xSmall ... .xxxLarge)
         .frame(maxWidth: .infinity, minHeight: 54)
         .padding(.vertical, 4)
-        .background {
-            if selected {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(UI01Material.royalLight.opacity(0.6))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .strokeBorder(UI01Material.gold.opacity(0.75), lineWidth: 1)
-                    }
-            }
-        }
         .contentShape(Rectangle())
     }
 }

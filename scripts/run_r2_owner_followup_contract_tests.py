@@ -27,12 +27,12 @@ def declaration(path, marker):
     return text[start:end]
 
 
-source = 'import Foundation\n'
+source = 'import Foundation\nimport SwiftUI\n'
 source += declaration(root/'LifeRoute/CalendarDomain.swift', 'enum LifeRouteCalendarRange:')
 source += '\n' + declaration(root/'LifeRoute/V054ScheduleView.swift', 'enum LifeRouteCalendarDisplayMode:')
 source += '\n' + declaration(root/'LifeRoute/V054TodayView.swift', 'enum LifeRouteItineraryScrollPolicy {')
 source += '\nenum AppSection { case today, schedule, tools, resources, setup }\n'
-source += 'enum DockPolicy {\n' + declaration(root/'LifeRoute/UI01Presentation.swift', 'static func symbolName(for section: AppSection)') + '\n}\n'
+source += '\n' + declaration(root/'LifeRoute/LifeRouteDockGlyph.swift', 'struct LifeRouteDockGlyph: Shape') + '\n'
 source += r'''
 var checks = 0
 func check(_ condition: @autoclosure () -> Bool, _ message: String) {
@@ -54,8 +54,46 @@ for zone in ["America/New_York", "Pacific/Honolulu", "Asia/Tokyo"] {
     check(LifeRouteCalendarDisplayMode.month.title(selectedDate: sameDay, now: now, calendar: calendar) == "Month", "Month label is stable")
     check(LifeRouteCalendarDisplayMode.month.title(selectedDate: otherDay, now: now, calendar: calendar) == "Month", "Month preserves its label across dates")
 }
-for (section, symbol) in [(AppSection.today, "sun.max.fill"), (.schedule, "calendar"), (.tools, "wrench.and.screwdriver.fill"), (.resources, "book.fill"), (.setup, "gearshape.fill")] {
-    check(DockPolicy.symbolName(for: section) == symbol, "Centralized native dock mapping")
+let dockSections: [AppSection] = [.today, .schedule, .tools, .resources, .setup]
+for size: CGFloat in [24, 28, 44] {
+    let frame = CGRect(x: 7, y: 11, width: size, height: size)
+    let paths = dockSections.map { LifeRouteDockGlyph(section: $0).path(in: frame) }
+    for path in paths {
+        check(!path.isEmpty, "Every root has visible native vector geometry")
+        let bounds = path.boundingRect
+        check(frame.insetBy(dx: 0.825, dy: 0.825).contains(bounds), "Native glyph retains stroke clearance inside its frame")
+        check(bounds.width >= size * 0.5 && bounds.height >= size * 0.5, "Native glyph remains recognizable at toolbar scale")
+    }
+    for first in paths.indices {
+        for second in paths.indices where second > first {
+            check(!CFEqual(paths[first].cgPath, paths[second].cgPath), "Every root has a distinct native vector silhouette")
+        }
+    }
+}
+func coordinates(_ path: Path) -> [CGFloat] {
+    var values: [CGFloat] = []
+    path.cgPath.applyWithBlock { element in
+        let value = element.pointee
+        values.append(CGFloat(value.type.rawValue))
+        let count: Int
+        switch value.type {
+        case .moveToPoint, .addLineToPoint: count = 1
+        case .addQuadCurveToPoint: count = 2
+        case .addCurveToPoint: count = 3
+        case .closeSubpath: count = 0
+        @unknown default: count = 0
+        }
+        for index in 0..<count { values += [value.points[index].x, value.points[index].y] }
+    }
+    return values
+}
+let wideFrame = CGRect(x: 0, y: 0, width: 56, height: 28)
+for section in dockSections {
+    let square = LifeRouteDockGlyph(section: section).path(in: CGRect(x: 0, y: 0, width: 28, height: 28))
+    let expected = square.applying(CGAffineTransform(translationX: 14, y: 0))
+    let wide = LifeRouteDockGlyph(section: section).path(in: wideFrame)
+    let actualPoints = coordinates(wide), expectedPoints = coordinates(expected)
+    check(actualPoints.count == expectedPoints.count && zip(actualPoints, expectedPoints).allSatisfy { abs($0 - $1) < 0.0001 }, "A wide proposal centers each glyph without stretching it")
 }
 func owns(_ x: Double, _ y: Double, _ offset: Double, _ maximum: Double = 400) -> Bool {
     LifeRouteItineraryScrollPolicy.innerOwnsPan(horizontalVelocity: x, verticalVelocity: y, offsetY: offset, minimumOffsetY: 0, maximumOffsetY: maximum)

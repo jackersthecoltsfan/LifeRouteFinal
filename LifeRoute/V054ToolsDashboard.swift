@@ -447,6 +447,11 @@ struct VisualAIAssistedStudioView: View {
         }
     }
 
+    private var selectedClient: LifeRouteClientProfile? {
+        guard selectedClientCode != ClientVisualSupportCore.generalClientCode else { return nil }
+        return clientState.client(code: selectedClientCode)
+    }
+
     private var libraryDisplayName: String {
         selectedClientCode == ClientVisualSupportCore.generalClientCode ? "General" : selectedClientCode
     }

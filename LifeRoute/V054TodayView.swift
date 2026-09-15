@@ -36,7 +36,26 @@ private struct LifeRouteItineraryContent<Content: View>: View {
     let inheritedEnvironment: EnvironmentValues
 
     var body: some View {
-        content.environment(\.self, inheritedEnvironment)
+        content
+            .transformEnvironment(\.self) { values in
+                // Relay presentation inputs without replacing the new host's
+                // accessibility, gesture, focus, and presentation bridges.
+                values.lifeRouteTheme = inheritedEnvironment.lifeRouteTheme
+                values.lifeRoutePalette = inheritedEnvironment.lifeRoutePalette
+                values.scenicRoyalThemeStyle = inheritedEnvironment.scenicRoyalThemeStyle
+                values.dynamicTypeSize = inheritedEnvironment.dynamicTypeSize
+                values.colorScheme = inheritedEnvironment.colorScheme
+                values.legibilityWeight = inheritedEnvironment.legibilityWeight
+                values.displayScale = inheritedEnvironment.displayScale
+                values.horizontalSizeClass = inheritedEnvironment.horizontalSizeClass
+                values.verticalSizeClass = inheritedEnvironment.verticalSizeClass
+                values.layoutDirection = inheritedEnvironment.layoutDirection
+                values.locale = inheritedEnvironment.locale
+                values.calendar = inheritedEnvironment.calendar
+                values.timeZone = inheritedEnvironment.timeZone
+                values.isEnabled = inheritedEnvironment.isEnabled
+            }
+            .tint(inheritedEnvironment.scenicRoyalThemeStyle.selectedControlFill)
     }
 }
 
@@ -77,7 +96,8 @@ private final class LifeRouteItineraryController<Content: View>: UIViewControlle
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         let maximumOffset = max(0, scrollView.contentSize.height - scrollView.bounds.height)
-        scrollView.isScrollEnabled = maximumOffset > 0.5
+        // Keep the native accessibility container enabled even for short content.
+        // The pan policy already declines every gesture when nothing overflows.
         if scrollView.contentOffset.y > maximumOffset {
             scrollView.setContentOffset(CGPoint(x: 0, y: maximumOffset), animated: false)
         }
@@ -435,7 +455,7 @@ struct V054TodayView: View {
                     .foregroundStyle(UI01Material.secondary)
             }
 
-            if let itinerary = selectedItinerary {
+            if selectedItinerary != nil {
                 if !itineraryIsCurrent {
                     Label(
                         "Appointments, stops, location, or route settings changed. Regenerate before using departure guidance.",

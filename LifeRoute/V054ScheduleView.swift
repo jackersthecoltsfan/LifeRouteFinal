@@ -2,9 +2,11 @@ import SwiftUI
 
 /// Calendar's two visible modes adapt the existing date engine. Historical
 /// Week values restore as Day without changing the selected date or events.
-enum LifeRouteCalendarDisplayMode: CaseIterable, Hashable {
+enum LifeRouteCalendarDisplayMode: CaseIterable, Hashable, Identifiable {
     case day
     case month
+
+    var id: Self { self }
 
     init(restoring range: LifeRouteCalendarRange) {
         self = range == .month ? .month : .day

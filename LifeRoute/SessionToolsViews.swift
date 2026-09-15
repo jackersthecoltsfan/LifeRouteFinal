@@ -659,10 +659,10 @@ struct ClientVisualSupportCenter: View {
 
                     LazyVStack(spacing: 8) {
                         NavigationLink {
-                            ClientVisualIconLibraryView(visualState: visualState, clientCode: selectedClientCode)
+                            ClientVisualIconLibraryView(visualState: visualState, clientCode: selectedClientCode, presentation: .library)
                             .lifeRouteDeepDestination()
                         } label: {
-                            VisualWorkspaceCard(title: "Icon Library", subtitle: "Photos, text, or illustrated icons", systemImage: "photo.on.rectangle.angled")
+                            VisualWorkspaceCard(title: "Image Library", subtitle: "Use and manage saved visual assets", systemImage: "photo.on.rectangle.angled")
                         }
                         .buttonStyle(.plain)
 
@@ -704,7 +704,7 @@ struct ClientVisualSupportCenter: View {
             .padding(18)
             .padding(.bottom, 24)
         }
-        .navigationTitle("Visual Supports")
+        .navigationTitle("Boards")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { validateSelectedLibrary() }
         .onReceive(clientState.$clients) { _ in validateSelectedLibrary() }
@@ -715,7 +715,7 @@ struct ClientVisualSupportCenter: View {
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Saved visuals")
+                Text("Saved boards")
                     .font(.title3.weight(.bold))
                     .foregroundStyle(palette.textPrimary)
                 Spacer()
@@ -774,8 +774,8 @@ struct ClientVisualSupportCenter: View {
             .frame(width: 54, height: 54)
 
             VStack(alignment: .leading, spacing: 5) {
-                UI01MarbleText(title: "Visual workspace", size: 30, relativeTo: .title)
-                Text("Create general or client-specific icons, choice boards, and First / Then visuals.")
+                UI01MarbleText(title: "Boards", size: 30, relativeTo: .title)
+                Text("Create Choice Boards and First / Then visuals, or reopen a saved board.")
                     .font(.subheadline)
                     .foregroundStyle(palette.textSecondary)
             }
@@ -937,6 +937,12 @@ struct ClientVisualIconLibraryView: View {
     @ObservedObject var visualState: ClientVisualSupportCore
     let clientCode: String
     var embedded = false
+    enum Presentation: Equatable { case combined, generator, library }
+    var presentation: Presentation = .combined
+
+    private var destinationTitle: String {
+        presentation == .generator ? "Image Generator" : "Image Library"
+    }
     @State private var label = ""
     @State private var visualDescription = ""
     @State private var inputMethod: VisualSupportInputMethod = .textOnly
@@ -956,13 +962,14 @@ struct ClientVisualIconLibraryView: View {
             LazyVStack(spacing: 16) {
                 if !embedded {
                     VisualBuilderHero(
-                        title: "Icon Library",
-                        subtitle: "Create exact-label photo, text, or illustrated ABA visuals for \(libraryName).",
+                        title: destinationTitle,
+                        subtitle: presentation == .library ? "Saved image and text visuals for \(libraryName)." : "Create exact-label photo, text, or illustrated ABA visuals for \(libraryName).",
                         clientCode: libraryName,
                         systemImage: "photo.on.rectangle.angled"
                     )
                 }
 
+                if presentation != .library {
                 VStack(alignment: .leading, spacing: 13) {
                     HStack {
                         Text("Create visual")
@@ -1147,9 +1154,12 @@ struct ClientVisualIconLibraryView: View {
                 }
                 .lifeRouteCard()
 
+                }
+
+                if presentation != .generator {
                 VStack(alignment: .leading, spacing: 11) {
                     HStack {
-                        Text("\(libraryName) icon library")
+                        Text("Saved images")
                             .font(.title3.weight(.bold))
                             .foregroundStyle(palette.textPrimary)
                         Spacer()
@@ -1194,14 +1204,25 @@ struct ClientVisualIconLibraryView: View {
                     }
                 }
                 .lifeRouteCard()
+                }
             }
             .padding(.horizontal, embedded ? 0 : 18)
             .padding(.bottom, 24)
         }
         .scrollDismissesKeyboard(.interactively)
-        .navigationTitle(embedded ? "Visual AI Studio" : "\(libraryName) Icons")
+        .navigationTitle(embedded ? "Visual Supports" : destinationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if presentation != .combined {
+                    NavigationLink {
+                        ClientVisualIconLibraryView(visualState: visualState, clientCode: clientCode, presentation: presentation == .library ? .generator : .library)
+                            .lifeRouteDeepDestination()
+                    } label: {
+                        Text(presentation == .library ? "Image Generator" : "Image Library")
+                    }
+                }
+            }
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
                 Button("Done") { focusedInput = nil }

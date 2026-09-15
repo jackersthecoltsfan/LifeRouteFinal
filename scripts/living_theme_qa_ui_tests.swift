@@ -175,8 +175,8 @@ final class NativeUI: XCTestCase {
             print("CALENDAR_VIEWPORT " + label + " " + String(describing: viewport))
             if orientation != .portrait { XCTAssertGreaterThan(viewport.width, viewport.height) }
             attachTree(app, "Calendar geometry " + label)
-            for range in ["Day", "Week", "Month"] {
-                let button = app.buttons[range].firstMatch
+            for range in ["Today", "Month"] {
+                let button = app.otherElements["calendar.range"].buttons[range].firstMatch
                 for _ in 0..<5 { if button.isHittable { break }; app.scrollViews["calendar.scroll"].swipeDown() }
                 XCTAssertTrue(button.isHittable, "Range reachable after rotation: " + range)
                 button.tap()

@@ -1,5 +1,111 @@
 import Foundation
 import SwiftUI
+import UIKit
+
+/// Only the itinerary decides whether it can consume a new pan. At an edge,
+/// its existing ancestor ScrollView gets the next swipe.
+enum LifeRouteItineraryScrollPolicy {
+    static func innerOwnsPan(horizontalVelocity: Double, verticalVelocity: Double,
+                            offsetY: Double, minimumOffsetY: Double, maximumOffsetY: Double,
+                            tolerance: Double = 0.5) -> Bool {
+        guard abs(verticalVelocity) > abs(horizontalVelocity),
+              maximumOffsetY > minimumOffsetY + tolerance else { return false }
+        if verticalVelocity < 0, offsetY >= maximumOffsetY - tolerance { return false }
+        if verticalVelocity > 0, offsetY <= minimumOffsetY + tolerance { return false }
+        return verticalVelocity != 0
+    }
+}
+
+private final class LifeRouteItineraryScrollView: UIScrollView {
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        if gestureRecognizer === panGestureRecognizer {
+            let velocity = panGestureRecognizer.velocity(in: self)
+            let minimum = -adjustedContentInset.top
+            let maximum = max(minimum, contentSize.height - bounds.height + adjustedContentInset.bottom)
+            guard LifeRouteItineraryScrollPolicy.innerOwnsPan(
+                horizontalVelocity: velocity.x, verticalVelocity: velocity.y,
+                offsetY: contentOffset.y, minimumOffsetY: minimum, maximumOffsetY: maximum
+            ) else { return false }
+        }
+        return super.gestureRecognizerShouldBegin(gestureRecognizer)
+    }
+}
+
+private struct LifeRouteItineraryContent<Content: View>: View {
+    let content: Content
+    let inheritedEnvironment: EnvironmentValues
+
+    var body: some View {
+        content.environment(\.self, inheritedEnvironment)
+    }
+}
+
+private final class LifeRouteItineraryController<Content: View>: UIViewController {
+    let scrollView = LifeRouteItineraryScrollView()
+    let host: UIHostingController<LifeRouteItineraryContent<Content>>
+
+    init(content: Content, environment: EnvironmentValues) {
+        host = UIHostingController(rootView: LifeRouteItineraryContent(content: content, inheritedEnvironment: environment))
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func loadView() {
+        view = scrollView
+        scrollView.backgroundColor = .clear
+        scrollView.bounces = false
+        scrollView.alwaysBounceVertical = false
+        scrollView.isDirectionalLockEnabled = true
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.accessibilityIdentifier = "today.itinerary"
+        addChild(host)
+        host.view.backgroundColor = .clear
+        host.sizingOptions = .intrinsicContentSize
+        host.view.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(host.view)
+        NSLayoutConstraint.activate([
+            host.view.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            host.view.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+            host.view.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+            host.view.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+            host.view.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
+        ])
+        host.didMove(toParent: self)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let maximumOffset = max(0, scrollView.contentSize.height - scrollView.bounds.height)
+        scrollView.isScrollEnabled = maximumOffset > 0.5
+        if scrollView.contentOffset.y > maximumOffset {
+            scrollView.setContentOffset(CGPoint(x: 0, y: maximumOffset), animated: false)
+        }
+    }
+}
+
+/// A leaf content host, with no navigation or action owner. Native fitting keeps
+/// short schedules at their natural height without publishing geometry state.
+private struct LifeRouteBoundedItinerary<Content: View>: UIViewControllerRepresentable {
+    let maximumHeight: CGFloat
+    @ViewBuilder let content: Content
+
+    func makeUIViewController(context: Context) -> LifeRouteItineraryController<Content> {
+        LifeRouteItineraryController(content: content, environment: context.environment)
+    }
+
+    func updateUIViewController(_ controller: LifeRouteItineraryController<Content>, context: Context) {
+        controller.host.rootView = LifeRouteItineraryContent(content: content, inheritedEnvironment: context.environment)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiViewController controller: LifeRouteItineraryController<Content>, context: Context) -> CGSize? {
+        guard let width = proposal.width, width > 0, width.isFinite else { return nil }
+        controller.loadViewIfNeeded()
+        let natural = controller.host.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude))
+        let height = min(maximumHeight, ceil(natural.height))
+        return CGSize(width: width, height: height)
+    }
+}
 
 /// UI-01 native Today proof. Calendar owns schedule browsing; Today owns
 /// the selected day's route generation, canonical itinerary, departure guidance,
@@ -90,11 +196,12 @@ struct V054TodayView: View {
     }
 
     var body: some View {
+        GeometryReader { geometry in
         ScrollView {
             LazyVStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
                 commandHeader
                 TimelineView(LifeRoutePresentationClock(interval: 1, active: visibility.active)) { context in
-                    itineraryCard(now: context.date)
+                    itineraryCard(now: context.date, viewportHeight: geometry.size.height)
                     commandStatusContent(now: context.date)
                 }
                 if let itinerary = authoritativeItinerary,
@@ -110,6 +217,8 @@ struct V054TodayView: View {
             .padding(.bottom, ScenicRoyalDesignSystem.Spacing.spacious * 2)
         }
         .scrollIndicators(.hidden)
+        .accessibilityIdentifier("today.page")
+        }
         .background(Color.clear)
         .foregroundStyle(UI01Material.silver)
         .tint(UI01Material.goldLight)
@@ -282,18 +391,6 @@ struct V054TodayView: View {
                             .foregroundStyle(UI01Material.secondary)
                     }
                 }
-                } else if authoritativeItinerary == nil {
-                    Button {
-                        generateFullDay()
-                    } label: {
-                        VStack(spacing: 4) {
-                            if planState.isCalculating { ProgressView() }
-                            Text(planState.isCalculating ? "Generating day route…" : (selectedItinerary == nil ? "Generate route" : "Regenerate route"))
-                                .font(.caption.weight(.bold))
-                        }
-                    }
-                    .buttonStyle(UI01GoldButtonStyle(compact: true))
-                    .disabled(planState.isCalculating || !canGenerate)
                 }
             }
 
@@ -314,7 +411,23 @@ struct V054TodayView: View {
         .modifier(UI01ReadingZone())
     }
 
-    private func itineraryCard(now: Date) -> some View {
+    private var generationAction: some View {
+            Button {
+                generateFullDay()
+            } label: {
+                HStack {
+                if planState.isCalculating { ProgressView() }
+                Text(planState.isCalculating
+                    ? "Generating day route…"
+                    : (selectedItinerary == nil ? "Generate Full Day" : "Regenerate Full Day"))
+                }
+            }
+            .buttonStyle(UI01GoldButtonStyle())
+            .disabled(planState.isCalculating || !canGenerate)
+            .accessibilityIdentifier("today.generate")
+    }
+
+    private func itineraryCard(now: Date, viewportHeight: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
             if let itinerary = selectedItinerary {
                 Text("\(durationLabel(itinerary.totalRawTravelSeconds)) driving")
@@ -331,10 +444,22 @@ struct V054TodayView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(UI01Material.goldLight)
                 }
-                timeline(itinerary, now: now)
+            }
+
+            LifeRouteBoundedItinerary(maximumHeight: min(280, max(132, viewportHeight * (dynamicTypeSize.isAccessibilitySize ? 0.25 : 0.38)))) {
+                if let itinerary = selectedItinerary {
+                    timeline(itinerary, now: now)
+                } else {
+                    ungeneratedTimeline(now: now)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .id(selectedDay)
+
+            generationAction
+
+            if let itinerary = selectedItinerary {
                 startRouteControl(itinerary, now: now)
-            } else {
-                ungeneratedTimeline(now: now)
             }
 
             if let blocker = generationBlocker {
@@ -358,19 +483,6 @@ struct V054TodayView: View {
             }
             .buttonStyle(UI01GoldButtonStyle(compact: true))
             .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
-
-            Button {
-                generateFullDay()
-            } label: {
-                HStack {
-                if planState.isCalculating { ProgressView() }
-                Text(planState.isCalculating
-                    ? "Generating day route…"
-                    : (selectedItinerary == nil ? "Generate Full Day" : "Regenerate Full Day"))
-                }
-            }
-            .buttonStyle(UI01GoldButtonStyle())
-            .disabled(planState.isCalculating || !canGenerate)
 
             DisclosureGroup(isExpanded: $routeSettingsExpanded) {
                 VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.compact) {
@@ -407,6 +519,7 @@ struct V054TodayView: View {
             }
 
             .modifier(UI01ReadingZone())
+            .accessibilityIdentifier("today.routeSettings")
 
             if !planState.isCalculating, let message = planState.message {
                 Text(message)

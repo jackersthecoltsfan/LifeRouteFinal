@@ -596,8 +596,8 @@ def validate_theme_architecture(sources: dict[str, str]) -> None:
     )
     require_all(
         schedule,
-        ["ScenicRoyalSegmentedControl(", "options: LifeRouteCalendarRange.allCases"],
-        "Calendar range semantic segmented control",
+        ["ScenicRoyalSegmentedControl(", "options: LifeRouteCalendarDisplayMode.allCases", "mode.title(selectedDate: calendarState.selectedDate)"],
+        "Calendar two-mode semantic segmented control with selected-date label",
     )
     require_all(visual_activity, ["case full", "case frozen", "case sceneryOnly", "case dynamicOnly", "case noEffects", "final class LifeRouteVisualActivityCoordinator", "private var activeRequests = Set<UUID>()", "private var themeCenterRequestID: UUID?", "func acquireAmbientSuspension() -> UUID", "func releaseAmbientSuspension(_ requestID: UUID)", "func setThemeCenterVisible(_ isVisible: Bool)", "#if DEBUG", "-LifeRouteVisualActivityMode"], "debug A/B modes and idempotent Theme Center suspension")
     require("Timer.scheduledTimer" not in app, "theme architecture must not introduce a competing Timer owner")
@@ -1026,19 +1026,17 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
             "ScenicRoyalToolTile",
             "ScenicRoyalGlassEffectContainer",
             "VisualTimerView(timer: toolsState.timer)",
-            "ClientFirstThenVisualView",
             "VisualAIAssistedStudioView",
             "QuickSessionNotesView",
             "AISessionPlanBuilderView",
             "AISessionNoteGeneratorView",
             "ScenicRoyalVisualTimerEntry()",
-            'title: "First / Then"',
             'title: "Visual Supports"',
             'title: "Quick Notes"',
             'title: "AI Session Plan"',
             'title: "AI Session Note"',
         ],
-        "Scenic Royal Tools dashboard and six approved entry points",
+        "Scenic Royal Tools dashboard and five current entry points and Boards regrouping",
     )
     require_count(dashboard, "VisualTimerView(timer: toolsState.timer)", 1, "R2 Tools hero retains exactly one existing timer destination")
     hero_entry = tool_components.split("struct ScenicRoyalVisualTimerEntry:", 1)[1]
@@ -1198,15 +1196,22 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
     require_all(
         dashboard,
         [
-            "ClientVisualIconLibraryView(",
-            "embedded: true",
-            'visualBuilderLinkLabel("Choice Boards"',
-            'visualBuilderLinkLabel("First / Then"',
+            "ClientVisualSupportCenter(",
+            "presentation: .generator",
+            "presentation: .library",
+            '"visualSupports.boards"',
+            '"visualSupports.generator"',
+            '"visualSupports.images"',
+            '.navigationTitle("Visual Supports")',
             ".scrollDismissesKeyboard(.interactively)",
         ],
-        "one-screen Visual AI Studio",
+        "R2 owner-follow-up three-destination Visual Supports hierarchy",
     )
-    require("Open Illustrated Icon Generator" not in dashboard, "Visual AI Studio must not retain the redundant generator subpage action")
+    tools_root = dashboard.split("struct VisualAIAssistedStudioView:", 1)[0]
+    require("ClientFirstThenVisualView(" not in tools_root, "First / Then lives under Boards rather than Tools root")
+    require_all(tools_views, ['.navigationTitle("Boards")', 'Text("Saved boards")',
+                             'if presentation != .library', 'if presentation != .generator'],
+                "Boards remain distinct from image creation and saved assets")
     require_all(
         tools_views,
         [
@@ -1221,7 +1226,7 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
         ],
         "explicit text, camera, and photo-library Visual AI input",
     )
-    require_count(dashboard, ".lifeRouteDeepDestination()", 9, "complete current and nested Tools destination scopes, including the independent Manual Workspace scope")
+    require_count(dashboard, ".lifeRouteDeepDestination()", 8, "five Tools entry scopes and three Visual Supports destinations")
     forbidden_network = ["URLSession.shared", "api.openai.com", "anthropic.com"]
     present = [token for token in forbidden_network if token in clinical + intelligence]
     require(not present, f"clinical generation must not add a cloud fallback: {present}")

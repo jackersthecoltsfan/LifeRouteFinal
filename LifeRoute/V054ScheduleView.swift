@@ -1,5 +1,22 @@
 import SwiftUI
 
+/// Calendar's two visible modes adapt the existing date engine. Historical
+/// Week values restore as Day without changing the selected date or events.
+enum LifeRouteCalendarDisplayMode: CaseIterable, Hashable {
+    case day
+    case month
+
+    init(restoring range: LifeRouteCalendarRange) {
+        self = range == .month ? .month : .day
+    }
+
+    var range: LifeRouteCalendarRange { self == .month ? .month : .day }
+
+    func title(selectedDate: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        self == .month ? "Month" : (calendar.isDate(selectedDate, inSameDayAs: now) ? "Today" : "Day")
+    }
+}
+
 // v0.7.0 Build C Schedule: premium agenda/calendar surface; provider, manual-event,
 // v0.7.0 Build C compile hotfix: explicit shape fills and deployment-target-safe date strip.
 // selected-day, and routing behaviors stay owned by their existing native domains.
@@ -30,7 +47,8 @@ struct V054ScheduleView: View {
     @ObservedObject var calendarState: CalendarCoreState
     @ObservedObject var providerState: CalendarProviderCore
 
-    @State private var selectedRange: LifeRouteCalendarRange = .day
+    @State private var displayMode = LifeRouteCalendarDisplayMode(restoring: .day)
+    private var selectedRange: LifeRouteCalendarRange { displayMode.range }
     @State private var showingDatePicker = false
     @State private var showingProviders = false
     @State private var presentedCalendarSheet: PresentedCalendarSheet?
@@ -69,14 +87,10 @@ struct V054ScheduleView: View {
                     compactDateStrip(compact: compactLandscape)
                 }
 
-                if selectedRange != .week { selectedDayDivider }
+                selectedDayDivider
 
                 TimelineView(LifeRoutePresentationClock(interval: 60, active: visibility.active)) { context in
-                    if selectedRange == .week {
-                        weekAgenda(now: context.date)
-                    } else {
-                        dayAgenda(now: context.date)
-                    }
+                    dayAgenda(now: context.date)
                 }
 
                 travelCard
@@ -149,6 +163,7 @@ struct V054ScheduleView: View {
             VStack(alignment: .leading, spacing: 12) {
                 calendarTitle(compact: compact)
                 calendarHeaderActions
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
     }
@@ -161,7 +176,7 @@ struct V054ScheduleView: View {
 
     private var calendarHeaderActions: some View {
         let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            ? AnyLayout(VStackLayout(alignment: .trailing, spacing: 8))
             : AnyLayout(HStackLayout(spacing: 8))
         return layout {
                 Button {
@@ -184,10 +199,10 @@ struct V054ScheduleView: View {
     private var rangeControl: some View {
         VStack(spacing: 12) {
             ScenicRoyalSegmentedControl(
-                selection: $selectedRange,
-                options: LifeRouteCalendarRange.allCases
-            ) { range in
-                Text(rangeTitle(range))
+                selection: $displayMode,
+                options: LifeRouteCalendarDisplayMode.allCases
+            ) { mode in
+                Text(mode.title(selectedDate: calendarState.selectedDate))
             }
             .padding(4)
             .modifier(UI01CompactControlSurface())
@@ -472,10 +487,6 @@ struct V054ScheduleView: View {
         return count == 0 ? "Manage" : "\(count) active"
     }
 
-    private func rangeTitle(_ range: LifeRouteCalendarRange) -> String {
-        range.rawValue
-    }
-
     private func centerSelectedDate(in proxy: ScrollViewProxy) {
         let selectedDay = Calendar.current.startOfDay(for: calendarState.selectedDate)
         guard visibility.active, lastCenteredDate != selectedDay else { return }
@@ -501,6 +512,7 @@ struct V054ScheduleView: View {
                     LifeRouteHaptics.selection()
                 }
                 .buttonStyle(ScenicRoyalSecondaryButtonStyle())
+                .accessibilityIdentifier("calendar.chooser.today")
             }
             .padding(16)
             .navigationTitle("Choose Date")
@@ -511,6 +523,7 @@ struct V054ScheduleView: View {
                 }
             }
         }
+        .accessibilityIdentifier("calendar.chooser")
         .background(UI01Material.navy.ignoresSafeArea())
         .environment(\.colorScheme, .dark)
         .presentationDetents([.medium, .large])

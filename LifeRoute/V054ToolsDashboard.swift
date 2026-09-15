@@ -50,28 +50,17 @@ struct V054ToolsDashboard: View {
                 ScenicRoyalGlassEffectContainer(spacing: ScenicRoyalDesignSystem.Spacing.standard) {
                     LazyVStack(spacing: 0) {
                         NavigationLink {
-                            ClientFirstThenVisualView(visualState: visualState, clientState: clientState)
-                                .lifeRouteDeepDestination()
-                        } label: {
-                            ScenicRoyalToolTile(
-                                title: "First / Then",
-                                subtitle: "Build a clear two-step visual sequence.",
-                                systemImage: "arrow.right.square"
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        NavigationLink {
                             VisualAIAssistedStudioView(visualState: visualState, clientState: clientState)
                                 .lifeRouteDeepDestination()
                         } label: {
                             ScenicRoyalToolTile(
                                 title: "Visual Supports",
-                                subtitle: "Create and reuse icons, boards, and ABA visuals.",
+                                subtitle: "Boards, image creation, and saved images.",
                                 systemImage: "photo.on.rectangle.angled"
                             )
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("tools.visualSupports")
 
                         NavigationLink {
                             QuickSessionNotesView(toolsState: toolsState, clientState: clientState)
@@ -234,7 +223,7 @@ struct VisualAIAssistedStudioView: View {
 
     var body: some View {
         studioContent
-            .navigationTitle("Visual AI Studio")
+            .navigationTitle("Visual Supports")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 visualState.retainClients(clientState.clients)
@@ -255,9 +244,7 @@ struct VisualAIAssistedStudioView: View {
             LazyVStack(spacing: 12) {
                 hero
                 libraryCard
-                iconAICard
                 builderAccessCard
-                manualWorkspaceCard
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
@@ -270,17 +257,11 @@ struct VisualAIAssistedStudioView: View {
         VStack(alignment: .leading, spacing: 10) {
             LifeRouteScreenHeader(
                 title: "Visual Supports",
-                subtitle: "Create and reuse client-scoped or General icons, choice boards, and visual supports.",
+                subtitle: "Choose boards, create images, or manage saved visual assets.",
                 systemImage: "photo.on.rectangle.angled"
             )
 
-            Label("AI + MANUAL WORKSPACE", systemImage: "wand.and.stars")
-                .font(.caption2.weight(.black))
-                .tracking(0.7)
-                .foregroundStyle(palette.accentSecondary)
-                .padding(.horizontal, 11)
-                .frame(minHeight: 34)
-                .ui01ScenicText()
+
         }
         .ui01OpenSection()
     }
@@ -431,119 +412,39 @@ struct VisualAIAssistedStudioView: View {
         .lifeRouteCard()
     }
 
-    // v0.8.2 physical-QA correction: keep the useful generator controls on this screen.
-    private var iconAICard: some View {
-        VStack(alignment: .leading, spacing: 13) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Illustrated Icon Generator")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(palette.textPrimary)
-                    Text("Turn a text description or reference photo into a consistent ABA visual-support icon.")
-                        .font(.caption)
-                        .foregroundStyle(palette.textSecondary)
-                }
-                Spacer()
-                Image(systemName: "paintbrush.pointed.fill")
-                    .font(.title2)
-                    .foregroundStyle(palette.accent)
-            }
-
-            ClientVisualIconLibraryView(
-                visualState: visualState,
-                clientCode: selectedClientCode,
-                embedded: true
-            )
-            .id(selectedClientCode)
-        }
-        .lifeRouteCard()
-    }
-
     private var builderAccessCard: some View {
         VStack(alignment: .leading, spacing: 11) {
-            Text("Build with saved visuals")
-                .font(.headline)
-                .foregroundStyle(palette.textPrimary)
-
             NavigationLink {
-                ClientChoiceBoardBuilderView(
-                    visualState: visualState,
-                    clientCode: selectedClientCode
-                )
-                .lifeRouteDeepDestination()
-            } label: {
-                visualBuilderLinkLabel("Choice Boards", systemImage: "square.grid.2x2.fill")
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                ClientFirstThenVisualView(
+                ClientVisualSupportCenter(
                     visualState: visualState,
                     clientState: clientState,
                     initialClientCode: selectedClientCode
                 )
                 .lifeRouteDeepDestination()
             } label: {
-                visualBuilderLinkLabel("First / Then", systemImage: "arrow.right.square.fill")
+                ScenicRoyalToolTile(title: "Boards", subtitle: "Choice Boards, First / Then, and saved boards.", systemImage: "square.grid.2x2.fill")
             }
             .buttonStyle(.plain)
-        }
-        .lifeRouteCard()
-    }
-
-    private func visualBuilderLinkLabel(_ title: String, systemImage: String) -> some View {
-        HStack(spacing: 11) {
-            Image(systemName: systemImage)
-                .foregroundStyle(palette.accent)
-                .frame(width: 34, height: 34)
-                .background(palette.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-            Text(title)
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(palette.textPrimary)
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.black))
-                .foregroundStyle(palette.textSecondary)
-        }
-        .padding(11)
-        .frame(minHeight: 54)
-        .overlay(alignment: .bottom) { UI01Hairline().opacity(0.5) }
-        .contentShape(Rectangle())
-    }
-
-    private var manualWorkspaceCard: some View {
-        VStack(alignment: .leading, spacing: 11) {
-            Label("Full manual visual workspace", systemImage: "slider.horizontal.3")
-                .font(.headline)
-                .foregroundStyle(palette.textPrimary)
-
-            Text("Your existing icon library, photo/text creator, choice boards, First / Then tools, and manual visual-support workspace are still here and unchanged.")
-                .font(.caption)
-                .foregroundStyle(palette.textSecondary)
+            .accessibilityIdentifier("visualSupports.boards")
 
             NavigationLink {
-                ClientVisualSupportCenter(visualState: visualState, clientState: clientState)
+                ClientVisualIconLibraryView(visualState: visualState, clientCode: selectedClientCode, presentation: .generator)
                     .lifeRouteDeepDestination()
             } label: {
-                HStack {
-                    Text("Open Manual Workspace")
-                        .font(.subheadline.weight(.bold))
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                }
-                .foregroundStyle(palette.textPrimary)
-                .padding(13)
-                .ui01ScenicText()
+                ScenicRoyalToolTile(title: "Image Generator", subtitle: "Create a visual from text or a reference photo.", systemImage: "wand.and.stars")
             }
             .buttonStyle(.plain)
-            .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
-        }
-        .lifeRouteCard()
-    }
+            .accessibilityIdentifier("visualSupports.generator")
 
-    private var selectedClient: LifeRouteClientProfile? {
-        guard selectedClientCode != ClientVisualSupportCore.generalClientCode else { return nil }
-        return clientState.client(code: selectedClientCode)
+            NavigationLink {
+                ClientVisualIconLibraryView(visualState: visualState, clientCode: selectedClientCode, presentation: .library)
+                    .lifeRouteDeepDestination()
+            } label: {
+                ScenicRoyalToolTile(title: "Image Library", subtitle: "Browse and manage saved image and text visuals.", systemImage: "photo.on.rectangle.angled")
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("visualSupports.images")
+        }
     }
 
     private var libraryDisplayName: String {

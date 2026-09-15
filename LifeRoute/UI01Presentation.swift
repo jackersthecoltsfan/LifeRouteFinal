@@ -270,75 +270,28 @@ struct UI01TrailRow<Content: View>: View {
     }
 }
 
-/// One optical family rendered as small native metal instruments. These are
-/// decorative labels inside the existing dock buttons, never another owner.
+/// Native symbols share one optical treatment inside the existing dock buttons.
 struct UI01DockInstrument: View {
     let section: AppSection
     let selected: Bool
 
-    var body: some View {
-        Canvas { context, size in
-            let scale = size.width / 32
-            context.scaleBy(x: scale, y: scale)
-            var metal = Path()
-            var detail = Path()
-            switch section {
-            case .today:
-                metal.addEllipse(in: CGRect(x: 2, y: 14, width: 28, height: 13))
-                for ray in 0..<8 {
-                    let angle = Double(ray) * .pi / 4
-                    metal.move(to: CGPoint(x: 15 + cos(angle) * 11, y: 13 + sin(angle) * 11))
-                    metal.addLine(to: CGPoint(x: 15 + cos(angle) * 14, y: 13 + sin(angle) * 14))
-                }
-                detail.addEllipse(in: CGRect(x: 8, y: 6, width: 14, height: 14))
-                detail.addEllipse(in: CGRect(x: 27, y: 19, width: 3, height: 3))
-            case .schedule:
-                metal.addRoundedRect(in: CGRect(x: 3, y: 7, width: 26, height: 23), cornerSize: CGSize(width: 1, height: 1))
-                metal.move(to: CGPoint(x: 4, y: 12)); metal.addLine(to: CGPoint(x: 28, y: 12))
-                for x: CGFloat in [9, 23] {
-                    metal.move(to: CGPoint(x: x, y: 2)); metal.addLine(to: CGPoint(x: x, y: 10))
-                }
-                detail.move(to: CGPoint(x: 7, y: 23)); detail.addLines([CGPoint(x: 16, y: 20), CGPoint(x: 25, y: 22)])
-                for x: CGFloat in [7, 16, 25] { detail.addEllipse(in: CGRect(x: x - 1.5, y: x == 16 ? 18.5 : 21, width: 3, height: 3)) }
-            case .tools:
-                metal.move(to: CGPoint(x: 5, y: 29))
-                metal.addLines([CGPoint(x: 2, y: 26), CGPoint(x: 18, y: 11), CGPoint(x: 19, y: 5), CGPoint(x: 25, y: 2), CGPoint(x: 23, y: 8), CGPoint(x: 28, y: 9), CGPoint(x: 30, y: 4), CGPoint(x: 30, y: 11), CGPoint(x: 24, y: 15), CGPoint(x: 5, y: 29)])
-                detail.move(to: CGPoint(x: 28, y: 28)); detail.addLines([CGPoint(x: 25, y: 30), CGPoint(x: 13, y: 18), CGPoint(x: 15, y: 15), CGPoint(x: 28, y: 28)])
-                metal.move(to: CGPoint(x: 14, y: 16)); metal.addLines([CGPoint(x: 5, y: 7), CGPoint(x: 3, y: 2), CGPoint(x: 8, y: 5), CGPoint(x: 16, y: 14)])
-            case .resources:
-                metal.move(to: CGPoint(x: 16, y: 29))
-                metal.addCurve(to: CGPoint(x: 2, y: 26), control1: CGPoint(x: 11, y: 24), control2: CGPoint(x: 6, y: 24))
-                metal.addLine(to: CGPoint(x: 4, y: 5))
-                metal.addQuadCurve(to: CGPoint(x: 16, y: 8), control: CGPoint(x: 12, y: 3))
-                metal.addQuadCurve(to: CGPoint(x: 28, y: 5), control: CGPoint(x: 22, y: 3))
-                metal.addLine(to: CGPoint(x: 30, y: 26))
-                metal.addQuadCurve(to: CGPoint(x: 16, y: 29), control: CGPoint(x: 22, y: 24))
-                metal.move(to: CGPoint(x: 16, y: 8)); metal.addLine(to: CGPoint(x: 16, y: 29))
-                detail.move(to: CGPoint(x: 12, y: 24)); detail.addCurve(to: CGPoint(x: 24, y: 12), control1: CGPoint(x: 23, y: 25), control2: CGPoint(x: 16, y: 12))
-                detail.addEllipse(in: CGRect(x: 22, y: 10, width: 3, height: 3))
-            case .setup:
-                for point in 0..<40 {
-                    let angle = Double(point) * .pi / 20
-                    let radius: Double = point % 4 < 2 ? 15 : 12
-                    let vertex = CGPoint(x: 16 + cos(angle) * radius, y: 16 + sin(angle) * radius)
-                    if point == 0 { metal.move(to: vertex) } else { metal.addLine(to: vertex) }
-                }
-                metal.closeSubpath()
-                metal.addEllipse(in: CGRect(x: 7, y: 7, width: 18, height: 18))
-                detail.addEllipse(in: CGRect(x: 5, y: 12, width: 22, height: 9))
-                detail.addEllipse(in: CGRect(x: 13, y: 13, width: 6, height: 6))
-            }
-            context.stroke(metal, with: .linearGradient(
-                Gradient(colors: [.white, UI01Material.secondary, .white, Color.gray]),
-                startPoint: .zero, endPoint: CGPoint(x: 24, y: 32)
-            ), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-            context.stroke(detail, with: .color(selected ? UI01Material.goldLight : UI01Material.gold.opacity(0.85)), style: StrokeStyle(lineWidth: 1.3, lineCap: .round, lineJoin: .round))
-            if section == .today {
-                context.fill(Path(ellipseIn: CGRect(x: 9, y: 7, width: 12, height: 12)), with: .color(selected ? UI01Material.gold : UI01Material.secondary))
-            }
+    static func symbolName(for section: AppSection) -> String {
+        switch section {
+        case .today: return "sun.max.fill"
+        case .schedule: return "calendar"
+        case .tools: return "wrench.and.screwdriver.fill"
+        case .resources: return "book.fill"
+        case .setup: return "gearshape.fill"
         }
-        .frame(width: 28, height: 28)
-        .accessibilityHidden(true)
+    }
+
+    var body: some View {
+        Image(systemName: Self.symbolName(for: section))
+            .symbolRenderingMode(.hierarchical)
+            .font(.system(size: 23, weight: .semibold))
+            .foregroundStyle(selected ? UI01Material.goldLight : UI01Material.secondary)
+            .frame(width: 28, height: 28)
+            .accessibilityHidden(true)
     }
 }
 

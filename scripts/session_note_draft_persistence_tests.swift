@@ -86,12 +86,29 @@ struct ClientVisualScheduleStep {
     var iconID: UUID?
 }
 
+enum ClientVisualScheduleKind: String, Codable {
+    case visualSchedule
+    case firstThen
+}
+
 struct ClientVisualSchedule {
     var id: UUID
     var clientID: UUID
     var clientCode: String
     var title: String
     var steps: [ClientVisualScheduleStep]
+    var kind: ClientVisualScheduleKind?
+    var createdAt: Date
+}
+
+struct ClientTokenBoard {
+    var id: UUID
+    var clientID: UUID
+    var clientCode: String
+    var title: String
+    var tokenCount: Int
+    var rewardIconID: UUID?
+    var rewardLabel: String
     var createdAt: Date
 }
 

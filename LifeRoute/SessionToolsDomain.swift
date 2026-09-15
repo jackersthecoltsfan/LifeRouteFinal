@@ -794,6 +794,11 @@ struct ClientChoiceBoard: Identifiable, Hashable {
     }
 }
 
+enum ClientVisualScheduleKind: String, Codable, Hashable {
+    case visualSchedule
+    case firstThen
+}
+
 struct ClientVisualScheduleStep: Identifiable, Hashable {
     let id: UUID
     var label: String
@@ -812,14 +817,55 @@ struct ClientVisualSchedule: Identifiable, Hashable {
     var clientCode: String
     var title: String
     var steps: [ClientVisualScheduleStep]
+    var kind: ClientVisualScheduleKind?
     let createdAt: Date
 
-    init(id: UUID = UUID(), clientID: UUID, clientCode: String, title: String, steps: [ClientVisualScheduleStep], createdAt: Date = Date()) {
+    init(
+        id: UUID = UUID(),
+        clientID: UUID,
+        clientCode: String,
+        title: String,
+        steps: [ClientVisualScheduleStep],
+        kind: ClientVisualScheduleKind? = nil,
+        createdAt: Date = Date()
+    ) {
         self.id = id
         self.clientID = clientID
         self.clientCode = clientCode
         self.title = title
         self.steps = steps
+        self.kind = kind
+        self.createdAt = createdAt
+    }
+}
+
+struct ClientTokenBoard: Identifiable, Hashable {
+    let id: UUID
+    let clientID: UUID
+    var clientCode: String
+    var title: String
+    var tokenCount: Int
+    var rewardIconID: UUID?
+    var rewardLabel: String
+    let createdAt: Date
+
+    init(
+        id: UUID = UUID(),
+        clientID: UUID,
+        clientCode: String,
+        title: String,
+        tokenCount: Int,
+        rewardIconID: UUID? = nil,
+        rewardLabel: String,
+        createdAt: Date = Date()
+    ) {
+        self.id = id
+        self.clientID = clientID
+        self.clientCode = clientCode
+        self.title = title
+        self.tokenCount = tokenCount
+        self.rewardIconID = rewardIconID
+        self.rewardLabel = rewardLabel
         self.createdAt = createdAt
     }
 }
@@ -831,6 +877,11 @@ enum ClientVisualSupportError: LocalizedError {
     case noIcons
     case noSteps
     case crossClientReference
+    case missingArtifact
+    case invalidFirstThenStepCount
+    case invalidTokenCount
+    case missingRewardLabel
+    case persistenceUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -846,6 +897,16 @@ enum ClientVisualSupportError: LocalizedError {
             return "Add at least one step before saving the visual schedule."
         case .crossClientReference:
             return "A visual support can only use icons saved to the same visual library."
+        case .missingArtifact:
+            return "This saved visual support is no longer available."
+        case .invalidFirstThenStepCount:
+            return "First / Then must contain exactly two steps."
+        case .invalidTokenCount:
+            return "Choose between 3 and 10 token slots."
+        case .missingRewardLabel:
+            return "Add a reward label before saving the token board."
+        case .persistenceUnavailable:
+            return "LifeRoute could not finish saving this board. Your draft is still open. Please try Save again."
         }
     }
 }
@@ -859,18 +920,27 @@ final class ClientVisualSupportCore: ObservableObject {
     @Published private(set) var icons: [ClientVisualIcon]
     @Published private(set) var choiceBoards: [ClientChoiceBoard]
     @Published private(set) var schedules: [ClientVisualSchedule]
+    @Published private(set) var tokenBoards: [ClientTokenBoard]
 
+    private let persistenceStore: LifeRoutePersistenceStore
     private var iconsByClientID: [UUID: [ClientVisualIcon]] = [:]
     private var choiceBoardsByClientID: [UUID: [ClientChoiceBoard]] = [:]
     private var schedulesByClientID: [UUID: [ClientVisualSchedule]] = [:]
+    private var tokenBoardsByClientID: [UUID: [ClientTokenBoard]] = [:]
     private var iconsByID: [UUID: ClientVisualIcon] = [:]
     private var iconIDsByClientID: [UUID: Set<UUID>] = [:]
 
-    init(restoredState: RestoredClientVisualSupportState? = nil) {
-        let restored = restoredState ?? LifeRoutePersistenceStore.shared.loadClientVisualSupports()
+    init(
+        restoredState: RestoredClientVisualSupportState? = nil,
+        persistenceStore: LifeRoutePersistenceStore? = nil
+    ) {
+        let store = persistenceStore ?? .shared
+        self.persistenceStore = store
+        let restored = restoredState ?? store.loadClientVisualSupports()
         self.icons = restored.icons
         self.choiceBoards = restored.choiceBoards
         self.schedules = restored.schedules
+        self.tokenBoards = restored.tokenBoards
         rebuildVisualIndexes()
     }
 
@@ -887,6 +957,20 @@ final class ClientVisualSupportCore: ObservableObject {
     func schedules(for clientCode: String) -> [ClientVisualSchedule] {
         guard let owner = visualOwner(for: clientCode) else { return [] }
         return schedulesByClientID[owner.id] ?? []
+    }
+
+    func tokenBoards(for clientCode: String) -> [ClientTokenBoard] {
+        guard let owner = visualOwner(for: clientCode) else { return [] }
+        return tokenBoardsByClientID[owner.id] ?? []
+    }
+
+    /// Editors report a successful save only after the existing serial writer
+    /// has finished. A failed write leaves the draft and same in-memory ID intact.
+    func confirmSavedBoards() async throws {
+        await persistenceStore.flushPendingWrites()
+        if persistenceStore.recoveryMessage != nil {
+            throw ClientVisualSupportError.persistenceUnavailable
+        }
     }
 
     @discardableResult
@@ -917,6 +1001,11 @@ final class ClientVisualSupportCore: ObservableObject {
                 if item.iconID == id { item.iconID = nil }
                 return item
             }
+            return updated
+        }
+        tokenBoards = tokenBoards.map { board in
+            var updated = board
+            if updated.rewardIconID == id { updated.rewardIconID = nil }
             return updated
         }
         rebuildVisualIndexes()
@@ -957,13 +1046,55 @@ final class ClientVisualSupportCore: ObservableObject {
     }
 
     @discardableResult
-    func saveSchedule(clientCode: String, title: String, steps: [ClientVisualScheduleStep]) throws -> ClientVisualSchedule {
+    func updateChoiceBoard(
+        id: UUID,
+        clientCode: String,
+        title: String,
+        iconIDs: [UUID],
+        columns: Int
+    ) throws -> ClientChoiceBoard {
+        guard let index = choiceBoards.firstIndex(where: { $0.id == id }) else {
+            throw ClientVisualSupportError.missingArtifact
+        }
+        guard let owner = visualOwner(for: clientCode), choiceBoards[index].clientID == owner.id else {
+            throw ClientVisualSupportError.crossClientReference
+        }
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTitle.isEmpty else { throw ClientVisualSupportError.missingTitle }
+
+        let allowed = iconIDsByClientID[owner.id] ?? []
+        var seen = Set<UUID>()
+        let requested = iconIDs.filter { seen.insert($0).inserted }
+        guard !requested.isEmpty else { throw ClientVisualSupportError.noIcons }
+        guard requested.allSatisfy(allowed.contains) else { throw ClientVisualSupportError.crossClientReference }
+
+        var updated = choiceBoards[index]
+        updated.clientCode = owner.code
+        updated.title = cleanTitle
+        updated.iconIDs = Array(requested.prefix(9))
+        updated.columns = columns == 3 ? 3 : 2
+        choiceBoards[index] = updated
+        rebuildVisualIndexes()
+        persistVisualSupports()
+        return updated
+    }
+
+    @discardableResult
+    func saveSchedule(
+        clientCode: String,
+        title: String,
+        steps: [ClientVisualScheduleStep],
+        kind: ClientVisualScheduleKind? = .visualSchedule
+    ) throws -> ClientVisualSchedule {
         guard let owner = visualOwner(for: clientCode) else {
             throw ClientVisualSupportError.missingClient
         }
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTitle.isEmpty else { throw ClientVisualSupportError.missingTitle }
         guard !steps.isEmpty else { throw ClientVisualSupportError.noSteps }
+        if kind == .firstThen, steps.count != 2 {
+            throw ClientVisualSupportError.invalidFirstThenStepCount
+        }
 
         let allowed = iconIDsByClientID[owner.id] ?? []
         let cleanedSteps = steps.compactMap { step -> ClientVisualScheduleStep? in
@@ -978,7 +1109,8 @@ final class ClientVisualSupportCore: ObservableObject {
             clientID: owner.id,
             clientCode: owner.code,
             title: cleanTitle,
-            steps: cleanedSteps
+            steps: cleanedSteps,
+            kind: kind
         )
         schedules.append(schedule)
         rebuildVisualIndexes()
@@ -986,8 +1118,127 @@ final class ClientVisualSupportCore: ObservableObject {
         return schedule
     }
 
+    @discardableResult
+    func updateSchedule(
+        id: UUID,
+        clientCode: String,
+        title: String,
+        steps: [ClientVisualScheduleStep],
+        kind: ClientVisualScheduleKind?
+    ) throws -> ClientVisualSchedule {
+        guard let index = schedules.firstIndex(where: { $0.id == id }) else {
+            throw ClientVisualSupportError.missingArtifact
+        }
+        guard let owner = visualOwner(for: clientCode), schedules[index].clientID == owner.id else {
+            throw ClientVisualSupportError.crossClientReference
+        }
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTitle.isEmpty else { throw ClientVisualSupportError.missingTitle }
+        guard !steps.isEmpty else { throw ClientVisualSupportError.noSteps }
+        if kind == .firstThen, steps.count != 2 {
+            throw ClientVisualSupportError.invalidFirstThenStepCount
+        }
+
+        let allowed = iconIDsByClientID[owner.id] ?? []
+        let cleanedSteps = steps.compactMap { step -> ClientVisualScheduleStep? in
+            let label = step.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !label.isEmpty else { return nil }
+            if let iconID = step.iconID, !allowed.contains(iconID) { return nil }
+            return ClientVisualScheduleStep(id: step.id, label: label, iconID: step.iconID)
+        }
+        guard cleanedSteps.count == steps.count else { throw ClientVisualSupportError.crossClientReference }
+
+        var updated = schedules[index]
+        updated.clientCode = owner.code
+        updated.title = cleanTitle
+        updated.steps = cleanedSteps
+        updated.kind = kind
+        schedules[index] = updated
+        rebuildVisualIndexes()
+        persistVisualSupports()
+        return updated
+    }
+
     func removeSchedule(id: UUID) {
         schedules.removeAll { $0.id == id }
+        rebuildVisualIndexes()
+        persistVisualSupports()
+    }
+
+    @discardableResult
+    func saveTokenBoard(
+        clientCode: String,
+        title: String,
+        tokenCount: Int,
+        rewardIconID: UUID?,
+        rewardLabel: String
+    ) throws -> ClientTokenBoard {
+        guard let owner = visualOwner(for: clientCode) else {
+            throw ClientVisualSupportError.missingClient
+        }
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTitle.isEmpty else { throw ClientVisualSupportError.missingTitle }
+        guard (3...10).contains(tokenCount) else { throw ClientVisualSupportError.invalidTokenCount }
+        let cleanRewardLabel = rewardLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanRewardLabel.isEmpty else { throw ClientVisualSupportError.missingRewardLabel }
+        let allowed = iconIDsByClientID[owner.id] ?? []
+        if let rewardIconID, !allowed.contains(rewardIconID) {
+            throw ClientVisualSupportError.crossClientReference
+        }
+
+        let board = ClientTokenBoard(
+            clientID: owner.id,
+            clientCode: owner.code,
+            title: cleanTitle,
+            tokenCount: tokenCount,
+            rewardIconID: rewardIconID,
+            rewardLabel: cleanRewardLabel
+        )
+        tokenBoards.append(board)
+        rebuildVisualIndexes()
+        persistVisualSupports()
+        return board
+    }
+
+    @discardableResult
+    func updateTokenBoard(
+        id: UUID,
+        clientCode: String,
+        title: String,
+        tokenCount: Int,
+        rewardIconID: UUID?,
+        rewardLabel: String
+    ) throws -> ClientTokenBoard {
+        guard let index = tokenBoards.firstIndex(where: { $0.id == id }) else {
+            throw ClientVisualSupportError.missingArtifact
+        }
+        guard let owner = visualOwner(for: clientCode), tokenBoards[index].clientID == owner.id else {
+            throw ClientVisualSupportError.crossClientReference
+        }
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTitle.isEmpty else { throw ClientVisualSupportError.missingTitle }
+        guard (3...10).contains(tokenCount) else { throw ClientVisualSupportError.invalidTokenCount }
+        let cleanRewardLabel = rewardLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanRewardLabel.isEmpty else { throw ClientVisualSupportError.missingRewardLabel }
+        let allowed = iconIDsByClientID[owner.id] ?? []
+        if let rewardIconID, !allowed.contains(rewardIconID) {
+            throw ClientVisualSupportError.crossClientReference
+        }
+
+        var updated = tokenBoards[index]
+        updated.clientCode = owner.code
+        updated.title = cleanTitle
+        updated.tokenCount = tokenCount
+        updated.rewardIconID = rewardIconID
+        updated.rewardLabel = cleanRewardLabel
+        tokenBoards[index] = updated
+        rebuildVisualIndexes()
+        persistVisualSupports()
+        return updated
+    }
+
+    func removeTokenBoard(id: UUID) {
+        tokenBoards.removeAll { $0.id == id }
         rebuildVisualIndexes()
         persistVisualSupports()
     }
@@ -1050,11 +1301,26 @@ final class ClientVisualSupportCore: ObservableObject {
             }
             return updated
         }
+        let updatedTokenBoards = tokenBoards.compactMap { board -> ClientTokenBoard? in
+            guard clientIDs.contains(board.clientID), let currentCode = codeByID[board.clientID] else {
+                changed = true
+                return nil
+            }
+            var updated = board
+            if updated.clientCode != currentCode { changed = true }
+            updated.clientCode = currentCode
+            if let rewardIconID = updated.rewardIconID, !survivingIconIDs.contains(rewardIconID) {
+                updated.rewardIconID = nil
+                changed = true
+            }
+            return updated
+        }
         guard changed else { return }
 
         icons = updatedIcons
         choiceBoards = updatedBoards
         schedules = updatedSchedules
+        tokenBoards = updatedTokenBoards
         rebuildVisualIndexes()
         persistVisualSupports()
     }
@@ -1071,6 +1337,9 @@ final class ClientVisualSupportCore: ObservableObject {
         schedulesByClientID = Dictionary(grouping: schedules, by: \.clientID).mapValues { clientSchedules in
             clientSchedules.sorted { $0.createdAt > $1.createdAt }
         }
+        tokenBoardsByClientID = Dictionary(grouping: tokenBoards, by: \.clientID).mapValues { boards in
+            boards.sorted { $0.createdAt > $1.createdAt }
+        }
 
         var iconLookup: [UUID: ClientVisualIcon] = [:]
         for icon in icons { iconLookup[icon.id] = icon }
@@ -1079,10 +1348,11 @@ final class ClientVisualSupportCore: ObservableObject {
     }
 
     private func persistVisualSupports() {
-        LifeRoutePersistenceStore.shared.saveClientVisualSupports(
+        persistenceStore.saveClientVisualSupports(
             icons: icons,
             choiceBoards: choiceBoards,
-            schedules: schedules
+            schedules: schedules,
+            tokenBoards: tokenBoards
         )
     }
 
@@ -1091,7 +1361,7 @@ final class ClientVisualSupportCore: ObservableObject {
         if code.isEmpty || code.caseInsensitiveCompare(Self.generalClientCode) == .orderedSame {
             return (Self.generalClientID, Self.generalClientCode)
         }
-        guard let clientID = LifeRoutePersistenceStore.shared.clientID(forCode: code) else { return nil }
+        guard let clientID = persistenceStore.clientID(forCode: code) else { return nil }
         return (clientID, code)
     }
 

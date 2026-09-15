@@ -54,8 +54,21 @@ struct RestoredClientVisualSupportState {
     var icons: [ClientVisualIcon]
     var choiceBoards: [ClientChoiceBoard]
     var schedules: [ClientVisualSchedule]
+    var tokenBoards: [ClientTokenBoard]
 
-    static let empty = RestoredClientVisualSupportState(icons: [], choiceBoards: [], schedules: [])
+    init(
+        icons: [ClientVisualIcon],
+        choiceBoards: [ClientChoiceBoard],
+        schedules: [ClientVisualSchedule],
+        tokenBoards: [ClientTokenBoard] = []
+    ) {
+        self.icons = icons
+        self.choiceBoards = choiceBoards
+        self.schedules = schedules
+        self.tokenBoards = tokenBoards
+    }
+
+    static let empty = RestoredClientVisualSupportState(icons: [], choiceBoards: [], schedules: [], tokenBoards: [])
 }
 
 struct RestoredRoutingPersistenceState {
@@ -174,6 +187,18 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
         var clientCode: String
         var title: String
         var steps: [PersistedScheduleStep]
+        var kind: ClientVisualScheduleKind?
+        var createdAt: Date
+    }
+
+    private struct PersistedTokenBoard: Codable {
+        var id: UUID
+        var clientID: UUID
+        var clientCode: String
+        var title: String
+        var tokenCount: Int
+        var rewardIconID: UUID?
+        var rewardLabel: String
         var createdAt: Date
     }
 
@@ -183,6 +208,7 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
         var visualIcons: [PersistedVisualIcon]
         var choiceBoards: [PersistedChoiceBoard]
         var visualSchedules: [PersistedVisualSchedule]
+        var tokenBoards: [PersistedTokenBoard]
         var homeAddress: String
         var savedPlaces: [LifeRouteSavedPlace]
         var todos: [LifeRouteTodo]
@@ -193,11 +219,12 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
         var sessionNoteDraft: SessionNoteDraft
 
         init(
-            schemaVersion: Int = 7,
+            schemaVersion: Int = 8,
             clients: [LifeRouteClientProfile] = [],
             visualIcons: [PersistedVisualIcon] = [],
             choiceBoards: [PersistedChoiceBoard] = [],
             visualSchedules: [PersistedVisualSchedule] = [],
+            tokenBoards: [PersistedTokenBoard] = [],
             homeAddress: String = "",
             savedPlaces: [LifeRouteSavedPlace] = [],
             todos: [LifeRouteTodo] = [],
@@ -212,6 +239,7 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
             self.visualIcons = visualIcons
             self.choiceBoards = choiceBoards
             self.visualSchedules = visualSchedules
+            self.tokenBoards = tokenBoards
             self.homeAddress = homeAddress
             self.savedPlaces = savedPlaces
             self.todos = todos
@@ -228,6 +256,7 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
             case visualIcons
             case choiceBoards
             case visualSchedules
+            case tokenBoards
             case homeAddress
             case savedPlaces
             case todos
@@ -245,6 +274,7 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
             visualIcons = try container.decodeIfPresent([PersistedVisualIcon].self, forKey: .visualIcons) ?? []
             choiceBoards = try container.decodeIfPresent([PersistedChoiceBoard].self, forKey: .choiceBoards) ?? []
             visualSchedules = try container.decodeIfPresent([PersistedVisualSchedule].self, forKey: .visualSchedules) ?? []
+            tokenBoards = try container.decodeIfPresent([PersistedTokenBoard].self, forKey: .tokenBoards) ?? []
             homeAddress = try container.decodeIfPresent(String.self, forKey: .homeAddress) ?? ""
             savedPlaces = try container.decodeIfPresent([LifeRouteSavedPlace].self, forKey: .savedPlaces) ?? []
             todos = try container.decodeIfPresent([LifeRouteTodo].self, forKey: .todos) ?? []
@@ -463,16 +493,35 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
                 clientCode: $0.clientCode,
                 title: $0.title,
                 steps: $0.steps.map { ClientVisualScheduleStep(id: $0.id, label: $0.label, iconID: $0.iconID) },
+                kind: $0.kind,
                 createdAt: $0.createdAt
             )
         }
-        return RestoredClientVisualSupportState(icons: icons, choiceBoards: boards, schedules: schedules)
+        let tokenBoards = state.tokenBoards.map {
+            ClientTokenBoard(
+                id: $0.id,
+                clientID: $0.clientID,
+                clientCode: $0.clientCode,
+                title: $0.title,
+                tokenCount: $0.tokenCount,
+                rewardIconID: $0.rewardIconID,
+                rewardLabel: $0.rewardLabel,
+                createdAt: $0.createdAt
+            )
+        }
+        return RestoredClientVisualSupportState(
+            icons: icons,
+            choiceBoards: boards,
+            schedules: schedules,
+            tokenBoards: tokenBoards
+        )
     }
 
     func saveClientVisualSupports(
         icons: [ClientVisualIcon],
         choiceBoards: [ClientChoiceBoard],
-        schedules: [ClientVisualSchedule]
+        schedules: [ClientVisualSchedule],
+        tokenBoards: [ClientTokenBoard]
     ) {
         var next = state
         next.visualIcons = icons.map {
@@ -503,6 +552,19 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
                 clientCode: $0.clientCode,
                 title: $0.title,
                 steps: $0.steps.map { PersistedScheduleStep(id: $0.id, label: $0.label, iconID: $0.iconID) },
+                kind: $0.kind,
+                createdAt: $0.createdAt
+            )
+        }
+        next.tokenBoards = tokenBoards.map {
+            PersistedTokenBoard(
+                id: $0.id,
+                clientID: $0.clientID,
+                clientCode: $0.clientCode,
+                title: $0.title,
+                tokenCount: $0.tokenCount,
+                rewardIconID: $0.rewardIconID,
+                rewardLabel: $0.rewardLabel,
                 createdAt: $0.createdAt
             )
         }
@@ -670,6 +732,25 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
             return clean
         }
 
+        var seenTokenBoardIDs = Set<UUID>()
+        let tokenBoards = input.tokenBoards.compactMap { board -> PersistedTokenBoard? in
+            guard let currentCode = codeByClientID[board.clientID],
+                  seenTokenBoardIDs.insert(board.id).inserted else { return nil }
+            let title = board.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let rewardLabel = board.rewardLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !title.isEmpty,
+                  !rewardLabel.isEmpty,
+                  (3...10).contains(board.tokenCount) else { return nil }
+            var clean = board
+            clean.clientCode = currentCode
+            clean.title = title
+            clean.rewardLabel = rewardLabel
+            if let rewardIconID = clean.rewardIconID, iconOwner[rewardIconID] != board.clientID {
+                clean.rewardIconID = nil
+            }
+            return clean
+        }
+
         let homeAddress = input.homeAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         let savedPlaces = sanitizedSavedPlaces(input.savedPlaces)
         let savedPlaceIDs = Set(savedPlaces.map(\.id))
@@ -681,11 +762,12 @@ final class LifeRoutePersistenceStore: SessionNoteDraftPersisting {
         let providerCalendarEvents = sanitizedProviderCalendarEvents(input.providerCalendarEvents)
 
         return NativeState(
-            schemaVersion: max(7, input.schemaVersion),
+            schemaVersion: max(8, input.schemaVersion),
             clients: clients,
             visualIcons: icons,
             choiceBoards: boards,
             visualSchedules: schedules,
+            tokenBoards: tokenBoards,
             homeAddress: homeAddress,
             savedPlaces: savedPlaces,
             todos: todos,

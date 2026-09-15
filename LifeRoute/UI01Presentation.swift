@@ -225,11 +225,10 @@ struct UI01CompactControlSurface: ViewModifier {
             content.background(UI01Material.royal, in: Capsule())
                 .overlay(Capsule().strokeBorder(UI01Material.secondary.opacity(0.5), lineWidth: 1).allowsHitTesting(false))
         } else if #available(iOS 26.0, *) {
-            content.glassEffect(.clear.tint(shade.opacity(0.05)), in: .capsule)
+            content.glassEffect(.clear.tint(shade.opacity(0.02)), in: .capsule)
                 .overlay(jewelRim.allowsHitTesting(false))
         } else {
-            content.background(.ultraThinMaterial.opacity(0.18), in: Capsule())
-                .overlay(Capsule().fill(shade.opacity(0.04)))
+            content.background(shade.opacity(0.03), in: Capsule())
                 .overlay(jewelRim.allowsHitTesting(false))
         }
     }
@@ -238,14 +237,14 @@ struct UI01CompactControlSurface: ViewModifier {
         Capsule().strokeBorder(
             LinearGradient(
                 colors: [
-                    Color.white.opacity(0.5),
-                    theme.palette.backgroundTop.opacity(0.28),
-                    Color.white.opacity(0.12)
+                    Color.white.opacity(0.42),
+                    theme.palette.backgroundTop.opacity(0.22),
+                    UI01Material.goldLight.opacity(0.28)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
-            lineWidth: 0.55
+            lineWidth: 0.4
         )
     }
 }
@@ -282,9 +281,9 @@ struct UI01GoldButtonStyle: ButtonStyle {
                 .foregroundStyle(enabled ? UI01Material.silver : UI01Material.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, compact ? 16 : 24)
-                .padding(.vertical, 12)
-                .frame(maxWidth: compact ? nil : .infinity, minHeight: compact ? 44 : 56)
+                .padding(.horizontal, compact ? 14 : 20)
+                .padding(.vertical, compact ? 8 : 10)
+                .frame(maxWidth: compact ? nil : .infinity, minHeight: compact ? 44 : 48)
                 .modifier(LiquidPrimaryGlass(reduceTransparency: reduceTransparency, contrast: contrast, enabled: enabled))
                 .opacity(enabled ? 1 : 0.55)
                 .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
@@ -305,12 +304,11 @@ private struct LiquidPrimaryGlass: ViewModifier {
             content.background(UI01Material.royal, in: Capsule())
                 .overlay(Capsule().strokeBorder(UI01Material.goldLight.opacity(enabled ? 0.7 : 0.3), lineWidth: 1).allowsHitTesting(false))
         } else if #available(iOS 26.0, *) {
-            content.glassEffect(.clear.tint(shade.opacity(enabled ? 0.06 : 0.03)), in: .capsule)
+            content.glassEffect(.clear.tint(shade.opacity(enabled ? 0.03 : 0.015)), in: .capsule)
                 .overlay(primaryRim.allowsHitTesting(false))
         } else {
             content
-                .background(.ultraThinMaterial.opacity(0.14), in: Capsule())
-                .overlay(Capsule().fill(shade.opacity(enabled ? 0.05 : 0.02)))
+                .background(shade.opacity(enabled ? 0.03 : 0.015), in: Capsule())
                 .overlay(primaryRim.allowsHitTesting(false))
         }
     }
@@ -319,14 +317,14 @@ private struct LiquidPrimaryGlass: ViewModifier {
         Capsule().strokeBorder(
             LinearGradient(
                 colors: [
-                    Color.white.opacity(0.55),
-                    theme.palette.backgroundTop.opacity(0.35),
-                    UI01Material.goldLight.opacity(0.28)
+                    Color.white.opacity(0.4),
+                    theme.palette.backgroundTop.opacity(0.22),
+                    UI01Material.goldLight.opacity(0.35)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),
-            lineWidth: 0.65
+            lineWidth: 0.45
         )
     }
 }

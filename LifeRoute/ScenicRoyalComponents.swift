@@ -77,6 +77,7 @@ struct ScenicRoyalIconBadge: View {
 }
 
 struct ScenicRoyalScreenHeader<Actions: View>: View {
+    @Environment(\.lifeRouteTheme) private var theme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -121,7 +122,7 @@ struct ScenicRoyalScreenHeader<Actions: View>: View {
                 .accessibilityAddTraits(.isHeader)
             if !subtitle.isEmpty { Text(subtitle)
                 .font(.subheadline)
-                .foregroundStyle(UI01Material.secondary)
+                .foregroundStyle(theme.scenicRoyalStyle.contentSecondaryForeground)
                 .fixedSize(horizontal: false, vertical: true)
             }
         }

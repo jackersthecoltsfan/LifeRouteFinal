@@ -131,6 +131,7 @@ private struct LifeRouteBoundedItinerary<Content: View>: UIViewControllerReprese
 /// the selected day's route generation, canonical itinerary, departure guidance,
 /// gap-fit suggestions, and Live Day projection.
 struct V054TodayView: View {
+    @Environment(\.lifeRouteTheme) private var theme
     @LifeRoutePresentation private var visibility
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject var router: AppRouter
@@ -338,6 +339,7 @@ struct V054TodayView: View {
             } label: {
                 Text("\(dayContextTitle.uppercased()) · \(selectedDay.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()).uppercased())")
                     .font(.caption)
+                    .foregroundStyle(theme.scenicRoyalStyle.contentSecondaryForeground)
                     .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
             }

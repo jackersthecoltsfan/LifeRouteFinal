@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ScenicRoyalResourceHeader: View {
+    @Environment(\.lifeRouteTheme) private var theme
     @Environment(\.scenicRoyalThemeStyle) private var style
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -34,7 +35,7 @@ struct ScenicRoyalResourceHeader: View {
 
             Text("Clinical, work, training, and company portals.")
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(style.secondaryText)
+                .foregroundStyle(theme.scenicRoyalStyle.contentSecondaryForeground)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
@@ -51,7 +52,7 @@ struct ScenicRoyalResourceHeader: View {
 
             Text("built-in portal\(builtInCount == 1 ? "" : "s")")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(style.secondaryText)
+                .foregroundStyle(theme.scenicRoyalStyle.contentSecondaryForeground)
 
             if customCount > 0 {
                 Label("\(customCount) custom", systemImage: "person.crop.circle.badge.plus")

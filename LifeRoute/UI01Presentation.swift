@@ -12,7 +12,7 @@ enum UI01Material {
     static let goldShade = Color(red: 155 / 255, green: 91 / 255, blue: 11 / 255)
     static let destructive = Color(red: 1, green: 184 / 255, blue: 176 / 255)
     static let goldGradient = LinearGradient(
-        colors: [goldLight, gold],
+        colors: [goldLight, gold, goldShade],
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
 }
@@ -23,11 +23,12 @@ struct UI01MarbleText: View {
     var relativeTo: Font.TextStyle = .title2
     // Only explicit wordmarks and the accepted Today hero use the branded serif.
     var branded = false
+    var metallic = false
 
     var body: some View {
         Text(title)
             .font(branded ? .custom("Didot", size: size, relativeTo: relativeTo) : .system(relativeTo).weight(.semibold))
-            .foregroundStyle(UI01Material.silver)
+            .foregroundStyle(metallic ? AnyShapeStyle(UI01Material.goldGradient) : AnyShapeStyle(UI01Material.silver))
             .fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -43,8 +44,8 @@ struct UI01ReadingZone: ViewModifier {
     var role: UI01TextRole = .silver
 
     func body(content: Content) -> some View {
-        // Compatibility for existing open-content call sites. Reading support
-        // belongs to the full-width environment veil, never individual glyphs.
+        // Compatibility for open-content call sites. Dense reading regions
+        // own their local planes; scenic lettering has no veil or backplate.
         content
     }
 }
@@ -53,8 +54,26 @@ struct UI01Hairline: View {
     @Environment(\.colorSchemeContrast) private var contrast
     var body: some View {
         Rectangle()
-            .fill(UI01Material.silver.opacity(contrast == .increased ? 0.65 : 0.25))
+            .fill(LinearGradient(
+                colors: [
+                    UI01Material.gold.opacity(0),
+                    UI01Material.goldLight.opacity(contrast == .increased ? 0.85 : 0.58),
+                    UI01Material.gold.opacity(contrast == .increased ? 0.7 : 0.38),
+                    UI01Material.gold.opacity(0)
+                ],
+                startPoint: .leading, endPoint: .trailing
+            ))
             .frame(height: contrast == .increased ? 1 : 0.5)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A hairline brand mark; its gold stays independent of the selected scenery.
+struct UI01BrandFilament: View {
+    var body: some View {
+        Capsule()
+            .fill(UI01Material.goldGradient)
+            .frame(width: 56, height: 1)
             .accessibilityHidden(true)
     }
 }
@@ -99,7 +118,13 @@ struct UI01ReadingPlane: ViewModifier {
                         in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(UI01Material.silver.opacity(contrast == .increased ? 0.5 : 0.16), lineWidth: 0.5)
+                    .strokeBorder(LinearGradient(
+                        colors: [
+                            UI01Material.goldLight.opacity(contrast == .increased ? 0.6 : 0.25),
+                            UI01Material.silver.opacity(contrast == .increased ? 0.5 : 0.16)
+                        ],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ), lineWidth: 0.5)
                     .allowsHitTesting(false)
             }
     }
@@ -108,13 +133,23 @@ struct UI01ReadingPlane: ViewModifier {
 /// A selected choice is an action material, while unselected choices stay open.
 struct UI01SelectionSurface: ViewModifier {
     let selected: Bool
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.lifeRouteTheme) private var theme
+
     func body(content: Content) -> some View {
         content
-            .foregroundStyle(selected ? UI01Material.navy : UI01Material.silver)
+            .foregroundStyle(selected ? UI01Material.goldLight : UI01Material.silver)
             .background {
                 if selected {
-                    Capsule().fill(UI01Material.goldGradient)
-                        .overlay(Capsule().strokeBorder(UI01Material.goldLight, lineWidth: 0.8))
+                    // Selection stays inside the group's single crystal surface.
+                    if reduceTransparency || contrast == .increased {
+                        Capsule().fill(UI01Material.royal)
+                            .overlay(Capsule().strokeBorder(UI01Material.goldLight, lineWidth: 1))
+                    } else {
+                        Capsule().fill(theme.palette.backgroundTop.opacity(0.03))
+                            .overlay(UI01CrystalRim(primary: true))
+                    }
                 }
             }
     }
@@ -149,22 +184,40 @@ struct UI01SecondaryButtonStyle: ButtonStyle {
     }
 }
 
-/// One compact material owner for controls and grouped navigation. Dense input
-/// surfaces use UI01ReadingPlane and never nest Liquid Glass.
+/// One compact crystal owner for controls and grouped navigation. A rim and
+/// tiny wash preserve the scenery's geometry; dense input uses UI01ReadingPlane.
 struct UI01CompactControlSurface: ViewModifier {
+    var primary = false
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.lifeRouteTheme) private var theme
 
     func body(content: Content) -> some View {
+        let shade = theme.palette.backgroundTop
         if reduceTransparency || contrast == .increased {
             content.background(UI01Material.royal, in: Capsule())
                 .overlay(Capsule().strokeBorder(UI01Material.secondary.opacity(0.5), lineWidth: 1).allowsHitTesting(false))
-        } else if #available(iOS 26.0, *) {
-            content.glassEffect(.regular.tint(UI01Material.royal.opacity(0.75)), in: .capsule)
         } else {
-            content.background(UI01Material.royal.opacity(0.94), in: Capsule())
-                .overlay(Capsule().strokeBorder(UI01Material.secondary.opacity(0.22), lineWidth: 0.5).allowsHitTesting(false))
+            content.background(shade.opacity(primary ? 0.03 : 0.02), in: Capsule())
+                .overlay(UI01CrystalRim(primary: primary).allowsHitTesting(false))
         }
+    }
+}
+
+/// A shared rim, without its own fill or glass compositor.
+private struct UI01CrystalRim: View {
+    var primary = false
+    @Environment(\.lifeRouteTheme) private var theme
+
+    var body: some View {
+        Capsule().strokeBorder(LinearGradient(
+            colors: [
+                Color.white.opacity(0.40),
+                theme.palette.backgroundTop.opacity(0.22),
+                UI01Material.goldLight.opacity(primary ? 0.35 : 0.28)
+            ],
+            startPoint: .topLeading, endPoint: .bottomTrailing
+        ), lineWidth: primary ? 0.45 : 0.4)
     }
 }
 
@@ -192,27 +245,18 @@ struct UI01GoldButtonStyle: ButtonStyle {
         let compact: Bool
         @Environment(\.isEnabled) private var enabled
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
-        @Environment(\.colorSchemeContrast) private var contrast
         var body: some View {
             configuration.label
                 .font(compact ? .subheadline.weight(.semibold) : .headline)
-                .foregroundStyle(enabled ? UI01Material.navy : UI01Material.secondary)
+                .foregroundStyle(enabled ? UI01Material.silver : UI01Material.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, compact ? 16 : 24)
-                .padding(.vertical, 12)
-                .frame(maxWidth: compact ? nil : .infinity, minHeight: compact ? 44 : 56)
-                .background {
-                    Capsule().fill(enabled ? UI01Material.goldGradient : LinearGradient(
-                        colors: [UI01Material.royal, UI01Material.navy],
-                        startPoint: .top, endPoint: .bottom
-                    ))
-                    .overlay(Capsule().strokeBorder(
-                        enabled ? UI01Material.goldLight : UI01Material.secondary.opacity(0.25),
-                        lineWidth: contrast == .increased ? 1.5 : 0.75
-                    ))
-                }
-                .opacity(enabled ? 1 : 0.65)
+                .padding(.horizontal, compact ? 14 : 20)
+                .padding(.vertical, compact ? 8 : 10)
+                .frame(maxWidth: compact ? nil : .infinity, minHeight: compact ? 44 : 48)
+                // Dim only the label, keeping the accessibility backing opaque.
+                .opacity(enabled ? 1 : 0.75)
+                .modifier(UI01CompactControlSurface(primary: true))
                 .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
                 .contentShape(Capsule())
         }
@@ -238,13 +282,14 @@ struct UI01TrailRow<Content: View>: View {
         .overlay(alignment: .leading) {
             GeometryReader { geometry in
                 let mid = geometry.size.height / 2
-                Path { path in
+                let route = Path { path in
                     path.move(to: CGPoint(x: 14, y: 0))
                     path.addCurve(to: CGPoint(x: 14, y: geometry.size.height),
                                   control1: CGPoint(x: 30, y: mid * 0.6),
                                   control2: CGPoint(x: -2, y: mid * 1.4))
                 }
-                .stroke(UI01Material.goldGradient, lineWidth: 1.15)
+                route.stroke(UI01Material.gold.opacity(0.10), lineWidth: 3)
+                route.stroke(UI01Material.goldGradient, lineWidth: 1.15)
                 Group {
                     if let symbol {
                         Image(systemName: symbol)
@@ -270,20 +315,19 @@ struct UI01TrailRow<Content: View>: View {
     }
 }
 
-/// The dock owns one native glass surface independently of other compact controls.
+/// The dock keeps its single surface owner without refracting the living scene.
 struct UI01DockSurface: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.lifeRouteTheme) private var theme
 
     func body(content: Content) -> some View {
         if reduceTransparency || contrast == .increased {
             content.background(UI01Material.royal, in: Capsule())
                 .overlay(Capsule().strokeBorder(UI01Material.secondary.opacity(0.5), lineWidth: 1).allowsHitTesting(false))
-        } else if #available(iOS 26.0, *) {
-            content.glassEffect(.clear.interactive(), in: .capsule)
         } else {
-            content.background(UI01Material.royal.opacity(0.94), in: Capsule())
-                .overlay(Capsule().strokeBorder(UI01Material.secondary.opacity(0.22), lineWidth: 0.5).allowsHitTesting(false))
+            content.background(theme.palette.backgroundTop.opacity(0.02), in: Capsule())
+                .overlay(UI01CrystalRim().allowsHitTesting(false))
         }
     }
 }
@@ -301,34 +345,25 @@ struct UI01DockInstrument: View {
 }
 
 struct UI01DockLabel: View {
-    @Environment(\.scenicRoyalThemeStyle) private var themeStyle
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-
     let section: AppSection
     let selected: Bool
-
-    private var foreground: Color {
-        if #available(iOS 26.0, *), !reduceTransparency, contrast != .increased,
-           themeStyle.isBrightEnvironment {
-            return selected ? UI01Material.goldShade : themeStyle.contentPrimaryForeground
-        }
-        return selected ? UI01Material.goldLight : UI01Material.silver
-    }
 
     var body: some View {
         VStack(spacing: 4) {
             UI01DockInstrument(section: section)
+                .foregroundStyle(selected ? UI01Material.goldLight : UI01Material.secondary)
             Text(section.title)
                 .font(.caption2.weight(selected ? .semibold : .medium))
+                .foregroundStyle(selected ? UI01Material.silver : UI01Material.secondary)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Circle().fill(selected ? foreground : .clear)
-                .frame(width: 5, height: 5)
+            Capsule().fill(UI01Material.goldGradient)
+                .frame(width: 12, height: 1)
+                .opacity(selected ? 1 : 0)
+                .frame(height: 5)
                 .accessibilityHidden(true)
         }
-        .foregroundStyle(foreground)
         // Navigation remains simultaneously available at accessibility sizes;
         // the full unabridged name is always exposed to VoiceOver.
         .dynamicTypeSize(.xSmall ... .xxxLarge)

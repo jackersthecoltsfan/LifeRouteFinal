@@ -150,7 +150,6 @@ struct ScenicRoyalThemeCategoryPicker: View {
                     Text(category.rawValue)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .foregroundStyle(selection == category ? UI01Material.navy : UI01Material.silver)
                 .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
                 .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
                 .modifier(UI01SelectionSurface(selected: selection == category))

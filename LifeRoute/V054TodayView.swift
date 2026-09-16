@@ -278,17 +278,18 @@ struct V054TodayView: View {
         VStack(alignment: .leading, spacing: 12) {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top) {
-                    UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true)
+                    UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true, metallic: true)
                         .modifier(UI01ReadingZone())
                     Spacer(minLength: 16)
                     liveLocationAction
                 }
                 VStack(alignment: .leading, spacing: 12) {
-                    UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true)
+                    UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true, metallic: true)
                         .modifier(UI01ReadingZone())
                     liveLocationAction
                 }
             }
+            UI01BrandFilament()
             dayControls.modifier(UI01ReadingZone())
             UI01MarbleText(title: "Today", size: 58, relativeTo: .largeTitle, branded: true)
                 .modifier(UI01ReadingZone())

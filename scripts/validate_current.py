@@ -820,7 +820,7 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     old_depth_tokens = ["LifeRouteOrdinaryGlassPolicy", "scenicRoyalOrdinarySurfaceDepth", "nestedOrdinarySurface", "ordinaryGlassRole"]
     present = [token for token in old_depth_tokens if token in "\n".join(sources.values())]
     require(not present, f"old ordinary-depth glass machinery remains reachable: {present}")
-    require_all(environment, ["ScenicRoyalEnvironmentHost", "accessibilityReduceMotion", "accessibilityReduceTransparency", "scenePhase == .active"], "persistent environment accessibility boundary")
+    require_all(environment, ["ScenicRoyalEnvironmentHost", "accessibilityReduceMotion", "scenePhase == .active"], "persistent scenery motion accessibility boundary")
     require_all(bridge, ["sceneryCanyonDay", "sceneryArcticDay", "sceneryRainforestDay", "royalCurrent", "scenicRoyalThemeStyle"], "theme-to-material bridge")
     require_all(components, ["ScenicRoyalCard", "ScenicRoyalSectionHeader", "ScenicRoyalIconBadge", "ScenicRoyalPrimaryButtonStyle", "ScenicRoyalSecondaryButtonStyle"], "shared Scenic Royal components")
     require_all(components, ["dynamicTypeSize.isAccessibilitySize", ".ui01ScenicText()"], "R2 native scenic header and accessible layout")
@@ -830,7 +830,8 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     lettering = presentation.split("struct UI01MarbleText:", 1)[1].split("enum UI01TextRole", 1)[0]
     require(".system(relativeTo)" in lettering and "var branded = false" in lettering, "R2 operational headings use semantic system typography; serif is explicit branding")
     require(not any(token in lettering for token in [".shadow(", "Canvas", ".mask("]), "R2 operational headings cannot restore marble veins or glyph shadows")
-    require_all(environment, ["UI01Material.navy.opacity(density", "UI01Material.royal.opacity", "location: 0.22", "location: 0.64", "contrast == .increased"], "R2 smooth full-width feathered royal reading support")
+    require_count(environment, "environmentBackdrop(reduceMotion: motionIsReduced)", 1, "one direct shared scenery backdrop")
+    require(not any(token in environment for token in ["ScenicRoyalEnvironmentReadabilityVeil", "LinearGradient(", ".blur(", ".ultraThinMaterial", "UI01Material.navy.opacity", "UI01Material.royal.opacity"]), "Crystal Chrome owner correction: shared scenery must not regain a broad veil, wash, blur or material")
     require_all(presentation, ["struct UI01CompactControlSurface", "content.background(UI01Material.royal, in: Capsule())", "accessibilityReduceTransparency"], "R2 compact controls retain an opaque royal accessibility fallback")
     require_all(presentation, ["struct UI01ReadingPlane", "reduceTransparency || contrast == .increased ? 1 : 0.94"], "R2 dense input plane accessibility")
     require_count(toolbar, "ForEach(AppSection.allCases)", 1, "five-root Scenic Royal toolbar")

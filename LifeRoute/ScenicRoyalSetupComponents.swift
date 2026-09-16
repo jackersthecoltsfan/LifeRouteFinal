@@ -28,7 +28,8 @@ struct ScenicRoyalSetupHeader: View {
     private var titleBlock: some View {
         HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
             VStack(alignment: .leading, spacing: 8) {
-                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true)
+                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true, metallic: true)
+                UI01BrandFilament()
                 UI01MarbleText(title: "Setup", size: 38, relativeTo: .largeTitle)
 
                 Text("Your LifeRoute control center.")
@@ -382,7 +383,7 @@ struct ScenicRoyalTodoRow: View {
                 Label(title, systemImage: systemImage)
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.compact)
-                    .scenicRoyalInteractiveSurface(role: .control)
+                    .modifier(UI01CompactControlSurface())
             } else {
                 Image(systemName: systemImage)
                     .frame(

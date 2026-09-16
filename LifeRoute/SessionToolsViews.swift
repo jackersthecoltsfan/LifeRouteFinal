@@ -661,7 +661,7 @@ struct ClientVisualSupportCenter: View {
                         boardLink("First / Then", subtitle: "Two clear steps", symbol: "arrow.right.circle", kind: .firstThen)
                         boardLink("Choice Board", subtitle: "Choose and arrange saved visuals", symbol: "square.grid.2x2", kind: .choice)
                         boardLink("Visual Schedule", subtitle: "An ordered, reusable sequence", symbol: "list.number", kind: .schedule)
-                        boardLink("Token Board", subtitle: "Empty token slots and a reward", symbol: "circle.grid.3x2", kind: .token)
+                        boardLink("Token Board", subtitle: "Empty token slots and a reward", symbol: "star.square", kind: .token)
                     }
                 }
 

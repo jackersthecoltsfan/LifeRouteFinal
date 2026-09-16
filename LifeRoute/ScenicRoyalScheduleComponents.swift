@@ -26,7 +26,6 @@ struct ScenicRoyalCalendarDateChip: View {
                     .fill(eventCount > 0 ? eventIndicatorColor : .clear)
                     .frame(width: 5, height: 5)
             }
-            .foregroundStyle(isSelected ? UI01Material.navy : UI01Material.silver)
             .frame(
                 width: dynamicTypeSize.isAccessibilitySize ? 88 : 44,
                 height: dynamicTypeSize.isAccessibilitySize ? 96 : (compact ? nil : 58)
@@ -50,7 +49,7 @@ struct ScenicRoyalCalendarDateChip: View {
     }
 
     private var eventIndicatorColor: Color {
-        isSelected ? UI01Material.navy.opacity(0.72) : UI01Material.gold
+        isSelected ? UI01Material.goldLight : UI01Material.gold
     }
 }
 
@@ -68,7 +67,6 @@ struct ScenicRoyalCalendarMonthDay: View {
             ZStack(alignment: .bottom) {
                 Text(date.formatted(.dateTime.day()))
                     .font(.caption.weight(isSelected ? .bold : .semibold))
-                    .foregroundStyle(isSelected ? UI01Material.navy : UI01Material.silver)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 Circle()
@@ -91,7 +89,7 @@ struct ScenicRoyalCalendarMonthDay: View {
     }
 
     private var eventIndicatorColor: Color {
-        isSelected ? UI01Material.navy.opacity(0.72) : UI01Material.gold
+        isSelected ? UI01Material.goldLight : UI01Material.gold
     }
 }
 
@@ -344,7 +342,7 @@ struct ScenicRoyalCalendarConnectionLabel: View {
         .padding(.horizontal, ScenicRoyalDesignSystem.Spacing.standard)
         .frame(minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
         .contentShape(RoundedRectangle(cornerRadius: ScenicRoyalDesignSystem.Radius.control, style: .continuous))
-        .scenicRoyalInteractiveSurface(role: .control, cornerRadius: ScenicRoyalDesignSystem.Radius.control)
+        .modifier(UI01CompactControlSurface())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Connected calendars")
         .accessibilityValue(summary)

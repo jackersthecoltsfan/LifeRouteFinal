@@ -4,7 +4,6 @@ import SwiftUI
 /// five independent NavigationStacks swipe and navigate above it.
 struct ScenicRoyalEnvironmentHost<Content: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var visualActivityCoordinator: LifeRouteVisualActivityCoordinator
 
@@ -36,14 +35,9 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
             .scrollContentBackground(.hidden)
             .background(Color.clear)
             .background {
-                ZStack {
-                    environmentBackdrop(reduceMotion: motionIsReduced)
-
-                    ScenicRoyalEnvironmentReadabilityVeil(
-                        style: style,
-                        reduceTransparency: reduceTransparency
-                    )
-                }
+                // Scenery stays direct. Readability belongs to local controls
+                // and reading planes, never a full-screen presentation veil.
+                environmentBackdrop(reduceMotion: motionIsReduced)
             }
 #if DEBUG
             .overlay(alignment: .topLeading) {
@@ -92,46 +86,5 @@ struct ScenicRoyalEnvironmentHost<Content: View>: View {
 #else
         return .full
 #endif
-    }
-}
-
-private struct ScenicRoyalEnvironmentReadabilityVeil: View {
-    @Environment(\.colorSchemeContrast) private var contrast
-    let style: ScenicRoyalThemeStyle
-    let reduceTransparency: Bool
-
-    var body: some View {
-        ZStack {
-            // A single atmospheric royal grade spans the scene. Its smooth
-            // vertical stops support open content without text-local boxes.
-            LinearGradient(
-                stops: [
-                    .init(color: UI01Material.navy.opacity(density * 0.45), location: 0),
-                    .init(color: UI01Material.navy.opacity(density), location: 0.22),
-                    .init(color: UI01Material.royal.opacity(density * 0.9), location: 0.64),
-                    .init(color: UI01Material.navy.opacity(density * 0.6), location: 1),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            LinearGradient(
-                colors: [
-                    UI01Material.royal.opacity(0.12),
-                    Color.clear,
-                    UI01Material.royal.opacity(0.04),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
-        .ignoresSafeArea()
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-
-    private var density: Double {
-        let base = style.isBrightEnvironment ? 0.58 : 0.28
-        return min(0.78, base + (contrast == .increased ? 0.16 : 0) + (reduceTransparency ? 0.04 : 0))
     }
 }

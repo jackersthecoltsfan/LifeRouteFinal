@@ -90,6 +90,10 @@ final class CountingThemeDefaults: UserDefaults {
   for gold in [UI01Material.gold, UI01Material.goldLight] {
    expect(ratio(rgba(UI01Material.navy), rgba(gold)) >= 4.5, "UI01 reused gold-action foreground")
   }
+  // Crystal controls retain an opaque royal accessibility backing. Disabled
+  // primary opacity belongs to the label, so this is the actual fallback pair.
+  expect(ratio(rgba(UI01Material.silver), rgba(UI01Material.royal)) >= 4.5, "Crystal primary accessibility label")
+  expect(ratio(composite(rgba(UI01Material.secondary.opacity(0.75)), rgba(UI01Material.royal)), rgba(UI01Material.royal)) >= 4.5, "Crystal disabled accessibility label")
   let expected = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]))) as! [String:Any]
   let core = LifeRouteTheme.phaseOneCoreGlassCatalog
   let dynamic = LifeRouteTheme.retiredDynamicCatalog
@@ -231,8 +235,47 @@ assert 'enabled ? 1 : 0.5' in secondary_material
 assert 'UI01CompactControlSurface()' in secondary_material
 button = block(presentation, 'struct UI01GoldButtonStyle:')
 assert r'@Environment(\.isEnabled)' in button
-assert 'enabled ? UI01Material.navy : UI01Material.secondary' in button
+assert 'enabled ? UI01Material.silver : UI01Material.secondary' in button
 assert 'configuration.isPressed && !reduceMotion' in button
+assert 'minHeight: compact ? 44 : 48' in button
+assert button.index('.opacity(enabled ? 1 : 0.75)') < button.index('.modifier(UI01CompactControlSurface(primary: true))'), 'Disabled label must not make the royal accessibility backing translucent'
+compact = block(presentation, 'struct UI01CompactControlSurface:')
+dock_surface = block(presentation, 'struct UI01DockSurface:')
+for surface in [compact, dock_surface]:
+    assert 'reduceTransparency || contrast == .increased' in surface
+    assert 'content.background(UI01Material.royal, in: Capsule())' in surface
+    assert '.glassEffect' not in surface and '.blur(' not in surface, 'Owner sharp-scene decision requires nonrefracting rim-only crystal'
+    assert 'UI01CrystalRim' in surface and '.opacity(' in surface
+    assert '.regular' not in surface and 'Material' not in surface.replace('UI01Material', ''), 'Crystal controls must not frost scenery'
+    assert 'backgroundTop' in surface and '.accent' not in surface, 'Theme influence is limited to the background wash'
+selection = block(presentation, 'struct UI01SelectionSurface:')
+assert '.glassEffect' not in selection, 'Grouped selection must not introduce nested native glass'
+assert '.fill(UI01Material.goldGradient)' not in selection and 'Color.white.opacity' not in selection, 'Selection must not become a gold or white slab'
+for name, marker in [
+    ('ScenicRoyalScheduleComponents.swift', 'struct ScenicRoyalCalendarDateChip:'),
+    ('ScenicRoyalScheduleComponents.swift', 'struct ScenicRoyalCalendarMonthDay:'),
+    ('ScenicRoyalThemeComponents.swift', 'struct ScenicRoyalThemeCategoryPicker:'),
+]:
+    selected_control = block((ROOT/'LifeRoute'/name).read_text(), marker)
+    assert '? UI01Material.navy :' not in selected_control, 'Selected labels must inherit crystal selection ink instead of the obsolete navy-on-gold treatment'
+dock_label = block(presentation, 'struct UI01DockLabel:')
+assert '.background' not in dock_label and '.glassEffect' not in dock_label, 'The whole dock owns one crystal surface; selected roots have no chip'
+assert '.frame(width: 12, height: 1)' in dock_label
+assert 'selected ? UI01Material.goldLight : UI01Material.secondary' in dock_label
+assert 'selected ? UI01Material.silver : UI01Material.secondary' in dock_label, 'Owner selected-state law uses ivory labels independent of theme'
+assert 'shade.opacity(primary ? 0.03 : 0.02)' in compact
+assert 'backgroundTop.opacity(0.02)' in dock_surface
+rim = block(presentation, 'private struct UI01CrystalRim:')
+assert 'lineWidth: primary ? 0.45 : 0.4' in rim
+assert 'Color.white.opacity(0.40)' in rim and 'backgroundTop.opacity(0.22)' in rim
+instrument = block(presentation, 'struct UI01DockInstrument:')
+assert 'LifeRouteDockGlyph(section: section)' in instrument and 'Image(systemName:' not in instrument
+filament = block(presentation, 'struct UI01BrandFilament:')
+assert '.frame(width: 56, height: 1)' in filament and '.shadow(' not in filament
+for name in ['ScenicRoyalComponents.swift', 'ScenicRoyalResourceComponents.swift', 'ScenicRoyalSetupComponents.swift', 'V054TodayView.swift']:
+    for line in (ROOT/'LifeRoute'/name).read_text().splitlines():
+        if 'metallic: true' in line:
+            assert 'title: "LifeRoute"' in line, 'Metallic branding must not recolor operational titles'
 assert '.tint(style.nativeControlTint)' in (ROOT/'LifeRoute/ScenicRoyalEnvironment.swift').read_text()
 assert 'surfaceShape.fill(style.accessibleSurfaceFill.opacity(accessibleSurfaceOpacity))' in (ROOT/'LifeRoute/ScenicRoyalMaterials.swift').read_text()
 print('Secondary enabled/disabled/pressed/Reduce Motion and shared appearance wiring passed; native focused/disabled appearance remains a capture gate.')

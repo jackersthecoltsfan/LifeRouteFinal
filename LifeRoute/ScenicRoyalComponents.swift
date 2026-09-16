@@ -114,7 +114,8 @@ struct ScenicRoyalScreenHeader<Actions: View>: View {
     private var titles: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !compact {
-                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true)
+                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true, metallic: true)
+                UI01BrandFilament()
             }
             UI01MarbleText(title: title, size: compact ? 26 : 38, relativeTo: compact ? .title2 : .largeTitle)
                 .accessibilityAddTraits(.isHeader)
@@ -181,7 +182,6 @@ struct ScenicRoyalSegmentedControl<Option: Identifiable & Hashable, Label: View>
                 } label: {
                     label(option)
                         .font(.headline.weight(.semibold))
-                        .foregroundStyle(selection == option ? UI01Material.navy : UI01Material.silver)
                         .frame(maxWidth: .infinity, minHeight: ScenicRoyalDesignSystem.Layout.minimumTouchTarget)
                         .modifier(UI01SelectionSurface(selected: selection == option))
                         .contentShape(

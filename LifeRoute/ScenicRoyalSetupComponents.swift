@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct ScenicRoyalSetupHeader: View {
-    @Environment(\.lifeRouteTheme) private var theme
     @Environment(\.scenicRoyalThemeStyle) private var style
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -35,8 +34,8 @@ struct ScenicRoyalSetupHeader: View {
 
                 Text("Your LifeRoute control center.")
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(theme.scenicRoyalStyle.contentSecondaryForeground)
                     .fixedSize(horizontal: false, vertical: true)
+                    .modifier(UI01CaptionReadingSurface())
             }
         }
         .accessibilityElement(children: .combine)
@@ -52,7 +51,7 @@ struct ScenicRoyalSetupHeader: View {
                 .foregroundStyle(style.accent)
             Text("saved place\(savedPlaceCount == 1 ? "" : "s")")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(theme.scenicRoyalStyle.contentSecondaryForeground)
+                .modifier(UI01CaptionReadingSurface())
         }
         .accessibilityElement(children: .combine)
     }

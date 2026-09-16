@@ -610,7 +610,6 @@ struct QuickSessionNotesView: View {
 // v0.7.0 B.3 visual presentation workflow: editors hide the app tab bar, expose Library + Save actions, and First/Then presents full screen.
 
 struct ClientVisualSupportCenter: View {
-    @Environment(\.lifeRouteTheme) private var theme
     @Environment(\.lifeRoutePalette) private var palette
     @ObservedObject var visualState: ClientVisualSupportCore
     @ObservedObject var clientState: ClientProfileCore
@@ -719,7 +718,7 @@ struct ClientVisualSupportCenter: View {
                 UI01MarbleText(title: "Boards", size: 30, relativeTo: .title)
                 Text("Create, edit, and export First / Then, Choice Boards, Visual Schedules, and Token Boards.")
                     .font(.subheadline)
-                    .foregroundStyle(theme.scenicRoyalStyle.contentSecondaryForeground)
+                    .modifier(UI01CaptionReadingSurface())
             }
 
             Spacer(minLength: 0)

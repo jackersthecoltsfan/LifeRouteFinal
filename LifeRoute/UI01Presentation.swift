@@ -130,6 +130,25 @@ struct UI01ReadingPlane: ViewModifier {
     }
 }
 
+/// Small open-scene captions need a stable local contrast surface on mixed
+/// sky/foliage scenes. Background-only insets preserve their existing layout.
+struct UI01CaptionReadingSurface: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(UI01Material.secondary)
+            .background {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(UI01Material.navy.opacity(reduceTransparency || contrast == .increased ? 1 : 0.94))
+                    .padding(.horizontal, -4)
+                    .padding(.vertical, -2)
+                    .allowsHitTesting(false)
+            }
+    }
+}
+
 /// A selected choice is an action material, while unselected choices stay open.
 struct UI01SelectionSurface: ViewModifier {
     let selected: Bool

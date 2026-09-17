@@ -248,10 +248,6 @@ extension View {
     }
 
     func scenicRoyalField() -> some View {
-        self
-            .padding(12)
-            .frame(minHeight: 44)
-            .background(UI01Material.navy, in: RoundedRectangle(cornerRadius: 8))
-            .overlay(alignment: .bottom) { UI01Hairline().padding(.horizontal, 8) }
+        modifier(UI01FieldSurface())
     }
 }

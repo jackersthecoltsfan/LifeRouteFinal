@@ -12,6 +12,7 @@ enum UI01Material {
     static let goldLight = Color(red: 1, green: 240 / 255, blue: 168 / 255)
     static let goldShade = Color(red: 155 / 255, green: 91 / 255, blue: 11 / 255)
     static let destructive = Color(red: 1, green: 184 / 255, blue: 176 / 255)
+    static let crystalBoxOpacity: Double = 0.25
     static let goldGradient = LinearGradient(
         colors: [goldLight, gold, goldShade],
         startPoint: .topLeading, endPoint: .bottomTrailing
@@ -284,8 +285,8 @@ struct UI01ReadingPlane: ViewModifier {
     }
 }
 
-/// Small open-scene captions need a stable local contrast surface on mixed
-/// sky/foliage scenes. Background-only insets preserve their existing layout.
+/// Small open-scene captions use a restrained dark-blue box so the scenery can
+/// remain visible through the surface. Background-only insets preserve layout.
 struct UI01CaptionReadingSurface: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
@@ -295,10 +296,34 @@ struct UI01CaptionReadingSurface: ViewModifier {
             .foregroundStyle(UI01Material.secondary)
             .background {
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(UI01Material.navy.opacity(reduceTransparency || contrast == .increased ? 1 : 0.94))
+                    .fill(UI01Material.navy.opacity(
+                        reduceTransparency || contrast == .increased ? 1 : UI01Material.crystalBoxOpacity
+                    ))
                     .padding(.horizontal, -4)
                     .padding(.vertical, -2)
                     .allowsHitTesting(false)
+            }
+    }
+}
+
+/// Shared rounded input boxes use the same clear 25% dark-blue treatment as
+/// the Today date control, with the accepted opaque accessibility fallback.
+struct UI01FieldSurface: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    func body(content: Content) -> some View {
+        content
+            .padding(12)
+            .frame(minHeight: 44)
+            .background(
+                UI01Material.navy.opacity(
+                    reduceTransparency || contrast == .increased ? 1 : UI01Material.crystalBoxOpacity
+                ),
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+            .overlay(alignment: .bottom) {
+                UI01Hairline().padding(.horizontal, 8)
             }
     }
 }

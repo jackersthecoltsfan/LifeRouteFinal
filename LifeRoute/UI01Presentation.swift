@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreText
 
 /// R2 foreground roles. The existing environment remains the only scenery owner.
 enum UI01Material {
@@ -15,6 +16,76 @@ enum UI01Material {
         colors: [goldLight, gold, goldShade],
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
+}
+
+/// A cached Didot glyph path keeps the fine outline aligned with the gold fill.
+/// It avoids offset text copies, masks and glyph shadows.
+private enum UI01WordmarkGeometry {
+    static let nominalSize: CGFloat = 32
+    static let path: Path = {
+        let font = CTFontCreateWithName("Didot" as CFString, nominalSize, nil)
+        let text = NSAttributedString(string: "LifeRoute", attributes: [
+            NSAttributedString.Key(kCTFontAttributeName as String): font
+        ])
+        let line = CTLineCreateWithAttributedString(text)
+        let outline = CGMutablePath()
+        for run in CTLineGetGlyphRuns(line) as! [CTRun] {
+            let count = CTRunGetGlyphCount(run)
+            var glyphs = [CGGlyph](repeating: 0, count: count)
+            var positions = [CGPoint](repeating: .zero, count: count)
+            CTRunGetGlyphs(run, CFRange(location: 0, length: 0), &glyphs)
+            CTRunGetPositions(run, CFRange(location: 0, length: 0), &positions)
+            for index in 0..<count {
+                if let glyph = CTFontCreatePathForGlyph(font, glyphs[index], nil) {
+                    outline.addPath(glyph, transform: CGAffineTransform(
+                        translationX: positions[index].x, y: positions[index].y
+                    ))
+                }
+            }
+        }
+        let bounds = outline.boundingBoxOfPath
+        return Path(outline).applying(CGAffineTransform(
+            a: 1, b: 0, c: 0, d: -1, tx: -bounds.minX, ty: bounds.maxY
+        ))
+    }()
+}
+
+private struct UI01WordmarkShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let bounds = UI01WordmarkGeometry.path.boundingRect
+        return UI01WordmarkGeometry.path.applying(CGAffineTransform(
+            a: rect.width / bounds.width, b: 0, c: 0, d: rect.height / bounds.height,
+            tx: rect.minX, ty: rect.minY
+        ))
+    }
+}
+
+struct UI01BrandWordmark: View {
+    var showsLogo = false
+    @ScaledMetric(relativeTo: .title2) private var pointSize: CGFloat = 32
+
+    var body: some View {
+        let scale = pointSize / UI01WordmarkGeometry.nominalSize
+        let bounds = UI01WordmarkGeometry.path.boundingRect
+        UI01WordmarkShape()
+            .fill(UI01Material.goldGradient)
+            .overlay {
+                UI01WordmarkShape().stroke(Color.white.opacity(0.85), lineWidth: 0.35)
+            }
+            .frame(width: bounds.width * scale, height: bounds.height * scale)
+            .background {
+                if showsLogo {
+                    LifeRouteBrandMark(variant: .micro)
+                        .frame(width: pointSize * 1.7, height: pointSize * 1.7)
+                        .opacity(0.18)
+                        .accessibilityHidden(true)
+                }
+            }
+            .allowsHitTesting(false)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("LifeRoute")
+            .accessibilityAddTraits(.isStaticText)
+    }
 }
 
 struct UI01MarbleText: View {

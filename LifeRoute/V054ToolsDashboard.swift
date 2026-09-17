@@ -26,8 +26,7 @@ struct V054ToolsDashboard: View {
         ScrollView {
             LazyVStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
                 ScenicRoyalScreenHeader(
-                    title: "Tools",
-                    subtitle: "Practical support for clearer, calmer sessions."
+                    title: "Tools"
                 ) {
                     ScenicRoyalIconBadge(systemImage: "wrench.and.screwdriver")
                 }

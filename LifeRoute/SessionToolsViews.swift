@@ -716,9 +716,6 @@ struct ClientVisualSupportCenter: View {
 
             VStack(alignment: .leading, spacing: 5) {
                 UI01MarbleText(title: "Boards", size: 30, relativeTo: .title)
-                Text("Create, edit, and export First / Then, Choice Boards, Visual Schedules, and Token Boards.")
-                    .font(.subheadline)
-                    .modifier(UI01CaptionReadingSurface())
             }
 
             Spacer(minLength: 0)

@@ -28,14 +28,10 @@ struct ScenicRoyalResourceHeader: View {
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 8) {
-            UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true, metallic: true)
+            UI01BrandWordmark()
             UI01BrandFilament()
             UI01MarbleText(title: "Resources", size: 38, relativeTo: .largeTitle)
 
-            Text("Clinical, work, training, and company portals.")
-                .font(.subheadline.weight(.medium))
-                .fixedSize(horizontal: false, vertical: true)
-                .modifier(UI01CaptionReadingSurface())
         }
         .accessibilityElement(children: .combine)
     }

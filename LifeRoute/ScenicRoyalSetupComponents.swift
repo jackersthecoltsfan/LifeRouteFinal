@@ -28,14 +28,10 @@ struct ScenicRoyalSetupHeader: View {
     private var titleBlock: some View {
         HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
             VStack(alignment: .leading, spacing: 8) {
-                UI01MarbleText(title: "LifeRoute", size: 25, relativeTo: .title2, branded: true, metallic: true)
+                UI01BrandWordmark()
                 UI01BrandFilament()
                 UI01MarbleText(title: "Setup", size: 38, relativeTo: .largeTitle)
 
-                Text("Your LifeRoute control center.")
-                    .font(.subheadline.weight(.medium))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .modifier(UI01CaptionReadingSurface())
             }
         }
         .accessibilityElement(children: .combine)

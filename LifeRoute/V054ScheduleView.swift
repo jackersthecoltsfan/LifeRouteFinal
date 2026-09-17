@@ -154,47 +154,36 @@ struct V054ScheduleView: View {
     private var compactScheduleHeader: some View { calendarHeader(compact: true) }
 
     private func calendarHeader(compact: Bool) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: 16) {
-                calendarTitle(compact: compact)
-                    .fixedSize(horizontal: true, vertical: false)
-                Spacer(minLength: 8)
-                calendarHeaderActions
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-            VStack(alignment: .leading, spacing: 12) {
-                calendarTitle(compact: compact)
-                calendarHeaderActions
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            calendarTitle(compact: compact)
+            calendarHeaderActions
         }
     }
 
     private func calendarTitle(compact: Bool) -> some View {
-        ScenicRoyalScreenHeader(title: "Calendar", subtitle: "", compact: compact) {
+        ScenicRoyalScreenHeader(title: "Calendar", compact: compact) {
             EmptyView()
         }
     }
 
     private var calendarHeaderActions: some View {
-        let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .trailing, spacing: 8))
-            : AnyLayout(HStackLayout(spacing: 8))
-        return layout {
-                Button {
-                    showingProviders = true
-                    LifeRouteHaptics.selection()
-                } label: {
-                    Label("Sources", systemImage: "calendar.badge.checkmark")
-                }
-                .buttonStyle(UI01SecondaryButtonStyle())
-                .accessibilityHint("Opens Calendar Sources")
+        HStack(alignment: .top, spacing: 8) {
+            Button {
+                showingProviders = true
+                LifeRouteHaptics.selection()
+            } label: {
+                Label("Sources", systemImage: "calendar.badge.checkmark")
+            }
+            .buttonStyle(UI01SecondaryButtonStyle())
+            .accessibilityHint("Opens Calendar Sources")
 
-                Button { openAppointmentSheet() } label: {
-                    Label("Add", systemImage: "plus")
-                }
-                .buttonStyle(UI01GoldButtonStyle(compact: true))
-                .accessibilityLabel("Add appointment")
+            Spacer(minLength: 8)
+
+            Button { openAppointmentSheet() } label: {
+                Label("Add", systemImage: "plus")
+            }
+            .buttonStyle(UI01GoldButtonStyle(compact: true))
+            .accessibilityLabel("Add appointment")
         }
     }
 

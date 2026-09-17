@@ -1,3 +1,14 @@
+# Crystal Chrome physical-QA follow-up01 — September 16, 2026
+
+- Owner-authorized five-item refinement on installed candidate `144e8d52ec5ee2d0cf25e15d2c6372574de4c711`, same feature branch and single canonical checkout. Main remains `6f588cdbb432f05e3c33b6d10680537b36d58971`. Astra is sole integrator; no additional agents or broader design work.
+- Remove descriptive boxed introductions from Tools, Resources, Setup and Boards. Keep operational titles, functional date/count labels, reading planes and rim-only chrome.
+- Shared LifeRoute wordmark grows from25 to32 points with Dynamic Type. A cached Didot glyph path supplies the gold fill and0.35-point white outline without glyph shadow, mask or Canvas. Only Today places the existing micro LifeRoute brand emblem subtly behind it; no new logo asset or scene rendering.
+- Calendar action row spans the header with Sources leading and Add trailing; actions and Calendar data semantics remain unchanged.
+- Run bounded fast/readability contracts, Debug build and affected-screen/native alignment checks. Exact source, artifacts, screenshots and results are in `/Users/brand/Documents/LifeRouteCheckpoints/crystal-chrome-followup01-20260916/`.
+- Follow the PTH's final stop state: updated local candidate qualified and ready for Brandon physical reinstall/recheck. No automatic reinstall in this turn; no merge, push, hosted CI, TestFlight, distribution archive or release. No unrelated fixes.
+
+Earlier entries below are historical.
+
 # Crystal Chrome candidate — September 16, 2026
 
 - Authority is Brandon's Crystal Chrome native UI enhancement PTH. Accepted canonical main is `6f588cdbb432f05e3c33b6d10680537b36d58971`, tree `3780f5c78dd8a8077568647696774283c5664141`. Work is on `feature/crystal-chrome-ui-enhancement-20260916` in canonical Local `/Users/brand/Documents/GitHub/LifeRouteFinal`, with exactly one worktree. Earlier main identities and installation permissions below are historical and do not apply to this task.

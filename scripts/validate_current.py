@@ -827,7 +827,7 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     presentation = sources["UI01Presentation.swift"]
     reading_zone = presentation.split("struct UI01ReadingZone:", 1)[1].split("struct UI01Hairline:", 1)[0]
     require(not any(token in reading_zone for token in [".shadow(", ".background", ".blur("]), "R2 open scenic text must not regain a glyph halo or local backplate")
-    lettering = presentation.split("struct UI01MarbleText:", 1)[1].split("enum UI01TextRole", 1)[0]
+    lettering = presentation.split("private enum UI01WordmarkGeometry", 1)[1].split("enum UI01TextRole", 1)[0]
     require(".system(relativeTo)" in lettering and "var branded = false" in lettering, "R2 operational headings use semantic system typography; serif is explicit branding")
     require(not any(token in lettering for token in [".shadow(", "Canvas", ".mask("]), "R2 operational headings cannot restore marble veins or glyph shadows")
     require_count(environment, "environmentBackdrop(reduceMotion: motionIsReduced)", 1, "one direct shared scenery backdrop")
@@ -839,7 +839,7 @@ def validate_scenic_royal_foundation(sources: dict[str, str]) -> None:
     require_all(
         today,
         [
-            'UI01MarbleText(title: "LifeRoute"',
+            'UI01BrandWordmark(showsLogo: true)',
             'UI01MarbleText(title: "Today"',
             "UI01TrailRow(",
             ".modifier(UI01ReadingZone())",

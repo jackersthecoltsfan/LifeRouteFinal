@@ -640,10 +640,33 @@ struct UI01DockInstrument: View {
     let section: AppSection
 
     var body: some View {
-        LifeRouteDockGlyph(section: section)
-            .stroke(style: StrokeStyle(lineWidth: 2.3, lineCap: .round, lineJoin: .round))
+        Group {
+            if let symbolName {
+                Image(systemName: symbolName)
+                    .font(.system(size: 35, weight: .regular))
+                    .symbolRenderingMode(.monochrome)
+            } else {
+                LifeRouteDockGlyph(section: section)
+                    .stroke(style: StrokeStyle(lineWidth: 2.3, lineCap: .round, lineJoin: .round))
+            }
+        }
             .frame(width: 36, height: 36)
             .accessibilityHidden(true)
+    }
+
+    private var symbolName: String? {
+        switch section {
+        case .today:
+            return nil
+        case .schedule:
+            return "calendar"
+        case .tools:
+            return "wrench.and.screwdriver"
+        case .resources:
+            return "book"
+        case .setup:
+            return "gearshape"
+        }
     }
 }
 

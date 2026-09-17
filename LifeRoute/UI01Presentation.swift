@@ -75,10 +75,7 @@ struct UI01BrandWordmark: View {
             .frame(width: bounds.width * scale, height: bounds.height * scale)
             .background {
                 if showsLogo {
-                    LifeRouteBrandMark(variant: .micro)
-                        .frame(width: pointSize * 1.7, height: pointSize * 1.7)
-                        .opacity(0.18)
-                        .accessibilityHidden(true)
+                    UI01TodayLogoBackdrop(side: pointSize * 1.9)
                 }
             }
             .allowsHitTesting(false)
@@ -109,6 +106,43 @@ struct UI01MarbleText: View {
 /// theme role. A light composition can explicitly request dark lettering.
 enum UI01TextRole {
     case silver, dark, environmental
+}
+
+/// The Today header's dimensional brand mark stays behind the wordmark while
+/// keeping its scenery-facing surface clear and visually restrained.
+private struct UI01TodayLogoBackdrop: View {
+    let side: CGFloat
+
+    var body: some View {
+        ZStack {
+            LifeRouteBrandMark(variant: .micro)
+
+            // A low offset shade and a light-to-gold highlight read as a
+            // shallow bevel without adding a glow or changing the logo art.
+            RoundedRectangle(cornerRadius: side * 0.19, style: .continuous)
+                .stroke(Color.black.opacity(0.48), lineWidth: 0.9)
+                .offset(y: 1.1)
+
+            RoundedRectangle(cornerRadius: side * 0.19, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.88),
+                            Color.white.opacity(0.20),
+                            UI01Material.goldLight.opacity(0.78)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.8
+                )
+                .padding(0.8)
+        }
+        .frame(width: side, height: side)
+        .shadow(color: Color.black.opacity(0.42), radius: 2.1, x: 0, y: 1.6)
+        .opacity(0.96)
+        .accessibilityHidden(true)
+    }
 }
 
 struct UI01ReadingZone: ViewModifier {

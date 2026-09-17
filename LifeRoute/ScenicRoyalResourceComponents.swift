@@ -26,11 +26,23 @@ struct ScenicRoyalResourceHeader: View {
         }
     }
 
+    private struct ResourceTitle: View {
+        @ScaledMetric(relativeTo: .largeTitle) private var pointSize: CGFloat = 32
+
+        var body: some View {
+            Text("Resources")
+                .font(.system(size: pointSize, weight: .semibold))
+                .foregroundStyle(UI01Material.silver)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+        }
+    }
+
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 8) {
             UI01BrandWordmark()
             UI01BrandFilament()
-            UI01MarbleText(title: "Resources", size: 38, relativeTo: .largeTitle)
+            ResourceTitle()
 
         }
         .accessibilityElement(children: .combine)

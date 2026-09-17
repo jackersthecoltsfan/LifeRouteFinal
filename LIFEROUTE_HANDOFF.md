@@ -1,3 +1,8 @@
+# Crystal Chrome physical-QA follow-up02 — September 16, 2026
+
+- Owner-authorized two-item refinement on `5bdeeb4f2e854e71d9a61668c3d8b98061f8ffc4`: Today now uses the existing micro LifeRoute mark as a near-opaque dimensional backdrop with restrained offset shade and white-to-gold bevel rim; the shared Resources title uses a smaller scaled system treatment so it stays on one line. Wordmark fill/outline, header geometry, scenery, navigation and data behavior remain unchanged.
+- Bounded fast validation, Debug Simulator build and Today/Resources visual captures passed. No accessibility requalification, broad visual review, source merge, push, TestFlight or release. Stop after the clean local candidate is ready for physical reinstall.
+
 # Crystal Chrome physical-QA follow-up01 — September 16, 2026
 
 - Owner-authorized five-item refinement on installed candidate `144e8d52ec5ee2d0cf25e15d2c6372574de4c711`, same feature branch and single canonical checkout. Main remains `6f588cdbb432f05e3c33b6d10680537b36d58971`. Astra is sole integrator; no additional agents or broader design work.

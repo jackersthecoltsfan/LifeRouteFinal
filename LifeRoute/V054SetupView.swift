@@ -145,7 +145,7 @@ struct V054SetupView: View {
     }
 
     private var hero: some View {
-        ScenicRoyalSetupHeader(savedPlaceCount: routingState.savedPlaces.count)
+        ScenicRoyalSetupHeader()
     }
 
 #if DEBUG

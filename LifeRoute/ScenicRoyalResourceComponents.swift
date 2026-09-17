@@ -1,28 +1,9 @@
 import SwiftUI
 
 struct ScenicRoyalResourceHeader: View {
-    @Environment(\.scenicRoyalThemeStyle) private var style
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    let builtInCount: Int
-    let customCount: Int
-
     var body: some View {
         ScenicRoyalCard(role: .majorGroup) {
-            Group {
-                if dynamicTypeSize.isAccessibilitySize {
-                    VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-                        titleBlock
-                        countBlock
-                    }
-                } else {
-                    HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-                        titleBlock
-                        Spacer(minLength: ScenicRoyalDesignSystem.Spacing.compact)
-                        countBlock
-                    }
-                }
-            }
+            titleBlock
         }
     }
 
@@ -43,35 +24,8 @@ struct ScenicRoyalResourceHeader: View {
             UI01BrandWordmark()
             UI01BrandFilament()
             ResourceTitle()
-
         }
         .accessibilityElement(children: .combine)
-    }
-
-    private var countBlock: some View {
-        VStack(
-            alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing,
-            spacing: ScenicRoyalDesignSystem.Spacing.hairline
-        ) {
-            Text("\(builtInCount)")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(style.accent)
-
-            Text("built-in portal\(builtInCount == 1 ? "" : "s")")
-                .font(.caption.weight(.semibold))
-                .modifier(UI01CaptionReadingSurface())
-
-            if customCount > 0 {
-                Label("\(customCount) custom", systemImage: "person.crop.circle.badge.plus")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(style.accentReflection)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(builtInCount) built-in portal\(builtInCount == 1 ? "" : "s"), "
-                + "\(customCount) custom portal\(customCount == 1 ? "" : "s")"
-        )
     }
 }
 

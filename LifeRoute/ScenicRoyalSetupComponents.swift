@@ -1,53 +1,17 @@
 import SwiftUI
 
 struct ScenicRoyalSetupHeader: View {
-    @Environment(\.scenicRoyalThemeStyle) private var style
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    let savedPlaceCount: Int
-
     var body: some View {
         ScenicRoyalCard(role: .majorGroup) {
-            Group {
-                if dynamicTypeSize.isAccessibilitySize {
-                    VStack(alignment: .leading, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-                        titleBlock
-                        placeCount
-                    }
-                } else {
-                    HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-                        titleBlock
-                        Spacer(minLength: ScenicRoyalDesignSystem.Spacing.compact)
-                        placeCount
-                    }
-                }
-            }
+            titleBlock
         }
     }
 
     private var titleBlock: some View {
-        HStack(alignment: .top, spacing: ScenicRoyalDesignSystem.Spacing.standard) {
-            VStack(alignment: .leading, spacing: 8) {
-                UI01BrandWordmark()
-                UI01BrandFilament()
-                UI01MarbleText(title: "Setup", size: 38, relativeTo: .largeTitle)
-
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private var placeCount: some View {
-        VStack(
-            alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing,
-            spacing: ScenicRoyalDesignSystem.Spacing.hairline
-        ) {
-            Text("\(savedPlaceCount)")
-                .font(.title2.weight(.bold))
-                .foregroundStyle(style.accent)
-            Text("saved place\(savedPlaceCount == 1 ? "" : "s")")
-                .font(.caption.weight(.semibold))
-                .modifier(UI01CaptionReadingSurface())
+        VStack(alignment: .leading, spacing: 8) {
+            UI01BrandWordmark()
+            UI01BrandFilament()
+            UI01MarbleText(title: "Setup", size: 38, relativeTo: .largeTitle)
         }
         .accessibilityElement(children: .combine)
     }

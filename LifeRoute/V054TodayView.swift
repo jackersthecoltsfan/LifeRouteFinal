@@ -346,14 +346,6 @@ struct V054TodayView: View {
             .accessibilityHint("Returns the command center to today")
 
             dayShiftButton(1, systemImage: "chevron.right", label: "Next day")
-            Button {
-                showingDayPicker = true
-                LifeRouteHaptics.selection()
-            } label: {
-                Image(systemName: "calendar.badge.clock").frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Choose day")
         }
         .foregroundStyle(UI01Material.secondary)
     }

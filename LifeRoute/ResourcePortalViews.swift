@@ -12,10 +12,7 @@ struct ResourcePortalHubView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: ScenicRoyalDesignSystem.Spacing.comfortable) {
-                ScenicRoyalResourceHeader(
-                    builtInCount: portalState.builtInPortals.count,
-                    customCount: portalState.customPortals.count
-                )
+                ScenicRoyalResourceHeader()
 
                 ForEach(LifeRoutePortalCategory.allCases) { category in
                     ScenicRoyalResourceCategorySection(

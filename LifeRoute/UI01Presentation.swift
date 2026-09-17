@@ -94,16 +94,7 @@ struct UI01BrandWordmark: View {
         ))
     }
 
-    var body: some View {
-        let scale = pointSize / UI01WordmarkGeometry.nominalSize
-        let bounds = UI01WordmarkGeometry.path.boundingRect
-        let wordmarkWidth = bounds.width * scale
-        let wordmarkHeight = bounds.height * scale
-        let logoSide = pointSize * 1.9
-
-        // Keep the wordmark's frame as the only layout footprint. The logo is
-        // an overlay anchored to that frame's leading edge so it cannot escape
-        // into the parent header or screen coordinate space.
+    private func wordmarkGlyph(width: CGFloat, height: CGFloat) -> some View {
         UI01WordmarkShape()
             .fill(wordmarkFill)
             // A near-opaque Today fill lets the dimensional mark read as one
@@ -111,18 +102,31 @@ struct UI01BrandWordmark: View {
             .overlay {
                 UI01WordmarkShape().stroke(wordmarkOutline, lineWidth: 0.58)
             }
-            .frame(width: wordmarkWidth, height: wordmarkHeight)
-            .background(alignment: .topLeading) {
-                if showsLogo {
-                    UI01TodayLogoBackdrop(side: logoSide)
-                        // Align the logo's left edge with the L in LifeRoute,
-                        // then lift it so the LR sits just above the lettering.
-                        .offset(x: 0, y: -pointSize * 0.50)
+            .frame(width: width, height: height)
+    }
+
+    @ViewBuilder
+    var body: some View {
+        let scale = pointSize / UI01WordmarkGeometry.nominalSize
+        let bounds = UI01WordmarkGeometry.path.boundingRect
+        let wordmarkWidth = bounds.width * scale
+        let wordmarkHeight = bounds.height * scale
+
+        Group {
+            if showsLogo {
+                // Today owns a vertical brand lockup: the logo clears the
+                // lettering, both share the same leading edge, and the existing
+                // filament below the wordmark can separate the brand from Today.
+                VStack(alignment: .leading, spacing: 4) {
+                    UI01TodayLogoBackdrop(side: pointSize * 1.9)
+                        .frame(width: wordmarkWidth, alignment: .leading)
+                    wordmarkGlyph(width: wordmarkWidth, height: wordmarkHeight)
                 }
+                .frame(width: wordmarkWidth, alignment: .leading)
+            } else {
+                wordmarkGlyph(width: wordmarkWidth, height: wordmarkHeight)
             }
-            // Drop the lettering over the logo's lower edge so the two marks
-            // read as one intentional lockup.
-            .offset(y: showsLogo ? pointSize * 0.70 : 0)
+        }
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("LifeRoute")
@@ -441,8 +445,8 @@ struct UI01TrailRow<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            Color.clear.frame(width: 28)
+        HStack(alignment: .top, spacing: 8) {
+            Color.clear.frame(width: 34)
             content
                 .modifier(UI01ReadingZone())
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -451,11 +455,12 @@ struct UI01TrailRow<Content: View>: View {
         .overlay(alignment: .leading) {
             GeometryReader { geometry in
                 let mid = geometry.size.height / 2
+                let railX: CGFloat = 17
                 let route = Path { path in
-                    path.move(to: CGPoint(x: 14, y: 0))
-                    path.addCurve(to: CGPoint(x: 14, y: geometry.size.height),
-                                  control1: CGPoint(x: 30, y: mid * 0.6),
-                                  control2: CGPoint(x: -2, y: mid * 1.4))
+                    path.move(to: CGPoint(x: railX, y: 0))
+                    path.addCurve(to: CGPoint(x: railX, y: geometry.size.height),
+                                  control1: CGPoint(x: railX + 16, y: mid * 0.6),
+                                  control2: CGPoint(x: railX - 16, y: mid * 1.4))
                 }
                 route.stroke(UI01Material.gold.opacity(0.10), lineWidth: 3)
                 route.stroke(UI01Material.goldGradient, lineWidth: 1.15)
@@ -474,9 +479,9 @@ struct UI01TrailRow<Content: View>: View {
                             .overlay(Circle().stroke(active ? UI01Material.gold : .clear, lineWidth: 1))
                     }
                 }
-                .position(x: 14, y: mid)
+                .position(x: railX, y: mid)
             }
-            .frame(width: 28)
+            .frame(width: 34)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }

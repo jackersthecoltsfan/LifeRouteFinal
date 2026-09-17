@@ -429,14 +429,20 @@ struct V054TodayView: View {
             Button {
                 generateFullDay()
             } label: {
-                HStack {
-                if planState.isCalculating { ProgressView() }
-                Text(planState.isCalculating
-                    ? "Generating day route…"
-                    : (selectedItinerary == nil ? "Generate Full Day" : "Regenerate Full Day"))
+                HStack(spacing: 9) {
+                    if planState.isCalculating {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+                            .accessibilityHidden(true)
+                    }
+                    Text(planState.isCalculating
+                        ? "Generating day route…"
+                        : (selectedItinerary == nil ? "Generate Full Day" : "Regenerate Full Day"))
                 }
             }
-            .buttonStyle(UI01GoldButtonStyle())
+            .buttonStyle(UI01RouteButtonStyle())
             .disabled(planState.isCalculating || !canGenerate)
             .accessibilityIdentifier("today.generate")
     }
@@ -705,10 +711,12 @@ struct V054TodayView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     UI01MarbleText(title: "No appointments or saved stops yet", size: 27)
                         .modifier(UI01ReadingZone())
-                    Button("Open Calendar") {
+                    Button {
                         router.select(.schedule)
+                    } label: {
+                        Label("Open Calendar", systemImage: "calendar")
                     }
-                    .buttonStyle(UI01GoldButtonStyle(compact: true))
+                    .buttonStyle(UI01RouteButtonStyle(compact: true))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 24)

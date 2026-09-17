@@ -281,7 +281,7 @@ struct ScenicRoyalFullRouteActionButton: View {
                 systemImage: actionIcon
             )
         }
-        .buttonStyle(ScenicRoyalPrimaryButtonStyle())
+        .buttonStyle(UI01RouteButtonStyle())
         .disabled(planState.isCalculating || (disablesWhileLaunching && planState.isLaunchingNavigation))
         .accessibilityHint(accessibilityHint)
     }

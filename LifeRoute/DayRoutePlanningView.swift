@@ -305,10 +305,10 @@ struct DayRoutePlanningView: View {
             } label: {
                 HStack {
                     if planState.isCalculating { ProgressView() }
-                    Label(planState.isCalculating ? "Generating day route…" : "Generate full day route", systemImage: "map.fill")
+                    Label(planState.isCalculating ? "Generating day route…" : "Generate full day route", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
                 }
             }
-            .buttonStyle(ScenicRoyalPrimaryButtonStyle())
+            .buttonStyle(UI01RouteButtonStyle())
             .disabled(planState.isCalculating || (routableDayEvents.isEmpty && stops.isEmpty))
 
             if !planState.isCalculating, let routeMessage = planState.message {

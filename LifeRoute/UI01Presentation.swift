@@ -708,3 +708,73 @@ struct UI01ToolbarActionButtonStyle: ButtonStyle {
         }
     }
 }
+
+/// Route actions use one compact instrument treatment so planning controls do
+/// not read as oversized novelty buttons. The existing rim-only surface keeps
+/// the scenery sharp; the small edge glints supply just enough depth to make
+/// the control feel machined rather than flat.
+struct UI01RouteButtonStyle: ButtonStyle {
+    var compact = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        Content(
+            configuration: configuration,
+            compact: compact
+        )
+    }
+
+    private struct Content: View {
+        let configuration: ButtonStyleConfiguration
+        let compact: Bool
+        @Environment(\.isEnabled) private var enabled
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+        @Environment(\.colorSchemeContrast) private var contrast
+
+        var body: some View {
+            configuration.label
+                .font(compact ? .subheadline.weight(.semibold) : .headline.weight(.semibold))
+                .foregroundStyle(enabled ? UI01Material.silver : UI01Material.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, compact ? 15 : 18)
+                .frame(
+                    maxWidth: compact ? nil : .infinity,
+                    minHeight: compact ? 44 : 48,
+                    alignment: .center
+                )
+                .modifier(UI01CompactControlSurface(primary: true))
+                .overlay {
+                    if enabled && !reduceTransparency && contrast != .increased {
+                        Capsule()
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.16),
+                                        UI01Material.goldLight.opacity(0.22),
+                                        Color.white.opacity(0.06)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 0.35
+                            )
+                            .overlay(alignment: .topLeading) {
+                                UI01ChromeShine(size: 18)
+                                    .offset(x: 8, y: 2)
+                            }
+                            .overlay(alignment: .bottomTrailing) {
+                                Capsule()
+                                    .fill(UI01Material.goldLight.opacity(0.54))
+                                    .frame(width: compact ? 18 : 24, height: 1)
+                                    .offset(x: compact ? -10 : -14, y: -5)
+                            }
+                            .allowsHitTesting(false)
+                    }
+                }
+                .opacity(enabled ? 1 : 0.62)
+                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+                .contentShape(Capsule())
+        }
+    }
+}

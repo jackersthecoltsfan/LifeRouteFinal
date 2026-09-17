@@ -64,6 +64,36 @@ struct UI01BrandWordmark: View {
     var showsLogo = false
     @ScaledMetric(relativeTo: .title2) private var pointSize: CGFloat = 32
 
+    private var wordmarkFill: AnyShapeStyle {
+        guard showsLogo else { return AnyShapeStyle(UI01Material.goldGradient) }
+        return AnyShapeStyle(LinearGradient(
+            stops: [
+                .init(color: UI01Material.goldLight.opacity(0.80), location: 0),
+                .init(color: UI01Material.gold.opacity(1), location: 0.34),
+                .init(color: UI01Material.goldLight.opacity(1), location: 0.44),
+                .init(color: UI01Material.goldLight.opacity(1), location: 0.56),
+                .init(color: UI01Material.gold.opacity(1), location: 0.66),
+                .init(color: UI01Material.goldShade.opacity(0.70), location: 1)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        ))
+    }
+
+    private var wordmarkOutline: AnyShapeStyle {
+        guard showsLogo else { return AnyShapeStyle(Color.white.opacity(0.98)) }
+        return AnyShapeStyle(LinearGradient(
+            stops: [
+                .init(color: Color.white.opacity(0.80), location: 0),
+                .init(color: Color.white.opacity(1), location: 0.40),
+                .init(color: Color.white.opacity(1), location: 0.60),
+                .init(color: Color.white.opacity(0.70), location: 1)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        ))
+    }
+
     var body: some View {
         let scale = pointSize / UI01WordmarkGeometry.nominalSize
         let bounds = UI01WordmarkGeometry.path.boundingRect
@@ -73,17 +103,16 @@ struct UI01BrandWordmark: View {
             }
 
             UI01WordmarkShape()
-                .fill(UI01Material.goldGradient)
+                .fill(wordmarkFill)
                 // A near-opaque Today fill lets the dimensional mark read as
                 // one unified brand lockup while keeping the lettering dominant.
-                .opacity(showsLogo ? 0.96 : 1)
                 .overlay {
-                    UI01WordmarkShape().stroke(Color.white.opacity(0.98), lineWidth: 0.58)
+                    UI01WordmarkShape().stroke(wordmarkOutline, lineWidth: 0.58)
                 }
                 .frame(width: bounds.width * scale, height: bounds.height * scale)
                 // Drop the lettering over the logo's lower edge so the two
                 // marks read as one intentional lockup.
-                .offset(y: showsLogo ? pointSize * 0.58 : 0)
+                .offset(y: showsLogo ? pointSize * 0.70 : 0)
         }
         .frame(width: bounds.width * scale, height: bounds.height * scale)
         .allowsHitTesting(false)

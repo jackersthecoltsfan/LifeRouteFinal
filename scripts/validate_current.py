@@ -211,7 +211,7 @@ def validate_active_build_path() -> None:
             "command -v swiftc",
             "LIFEROUTE_CONTRACT_CACHE_DIRECTORY",
             "liferoute_storage.py",
-            "LifeRoute Swift contract cache v1",
+            "LifeRoute Swift contract cache v2",
             "shasum -a 256",
             "SWIFT_COMPILER",
             "CACHED_EXECUTABLE",

@@ -27,12 +27,21 @@ umask 077
 CACHE_DIRECTORY="${LIFEROUTE_CONTRACT_CACHE_DIRECTORY:-$(python3 "$ROOT/scripts/liferoute_storage.py" scratch-root)/contract-cache-v1}"
 mkdir -p "$CACHE_DIRECTORY"
 CACHE_KEY="$({
-  printf '%s\n' "LifeRoute Swift contract cache v1"
-  printf '%s\n' "$SWIFT_COMPILER"
+  printf '%s\0' "LifeRoute Swift contract cache v2"
+  printf '%s\0' "executable-name" "$EXECUTABLE_NAME"
+  printf '%s\0' "runner-content-sha256"
+  shasum -a 256 < "$0" | awk '{print $1}'
+  printf '%s\0' "swiftc-path" "$SWIFT_COMPILER"
+  printf '%s\0' "swiftc-version"
   "$SWIFT_COMPILER" --version 2>&1
-  uname -s
-  uname -m
-  shasum -a 256 "$0" "$@"
+  printf '%s\0' "uname-s"; uname -s
+  printf '%s\0' "uname-m"; uname -m
+  source_index=0
+  for source_path in "$@"; do
+    printf 'source[%s]-content-sha256\0' "$source_index"
+    shasum -a 256 < "$source_path" | awk '{print $1}'
+    source_index=$((source_index + 1))
+  done
 } | shasum -a 256 | awk '{print $1}')"
 CACHED_EXECUTABLE="$CACHE_DIRECTORY/$EXECUTABLE_NAME-$CACHE_KEY"
 

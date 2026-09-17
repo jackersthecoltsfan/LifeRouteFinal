@@ -97,24 +97,32 @@ struct UI01BrandWordmark: View {
     var body: some View {
         let scale = pointSize / UI01WordmarkGeometry.nominalSize
         let bounds = UI01WordmarkGeometry.path.boundingRect
-        ZStack {
-            if showsLogo {
-                UI01TodayLogoBackdrop(side: pointSize * 1.9)
-            }
+        let wordmarkWidth = bounds.width * scale
+        let wordmarkHeight = bounds.height * scale
+        let logoSide = pointSize * 1.9
 
-            UI01WordmarkShape()
-                .fill(wordmarkFill)
-                // A near-opaque Today fill lets the dimensional mark read as
-                // one unified brand lockup while keeping the lettering dominant.
-                .overlay {
-                    UI01WordmarkShape().stroke(wordmarkOutline, lineWidth: 0.58)
+        // Keep the wordmark's frame as the only layout footprint. The logo is
+        // an overlay anchored to that frame's leading edge so it cannot escape
+        // into the parent header or screen coordinate space.
+        UI01WordmarkShape()
+            .fill(wordmarkFill)
+            // A near-opaque Today fill lets the dimensional mark read as one
+            // unified brand lockup while keeping the lettering dominant.
+            .overlay {
+                UI01WordmarkShape().stroke(wordmarkOutline, lineWidth: 0.58)
+            }
+            .frame(width: wordmarkWidth, height: wordmarkHeight)
+            .background(alignment: .topLeading) {
+                if showsLogo {
+                    UI01TodayLogoBackdrop(side: logoSide)
+                        // Align the logo's left edge with the L in LifeRoute,
+                        // then lift it so the LR sits just above the lettering.
+                        .offset(x: 0, y: -pointSize * 0.50)
                 }
-                .frame(width: bounds.width * scale, height: bounds.height * scale)
-                // Drop the lettering over the logo's lower edge so the two
-                // marks read as one intentional lockup.
-                .offset(y: showsLogo ? pointSize * 0.70 : 0)
-        }
-        .frame(width: bounds.width * scale, height: bounds.height * scale)
+            }
+            // Drop the lettering over the logo's lower edge so the two marks
+            // read as one intentional lockup.
+            .offset(y: showsLogo ? pointSize * 0.70 : 0)
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("LifeRoute")

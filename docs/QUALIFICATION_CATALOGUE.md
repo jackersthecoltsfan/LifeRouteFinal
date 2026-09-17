@@ -1,7 +1,7 @@
 # LifeRoute Qualification Catalogue
 
-Status: Phase 5C catalogue metadata and trigger-coverage companion
-Baseline: `07a61c6e88fc94346f25beb41262f0b78e05db94` (tree `0c1e35e70703e9eb66a67d1a105311f12a0ea18d`)
+Status: Phase 5D catalogue metadata and controlled-deduplication companion
+Baseline: `4c2bb0a68ff3c423b8f8f1d790475e34fe259925` (tree `5f02191976fd7e4be060892dd2c74a790a8cc8ea`)
 Catalogue version: `1`
 Last reviewed: 2026-09-17
 
@@ -91,7 +91,7 @@ candidates, and absence from `validate_full.sh` is not proof of redundancy.
 | `scripts/route_timeline_separator_contract_test.py` | Today presentation | Historical/specialized separator check; not called by current default wrappers | Python static contract | Apparently orphaned; review required |
 | `scripts/run_swift_contract_cache_tests.sh` | Qualification tooling | Tests path-independent/cache execution semantics for the shared Swift runner | Tooling contract | Local/manual; not default current gate |
 
-The catalogue therefore contains **13 gates** and **23 specialized/manual
+The catalogue therefore contains **13 gates** and **22 specialized/manual
 validator entries**. The specialized count is a discoverability count, not a
 claim that every entry must run for every source change.
 
@@ -113,25 +113,44 @@ validate_full.sh
   -> root paging / full-route / thumbnail fixtures
 
 ios-ci.yml / current-validation
-  -> prepare_build.sh
+  -> prepare_build.sh -> Q-SEM-FAST
   -> storage contract
-  -> validate_fast.sh
-  -> validate_full.sh
+  -> validate_full.sh -> guarded reuse of Q-PREP fast result
 
 ios-ci.yml / native-validation
-  -> prepare_build.sh
+  -> prepare_build.sh -> guarded reuse of Q-SEM-FULL fast result
   -> macOS framework contracts
+  -> Visual Timer native-only contracts after Q-SEM-FULL
   -> Debug build
   -> Release build
-  -> Simulator smoke
+  -> Simulator smoke runtime-only mode after Q-SEM-FULL
   -> warning assessment
   -> native evidence artifact
 ```
 
-This graph documents existing repetition; Phase 5B does not remove or alter
-any edge. In particular, `validate_current.py` performs structural checks on
+The Phase 5D modes remove only same-event work proven by an explicit
+prerequisite and exact source identity. Direct/local invocations retain their
+self-contained defaults. `validate_current.py` performs structural checks on
 wrappers and fixtures but does not execute them, so that inspection is not
 treated as a duplicate of executable fixture runs.
+
+For one normal iOS CI event, the catalogue records the modeled count change:
+
+| Affected work | Before | After | Avoided (category) |
+|---|---:|---:|---:|
+| Fast semantic execution (`Q-SEM-FAST`) | 4 | 1 | 3 |
+| Simulator smoke contract prelude | 9 | 0 | 9 |
+| Host-independent Visual Timer fixture | 3 | 1 | 2 |
+
+The Simulator runtime launches/screenshots, macOS framework contracts, Debug
+build, Release build, warning assessment, full semantic gate, and native-only
+Visual Timer checks remain in their original proof boundaries.
+
+The modeled total is **13 unique avoided script/fixture invocations** per
+normal event: 3 fast-semantic executions, 9 Simulator-smoke contract
+invocations, and 1 additional native-only Timer base-fixture execution. The
+third Timer occurrence is already included in the 9-item Simulator prelude and
+is not counted twice.
 
 ## Trigger and dependency interpretation
 

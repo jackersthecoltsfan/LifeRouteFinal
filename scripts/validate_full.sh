@@ -18,6 +18,15 @@ command -v swiftc >/dev/null || {
   exit 1
 }
 
+if [[ "${LIFEROUTE_FULL_SKIP_FAST:-0}" == "1" ]]; then
+  test "${LIFEROUTE_VALIDATION_PREREQUISITE_GATE:-}" = "Q-PREP"
+  python3 scripts/validate_qualification_prerequisite.py \
+    --gate "$LIFEROUTE_VALIDATION_PREREQUISITE_GATE" \
+    --sha "${LIFEROUTE_VALIDATION_SOURCE_SHA:?missing validated source SHA}" \
+    --tree "${LIFEROUTE_VALIDATION_SOURCE_TREE:?missing validated source tree}"
+  export LIFEROUTE_SKIP_FAST_VALIDATION=1
+fi
+
 python3 scripts/validate_current.py full
 bash scripts/run_visual_support_prompt_contract_tests.sh
 bash scripts/run_visual_support_persistence_tests.sh

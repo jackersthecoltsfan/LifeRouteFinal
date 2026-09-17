@@ -117,6 +117,9 @@ jobs:
     name: Current semantic validation
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      source_sha: ${{ steps.source_identity.outputs.sha }}
+      source_tree: ${{ steps.source_identity.outputs.tree }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -127,16 +130,21 @@ jobs:
           bash scripts/prepare_build.sh
           echo "prepare_build_seconds=$((SECONDS-start))" | tee -a "$GITHUB_STEP_SUMMARY"
 
+      - name: Record validated source identity
+        id: source_identity
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+
       - name: Run storage scratch/evidence contract
         run: PYTHONDONTWRITEBYTECODE=1 python3 scripts/liferoute_storage_contract_tests.py
 
-      - name: Run fast validation
-        run: |
-          start=$SECONDS
-          bash scripts/validate_fast.sh
-          echo "validate_fast_seconds=$((SECONDS-start))" | tee -a "$GITHUB_STEP_SUMMARY"
-
       - name: Run full validation
+        env:
+          LIFEROUTE_FULL_SKIP_FAST: '1'
+          LIFEROUTE_VALIDATION_PREREQUISITE_GATE: Q-PREP
+          LIFEROUTE_VALIDATION_SOURCE_SHA: ${{ steps.source_identity.outputs.sha }}
+          LIFEROUTE_VALIDATION_SOURCE_TREE: ${{ steps.source_identity.outputs.tree }}
         run: |
           start=$SECONDS
           bash scripts/validate_full.sh
@@ -152,6 +160,11 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Prepare canonical source
+        env:
+          LIFEROUTE_PREPARE_SKIP_FAST: '1'
+          LIFEROUTE_PREPARE_PREREQUISITE_GATE: Q-SEM-FULL
+          LIFEROUTE_VALIDATION_SOURCE_SHA: ${{ needs.current-validation.outputs.source_sha }}
+          LIFEROUTE_VALIDATION_SOURCE_TREE: ${{ needs.current-validation.outputs.source_tree }}
         run: bash scripts/prepare_build.sh
 
       - name: Prepare reusable LifeRoute build scratch
@@ -163,6 +176,11 @@ jobs:
           echo "LIFEROUTE_BUILD_SCRATCH_ROOT=$build_root" >> "$GITHUB_ENV"
 
       - name: Run SwiftUI Visual Timer feedback contract
+        env:
+          LIFEROUTE_VISUAL_TIMER_NATIVE_ONLY: '1'
+          LIFEROUTE_VISUAL_TIMER_PREREQUISITE_GATE: Q-SEM-FULL
+          LIFEROUTE_VALIDATION_SOURCE_SHA: ${{ needs.current-validation.outputs.source_sha }}
+          LIFEROUTE_VALIDATION_SOURCE_TREE: ${{ needs.current-validation.outputs.source_tree }}
         run: bash scripts/run_visual_timer_feedback_contract_tests.sh
 
       - name: Run Apple-framework semantic contracts
@@ -199,6 +217,11 @@ jobs:
             build | tee "$RUNNER_TEMP/liferoute-release.log"
 
       - name: Run native Simulator smoke
+        env:
+          LIFEROUTE_SIMULATOR_RUNTIME_ONLY: '1'
+          LIFEROUTE_SIMULATOR_PREREQUISITE_GATE: Q-SEM-FULL
+          LIFEROUTE_VALIDATION_SOURCE_SHA: ${{ needs.current-validation.outputs.source_sha }}
+          LIFEROUTE_VALIDATION_SOURCE_TREE: ${{ needs.current-validation.outputs.source_tree }}
         run: |
           bash scripts/run_simulator_smoke.sh \
             "$LIFEROUTE_BUILD_SCRATCH_ROOT/Debug-iphonesimulator/Build/Products/Debug-iphonesimulator/LifeRoute.app" \

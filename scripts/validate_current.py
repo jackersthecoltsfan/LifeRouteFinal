@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import plistlib
 import re
 import struct
@@ -1614,7 +1615,10 @@ def run_fast(sources: Optional[dict[str, str]] = None) -> None:
 
 def run_full() -> None:
     sources = swift_sources()
-    run_fast(sources)
+    if os.environ.get("LIFEROUTE_SKIP_FAST_VALIDATION") == "1":
+        print("Skipped fast semantic validation: exact Q-PREP prerequisite was verified by the caller.")
+    else:
+        run_fast(sources)
     validate_calendar_routing_and_persistence(sources)
     validate_timer_and_live_activity(sources)
 

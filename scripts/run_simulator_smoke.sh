@@ -3,20 +3,30 @@ set -euo pipefail
 
 APP_PATH="${1:?usage: run_simulator_smoke.sh APP_PATH OUTPUT_DIRECTORY}"
 OUTPUT_DIRECTORY="${2:?usage: run_simulator_smoke.sh APP_PATH OUTPUT_DIRECTORY}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUNDLE_ID="Com.Brandongood.LifeRoute"
 
 test -d "$APP_PATH"
 mkdir -p "$OUTPUT_DIRECTORY"
 
-bash "$(cd "$(dirname "$0")" && pwd)/run_session_note_contract_tests.sh"
-bash "$(cd "$(dirname "$0")" && pwd)/run_day_route_contract_tests.sh"
-bash "$(cd "$(dirname "$0")" && pwd)/run_calendar_edit_contract_tests.sh"
-bash "$(cd "$(dirname "$0")" && pwd)/run_calendar_cross_provider_dedup_tests.sh"
-bash "$(cd "$(dirname "$0")" && pwd)/run_visual_timer_feedback_contract_tests.sh"
-bash "$(cd "$(dirname "$0")" && pwd)/run_runtime_feedback_contract_tests.sh"
-bash "$(cd "$(dirname "$0")" && pwd)/run_scenery_effect_contract_tests.sh"
-python3 "$(cd "$(dirname "$0")" && pwd)/root_paging_ambient_suspension_contract_test.py"
-python3 "$(cd "$(dirname "$0")" && pwd)/theme_thumbnail_contract_test.py"
+if [[ "${LIFEROUTE_SIMULATOR_RUNTIME_ONLY:-0}" == "1" ]]; then
+  test "${LIFEROUTE_SIMULATOR_PREREQUISITE_GATE:-}" = "Q-SEM-FULL"
+  python3 "$ROOT/scripts/validate_qualification_prerequisite.py" \
+    --gate "$LIFEROUTE_SIMULATOR_PREREQUISITE_GATE" \
+    --sha "${LIFEROUTE_VALIDATION_SOURCE_SHA:?missing validated source SHA}" \
+    --tree "${LIFEROUTE_VALIDATION_SOURCE_TREE:?missing validated source tree}"
+  echo "Skipped repeated contract fixtures: exact Q-SEM-FULL prerequisite was verified."
+else
+  bash "$(cd "$(dirname "$0")" && pwd)/run_session_note_contract_tests.sh"
+  bash "$(cd "$(dirname "$0")" && pwd)/run_day_route_contract_tests.sh"
+  bash "$(cd "$(dirname "$0")" && pwd)/run_calendar_edit_contract_tests.sh"
+  bash "$(cd "$(dirname "$0")" && pwd)/run_calendar_cross_provider_dedup_tests.sh"
+  bash "$(cd "$(dirname "$0")" && pwd)/run_visual_timer_feedback_contract_tests.sh"
+  bash "$(cd "$(dirname "$0")" && pwd)/run_runtime_feedback_contract_tests.sh"
+  bash "$(cd "$(dirname "$0")" && pwd)/run_scenery_effect_contract_tests.sh"
+  python3 "$(cd "$(dirname "$0")" && pwd)/root_paging_ambient_suspension_contract_test.py"
+  python3 "$(cd "$(dirname "$0")" && pwd)/theme_thumbnail_contract_test.py"
+fi
 
 DEVICE_ID="$(xcrun simctl list --json devices available | python3 -c '
 import json, sys

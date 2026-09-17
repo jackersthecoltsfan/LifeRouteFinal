@@ -15,6 +15,25 @@
     "artifactExistenceImpliesSignedIdentity": false,
     "receiptMayReplaceRequiredExecution": false
   },
+  "deduplication": {
+    "scope": "same normal ios-ci event only; standalone commands remain self-contained",
+    "identityGuard": "exact prerequisite gate plus current source SHA and tree",
+    "normalIosCiEvent": {
+      "Q-SEM-FAST": {"before": 4, "after": 1, "avoided": 3},
+      "simulatorContractPrelude": {"before": 9, "after": 0, "avoided": 9},
+      "visualTimerHostIndependentFixture": {"before": 3, "after": 1, "avoided": 2}
+    },
+    "uniqueAvoidedExecutions": 13,
+    "overlapNote": "The Simulator smoke Timer invocation is included in simulatorContractPrelude; do not add it twice.",
+    "preserved": [
+      "Q-SEM-FULL remains one full semantic gate",
+      "Q-NATIVE-FRAMEWORK remains host-specific",
+      "Q-BUILD-DEBUG remains independent",
+      "Q-BUILD-RELEASE remains independent",
+      "Q-WARNINGS remains independent",
+      "Q-SIM-SMOKE runtime launches and screenshots remain independent"
+    ]
+  },
   "gates": [
     {
       "id": "Q-PREP",

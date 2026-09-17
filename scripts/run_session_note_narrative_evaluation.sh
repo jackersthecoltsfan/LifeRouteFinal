@@ -4,19 +4,19 @@ set -euo pipefail
 SCRIPT_DIRECTORY="$(cd "$(dirname "$0")" && pwd)"
 REPOSITORY_ROOT="$(cd "$SCRIPT_DIRECTORY/.." && pwd)"
 INSTRUCTION_SEAM="$(mktemp "${TMPDIR:-/tmp}/session-note-narrative-instructions.XXXXXX.swift")"
+INSTRUCTION_MANIFEST="$(mktemp "${TMPDIR:-/tmp}/session-note-narrative-instructions.XXXXXX.json")"
 EVALUATION_BINARY="$(mktemp "${TMPDIR:-/tmp}/session-note-narrative-evaluation.XXXXXX")"
-trap 'rm -f "$INSTRUCTION_SEAM" "$EVALUATION_BINARY"' EXIT
+trap 'rm -f "$INSTRUCTION_SEAM" "$INSTRUCTION_MANIFEST" "$EVALUATION_BINARY"' EXIT
 
-python3 - "$REPOSITORY_ROOT/LifeRoute/LifeRouteIntelligenceCore.swift" "$INSTRUCTION_SEAM" <<'PYSEAM'
-from pathlib import Path
-import sys
-
-source = Path(sys.argv[1]).read_text()
-start = "// BEGIN SESSION NOTE PRODUCTION INSTRUCTIONS"
-end = "// END SESSION NOTE PRODUCTION INSTRUCTIONS"
-assert source.count(start) == source.count(end) == 1
-Path(sys.argv[2]).write_text(source.split(start, 1)[1].split(end, 1)[0])
-PYSEAM
+python3 "$SCRIPT_DIRECTORY/source_extract.py" \
+  --source "$REPOSITORY_ROOT/LifeRoute/LifeRouteIntelligenceCore.swift" \
+  --logical-source-path "LifeRoute/LifeRouteIntelligenceCore.swift" \
+  --label "session-note-production-instructions" \
+  --mode marker_block \
+  --start "// BEGIN SESSION NOTE PRODUCTION INSTRUCTIONS" \
+  --end "// END SESSION NOTE PRODUCTION INSTRUCTIONS" \
+  --output "$INSTRUCTION_SEAM" \
+  --manifest "$INSTRUCTION_MANIFEST"
 
 xcrun swiftc \
   -parse-as-library \

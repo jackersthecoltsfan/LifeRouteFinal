@@ -10,6 +10,8 @@ on:
       - 'GITHUB_ACTIONS_RUNBOOK.md'
       - 'scripts/validate_current.py'
       - 'scripts/validate_fast.sh'
+      - 'ReusableAppWorkflow/ios-ci.template.yml'
+      - 'ReusableAppWorkflow/testflight.template.yml'
       - '.github/workflows/**'
   pull_request:
     paths:
@@ -18,6 +20,8 @@ on:
       - 'GITHUB_ACTIONS_RUNBOOK.md'
       - 'scripts/validate_current.py'
       - 'scripts/validate_fast.sh'
+      - 'ReusableAppWorkflow/ios-ci.template.yml'
+      - 'ReusableAppWorkflow/testflight.template.yml'
       - '.github/workflows/**'
   workflow_dispatch:
 

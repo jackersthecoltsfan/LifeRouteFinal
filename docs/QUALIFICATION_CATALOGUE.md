@@ -1,16 +1,17 @@
 # LifeRoute Qualification Catalogue
 
-Status: Phase 5B catalogue metadata only
-Baseline: `29f7bc63389fe0c657e76c1881cba78827583b1f`
+Status: Phase 5C catalogue metadata and trigger-coverage companion
+Baseline: `07a61c6e88fc94346f25beb41262f0b78e05db94` (tree `0c1e35e70703e9eb66a67d1a105311f12a0ea18d`)
 Catalogue version: `1`
 Last reviewed: 2026-09-17
 
 This document is the human-readable companion to
 [`scripts/qualification_catalogue.json`](../scripts/qualification_catalogue.json).
 The JSON file is the machine-readable authority for gate IDs, commands,
-dependencies, prerequisites, and evidence classification. This catalogue does
-not change which validators run, how CI is triggered, how builds are produced,
-or how release and physical QA are approved.
+dependencies, prerequisites, and evidence classification. The catalogue and
+its Phase 5C companion checker do not change which validators run, how builds
+are produced, or how release and physical QA are approved; the workflow diff
+only schedules the already-defined automatic gates for their declared inputs.
 
 ## Qualification semantics
 
@@ -86,7 +87,6 @@ candidates, and absence from `validate_full.sh` is not proof of redundancy.
 | `scripts/run_session_note_narrative_evaluation.sh` | Session Notes | Evaluates narrative output using extracted production instructions | macOS Swift evaluation | Local/manual |
 | `scripts/run_timer_abc_tests.py` | Timer | Exercises extracted unchanged Timer ABC authorities | Swift fixture | Local/manual |
 | `scripts/run_timer_d_hero_tests.py` | Timer | Exercises production Timer D mechanics and Hero integration | Swift fixture | Local/manual |
-| `scripts/run_visual_timer_presentation_tests.py` | Timer | Executes production Timer presentation state with recorded platform feedback | macOS Swift fixture | Local/manual |
 | `scripts/capture_theme_thumbnail_assets.sh` | Theme evidence | Captures fixed-phase Theme Center previews | Simulator screenshots/assets | Local/manual |
 | `scripts/route_timeline_separator_contract_test.py` | Today presentation | Historical/specialized separator check; not called by current default wrappers | Python static contract | Apparently orphaned; review required |
 | `scripts/run_swift_contract_cache_tests.sh` | Qualification tooling | Tests path-independent/cache execution semantics for the shared Swift runner | Tooling contract | Local/manual; not default current gate |
@@ -136,12 +136,18 @@ treated as a duplicate of executable fixture runs.
 ## Trigger and dependency interpretation
 
 The JSON `triggerPaths` entries describe the intended source-changing scope;
-`dependencies` list exact repository paths used by the command. Current
-`.github/workflows/ios-ci.yml` broad app filters cover `LifeRoute/**`,
-`LifeRouteLiveActivityWidget/**`, and `LifeRoute.xcodeproj/**`, while several
-full-validation fixture names do not match its narrow `scripts/*_contract_tests`
-patterns. This catalogue records those dependencies so Phase 5C can repair
-the trigger coverage without changing it in this phase.
+`dependencies` list exact repository paths used by the command. The Phase 5C
+repair adds the previously uncovered full-validation wrappers and fixtures,
+the Visual Timer support validators conditionally executed on macOS, the
+direct Python route/thumbnail contracts, and the two `ReusableAppWorkflow`
+templates read by current semantic validation to both the iOS CI trigger and
+the release-policy trigger. This changes when existing validation is scheduled,
+not what any validator executes.
+
+The automatic dependency set is intentionally separate from
+`specializedManualValidators`. A specialized entry may remain discoverable and
+important without becoming an automatic CI gate merely because its script is
+present in the repository.
 
 The historical `LifeRouteLiveActivity/**`, `LifeRouteShared/**`, old WebView
 files, and archive scripts are not silently promoted to shipping dependencies.

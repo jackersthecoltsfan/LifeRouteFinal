@@ -10,72 +10,91 @@ struct LifeRouteDockGlyph: Shape {
 
         switch section {
         case .today:
-            // A direction needle with a short route returning to its origin.
-            path.move(to: CGPoint(x: 13, y: 2.5))
-            path.addLine(to: CGPoint(x: 19.5, y: 17))
-            path.addLine(to: CGPoint(x: 13, y: 13.4))
-            path.addLine(to: CGPoint(x: 6.5, y: 17))
+            // A paper-plane route marker, matching the reference dock.
+            path.move(to: CGPoint(x: 13.5, y: 2.5))
+            path.addLine(to: CGPoint(x: 20.5, y: 17.5))
+            path.addLine(to: CGPoint(x: 13.5, y: 13.7))
+            path.addLine(to: CGPoint(x: 6, y: 17.5))
             path.closeSubpath()
-            path.move(to: CGPoint(x: 13, y: 13.4))
-            path.addLine(to: CGPoint(x: 13, y: 18))
-            path.addQuadCurve(to: CGPoint(x: 10.5, y: 20.5), control: CGPoint(x: 13, y: 20.5))
-            path.addLine(to: CGPoint(x: 6, y: 20.5))
-            node(in: &path, x: 4.5, y: 20.5)
+            path.move(to: CGPoint(x: 13.5, y: 13.7))
+            path.addLine(to: CGPoint(x: 13.5, y: 18.5))
+            path.addQuadCurve(to: CGPoint(x: 10.5, y: 21), control: CGPoint(x: 13.5, y: 21))
+            path.addLine(to: CGPoint(x: 6, y: 21))
+            node(in: &path, x: 4.5, y: 21)
 
         case .schedule:
+            // A calendar with six small date windows.
             path.addRoundedRect(in: CGRect(x: 3, y: 5, width: 18, height: 16), cornerSize: CGSize(width: 2.5, height: 2.5))
             line(in: &path, from: CGPoint(x: 7, y: 2.5), to: CGPoint(x: 7, y: 7))
             line(in: &path, from: CGPoint(x: 17, y: 2.5), to: CGPoint(x: 17, y: 7))
             line(in: &path, from: CGPoint(x: 3, y: 9.5), to: CGPoint(x: 21, y: 9.5))
-            // Two dates joined by the same small, rounded route as Today.
-            node(in: &path, x: 7, y: 14)
-            path.move(to: CGPoint(x: 8.5, y: 14))
-            path.addLine(to: CGPoint(x: 11, y: 14))
-            path.addQuadCurve(to: CGPoint(x: 12.5, y: 15.5), control: CGPoint(x: 12.5, y: 14))
-            path.addQuadCurve(to: CGPoint(x: 14, y: 17), control: CGPoint(x: 12.5, y: 17))
-            path.addLine(to: CGPoint(x: 15.5, y: 17))
-            node(in: &path, x: 17, y: 17)
+            for row in 0..<2 {
+                for column in 0..<3 {
+                    path.addRoundedRect(
+                        in: CGRect(
+                            x: 6.1 + CGFloat(column) * 5.1,
+                            y: 12.4 + CGFloat(row) * 4.3,
+                            width: 2.6,
+                            height: 2.4
+                        ),
+                        cornerSize: CGSize(width: 0.8, height: 0.8)
+                    )
+                }
+            }
 
         case .tools:
-            // A single open-jaw wrench keeps the small silhouette readable.
-            path.move(to: CGPoint(x: 14, y: 3.3))
-            path.addCurve(to: CGPoint(x: 11.7, y: 10), control1: CGPoint(x: 10.8, y: 4.1), control2: CGPoint(x: 10, y: 7.4))
-            path.addLine(to: CGPoint(x: 3.01, y: 16.21))
-            path.addArc(center: CGPoint(x: 5.2, y: 18.4), radius: 3.1,
-                        startAngle: .degrees(-135), endAngle: .degrees(45), clockwise: true)
-            path.addLine(to: CGPoint(x: 14, y: 12.3))
-            path.addCurve(to: CGPoint(x: 20.7, y: 10), control1: CGPoint(x: 16.6, y: 14), control2: CGPoint(x: 19.9, y: 13.2))
-            path.addLine(to: CGPoint(x: 17, y: 10.5))
-            path.addLine(to: CGPoint(x: 13.5, y: 7))
+            // Crossed wrench and screwdriver from the reference instrument set.
+            path.move(to: CGPoint(x: 4.2, y: 4.2))
+            path.addLine(to: CGPoint(x: 19.8, y: 19.8))
+            path.addLine(to: CGPoint(x: 18.1, y: 21.1))
+            path.addLine(to: CGPoint(x: 2.9, y: 6.1))
+            path.addLine(to: CGPoint(x: 4.2, y: 4.2))
             path.closeSubpath()
-            node(in: &path, x: 5.2, y: 18.4, radius: 1)
+            path.addEllipse(in: CGRect(x: 16.9, y: 16.9, width: 4.2, height: 4.2))
+
+            path.move(to: CGPoint(x: 19.8, y: 4.2))
+            path.addLine(to: CGPoint(x: 4.2, y: 19.8))
+            path.addLine(to: CGPoint(x: 2.9, y: 18.1))
+            path.addLine(to: CGPoint(x: 18.1, y: 2.9))
+            path.addLine(to: CGPoint(x: 19.8, y: 4.2))
+            path.closeSubpath()
+            path.move(to: CGPoint(x: 4.3, y: 2.8))
+            path.addLine(to: CGPoint(x: 7.2, y: 5.7))
+            path.addLine(to: CGPoint(x: 5.7, y: 7.2))
+            path.addLine(to: CGPoint(x: 2.8, y: 4.3))
+            path.closeSubpath()
 
         case .resources:
-            // The center fold and outer pages read as an open reference book.
-            path.move(to: CGPoint(x: 12, y: 6))
-            path.addQuadCurve(to: CGPoint(x: 3, y: 4.5), control: CGPoint(x: 7.5, y: 3))
+            // An open reference book with a clean center fold.
+            path.move(to: CGPoint(x: 12, y: 5.6))
+            path.addQuadCurve(to: CGPoint(x: 3, y: 4.2), control: CGPoint(x: 7.5, y: 2.8))
             path.addLine(to: CGPoint(x: 3, y: 18.5))
-            path.addQuadCurve(to: CGPoint(x: 12, y: 20), control: CGPoint(x: 7.5, y: 17))
-            path.addQuadCurve(to: CGPoint(x: 21, y: 18.5), control: CGPoint(x: 16.5, y: 17))
-            path.addLine(to: CGPoint(x: 21, y: 4.5))
-            path.addQuadCurve(to: CGPoint(x: 12, y: 6), control: CGPoint(x: 16.5, y: 3))
+            path.addQuadCurve(to: CGPoint(x: 12, y: 20.4), control: CGPoint(x: 7.5, y: 17.5))
+            path.addQuadCurve(to: CGPoint(x: 21, y: 18.5), control: CGPoint(x: 16.5, y: 17.5))
+            path.addLine(to: CGPoint(x: 21, y: 4.2))
+            path.addQuadCurve(to: CGPoint(x: 12, y: 5.6), control: CGPoint(x: 16.5, y: 2.8))
             path.closeSubpath()
-            line(in: &path, from: CGPoint(x: 12, y: 6), to: CGPoint(x: 12, y: 20))
-            // A short bookmark route and node replaces miniature page text.
-            line(in: &path, from: CGPoint(x: 16.5, y: 5), to: CGPoint(x: 16.5, y: 10.5))
-            node(in: &path, x: 16.5, y: 12)
+            line(in: &path, from: CGPoint(x: 12, y: 5.6), to: CGPoint(x: 12, y: 20.4))
 
         case .setup:
-            // Familiar tuning rails share the same outlined route nodes.
-            line(in: &path, from: CGPoint(x: 3, y: 5), to: CGPoint(x: 7.5, y: 5))
-            line(in: &path, from: CGPoint(x: 10.5, y: 5), to: CGPoint(x: 21, y: 5))
-            node(in: &path, x: 9, y: 5)
-            line(in: &path, from: CGPoint(x: 3, y: 12), to: CGPoint(x: 14.5, y: 12))
-            line(in: &path, from: CGPoint(x: 17.5, y: 12), to: CGPoint(x: 21, y: 12))
-            node(in: &path, x: 16, y: 12)
-            line(in: &path, from: CGPoint(x: 3, y: 19), to: CGPoint(x: 6.5, y: 19))
-            line(in: &path, from: CGPoint(x: 9.5, y: 19), to: CGPoint(x: 21, y: 19))
-            node(in: &path, x: 8, y: 19)
+            // An eight-tooth settings gear with a crisp center bore.
+            let center = CGPoint(x: 12, y: 12)
+            let steps = 16
+            for index in 0..<steps {
+                let angle = (CGFloat(index) / CGFloat(steps)) * (.pi * 2) - (.pi / 2)
+                let radius: CGFloat = index.isMultiple(of: 2) ? 10.5 : 8.4
+                let point = CGPoint(
+                    x: center.x + cos(angle) * radius,
+                    y: center.y + sin(angle) * radius
+                )
+                if index == 0 {
+                    path.move(to: point)
+                } else {
+                    path.addLine(to: point)
+                }
+            }
+            path.closeSubpath()
+            path.addEllipse(in: CGRect(x: 8.5, y: 8.5, width: 7, height: 7))
         }
 
         let scale = min(rect.width, rect.height) / 24

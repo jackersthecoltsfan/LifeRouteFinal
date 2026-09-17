@@ -25,6 +25,9 @@ struct ScenicRoyalToolbar: View {
     var body: some View {
         HStack(spacing: 2) {
             ForEach(AppSection.allCases) { section in
+                if section != .today {
+                    UI01DockDivider()
+                }
                 toolbarButton(for: section)
             }
         }
@@ -45,6 +48,7 @@ struct ScenicRoyalToolbar: View {
             selection = section
         } label: {
             UI01DockLabel(section: section, selected: isSelected)
+                .modifier(UI01DockSelectionSurface(selected: isSelected))
                 .frame(minHeight: dynamicTypeSize.isAccessibilitySize
                     ? ScenicRoyalDesignSystem.Layout.accessibilityToolbarHeight
                     : ScenicRoyalDesignSystem.Layout.standardToolbarHeight)

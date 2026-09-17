@@ -493,9 +493,29 @@ struct V054TodayView: View {
                 .ui01ContentStyle()
                 .lifeRouteDeepDestination()
             } label: {
-                Label("Edit stops & route options", systemImage: "slider.horizontal.3")
+                HStack(spacing: 12) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(UI01Material.goldLight)
+                        .accessibilityHidden(true)
+
+                    Rectangle()
+                        .fill(UI01Material.silver.opacity(0.34))
+                        .frame(width: 0.6, height: 24)
+                        .accessibilityHidden(true)
+
+                    Text("Edit stops & route options")
+
+                    Spacer(minLength: 8)
+
+                    Image(systemName: "chevron.right")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(UI01Material.goldLight)
+                        .accessibilityHidden(true)
+                }
             }
-            .buttonStyle(UI01GoldButtonStyle(compact: true))
+            .buttonStyle(UI01ToolbarActionButtonStyle())
+            .frame(maxWidth: 700, alignment: .leading)
             .simultaneousGesture(TapGesture().onEnded { LifeRouteHaptics.selection() })
 
             DisclosureGroup(isExpanded: $routeSettingsExpanded) {

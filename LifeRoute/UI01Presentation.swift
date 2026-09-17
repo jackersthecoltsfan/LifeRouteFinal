@@ -527,7 +527,118 @@ struct UI01DockSurface: ViewModifier {
         } else {
             content.background(theme.palette.backgroundTop.opacity(0.02), in: Capsule())
                 .overlay(UI01CrystalRim().allowsHitTesting(false))
+                .overlay(alignment: .topLeading) {
+                    UI01ChromeShine(size: 34)
+                        .offset(x: 10, y: -4)
+                        .allowsHitTesting(false)
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    UI01ChromeShine(size: 30)
+                        .offset(x: -10, y: 4)
+                        .allowsHitTesting(false)
+                }
         }
+    }
+}
+
+/// The selected root receives a clear crystal inset rather than a filled chip.
+/// The offset rims and edge glint add dimensionality without refracting scenery.
+struct UI01DockSelectionSurface: ViewModifier {
+    let selected: Bool
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.lifeRouteTheme) private var theme
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                if selected {
+                    if reduceTransparency || contrast == .increased {
+                        Capsule()
+                            .fill(UI01Material.royal)
+                            .overlay(Capsule().strokeBorder(UI01Material.goldLight.opacity(0.85), lineWidth: 1))
+                    } else {
+                        Capsule()
+                            .fill(theme.palette.backgroundTop.opacity(0.03))
+                            .overlay {
+                                Capsule().strokeBorder(
+                                    LinearGradient(
+                                        colors: [
+                                            UI01Material.silver.opacity(0.60),
+                                            UI01Material.goldLight.opacity(0.72),
+                                            UI01Material.gold.opacity(0.24)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 0.85
+                                )
+                            }
+                            .overlay {
+                                Capsule()
+                                    .stroke(UI01Material.silver.opacity(0.20), lineWidth: 0.5)
+                                    .offset(y: -1)
+                            }
+                            .overlay(alignment: .topLeading) {
+                                UI01ChromeShine(size: 26)
+                                    .offset(x: 7, y: 1)
+                                    .allowsHitTesting(false)
+                            }
+                            .overlay(alignment: .bottomTrailing) {
+                                Capsule()
+                                    .fill(UI01Material.goldLight.opacity(0.86))
+                                    .frame(width: 28, height: 2)
+                                    .offset(x: -10, y: -6)
+                                    .allowsHitTesting(false)
+                            }
+                    }
+                }
+            }
+    }
+}
+
+/// Fine separators echo the reference instrument panel without splitting the
+/// dock into independent surfaces.
+struct UI01DockDivider: View {
+    var body: some View {
+        Rectangle()
+            .fill(LinearGradient(
+                colors: [
+                    UI01Material.silver.opacity(0.04),
+                    UI01Material.silver.opacity(0.34),
+                    UI01Material.goldLight.opacity(0.20),
+                    UI01Material.silver.opacity(0.04)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            ))
+            .frame(width: 0.6, height: 46)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct UI01ChromeShine: View {
+    let size: CGFloat
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(RadialGradient(
+                    colors: [
+                        UI01Material.goldLight.opacity(0.62),
+                        UI01Material.gold.opacity(0.18),
+                        .clear
+                    ],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: size * 0.5
+                ))
+            Circle()
+                .fill(Color.white.opacity(0.92))
+                .frame(width: 2.4, height: 2.4)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
 }
 
@@ -537,8 +648,8 @@ struct UI01DockInstrument: View {
 
     var body: some View {
         LifeRouteDockGlyph(section: section)
-            .stroke(style: StrokeStyle(lineWidth: 1.65, lineCap: .round, lineJoin: .round))
-            .frame(width: 28, height: 28)
+            .stroke(style: StrokeStyle(lineWidth: 1.95, lineCap: .round, lineJoin: .round))
+            .frame(width: 32, height: 32)
             .accessibilityHidden(true)
     }
 }
@@ -569,5 +680,31 @@ struct UI01DockLabel: View {
         .frame(maxWidth: .infinity, minHeight: 54)
         .padding(.vertical, 4)
         .contentShape(Rectangle())
+    }
+}
+
+struct UI01ToolbarActionButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Content(configuration: configuration)
+    }
+
+    private struct Content: View {
+        let configuration: ButtonStyleConfiguration
+        @Environment(\.isEnabled) private var enabled
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+        var body: some View {
+            configuration.label
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(enabled ? UI01Material.silver : UI01Material.secondary)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 18)
+                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                .modifier(UI01CompactControlSurface(primary: true))
+                .opacity(enabled ? 1 : 0.75)
+                .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+                .contentShape(Capsule())
+        }
     }
 }

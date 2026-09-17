@@ -377,10 +377,14 @@ private struct LifeRouteRootPagingToolbar: View {
     var body: some View {
         HStack(spacing: 0) {
             ForEach(AppSection.allCases) { section in
+                if section != .today {
+                    UI01DockDivider()
+                }
                 Button {
                     selection = section
                 } label: {
                     UI01DockLabel(section: section, selected: section == selection)
+                        .modifier(UI01DockSelectionSurface(selected: section == selection))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(section.title)

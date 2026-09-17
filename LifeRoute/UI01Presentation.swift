@@ -69,8 +69,11 @@ struct UI01BrandWordmark: View {
         let bounds = UI01WordmarkGeometry.path.boundingRect
         UI01WordmarkShape()
             .fill(UI01Material.goldGradient)
+            // A near-opaque Today fill lets the dimensional mark read as one
+            // unified brand lockup while keeping the lettering dominant.
+            .opacity(showsLogo ? 0.96 : 1)
             .overlay {
-                UI01WordmarkShape().stroke(Color.white.opacity(0.85), lineWidth: 0.35)
+                UI01WordmarkShape().stroke(Color.white.opacity(0.98), lineWidth: 0.58)
             }
             .frame(width: bounds.width * scale, height: bounds.height * scale)
             .background {

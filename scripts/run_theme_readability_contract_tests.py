@@ -260,8 +260,8 @@ for name, marker in [
     assert '? UI01Material.navy :' not in selected_control, 'Selected labels must inherit crystal selection ink instead of the obsolete navy-on-gold treatment'
 dock_label = block(presentation, 'struct UI01DockLabel:')
 assert '.background' not in dock_label and '.glassEffect' not in dock_label, 'The whole dock owns one crystal surface; selected roots have no chip'
-assert '.frame(width: 12, height: 1)' in dock_label
-assert 'selected ? UI01Material.goldLight : UI01Material.secondary' in dock_label
+assert '.frame(width: 12, height: 1)' not in dock_label and 'Circle()' in dock_label and '.fill(UI01Material.goldGradient)' in dock_label, 'Every root uses a small gold dot; the obsolete selected underline is gone'
+assert 'selected ? UI01Material.goldLight : UI01Material.silver' in dock_label, 'Inactive dock icons are ivory and the selected icon is gold'
 assert 'selected ? UI01Material.silver : UI01Material.secondary' in dock_label, 'Owner selected-state law uses ivory labels independent of theme'
 assert 'shade.opacity(primary ? 0.03 : 0.02)' in compact
 assert 'backgroundTop.opacity(0.02)' in dock_surface
@@ -269,7 +269,10 @@ rim = block(presentation, 'private struct UI01CrystalRim:')
 assert 'lineWidth: primary ? 0.45 : 0.4' in rim
 assert 'Color.white.opacity(0.40)' in rim and 'backgroundTop.opacity(0.22)' in rim
 instrument = block(presentation, 'struct UI01DockInstrument:')
-assert 'LifeRouteDockGlyph(section: section)' in instrument and 'Image(systemName:' not in instrument
+assert '.frame(width: 36, height: 36)' in instrument, 'Dock instruments keep the shared 36-point frame'
+assert 'LifeRouteDockGlyph(section: section)' in instrument and 'Image(systemName:' in instrument, 'Today keeps its route-marker glyph while the other roots use reference-matched system outlines'
+for symbol in ['return "calendar"', 'return "wrench.and.screwdriver"', 'return "book"', 'return "gearshape"']:
+    assert symbol in instrument, 'Dock reference instrument set changed'
 filament = block(presentation, 'struct UI01BrandFilament:')
 assert '.frame(width: 56, height: 1)' in filament and '.shadow(' not in filament
 for name in ['ScenicRoyalComponents.swift', 'ScenicRoyalResourceComponents.swift', 'ScenicRoyalSetupComponents.swift', 'V054TodayView.swift']:

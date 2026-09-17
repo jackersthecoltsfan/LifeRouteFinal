@@ -291,7 +291,7 @@ struct V054TodayView: View {
             }
             UI01BrandFilament()
             dayControls.modifier(UI01ReadingZone())
-            UI01MarbleText(title: "Today", size: 58, relativeTo: .largeTitle, branded: true)
+            UI01MarbleText(title: "Today", size: 58, relativeTo: .largeTitle)
                 .modifier(UI01ReadingZone())
                 .accessibilityAddTraits(.isHeader)
                 .padding(.top, 8)

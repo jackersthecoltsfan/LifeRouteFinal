@@ -9,8 +9,6 @@ struct ScenicRoyalSetupHeader: View {
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 8) {
-            UI01BrandWordmark()
-            UI01BrandFilament()
             UI01MarbleText(title: "Setup", size: 38, relativeTo: .largeTitle)
         }
         .accessibilityElement(children: .combine)

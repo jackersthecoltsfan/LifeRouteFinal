@@ -262,7 +262,8 @@ for name, marker in [
     assert '? UI01Material.navy :' not in selected_control, 'Selected labels must inherit crystal selection ink instead of the obsolete navy-on-gold treatment'
 dock_label = block(presentation, 'struct UI01DockLabel:')
 assert '.background' not in dock_label and '.glassEffect' not in dock_label, 'The whole dock owns one crystal surface; selected roots have no chip'
-assert '.frame(width: 12, height: 1)' not in dock_label and 'Circle()' in dock_label and '.fill(UI01Material.goldGradient)' in dock_label, 'Every root uses a small gold dot; the obsolete selected underline is gone'
+assert '.frame(width: 12, height: 1)' in dock_label and 'Circle()' not in dock_label, 'Selected root uses a gold filament tick; unselected has no mark'
+assert 'selected ? 1 : 0' in dock_label, 'The gold tick is visible only on the selected root'
 assert 'selected ? UI01Material.goldLight : UI01Material.silver' in dock_label, 'Inactive dock icons are ivory and the selected icon is gold'
 assert 'selected ? UI01Material.silver : UI01Material.secondary' in dock_label, 'Owner selected-state law uses ivory labels independent of theme'
 assert 'shade.opacity(primary ? 0.03 : 0.02)' in compact

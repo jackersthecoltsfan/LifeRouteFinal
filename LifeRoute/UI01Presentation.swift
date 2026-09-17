@@ -3,14 +3,14 @@ import CoreText
 
 /// R2 foreground roles. The existing environment remains the only scenery owner.
 enum UI01Material {
-    static let silver = Color(red: 250 / 255, green: 246 / 255, blue: 238 / 255)
-    static let secondary = Color(red: 214 / 255, green: 224 / 255, blue: 232 / 255)
-    static let navy = Color(red: 6 / 255, green: 26 / 255, blue: 59 / 255)
-    static let royal = Color(red: 22 / 255, green: 49 / 255, blue: 95 / 255)
+    static let silver = Color(red: 243 / 255, green: 237 / 255, blue: 227 / 255) // Ivory #F3EDE3
+    static let secondary = Color(red: 184 / 255, green: 192 / 255, blue: 200 / 255) // Silver #B8C0C8
+    static let navy = Color(red: 11 / 255, green: 26 / 255, blue: 46 / 255) // Navy Field #0B1A2E
+    static let royal = Color(red: 11 / 255, green: 26 / 255, blue: 46 / 255)
     static let royalLight = Color(red: 49 / 255, green: 94 / 255, blue: 141 / 255)
-    static let gold = Color(red: 242 / 255, green: 186 / 255, blue: 66 / 255)
-    static let goldLight = Color(red: 1, green: 240 / 255, blue: 168 / 255)
-    static let goldShade = Color(red: 155 / 255, green: 91 / 255, blue: 11 / 255)
+    static let gold = Color(red: 197 / 255, green: 160 / 255, blue: 40 / 255) // Gold Mark #C5A028
+    static let goldLight = Color(red: 212 / 255, green: 175 / 255, blue: 55 / 255) // Gold Hot #D4AF37
+    static let goldShade = Color(red: 138 / 255, green: 110 / 255, blue: 28 / 255)
     static let destructive = Color(red: 1, green: 184 / 255, blue: 176 / 255)
     static let crystalBoxOpacity: Double = 0.25
     static let goldGradient = LinearGradient(
@@ -527,66 +527,16 @@ struct UI01DockSurface: ViewModifier {
         } else {
             content.background(theme.palette.backgroundTop.opacity(0.02), in: Capsule())
                 .overlay(UI01CrystalRim().allowsHitTesting(false))
-                .overlay(alignment: .topLeading) {
-                    UI01ChromeShine(size: 34)
-                        .offset(x: 10, y: -4)
-                        .allowsHitTesting(false)
-                }
-                .overlay(alignment: .bottomTrailing) {
-                    UI01ChromeShine(size: 30)
-                        .offset(x: -10, y: 4)
-                        .allowsHitTesting(false)
-                }
         }
     }
 }
 
-/// The selected root receives a clear crystal inset rather than a filled chip.
-/// The offset rims and edge glint add dimensionality without refracting scenery.
+/// Selected root is a gold filament tick only. No chip, no filled blob.
 struct UI01DockSelectionSurface: ViewModifier {
     let selected: Bool
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.lifeRouteTheme) private var theme
 
     func body(content: Content) -> some View {
-        content
-            .background {
-                if selected {
-                    if reduceTransparency || contrast == .increased {
-                        Capsule()
-                            .fill(UI01Material.royal)
-                            .overlay(Capsule().strokeBorder(UI01Material.goldLight.opacity(0.85), lineWidth: 1))
-                    } else {
-                        Capsule()
-                            .fill(theme.palette.backgroundTop.opacity(0.03))
-                            .overlay {
-                                Capsule().strokeBorder(
-                                    LinearGradient(
-                                        colors: [
-                                            UI01Material.silver.opacity(0.60),
-                                            UI01Material.goldLight.opacity(0.72),
-                                            UI01Material.gold.opacity(0.24)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 0.85
-                                )
-                            }
-                            .overlay {
-                                Capsule()
-                                    .stroke(UI01Material.silver.opacity(0.20), lineWidth: 0.5)
-                                    .offset(y: -1)
-                            }
-                            .overlay(alignment: .topLeading) {
-                                UI01ChromeShine(size: 26)
-                                    .offset(x: 7, y: 1)
-                                    .allowsHitTesting(false)
-                            }
-                    }
-                }
-            }
+        content.opacity(selected ? 1 : 1)
     }
 }
 
@@ -684,10 +634,10 @@ struct UI01DockLabel: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Circle()
-                .fill(UI01Material.goldGradient)
-                .frame(width: selected ? 4.5 : 3.5, height: selected ? 4.5 : 3.5)
-                .opacity(selected ? 1 : 0.62)
+            Capsule()
+                .fill(UI01Material.gold)
+                .frame(width: 12, height: 1)
+                .opacity(selected ? 1 : 0)
                 .frame(height: 5)
                 .accessibilityHidden(true)
         }

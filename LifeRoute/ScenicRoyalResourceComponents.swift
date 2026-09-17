@@ -21,8 +21,6 @@ struct ScenicRoyalResourceHeader: View {
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: 8) {
-            UI01BrandWordmark()
-            UI01BrandFilament()
             ResourceTitle()
         }
         .accessibilityElement(children: .combine)

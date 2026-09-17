@@ -4,10 +4,10 @@ import SwiftUI
 /// Feature screens should consume these tokens instead of creating one-off glass geometry.
 enum ScenicRoyalDesignSystem {
     enum ColorToken {
-        static let brandNavy = Color(red: 0.025, green: 0.070, blue: 0.145)
+        static let brandNavy = Color(red: 11 / 255, green: 26 / 255, blue: 46 / 255)
         static let brandNavyDeep = Color(red: 0.008, green: 0.026, blue: 0.065)
-        static let brandGold = Color(red: 0.93, green: 0.70, blue: 0.31)
-        static let brandGoldBright = Color(red: 1.00, green: 0.83, blue: 0.49)
+        static let brandGold = Color(red: 197 / 255, green: 160 / 255, blue: 40 / 255)
+        static let brandGoldBright = Color(red: 212 / 255, green: 175 / 255, blue: 55 / 255)
 
         static let contentDayPrimary = Color(red: 0.020, green: 0.055, blue: 0.115)
         static let contentDaySecondary = Color(red: 0.095, green: 0.155, blue: 0.230)

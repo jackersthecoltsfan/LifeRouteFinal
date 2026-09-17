@@ -35,6 +35,14 @@ jobs:
       - name: Prepare the same features used by TestFlight
         run: bash scripts/prepare_build.sh
 
+      - name: Prepare reusable __APP_NAME__ build scratch
+        run: |
+          set -euo pipefail
+          scratch_root="$HOME/Library/Developer/LifeRouteBuilds"
+          build_root="$scratch_root/__APP_NAME__/ios-ci"
+          mkdir -p "$build_root"
+          echo "LIFEROUTE_BUILD_SCRATCH_ROOT=$build_root" >> "$GITHUB_ENV"
+
       - name: Build __APP_NAME__ for iOS Simulator
         run: |
           set -euo pipefail
@@ -44,5 +52,6 @@ jobs:
             -configuration Debug \
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$LIFEROUTE_BUILD_SCRATCH_ROOT/Debug-iphonesimulator" \
             CODE_SIGNING_ALLOWED=NO \
             build

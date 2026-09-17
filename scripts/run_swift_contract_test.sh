@@ -24,7 +24,7 @@ for source_path in "$@"; do
 done
 
 umask 077
-CACHE_DIRECTORY="${LIFEROUTE_CONTRACT_CACHE_DIRECTORY:-${TMPDIR:-/tmp}/liferoute-contract-cache-v1}"
+CACHE_DIRECTORY="${LIFEROUTE_CONTRACT_CACHE_DIRECTORY:-$(python3 "$ROOT/scripts/liferoute_storage.py" scratch-root)/contract-cache-v1}"
 mkdir -p "$CACHE_DIRECTORY"
 CACHE_KEY="$({
   printf '%s\n' "LifeRoute Swift contract cache v1"

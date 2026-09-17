@@ -11,6 +11,8 @@ import signal
 import subprocess
 import time
 
+from liferoute_storage import scratch_path, validate_scratch_path
+
 os.environ.pop('SDKROOT', None)
 ROOT = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser(description=__doc__)
@@ -25,6 +27,7 @@ a = p.parse_args()
 subprocess.run(['python3', str(ROOT/'scripts/check_living_family_contracts.py'), '--checkpoint', str(a.checkpoint)], check=True)
 assert a.scene in ['scenery.'+f+'.'+v for f in ['rainforest','ocean','arctic','mountains','canyon','desert'] for v in ['day','night']]
 assert 12 <= a.seconds <= 35
+a.build = validate_scratch_path(a.build)
 a.build.mkdir(parents=True, exist_ok=True)
 a.evidence.mkdir(parents=True, exist_ok=False)
 commands = []
@@ -47,8 +50,10 @@ if not saved.exists() or json.loads(saved.read_text()) != manifest:
     app.mkdir(exist_ok=True)
     (a.build/'main.swift').write_text((ROOT/source_paths[-1]).read_text())
     sdk = run(['xcrun','--sdk','iphonesimulator','--show-sdk-path']).strip()
+    module_cache = scratch_path('living-scene/module-cache')
+    module_cache.mkdir(parents=True, exist_ok=True)
     run(['xcrun','swiftc','-swift-version','5','-D','DEBUG','-sdk',sdk,'-target','arm64-apple-ios16.0-simulator',
-         '-module-cache-path',str(a.build/'module-cache'),*[str(ROOT/s) for s in source_paths[:2]],
+         '-module-cache-path',str(module_cache),*[str(ROOT/s) for s in source_paths[:2]],
          str(a.build/'main.swift'),'-o',str(app/'LivingCapture')])
     for name in ['Assets.car','default.metallib']: shutil.copy2(a.app/name,app/name)
     (app/'Info.plist').write_bytes(plistlib.dumps(dict(CFBundleIdentifier='local.liferoute.LivingCapture',

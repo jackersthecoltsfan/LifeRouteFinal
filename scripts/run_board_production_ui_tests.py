@@ -16,6 +16,8 @@ import struct
 import subprocess
 import zlib
 
+from liferoute_storage import scratch_path
+
 ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = "Com.Brandongood.LifeRoute"
 parser = argparse.ArgumentParser(description=__doc__)
@@ -87,9 +89,11 @@ try:
     shutil.copy2(ROOT / "scripts/board_production_ui_tests.swift", out / "NativeUI.swift")
     (out / "manifest.json").write_text(json.dumps(dict(
         simulator=args.simulator, app=manifest(args.app), test=manifest(out / "NativeUI.swift")), indent=2))
+    derived_data = scratch_path('ui-fixtures/board-production/derived-data')
+    derived_data.mkdir(parents=True, exist_ok=True)
     command = ["xcodebuild", "test", "-project", str(out / "NativeUI.xcodeproj"), "-scheme", "NativeUI",
                "-destination", "platform=iOS Simulator,id=" + args.simulator,
-               "-derivedDataPath", str(out / "derived-data"), "-resultBundlePath", str(out / "boards.xcresult"),
+               "-derivedDataPath", str(derived_data), "-resultBundlePath", str(out / "boards.xcresult"),
                "-parallel-testing-enabled", "NO", "CODE_SIGNING_ALLOWED=NO"]
     for test in args.test or ["testCreateFirstThen", "testCreateChoiceBoard", "testCreateSchedule", "testCreateTokenBoard",
                               "testExportActions", "testDockAndThemeReentry"]:

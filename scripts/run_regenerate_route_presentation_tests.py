@@ -13,6 +13,8 @@ import os
 from pathlib import Path
 import subprocess
 
+from liferoute_storage import scratch_path
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -79,6 +81,8 @@ def main() -> None:
         "LiveDayRunContracts.swift",
         "FullRouteHandoffContracts.swift",
     ]
+    module_cache = scratch_path("contract-fixtures/route-regeneration/module-cache")
+    module_cache.mkdir(parents=True, exist_ok=True)
     command = [
         "xcrun",
         "swiftc",
@@ -86,7 +90,7 @@ def main() -> None:
         "5",
         "-parse-as-library",
         "-module-cache-path",
-        str(output / "module-cache"),
+        str(module_cache),
     ]
     command += [str(root / "LifeRoute" / name) for name in contracts]
     command += [str(output / "main.swift"), "-o", str(output / "regenerate-route-tests")]

@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 import subprocess
 
+from liferoute_storage import scratch_path
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--output', type=Path, required=True)
 args = parser.parse_args()
@@ -113,6 +115,8 @@ swift = output/'OwnerFollowupPolicies.swift'
 swift.write_text(source)
 environment = dict(os.environ)
 environment.pop('SDKROOT', None)
-environment['CLANG_MODULE_CACHE_PATH'] = str(output/'module-cache')
+module_cache = scratch_path('contract-fixtures/r2-owner-followup/module-cache')
+module_cache.mkdir(parents=True, exist_ok=True)
+environment['CLANG_MODULE_CACHE_PATH'] = str(module_cache)
 subprocess.run(['xcrun', '--sdk', 'macosx', 'swiftc', str(swift), '-o', str(output/'policies')], check=True, env=environment)
 subprocess.run([str(output/'policies')], check=True, env=environment)

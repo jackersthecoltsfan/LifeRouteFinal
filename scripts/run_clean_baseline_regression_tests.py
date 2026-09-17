@@ -14,6 +14,7 @@ import plistlib
 import subprocess
 
 from run_core_product_repair_tests import between, ROUTE_ENDPOINT
+from liferoute_storage import scratch_path
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -61,8 +62,10 @@ def main():
         'limitations': 'Controlled service/storage endpoints; actual Today projection and planner publication. Not physical acceptance.',
     }
     (out / 'extractions.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    module_cache = scratch_path('contract-fixtures/clean-baseline/module-cache')
+    module_cache.mkdir(parents=True, exist_ok=True)
     command = ['xcrun', 'swiftc', '-swift-version', '5', '-D', 'DEBUG', '-parse-as-library',
-               '-module-cache-path', str(out / 'module-cache')]
+               '-module-cache-path', str(module_cache)]
     if args.simulator:
         sdk = subprocess.check_output(['xcrun', '--sdk', 'iphonesimulator', '--show-sdk-path'], text=True).strip()
         app = out / 'CleanBaselineHarness.app'

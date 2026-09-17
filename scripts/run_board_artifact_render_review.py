@@ -11,6 +11,8 @@ import subprocess
 import time
 import uuid
 
+from liferoute_storage import scratch_path
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--output', type=Path, required=True)
 parser.add_argument('--simulator', required=True, help='Explicit Simulator UUID; never selects a booted device implicitly')
@@ -71,8 +73,10 @@ info = {'CFBundleIdentifier': bundle_id, 'CFBundleName': 'BoardArtifactTests',
         'MinimumOSVersion': '26.0', 'LSRequiresIPhoneOS': True, 'UIDeviceFamily': [1, 2],
         'UILaunchScreen': {}}
 (app / 'Info.plist').write_bytes(plistlib.dumps(info))
+module_cache = scratch_path('contract-fixtures/board-artifact/module-cache')
+module_cache.mkdir(parents=True, exist_ok=True)
 command('xcrun', '--sdk', 'iphonesimulator', 'swiftc', '-target', 'arm64-apple-ios26.0-simulator',
-        '-sdk', sdk, '-parse-as-library', '-module-cache-path', run / 'module-cache',
+        '-sdk', sdk, '-parse-as-library', '-module-cache-path', module_cache,
         source / 'BoardArtifact.swift', source / 'BoardArtifactRenderHarness.swift',
         '-o', app / 'BoardArtifactTests')
 command('codesign', '--force', '--sign', '-', app)

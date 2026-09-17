@@ -14,6 +14,8 @@ import shutil
 import subprocess
 import time
 
+from liferoute_storage import scratch_path
+
 os.environ.pop('SDKROOT', None)  # Explicit -sdk owns the native harness toolchain.
 ROOT = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser(description=__doc__)
@@ -40,8 +42,10 @@ assert any(d['udid'] == a.simulator and d['state'] == 'Booted' for group in devi
 sdk = run(['xcrun','--sdk','iphonesimulator','--show-sdk-path']).strip()
 sources = ['LifeRoute/LivingThemeScene.swift','LifeRoute/LivingThemeEnvironment.swift','scripts/living_theme_native_tests.swift']
 (out/'main.swift').write_text((ROOT/sources[-1]).read_text())
+module_cache = scratch_path('contract-fixtures/living-theme-native/module-cache')
+module_cache.mkdir(parents=True, exist_ok=True)
 run(['xcrun','swiftc','-swift-version','5','-D','DEBUG','-sdk',sdk,'-target','arm64-apple-ios16.0-simulator',
-     '-module-cache-path',str(out/'module-cache'),*[str(ROOT/s) for s in sources[:2]],str(out/'main.swift'),'-o',str(app/'LivingSceneTests')])
+     '-module-cache-path',str(module_cache),*[str(ROOT/s) for s in sources[:2]],str(out/'main.swift'),'-o',str(app/'LivingSceneTests')])
 manifest = {'sources':{s:hashlib.sha256((ROOT/s).read_bytes()).hexdigest() for s in sources}, 'assets':{}}
 for name in ['Assets.car','default.metallib']:
     source = a.app/name

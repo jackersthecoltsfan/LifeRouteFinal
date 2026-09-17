@@ -42,6 +42,29 @@ planning.
 - `scripts/run_simulator_smoke.sh`: GitHub macOS runner smoke for the five root
   sections, repeated-launch persistence, and live-theme/Reduce Motion modes.
 
+## Scratch and durable evidence
+
+Routine generated build material uses the reusable scratch policy rooted at
+`~/Library/Developer/LifeRouteBuilds`. Current GitHub CI and TestFlight paths
+place DerivedData, archives, exports, and native fixture module caches below a
+stable LifeRoute-specific subdirectory there. Durable receipts, logs, manifests,
+screenshots/video, and explicit final artifacts are staged separately for
+checkpoint or workflow-artifact retention.
+
+Use `python3 scripts/liferoute_storage.py checkpoint-copy SOURCE DESTINATION`
+to create a durable checkpoint copy. The destination must be below an approved
+LifeRoute durable root; generated directories such as `DerivedData`,
+`derived-data`, `build`, `ModuleCache.noindex`, and `Index.noindex` are
+excluded. Final artifacts are retained only when supplied explicitly with
+`--artifact`, so a routine build tree is never copied as evidence by accident.
+
+Use `python3 scripts/liferoute_storage.py closeout NAME --dry-run` to inspect a
+scratch directory. Actual closeout requires `--confirm` and still refuses
+paths outside the approved scratch root, protected checkpoint/evidence roots,
+the source/Git checkout, or any tree containing symlinks. Development and
+validation use disposable fixtures; no historical checkpoint is migrated or
+deleted by this policy.
+
 ## CI and release
 
 Pull requests run current semantic validation and native Debug/Release

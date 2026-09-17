@@ -14,6 +14,8 @@ import plistlib
 import subprocess
 import time
 
+from liferoute_storage import scratch_path
+
 ROOT = Path(__file__).resolve().parents[1]
 ENV = dict(os.environ, DEVELOPER_DIR=os.environ.get('DEVELOPER_DIR', '/Applications/Xcode.app/Contents/Developer'),
            GIT_OPTIONAL_LOCKS='0', PYTHONDONTWRITEBYTECODE='1')
@@ -95,8 +97,10 @@ def main():
         LSRequiresIPhoneOS=True,UIDeviceFamily=[1],UILaunchScreen={},
         UIApplicationSceneManifest={'UIApplicationSupportsMultipleScenes':False},
         UISupportedInterfaceOrientations=['UIInterfaceOrientationPortrait','UIInterfaceOrientationLandscapeLeft','UIInterfaceOrientationLandscapeRight'])))
+    module_cache = scratch_path('contract-fixtures/root-visibility/module-cache')
+    module_cache.mkdir(parents=True, exist_ok=True)
     run(['xcrun','swiftc','-sdk',sdk,'-target','arm64-apple-ios16.0-simulator','-swift-version','5','-D','DEBUG',
-         '-module-cache-path',str(out/'module-cache'),str(source),'-o',str(app/'RootVisibilityTests')])
+         '-module-cache-path',str(module_cache),str(source),'-o',str(app/'RootVisibilityTests')])
     run(['codesign','--force','--sign','-',str(app)])
     run(['xcrun','simctl','install',args.simulator,str(app)])
     log = out/'stdout.log'

@@ -76,6 +76,14 @@ jobs:
       - name: Validate full current release contract and AppIcon
         run: bash scripts/validate_full.sh
 
+      - name: Prepare reusable LifeRoute build scratch
+        run: |
+          set -euo pipefail
+          scratch_root="$(python3 scripts/liferoute_storage.py scratch-root)"
+          build_root="$scratch_root/LifeRoute/testflight"
+          mkdir -p "$build_root"
+          echo "LIFEROUTE_BUILD_SCRATCH_ROOT=$build_root" >> "$GITHUB_ENV"
+
       - name: Validate Apple connection
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -116,13 +124,13 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           set -euo pipefail
-          mkdir -p build
           xcodebuild \
             -project "$PROJECT" \
             -scheme "$SCHEME" \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath build/LifeRoute.xcarchive \
+            -derivedDataPath "$LIFEROUTE_BUILD_SCRATCH_ROOT/DerivedData" \
+            -archivePath "$LIFEROUTE_BUILD_SCRATCH_ROOT/LifeRoute.xcarchive" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             MARKETING_VERSION="$RELEASE_MARKETING_VERSION" \
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
@@ -136,8 +144,8 @@ jobs:
       - name: Verify archived LifeRoute v0.9.1 identity
         run: |
           set -euo pipefail
-          APP_PLIST="build/LifeRoute.xcarchive/Products/Applications/LifeRoute.app/Info.plist"
-          EXT_PLIST="build/LifeRoute.xcarchive/Products/Applications/LifeRoute.app/PlugIns/LifeRouteLiveActivityWidget.appex/Info.plist"
+          APP_PLIST="$LIFEROUTE_BUILD_SCRATCH_ROOT/LifeRoute.xcarchive/Products/Applications/LifeRoute.app/Info.plist"
+          EXT_PLIST="$LIFEROUTE_BUILD_SCRATCH_ROOT/LifeRoute.xcarchive/Products/Applications/LifeRoute.app/PlugIns/LifeRouteLiveActivityWidget.appex/Info.plist"
           test -f "$APP_PLIST"
           test -f "$EXT_PLIST"
           test "$(plutil -extract CFBundleShortVersionString raw -o - "$APP_PLIST")" = "$RELEASE_MARKETING_VERSION"
@@ -171,8 +179,8 @@ jobs:
         run: |
           xcodebuild \
             -exportArchive \
-            -archivePath build/LifeRoute.xcarchive \
-            -exportPath build/export \
+            -archivePath "$LIFEROUTE_BUILD_SCRATCH_ROOT/LifeRoute.xcarchive" \
+            -exportPath "$LIFEROUTE_BUILD_SCRATCH_ROOT/export" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$KEY_PATH" \
@@ -185,17 +193,24 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           set -euo pipefail
-          IPA=$(find build/export -name '*.ipa' -print -quit)
+          IPA=$(find "$LIFEROUTE_BUILD_SCRATCH_ROOT/export" -name '*.ipa' -print -quit)
           test -n "$IPA"
           xcrun altool --upload-app --type ios --file "$IPA" \
             --apiKey "$APP_STORE_CONNECT_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
 
       - name: Save IPA artifact
+        run: |
+          set -euo pipefail
+          ipa="$(find "$LIFEROUTE_BUILD_SCRATCH_ROOT/export" -name '*.ipa' -print -quit)"
+          test -n "$ipa"
+          cp "$ipa" "$RUNNER_TEMP/LifeRoute-v0.9.1-${GITHUB_RUN_NUMBER}.ipa"
+
+      - name: Upload IPA artifact
         uses: actions/upload-artifact@v6
         with:
           name: LifeRoute-v0.9.1-TestFlight-build-${{ github.run_number }}
-          path: build/export/*.ipa
+          path: ${{ runner.temp }}/LifeRoute-v0.9.1-${{ github.run_number }}.ipa
           if-no-files-found: error
           retention-days: 7
 

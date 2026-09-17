@@ -2,6 +2,7 @@
 """Exercise production D mechanics beside extracted unchanged Timer ABC authorities."""
 import os, subprocess, tempfile
 from pathlib import Path
+from liferoute_storage import scratch_root
 root = Path(__file__).resolve().parents[1]
 domain = (root / 'LifeRoute/SessionToolsDomain.swift').read_text()
 view = (root / 'LifeRoute/ScenicRoyalVisualTimerView.swift').read_text()
@@ -9,7 +10,7 @@ hero = (root / 'LifeRoute/VisualTimerHero.swift').read_text()
 core = domain.split('@MainActor\nfinal class VisualTimerCore:', 1)[1].split('@MainActor\nfinal class SessionToolsCore:', 1)[0]
 state = view.split('@MainActor\nfinal class VisualTimerPresentationState:', 1)[1].split('// Kept as the existing fullscreen chrome seam;', 1)[0]
 doubles = (root / 'scripts/timer_abc_tests.swift').read_text().split('@main struct TimerABCTests', 1)[0]
-cache = Path(os.environ.get('LIFEROUTE_CONTRACT_CACHE_DIRECTORY', tempfile.gettempdir()))
+cache = Path(os.environ.get('LIFEROUTE_CONTRACT_CACHE_DIRECTORY', scratch_root() / 'contract-cache-v1'))
 cache.mkdir(parents=True, exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='timer-d-', dir=cache) as temp:
     temp = Path(temp)

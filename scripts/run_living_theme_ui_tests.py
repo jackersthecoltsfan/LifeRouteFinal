@@ -8,6 +8,8 @@ from pathlib import Path
 import shutil
 import subprocess
 
+from liferoute_storage import scratch_path
+
 os.environ.pop('SDKROOT', None)
 ROOT = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser(description=__doc__)
@@ -29,8 +31,10 @@ assert len(source_commit) == 40 and all(c in '0123456789abcdef' for c in source_
 (out/'manifest.json').write_text(json.dumps({'testSHA256':hashlib.sha256((out/'NativeUI.swift').read_bytes()).hexdigest(),
     'metallibSHA256':hashlib.sha256((a.app/'default.metallib').read_bytes()).hexdigest(), 'simulator':a.simulator}, indent=2)+'\n')
 subprocess.run(['xcrun','simctl','install',a.simulator,str(a.app)], check=True)
+derived_data = scratch_path('ui-fixtures/living-theme/derived-data')
+derived_data.mkdir(parents=True, exist_ok=True)
 command = ['xcodebuild','test','-project',str(out/'NativeUI.xcodeproj'),'-scheme','NativeUI',
-    '-destination','platform=iOS Simulator,id='+a.simulator,'-derivedDataPath',str(out/'derived-data'),
+    '-destination','platform=iOS Simulator,id='+a.simulator,'-derivedDataPath',str(derived_data),
     '-resultBundlePath',str(out/'integration.xcresult'),'-parallel-testing-enabled','NO','CODE_SIGNING_ALLOWED=NO']
 with (out/'xcodebuild.log').open('w') as log:
     subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, check=True)

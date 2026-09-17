@@ -11,6 +11,8 @@ import os
 import subprocess
 import tempfile
 
+from liferoute_storage import scratch_root
+
 ROOT = Path(__file__).resolve().parents[1]
 app = (ROOT / 'LifeRoute/LifeRouteApp.swift').read_text()
 
@@ -212,7 +214,7 @@ final class CountingThemeDefaults: UserDefaults {
  }
 }
 '''
-cache = Path(os.environ.get('LIFEROUTE_CONTRACT_CACHE_DIRECTORY', tempfile.gettempdir()))
+cache = Path(os.environ.get('LIFEROUTE_CONTRACT_CACHE_DIRECTORY', scratch_root() / 'contract-cache-v1'))
 cache.mkdir(parents=True, exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='theme-contracts-', dir=cache) as directory:
     path = Path(directory)

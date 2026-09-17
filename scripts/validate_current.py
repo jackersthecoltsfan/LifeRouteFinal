@@ -130,6 +130,7 @@ def validate_active_build_path() -> None:
     prepare = read(ROOT / "scripts" / "prepare_build.sh")
     fast = read(ROOT / "scripts" / "validate_fast.sh")
     full = read(ROOT / "scripts" / "validate_full.sh")
+    storage = read(ROOT / "scripts" / "liferoute_storage.py")
     warning_assessor = read(ROOT / "scripts" / "assess_xcode_warnings.py")
     swift_contract_runner = read(ROOT / "scripts" / "run_swift_contract_test.sh")
     require_all(prepare, ["validate_fast.sh", "canonical LifeRoute v0.9.1"], "current prepare_build")
@@ -138,6 +139,42 @@ def validate_active_build_path() -> None:
     require(not present, f"prepare_build must not reconstruct historical releases: {present}")
     require("validate_current.py fast" in fast, "validate_fast must invoke the current semantic validator")
     require("validate_current.py full" in full, "validate_full must invoke the current full semantic validator")
+    require_all(
+        storage,
+        [
+            "LifeRouteBuilds",
+            "GENERATED_DIRECTORY_NAMES",
+            "checkpoint-copy",
+            "closeout",
+            "--dry-run",
+            "--confirm",
+            "closeout target must be inside approved scratch root",
+            "checkpoint destination must be inside an approved durable root",
+            "shutil.rmtree(safe_target)",
+        ],
+        "LifeRoute storage separation policy",
+    )
+    for relative in [
+        "scripts/capture_living_scene.py",
+        "scripts/run_board_production_ui_tests.py",
+        "scripts/run_board_artifact_render_review.py",
+        "scripts/run_clean_baseline_regression_tests.py",
+        "scripts/run_core_product_repair_tests.py",
+        "scripts/run_living_theme_native_tests.py",
+        "scripts/run_living_theme_qa_ui_tests.py",
+        "scripts/run_living_theme_ui_tests.py",
+        "scripts/run_regenerate_route_presentation_tests.py",
+        "scripts/run_root_navigation_ownership_tests.py",
+        "scripts/run_root_visibility_contract_tests.py",
+        "scripts/run_r2_owner_followup_contract_tests.py",
+        "scripts/run_timer_abc_tests.py",
+        "scripts/run_timer_d_hero_tests.py",
+        "scripts/run_theme_readability_contract_tests.py",
+        "scripts/run_visual_timer_presentation_tests.py",
+    ]:
+        runner = read(ROOT / relative)
+        require("scratch_path" in runner or "validate_scratch_path" in runner or "scratch_root" in runner,
+                f"{relative} must route generated compiler material through LifeRoute scratch")
     require("run_session_note_contract_tests.sh" in full, "validate_full must run executable Session Note contracts")
     require("run_day_route_contract_tests.sh" in full, "validate_full must run executable Day Route contracts")
     require("run_calendar_edit_contract_tests.sh" in full, "validate_full must run executable Calendar Edit contracts")
@@ -173,6 +210,7 @@ def validate_active_build_path() -> None:
         [
             "command -v swiftc",
             "LIFEROUTE_CONTRACT_CACHE_DIRECTORY",
+            "liferoute_storage.py",
             "LifeRoute Swift contract cache v1",
             "shasum -a 256",
             "SWIFT_COMPILER",
@@ -1516,6 +1554,7 @@ def validate_release_and_web_policy() -> None:
             "configuration Release",
             "iphonesimulator",
             "assess_xcode_warnings.py",
+            "liferoute_storage_contract_tests.py",
             "Enforce compiler warning budget",
         ],
         "current native CI",
@@ -1529,6 +1568,24 @@ def validate_release_and_web_policy() -> None:
     require_all(bridge, ["AUTHORIZED_TESTFLIGHT_RELEASE=YES", "Require completed release-equivalent iOS validation", "Reconfirm main before TestFlight", "authorized_sha"], "exact-SHA assistant release bridge")
     require_all(testflight, ["workflow_dispatch", "authorized_sha", "Verify authorized release source", EXPECTED_APP_BUNDLE_ID, EXPECTED_EXTENSION_BUNDLE_ID, "validate_full.sh", "archive", "Verify archived LifeRoute v0.9.1 identity", "Upload to TestFlight", "Clean temporary Apple signing assets", "AppIcon"], "current v0.9.1 TestFlight contract")
     require(testflight.count(f"RELEASE_MARKETING_VERSION: {EXPECTED_RELEASE_MARKETING_VERSION}") == 1, "release workflow must match current v0.9.1 product")
+    workflow_storage_sources = {
+        "current iOS CI": ios,
+        "current TestFlight": testflight,
+        "reusable iOS CI template": read(ROOT / "ReusableAppWorkflow" / "ios-ci.template.yml"),
+        "reusable TestFlight template": read(ROOT / "ReusableAppWorkflow" / "testflight.template.yml"),
+    }
+    for owner, workflow in workflow_storage_sources.items():
+        require("LIFEROUTE_BUILD_SCRATCH_ROOT" in workflow,
+                f"{owner} reusable scratch path must expose LIFEROUTE_BUILD_SCRATCH_ROOT")
+        require(
+            "scripts/liferoute_storage.py scratch-root" in workflow
+            or 'scratch_root="$HOME/Library/Developer/LifeRouteBuilds"' in workflow,
+            f"{owner} reusable scratch path must use the approved LifeRouteBuilds root",
+        )
+        require("-archivePath build/" not in workflow, f"{owner} must not archive into repository build/")
+        require("-exportPath build/" not in workflow, f"{owner} must not export into repository build/")
+    require("-derivedDataPath \"$LIFEROUTE_BUILD_SCRATCH_ROOT/" in ios, "current iOS CI DerivedData must use reusable scratch")
+    require("-derivedDataPath \"$LIFEROUTE_BUILD_SCRATCH_ROOT/" in testflight, "current TestFlight DerivedData must use reusable scratch")
     for name, text in workflows.items():
         if name == "testflight.yml":
             continue

@@ -11,6 +11,8 @@ import os
 from pathlib import Path
 import subprocess
 
+from liferoute_storage import scratch_path
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -51,7 +53,9 @@ def main():
     (out/'main.swift').write_text(source)
     contracts = ['DayRouteContracts.swift','DayItineraryContracts.swift','LiveDayRunContracts.swift',
                  'FullRouteHandoffContracts.swift']
-    command = ['xcrun','swiftc','-swift-version','5','-D','DEBUG','-parse-as-library','-module-cache-path',str(out/'module-cache')]
+    module_cache = scratch_path('contract-fixtures/core-product-repair/module-cache')
+    module_cache.mkdir(parents=True, exist_ok=True)
+    command = ['xcrun','swiftc','-swift-version','5','-D','DEBUG','-parse-as-library','-module-cache-path',str(module_cache)]
     command += [str(root/'LifeRoute'/name) for name in contracts]
     command += [str(out/'main.swift'),'-o',str(out/'core-product-tests')]
     env = dict(os.environ, GIT_OPTIONAL_LOCKS='0', PYTHONDONTWRITEBYTECODE='1')

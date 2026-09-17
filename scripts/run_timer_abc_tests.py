@@ -4,6 +4,7 @@ Only AVAudioEngine/UIKit endpoints are recorded doubles; no Simulator required.
 """
 import os,subprocess,tempfile,json
 from pathlib import Path
+from liferoute_storage import scratch_root
 root=Path(__file__).resolve().parents[1]
 domain=(root/'LifeRoute/SessionToolsDomain.swift').read_text()
 view=(root/'LifeRoute/ScenicRoyalVisualTimerView.swift').read_text()
@@ -40,7 +41,7 @@ if ledger_path:
  output=os.environ.get('TIMER_ABC_LEDGER_MAP')
  if output:Path(output).write_text(json.dumps(manifest,indent=2)+'\n')
  print(f'Ledger reconciled: {len(manifest)} entries; native UI aliases use source-call proof plus executed core seams',flush=True)
-cache=Path(os.environ.get('LIFEROUTE_CONTRACT_CACHE_DIRECTORY',tempfile.gettempdir()))
+cache=Path(os.environ.get('LIFEROUTE_CONTRACT_CACHE_DIRECTORY',scratch_root()/'contract-cache-v1'))
 cache.mkdir(parents=True,exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='timer-abc-',dir=cache) as folder:
  generated=Path(folder)/'ProductionTimer.swift';generated.write_text(source)

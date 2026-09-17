@@ -11,13 +11,15 @@ from pathlib import Path
 import subprocess
 import tempfile
 
+from liferoute_storage import scratch_root
+
 ROOT = Path(__file__).resolve().parents[1]
 domain = (ROOT / 'LifeRoute/SessionToolsDomain.swift').read_text()
 view = (ROOT / 'LifeRoute/ScenicRoyalVisualTimerView.swift').read_text()
 core = domain.split('@MainActor\nfinal class VisualTimerCore:', 1)[1].split('@MainActor\nfinal class SessionToolsCore:', 1)[0]
 state = view.split('@MainActor\nfinal class VisualTimerPresentationState:', 1)[1].split('// Kept as the existing fullscreen chrome seam;', 1)[0]
 source = 'import Foundation\nimport Combine\n@MainActor\nfinal class VisualTimerCore:' + core + '@MainActor\nfinal class VisualTimerPresentationState:' + state
-cache = Path(os.environ.get('LIFEROUTE_CONTRACT_CACHE_DIRECTORY', tempfile.gettempdir()))
+cache = Path(os.environ.get('LIFEROUTE_CONTRACT_CACHE_DIRECTORY', scratch_root() / 'contract-cache-v1'))
 cache.mkdir(parents=True, exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='timer-presentation-', dir=cache) as directory:
     generated = Path(directory) / 'ProductionTimerAndPresentation.swift'

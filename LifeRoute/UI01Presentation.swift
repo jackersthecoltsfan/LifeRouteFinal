@@ -584,13 +584,6 @@ struct UI01DockSelectionSurface: ViewModifier {
                                     .offset(x: 7, y: 1)
                                     .allowsHitTesting(false)
                             }
-                            .overlay(alignment: .bottomTrailing) {
-                                Capsule()
-                                    .fill(UI01Material.goldLight.opacity(0.86))
-                                    .frame(width: 28, height: 2)
-                                    .offset(x: -10, y: -6)
-                                    .allowsHitTesting(false)
-                            }
                     }
                 }
             }
@@ -648,8 +641,8 @@ struct UI01DockInstrument: View {
 
     var body: some View {
         LifeRouteDockGlyph(section: section)
-            .stroke(style: StrokeStyle(lineWidth: 1.95, lineCap: .round, lineJoin: .round))
-            .frame(width: 32, height: 32)
+            .stroke(style: StrokeStyle(lineWidth: 2.3, lineCap: .round, lineJoin: .round))
+            .frame(width: 36, height: 36)
             .accessibilityHidden(true)
     }
 }
@@ -661,16 +654,17 @@ struct UI01DockLabel: View {
     var body: some View {
         VStack(spacing: 4) {
             UI01DockInstrument(section: section)
-                .foregroundStyle(selected ? UI01Material.goldLight : UI01Material.secondary)
+                .foregroundStyle(selected ? UI01Material.goldLight : UI01Material.silver)
             Text(section.title)
                 .font(.caption2.weight(selected ? .semibold : .medium))
                 .foregroundStyle(selected ? UI01Material.silver : UI01Material.secondary)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Capsule().fill(UI01Material.goldGradient)
-                .frame(width: 12, height: 1)
-                .opacity(selected ? 1 : 0)
+            Circle()
+                .fill(UI01Material.goldGradient)
+                .frame(width: selected ? 4.5 : 3.5, height: selected ? 4.5 : 3.5)
+                .opacity(selected ? 1 : 0.62)
                 .frame(height: 5)
                 .accessibilityHidden(true)
         }

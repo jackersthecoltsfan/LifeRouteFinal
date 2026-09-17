@@ -67,24 +67,29 @@ struct UI01BrandWordmark: View {
     var body: some View {
         let scale = pointSize / UI01WordmarkGeometry.nominalSize
         let bounds = UI01WordmarkGeometry.path.boundingRect
-        UI01WordmarkShape()
-            .fill(UI01Material.goldGradient)
-            // A near-opaque Today fill lets the dimensional mark read as one
-            // unified brand lockup while keeping the lettering dominant.
-            .opacity(showsLogo ? 0.96 : 1)
-            .overlay {
-                UI01WordmarkShape().stroke(Color.white.opacity(0.98), lineWidth: 0.58)
+        ZStack {
+            if showsLogo {
+                UI01TodayLogoBackdrop(side: pointSize * 1.9)
             }
-            .frame(width: bounds.width * scale, height: bounds.height * scale)
-            .background {
-                if showsLogo {
-                    UI01TodayLogoBackdrop(side: pointSize * 1.9)
+
+            UI01WordmarkShape()
+                .fill(UI01Material.goldGradient)
+                // A near-opaque Today fill lets the dimensional mark read as
+                // one unified brand lockup while keeping the lettering dominant.
+                .opacity(showsLogo ? 0.96 : 1)
+                .overlay {
+                    UI01WordmarkShape().stroke(Color.white.opacity(0.98), lineWidth: 0.58)
                 }
-            }
-            .allowsHitTesting(false)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("LifeRoute")
-            .accessibilityAddTraits(.isStaticText)
+                .frame(width: bounds.width * scale, height: bounds.height * scale)
+                // Drop the lettering over the logo's lower edge so the two
+                // marks read as one intentional lockup.
+                .offset(y: showsLogo ? pointSize * 0.58 : 0)
+        }
+        .frame(width: bounds.width * scale, height: bounds.height * scale)
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("LifeRoute")
+        .accessibilityAddTraits(.isStaticText)
     }
 }
 

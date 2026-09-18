@@ -529,7 +529,7 @@ struct ScenicRoyalFullScreenTimerView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Button {
+            Button { [hero] in
                 hero.navigate { [weak hero] in hero?.back?() }
             } label: {
                 Label("Back", systemImage: "chevron.left")

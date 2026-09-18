@@ -20,7 +20,7 @@ def require(condition: bool, message: str) -> None:
 # They do not claim native gesture, SwiftUI lifecycle, or physical acceptance.
 pager = CONTENT.split("// BEGIN PERMANENT ROOT PAGER", 1)[1].split("// END PERMANENT ROOT PAGER", 1)[0]
 require(CONTENT.count(".init(section: .") == 5, "five permanent root hosts")
-require('roots.map(\.section) == AppSection.allCases' in pager, "fixed identity and order are checked")
+require(r'roots.map(\.section) == AppSection.allCases' in pager, "fixed identity and order are checked")
 require(pager.count("UIHostingController(rootView:") == 1, "only the constructor allocates hosts, once per fixed registration")
 constructor = pager.split("    init(roots:", 1)[1].split("    required init?", 1)[0]
 require("for root in roots" in constructor and "allocationCount += 1" in constructor, "five allocations occur in the fixed constructor loop")

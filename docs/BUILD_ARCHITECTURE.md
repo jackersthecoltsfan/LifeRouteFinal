@@ -43,7 +43,8 @@ planning.
   persistence/migrations, ABA tools, timer, Live Activity, WebView quarantine,
   and release-policy contracts.
 - `scripts/assess_xcode_warnings.py`: rejects unexpected warning lines from
-  native Debug/Release build logs while classifying one exact Xcode 26.6 notice.
+  native Debug/Release build logs while classifying only the two exact observed
+  Xcode no-AppIntents notice spellings.
 - `scripts/run_simulator_smoke.sh`: GitHub macOS runner smoke for the five root
   sections, repeated-launch persistence, and live-theme/Reduce Motion modes.
 
@@ -76,9 +77,57 @@ Pull requests run current semantic validation and native Debug/Release
 Simulator compilation. The shared `LifeRoute` scheme compiles the embedded Live
 Day extension. Simulator smoke launches Today, Calendar (`schedule` internally),
 Tools, Resources, and Setup. Native CI rejects all unexpected compiler warnings.
-Xcode 26.6's exact no-AppIntents metadata notice is classified separately because
+The exact known no-AppIntents metadata notices are classified separately because
 LifeRoute does not link App Intents and adding that framework would change the
-product solely to suppress toolchain noise.
+product solely to suppress toolchain noise; the supported spellings are listed
+below.
+
+## Hosted Apple toolchain and warning identity
+
+The Luna 12 baseline map was: both relevant Apple jobs used the hosted
+`macos-26` image, neither set `DEVELOPER_DIR` explicitly, and neither emitted
+an Xcode/SDK identity receipt. iOS CI retained its Debug/Release logs and
+Simulator smoke evidence for 14 days. TestFlight retained the Luna 6 recovery
+bundle and exported IPA for 7 days, but its recovery manifest did not carry
+toolchain identity. TestFlight archived Release for a generic iOS destination,
+exported with `method=app-store-connect` and `stripSwiftSymbols=true`, then
+uploaded the IPA with `xcrun altool`. The warning assessor recognized only the
+older App Intents spelling and did not allowlist signed-widget strip notices.
+
+The macOS `native-validation` job in `.github/workflows/ios-ci.yml` and the
+`release` job in `.github/workflows/testflight.yml` both emit a concise
+`HOSTED APPLE TOOLCHAIN` receipt after reusable build scratch is prepared. It
+records the safe GitHub runner identity fields exposed by the job, `sw_vers`,
+`uname -a`, `xcode-select -p`, the effective `DEVELOPER_DIR` when present,
+`xcodebuild -version`, Swift compiler identity, and iOS/iOS Simulator SDK
+version, build metadata, and path. It deliberately does not dump the full
+environment or any signing, App Store Connect, or provisioning values.
+
+The iOS CI receipt is retained with the existing 14-day native evidence
+artifact. The TestFlight receipt is visible in the workflow summary and is
+retained as a separate 7-day artifact. The Luna 6 recovery manifest is not
+coupled to this receipt because the toolchain identity is workflow-run
+provenance rather than an archive/IPA identity field.
+
+The intentional App Intents classification is limited to these exact observed
+messages:
+
+- `warning: Metadata extraction skipped. No AppIntents.framework dependency found.`
+- `warning: Metadata extraction skipped, no AppIntents.framework dependency found`
+
+The second spelling is the Xcode 27 form observed in retained local build
+logs. Neither form justifies adding `AppIntents.framework`; LifeRoute does not
+link it, and the assessor still fails on every other warning.
+
+The signed-widget notice is intentionally not allowlisted:
+`warning: not stripping binary because it is signed:`. Retained local evidence
+shows it in both signed Debug-iphoneos and Release-iphoneos device copy phases
+for `LifeRouteLiveActivityWidget.appex`, while the TestFlight export options
+request `stripSwiftSymbols=true`. Therefore the current classification is
+`MONITOR — RELEASE RELEVANCE NOT YET PROVEN`: it is distinguishable as a
+signed-device strip notice, but this lane has no new hosted macOS 26 Release /
+TestFlight output that proves it is harmless at export time. If it appears in
+the current warning-assessor inputs, it remains an unexpected, blocking line.
 
 Main uses the same current contract. TestFlight has one production owner:
 `.github/workflows/testflight.yml`. It requires a full exact current-main SHA,

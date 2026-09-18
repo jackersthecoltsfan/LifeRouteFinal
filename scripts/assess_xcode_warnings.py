@@ -11,6 +11,16 @@ from pathlib import Path
 KNOWN_TOOLCHAIN_NOTICE = (
     "warning: Metadata extraction skipped. No AppIntents.framework dependency found."
 )
+KNOWN_TOOLCHAIN_NOTICES = (
+    KNOWN_TOOLCHAIN_NOTICE,
+    "warning: Metadata extraction skipped, no AppIntents.framework dependency found",
+)
+
+
+def is_known_toolchain_notice(line: str) -> bool:
+    """Return true only for one of the observed exact Xcode notice spellings."""
+
+    return any(notice in line for notice in KNOWN_TOOLCHAIN_NOTICES)
 
 
 def warning_lines(paths: list[Path]) -> list[str]:
@@ -37,8 +47,8 @@ def main() -> int:
         print(error, file=sys.stderr)
         return 2
 
-    known = [line for line in warnings if KNOWN_TOOLCHAIN_NOTICE in line]
-    unexpected = [line for line in warnings if KNOWN_TOOLCHAIN_NOTICE not in line]
+    known = [line for line in warnings if is_known_toolchain_notice(line)]
+    unexpected = [line for line in warnings if not is_known_toolchain_notice(line)]
 
     print(f"Known Xcode no-AppIntents notice lines: {len(known)}")
     print(f"Unexpected compiler warning lines: {len(unexpected)}")

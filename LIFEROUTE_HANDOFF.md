@@ -1,3 +1,27 @@
+# Luna 12 hosted Apple toolchain + warning-budget identity — September 18, 2026
+
+- Bounded CI/toolchain provenance maintenance is isolated on
+  `chore/hosted-toolchain-warning-identity-v1-20260918`, stacked exactly on
+  Luna 6 `56540a40b6eb450be59b9184fd8d2e2ec5fffe2b` / tree
+  `966041b7c0944882c712500ec06bfa1703d09605`. Canonical main remains
+  `881dac1494d2561ed761f230b94d8cd45ec92518`; no product source is changed.
+- The live `ios-ci.yml` and `testflight.yml` macOS jobs now emit a concise safe
+  `HOSTED APPLE TOOLCHAIN` receipt with runner, macOS, uname, xcode-select,
+  effective developer directory, Xcode, Swift, and iOS SDK identities. iOS CI
+  retains it with its existing 14-day evidence; TestFlight retains a separate
+  7-day receipt artifact and summary entry. The Luna 6 recovery manifest is
+  intentionally unchanged.
+- The warning assessor recognizes only the two exact observed App Intents
+  notice spellings and remains fail-closed for signed-widget strip notices and
+  all other warnings. Current signed-device evidence supports
+  `MONITOR — RELEASE RELEVANCE NOT YET PROVEN` for that notice; hosted Release /
+  TestFlight confirmation remains required later.
+- Local/static qualification is bounded to workflow parsing/shell syntax,
+  focused warning tests, Luna 6 recovery tests, existing manifest tests,
+  current fast validation, trigger and release-step comparisons, secret-output
+  review, and diff checks. No workflow dispatch, TestFlight upload, ASC
+  mutation, merge, push, installation, or release is authorized.
+
 # Crystal Chrome physical-QA follow-up02 — September 16, 2026
 
 - Owner-authorized two-item refinement on `5bdeeb4f2e854e71d9a61668c3d8b98061f8ffc4`: Today now uses the existing micro LifeRoute mark as a near-opaque dimensional backdrop with restrained offset shade and white-to-gold bevel rim; the shared Resources title uses a smaller scaled system treatment so it stays on one line. Wordmark fill/outline, header geometry, scenery, navigation and data behavior remain unchanged.

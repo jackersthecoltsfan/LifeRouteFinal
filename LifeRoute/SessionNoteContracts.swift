@@ -109,6 +109,236 @@ enum SessionNoteInputBounds {
     }
 }
 
+// MARK: - Beta-safe deterministic drafting
+
+/// The single production drafting policy for the beta. This is intentionally not
+/// exposed as a user setting: normal Session Note drafting must remain local and
+/// deterministic until a separately-qualified production path replaces it.
+enum SessionNoteDraftingMode: Equatable {
+    case betaSafeDeterministic
+}
+
+enum SessionNoteBetaSafeDraftingError: LocalizedError, Equatable {
+    case emptyDraft
+    case numericGroundingFailed
+    case chronologyGroundingFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyDraft:
+            return "LifeRoute could not form a draft from those session facts. Your facts and previous draft were preserved."
+        case .numericGroundingFailed, .chronologyGroundingFailed:
+            return "LifeRoute kept the session facts unchanged because a beta drafting safety check could not be completed."
+        }
+    }
+}
+
+/// A deliberately small, fact-preserving realization pass. It does not infer
+/// missing actors, outcomes, interventions, or order. Its only job is to turn
+/// supplied units into readable, editable professional sentences and paragraphs.
+enum SessionNoteBetaSafeDeterministicDrafting {
+    static let mode: SessionNoteDraftingMode = .betaSafeDeterministic
+
+    static func draft(from narrative: String) throws -> String {
+        let source = narrative.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !source.isEmpty else { throw SessionNoteBetaSafeDraftingError.emptyDraft }
+
+        var paragraphs: [[String]] = [[]]
+        for rawLine in source.components(separatedBy: .newlines) {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if line.isEmpty {
+                if !(paragraphs.last?.isEmpty ?? true) { paragraphs.append([]) }
+                continue
+            }
+
+            for unit in sentenceUnits(from: line) {
+                let sentence = realize(unit)
+                guard !sentence.isEmpty else { continue }
+                if shouldBeginNewParagraph(before: sentence, existing: paragraphs[paragraphs.count - 1]) {
+                    paragraphs.append([])
+                }
+                paragraphs[paragraphs.count - 1].append(sentence)
+            }
+        }
+
+        let result = paragraphs
+            .filter { !$0.isEmpty }
+            .map { $0.joined(separator: " ") }
+            .joined(separator: "\n\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !result.isEmpty else { throw SessionNoteBetaSafeDraftingError.emptyDraft }
+        try validateGrounding(draft: result, source: source)
+        return result
+    }
+
+    private static func sentenceUnits(from line: String) -> [String] {
+        let trimmed = line
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-•* "))
+        guard !trimmed.isEmpty else { return [] }
+
+        var units: [String] = []
+        var current = ""
+        for character in trimmed {
+            current.append(character)
+            if ".!?".contains(character) {
+                let candidate = current.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !candidate.isEmpty { units.append(candidate) }
+                current = ""
+            }
+        }
+        let remainder = current.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !remainder.isEmpty { units.append(remainder) }
+        return units.isEmpty ? [trimmed] : units
+    }
+
+    private static func realize(_ rawUnit: String) -> String {
+        let raw = rawUnit
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-•* "))
+        guard !raw.isEmpty else { return "" }
+        let withoutTerminal = raw.trimmingCharacters(in: CharacterSet(charactersIn: ".!? "))
+        let lower = withoutTerminal.lowercased()
+
+        if lower == "transition outside" {
+            return "The session included a transition outside."
+        }
+        if lower.hasPrefix("session ended ") || lower.hasPrefix("session ended with ") {
+            let activity = withoutTerminal
+                .replacingOccurrences(of: "session ended with ", with: "", options: .caseInsensitive)
+                .replacingOccurrences(of: "session ended ", with: "", options: .caseInsensitive)
+            return "The session concluded with \(activity)."
+        }
+        if lower.hasPrefix("closing activity ") {
+            let activity = String(withoutTerminal.dropFirst("closing activity ".count))
+            return "The session concluded with \(activity)."
+        }
+        if lower.hasPrefix("mom reported ") {
+            let report = reportedClause(String(withoutTerminal.dropFirst("mom reported ".count)))
+            return "The client's mother reported \(report)."
+        }
+        if lower.hasPrefix("caregiver reported ") {
+            return "The caregiver reported \(String(withoutTerminal.dropFirst("caregiver reported ".count)))."
+        }
+        if lower.hasPrefix("rbt modeled ") && lower.hasSuffix(" on aac") {
+            let beginning = String(withoutTerminal.dropFirst("RBT modeled ".count))
+            let content = String(beginning.dropLast(" on AAC".count))
+            if !content.contains(" ") {
+                return "The RBT modeled the word \"\(content)\" using the client's AAC device."
+            }
+            return "The RBT modeled \(content) using the client's AAC device."
+        }
+        if lower.hasPrefix("setting ") {
+            return "The session took place \(String(withoutTerminal.dropFirst("setting ".count)))."
+        }
+        if lower.hasPrefix("participants ") {
+            let list = String(withoutTerminal.dropFirst("participants ".count))
+            return "The following participants were present: \(professionalizeParticipantList(list))."
+        }
+        if lower == "free play" || lower == "pairing" || lower == "table activities" {
+            return "The session included \(withoutTerminal)."
+        }
+
+        let expanded = expandLeadingRole(in: withoutTerminal)
+        return finishSentence(expanded)
+    }
+
+    private static func expandLeadingRole(in source: String) -> String {
+        var normalized = source
+            .replacingOccurrences(of: ", RBT ", with: ", the RBT ", options: .caseInsensitive)
+            .replacingOccurrences(of: ", client ", with: ", the client ", options: .caseInsensitive)
+        if normalized.lowercased().hasPrefix("at beginning,") {
+            normalized = "At the beginning," + normalized.dropFirst("At beginning,".count)
+        }
+        let lower = normalized.lowercased()
+        if lower.hasPrefix("rbt and client") {
+            return "The RBT and the client" + normalized.dropFirst("RBT and client".count)
+        }
+        if lower.hasPrefix("rbt ") {
+            return "The RBT " + normalized.dropFirst(4)
+        }
+        if lower.hasPrefix("client ") {
+            return "The client " + normalized.dropFirst(7)
+        }
+        if lower.hasPrefix("mom ") {
+            return "The client's mother " + normalized.dropFirst(4)
+        }
+        if lower.hasPrefix("mother ") {
+            return "The client's mother " + normalized.dropFirst(7)
+        }
+        if lower.hasPrefix("father ") {
+            return "The client's father " + normalized.dropFirst(7)
+        }
+        if lower.hasPrefix("bcba ") {
+            return "The BCBA " + normalized.dropFirst(5)
+        }
+        return normalized
+    }
+
+    private static func reportedClause(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.lowercased().hasPrefix("client ") else { return trimmed }
+        return ("the client " + trimmed.dropFirst("client ".count))
+            .replacingOccurrences(of: " had bruise ", with: " had a bruise ", options: .caseInsensitive)
+    }
+
+    private static func professionalizeParticipantList(_ list: String) -> String {
+        list.components(separatedBy: ",").map { item in
+            let trimmed = item.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.caseInsensitiveCompare("mom") == .orderedSame ? "the client's mother" : trimmed
+        }.joined(separator: ", ")
+    }
+
+    private static func finishSentence(_ source: String) -> String {
+        let compact = source
+            .split(whereSeparator: { $0.isWhitespace })
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let first = compact.first else { return "" }
+        let capitalized = String(first).uppercased() + compact.dropFirst()
+        return capitalized.hasSuffix(".") || capitalized.hasSuffix("!") || capitalized.hasSuffix("?")
+            ? capitalized
+            : capitalized + "."
+    }
+
+    private static func shouldBeginNewParagraph(before sentence: String, existing: [String]) -> Bool {
+        guard !existing.isEmpty else { return false }
+        let lower = sentence.lowercased()
+        // These topic changes are explicitly represented by the sentence itself;
+        // they do not impose a fixed paragraph count or infer an event order.
+        return lower.hasPrefix("the client's mother reported")
+            || lower.hasPrefix("the caregiver reported")
+            || lower.hasPrefix("the session concluded")
+    }
+
+    private static func validateGrounding(draft: String, source: String) throws {
+        let numericPattern = #"\b\d+(?:\.\d+)?(?:\s*/\s*\d+)?%?\b"#
+        let expression = try! NSRegularExpression(pattern: numericPattern)
+        let range = NSRange(draft.startIndex..., in: draft)
+        for match in expression.matches(in: draft, range: range) {
+            guard let swiftRange = Range(match.range, in: draft) else { continue }
+            guard source.contains(String(draft[swiftRange])) else {
+                throw SessionNoteBetaSafeDraftingError.numericGroundingFailed
+            }
+        }
+
+        let sourceLower = source.lowercased()
+        let draftLower = draft.lowercased()
+        let chronologyRequirements: [(draft: String, source: [String])] = [
+            ("later", ["later"]),
+            ("after", ["after"]),
+            ("before", ["before"]),
+            ("while", ["while"]),
+            ("concluded", ["ended", "concluded", "closing"])
+        ]
+        for requirement in chronologyRequirements where draftLower.contains(requirement.draft) {
+            guard requirement.source.contains(where: sourceLower.contains) else {
+                throw SessionNoteBetaSafeDraftingError.chronologyGroundingFailed
+            }
+        }
+    }
+}
+
 enum SessionNoteOutputCompleteness: Equatable {
     // The adapter supplies no completion-limit/finish-reason signal. Safety/format checks
     // cannot establish semantic coverage, even when the response ends with a period.

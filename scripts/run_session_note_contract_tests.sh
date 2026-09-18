@@ -29,6 +29,8 @@ root = Path(sys.argv[1]).parent
 views = (root / "AIClinicalToolsViews.swift").read_text()
 ui = views.split("struct AISessionNoteGeneratorView: View {", 1)[1].split("struct SessionNoteReadabilityFixtureView:", 1)[0]
 note = source.split("    static func generateABASessionNote(", 1)[1].split("    static func generateVisualScheduleDraft(", 1)[0]
+factory = views.split("enum SessionNoteGeneratorFactory {", 1)[1].split("struct AISessionNoteGeneratorView: View {", 1)[0]
+beta_adapter = views.split("final class BetaSafeDeterministicSessionNoteGenerator", 1)[1].split("final class AISessionNoteRuntimeModel", 1)[0]
 checks = [
     all(token not in ui for token in ["PhotosPicker", "selectedPhotoItems", "screenshotAttachments", "loadSelectedScreenshots", "Attach data screenshots", "Add Photo", "extractionSummary", "attachmentCount"]),
     "screenshotDataItems" not in views and "screenshotDataItems" not in source,
@@ -42,6 +44,10 @@ checks = [
     "VNRecognizeTextRequest()" in source and "VNImageRequestHandler(data: imageData" in source,
     sum(p.read_text().count("generateABASessionNote(") for p in root.glob("*.swift")) == 2,
     views.count("LifeRouteIntelligenceCore.generateABASessionNote(") == 1,
+    "return BetaSafeDeterministicSessionNoteGenerator()" in factory,
+    "FoundationModelSessionNoteGenerator" not in factory and "LifeRouteIntelligenceCore" not in factory,
+    "SessionNoteDraftingMode" in (root / "SessionNoteContracts.swift").read_text(),
+    all(token not in beta_adapter for token in ["FoundationModel", "SystemLanguageModel", "LanguageModelSession", "generateABASessionNote"]),
     'savedTerminologyContext: ""' in note and 'compactSessionNoteClientContext(client)' not in note,
     'profileCode: client?.code' in note,
 ]

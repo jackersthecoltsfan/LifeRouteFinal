@@ -56,6 +56,7 @@ def main():
         )[1].split('// END SESSION NOTE DRAFT PERSISTENCE CONTRACT', 1)[0],
         'core_declarations': core[core.index('// BEGIN SESSION NOTE PRODUCTION INSTRUCTIONS'):core.index('enum LifeRouteIntelligenceCore {')],
         'note_protocol': note[note.index('enum SessionNoteGenerationState:'):note.index('@MainActor\nfinal class FoundationModelSessionNoteGenerator')],
+        'beta_drafting_adapter': note[note.index('@MainActor\nfinal class BetaSafeDeterministicSessionNoteGenerator'):note.index('@MainActor\nfinal class AISessionNoteRuntimeModel')],
         'note_runtime': note[note.index('@MainActor\nfinal class AISessionNoteRuntimeModel:'):note.index('#if DEBUG\n@MainActor\nprivate final class SessionNoteFixtureGenerator')],
         'theme_episode': theme.split('// BEGIN THEME VISIBILITY EPISODE',1)[1].split('// END THEME VISIBILITY EPISODE',1)[0],
         'media_admission': media.split('// BEGIN MEDIA VISIBILITY ADMISSION',1)[1].split('private struct LifeRoutePhotoSelection:',1)[0],

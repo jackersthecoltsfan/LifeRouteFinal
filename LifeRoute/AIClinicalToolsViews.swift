@@ -69,6 +69,39 @@ final class FoundationModelSessionNoteGenerator: SessionNoteGenerating {
     }
 }
 
+/// The beta production adapter. It deliberately has no Foundation Models
+/// availability check or request path: supplied Session Facts are realized
+/// locally by `SessionNoteBetaSafeDeterministicDrafting` and returned through
+/// the existing ownership, stale-result, editable-draft, and persistence flow.
+@MainActor
+final class BetaSafeDeterministicSessionNoteGenerator: SessionNoteGenerating {
+    let mode: SessionNoteDraftingMode = .betaSafeDeterministic
+
+    func availability() async -> SessionNoteModelAvailability {
+        .available
+    }
+
+    func generateNote(
+        narrative: String,
+        writerRole: SessionNoteWriterRole,
+        client: LifeRouteClientProfile?,
+        progress: @escaping (SessionNoteGenerationProgress) async -> Void
+    ) async throws -> SessionNoteGenerationResult {
+        _ = writerRole
+        _ = client
+        try Task.checkCancellation()
+        try SessionNoteInputBounds.validateTypedFacts(characterCount: narrative.count)
+        await progress(.generating)
+        let draft = try SessionNoteBetaSafeDeterministicDrafting.draft(from: narrative)
+        try Task.checkCancellation()
+        return SessionNoteGenerationResult(
+            draft: draft,
+            outcome: .generated,
+            issueCodes: []
+        )
+    }
+}
+
 @MainActor
 final class AISessionNoteRuntimeModel: ObservableObject {
     private static let logger = Logger(
@@ -551,7 +584,7 @@ enum SessionNoteGeneratorFactory {
             return SessionNoteFixtureGenerator(mode: mode)
         }
         #endif
-        return FoundationModelSessionNoteGenerator()
+        return BetaSafeDeterministicSessionNoteGenerator()
     }
 }
 

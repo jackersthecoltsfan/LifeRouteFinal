@@ -12,9 +12,9 @@ import os
 from pathlib import Path
 import plistlib
 import subprocess
-import time
 
 from liferoute_storage import scratch_path
+from simulator_console_capture import CAPTURE_INCOMPLETE, FAIL, PASS, capture_simctl_launch
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV = dict(os.environ, DEVELOPER_DIR=os.environ.get('DEVELOPER_DIR', '/Applications/Xcode.app/Contents/Developer'),
@@ -76,19 +76,27 @@ def main():
          '-module-cache-path',str(module_cache),str(source),'-o',str(app/'RootOwnershipTests')])
     run(['codesign','--force','--sign','-',str(app)])
     run(['xcrun','simctl','install',args.simulator,str(app)])
-    log = out/'stdout.log'
-    run(['xcrun','simctl','launch','--terminate-running-process','--stdout='+str(log),
-         '--stderr='+str(out/'stderr.log'),args.simulator,'local.liferoute.RootOwnershipTests','-LifeRouteRootOwnershipTrace'])
-    deadline = time.monotonic()+55
-    while time.monotonic()<deadline:
-        output=log.read_text() if log.exists() else ''
-        terminal=[line for line in output.splitlines() if line.startswith('ROOT_OWNERSHIP_TEST_')]
-        if terminal:
-            print(terminal[-1])
-            assert terminal[-1].startswith('ROOT_OWNERSHIP_TEST_PASS'), terminal[-1]
-            return
-        time.sleep(0.1)
-    raise AssertionError('No terminal test result; inspect native logs, do not infer PASS')
+    capture = capture_simctl_launch(
+        simulator=args.simulator,
+        bundle_id='local.liferoute.RootOwnershipTests',
+        arguments=['-LifeRouteRootOwnershipTrace'],
+        stdout_path=out/'stdout.log',
+        stderr_path=out/'stderr.log',
+        timeout_seconds=55,
+        pass_markers=('ROOT_OWNERSHIP_TEST_PASS',),
+        fail_markers=('ROOT_OWNERSHIP_TEST_FAIL',),
+        env=ENV,
+        cwd=ROOT,
+    )
+    calls.extend(capture.commands)
+    (out/'commands.json').write_text(json.dumps(calls, indent=2)+'\n')
+    if capture.state == PASS:
+        print(capture.marker)
+        return
+    if capture.state == FAIL:
+        raise AssertionError(capture.marker)
+    assert capture.state == CAPTURE_INCOMPLETE
+    raise AssertionError(f'{CAPTURE_INCOMPLETE}: {capture.reason}')
 
 
 if __name__ == '__main__':

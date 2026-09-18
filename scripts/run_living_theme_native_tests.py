@@ -12,9 +12,9 @@ from pathlib import Path
 import plistlib
 import shutil
 import subprocess
-import time
 
 from liferoute_storage import scratch_path
+from simulator_console_capture import CAPTURE_INCOMPLETE, FAIL, PASS, capture_simctl_launch
 
 os.environ.pop('SDKROOT', None)  # Explicit -sdk owns the native harness toolchain.
 ROOT = Path(__file__).resolve().parents[1]
@@ -59,16 +59,24 @@ for name in ['Assets.car','default.metallib']:
 run(['codesign','--force','--sign','-',str(app)])
 run(['xcrun','simctl','install',a.simulator,str(app)])
 stdout=out/'stdout.log'
-run(['xcrun','simctl','launch','--terminate-running-process','--stdout='+str(stdout),'--stderr='+str(out/'stderr.log'),
-    a.simulator,'local.liferoute.LivingSceneTests','-LifeRouteLivingDiagnostics'])
-deadline=time.monotonic()+180
-while time.monotonic()<deadline:
-    text=stdout.read_text() if stdout.exists() else ''
-    terminal=[line for line in text.splitlines() if line.startswith(('LIVING_NATIVE_PASS','LIVING_NATIVE_FAIL'))]
-    if terminal:
-        print(terminal[-1])
-        assert terminal[-1].startswith('LIVING_NATIVE_PASS'), terminal[-1]
-        break
-    time.sleep(0.1)
+capture = capture_simctl_launch(
+    simulator=a.simulator,
+    bundle_id='local.liferoute.LivingSceneTests',
+    arguments=['-LifeRouteLivingDiagnostics'],
+    stdout_path=stdout,
+    stderr_path=out/'stderr.log',
+    timeout_seconds=180,
+    pass_markers=('LIVING_NATIVE_PASS',),
+    fail_markers=('LIVING_NATIVE_FAIL',),
+    env=os.environ,
+    cwd=ROOT,
+)
+if capture.state == PASS:
+    print(capture.marker)
+elif capture.state == FAIL:
+    raise AssertionError(capture.marker)
 else:
-    raise AssertionError('No terminal native result; inspect logs')
+    assert capture.state == CAPTURE_INCOMPLETE
+    raise AssertionError(f'{CAPTURE_INCOMPLETE}: {capture.reason}')
+command_log.extend(capture.commands)
+(out/'commands.json').write_text(json.dumps(command_log, indent=2)+'\n')

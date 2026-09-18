@@ -12,6 +12,7 @@ import subprocess
 import time
 
 from liferoute_storage import scratch_path, validate_scratch_path
+from simulator_console_capture import CAPTURE_INCOMPLETE, FAIL, PASS, capture_simctl_launch
 
 os.environ.pop('SDKROOT', None)
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,17 +65,27 @@ if not saved.exists() or json.loads(saved.read_text()) != manifest:
     run(['xcrun','simctl','install',a.simulator,str(app)])
     saved.write_text(json.dumps(manifest,indent=2)+'\n')
 stdout = a.evidence/'surface.log'
-run(['xcrun','simctl','launch','--terminate-running-process','--stdout='+str(stdout),'--stderr='+str(a.evidence/'surface-errors.log'),
-     a.simulator,'local.liferoute.LivingCapture','-LifeRouteLivingDiagnostics',a.scene])
-deadline=time.monotonic()+12
-while time.monotonic()<deadline:
-    lines=stdout.read_text().splitlines() if stdout.exists() else []
-    terminal=[s for s in lines if s.startswith(('CAPTURE_READY','CAPTURE_FAIL'))]
-    if terminal:
-        assert terminal[-1].startswith('CAPTURE_READY'), terminal[-1]
-        break
-    time.sleep(.1)
-else: raise AssertionError('No completed production surface presentation')
+capture = capture_simctl_launch(
+    simulator=a.simulator,
+    bundle_id='local.liferoute.LivingCapture',
+    arguments=['-LifeRouteLivingDiagnostics', a.scene],
+    stdout_path=stdout,
+    stderr_path=a.evidence/'surface-errors.log',
+    timeout_seconds=12,
+    pass_markers=('CAPTURE_READY',),
+    fail_markers=('CAPTURE_FAIL',),
+    env=os.environ,
+    cwd=ROOT,
+)
+if capture.state == PASS:
+    readiness = capture.marker
+elif capture.state == FAIL:
+    raise AssertionError(capture.marker)
+else:
+    assert capture.state == CAPTURE_INCOMPLETE
+    raise AssertionError(f'{CAPTURE_INCOMPLETE}: {capture.reason}')
+commands.extend(capture.commands)
+(a.evidence/'commands.json').write_text(json.dumps(commands, indent=2)+'\n')
 video=a.evidence/'motion.mp4'
 cmd=['xcrun','simctl','io',a.simulator,'recordVideo','--codec=h264',str(video)]
 with (a.evidence/'recording.log').open('w') as log:
@@ -94,7 +105,7 @@ run(['xcrun','simctl','terminate',a.simulator,'local.liferoute.LivingCapture'])
 # Close the process before sealing its log; later Simulator work must not append
 # lifecycle output to a scene evidence file after that scene has been committed.
 payload={'scene':a.scene,'source_manifest':manifest,'duration_requested_seconds':a.seconds,
-         'readiness':terminal[-1],'video_sha256':hashlib.sha256(video.read_bytes()).hexdigest(),
+         'readiness':readiness,'video_sha256':hashlib.sha256(video.read_bytes()).hexdigest(),
          'raw_video_sha256':hashlib.sha256(raw.read_bytes()).hexdigest(),'video_validation':video_validation,
          'boundary':'Simulator engineering evidence. Empty production surface harness, no user data. Physical acceptance unverified.'}
 (a.evidence/'capture.json').write_text(json.dumps(payload,indent=2)+'\n')

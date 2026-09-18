@@ -10,9 +10,11 @@ scroll gestures, presentation, or physical-device acceptance.
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
-import time
+
+from simulator_console_capture import CAPTURE_INCOMPLETE, capture_simctl_launch
 
 ROOT = Path(__file__).resolve().parents[1]
 THEMES = ["royal", "scenery.ocean.day", "scenery.mountains.day", "scenery.mountains.night"]
@@ -102,24 +104,28 @@ def main():
             label = theme.replace(".", "-") + "-" + root
             log = out / (label + ".log")
             assert not log.exists(), "Use a new evidence directory; do not overwrite prior runs"
-            subprocess.run(["xcrun", "simctl", "launch", "--terminate-running-process", "--stdout="+str(log),
-                            "--stderr="+str(log)+".stderr", args.simulator, "Com.Brandongood.LifeRoute",
-                            "-LifeRouteThemeOverride", theme, "-LifeRouteSectionOverride", root,
-                            "-LifeRouteRootGeometryTrace"], check=True)
-            # A busy native runtime may need more than a fixed launch delay.
-            # Wait for the actual second settled sample from every measured owner.
-            deadline = time.monotonic() + 15
-            case_rows = []
-            while time.monotonic() < deadline:
-                case_rows = [json.loads(line[len(PREFIX):]) for line in log.read_text().splitlines()
+            def ready(output):
+                case_rows = [json.loads(line[len(PREFIX):]) for line in output.splitlines()
                              if line.startswith(PREFIX) and line.endswith("}")]
                 ready = {r["role"] for r in case_rows if r["settleSample"] == 2
                          and r["scenePhase"] == "active" and r["theme"] == theme and r["root"] == root}
-                if {"root", "toolbar", "toolbar-host"} <= ready:
-                    break
-                time.sleep(0.1)
-            else:
-                raise AssertionError(f"{theme}/{root}: no settled native samples within 15 seconds; see {log}")
+                return {"root", "toolbar", "toolbar-host"} <= ready
+            capture = capture_simctl_launch(
+                simulator=args.simulator,
+                bundle_id="Com.Brandongood.LifeRoute",
+                arguments=["-LifeRouteThemeOverride", theme, "-LifeRouteSectionOverride", root,
+                           "-LifeRouteRootGeometryTrace"],
+                stdout_path=log,
+                stderr_path=Path(str(log) + ".stderr"),
+                timeout_seconds=15,
+                ready=ready,
+                env=os.environ,
+                cwd=ROOT,
+            )
+            if not capture.complete:
+                raise AssertionError(f"{CAPTURE_INCOMPLETE}: {theme}/{root}: {capture.reason}")
+            case_rows = [json.loads(line[len(PREFIX):]) for line in log.read_text().splitlines()
+                         if line.startswith(PREFIX) and line.endswith("}")]
             subprocess.run(["xcrun", "simctl", "io", args.simulator, "screenshot", str(out / (label+".png"))], check=True)
             rows += case_rows
         (out / "measurements.json").write_text(json.dumps(rows, indent=2)+"\n")

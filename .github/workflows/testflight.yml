@@ -187,6 +187,43 @@ jobs:
             -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
             -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
 
+      - name: Create and validate TestFlight recovery bundle
+        run: |
+          set -euo pipefail
+          ipa="$(find "$LIFEROUTE_BUILD_SCRATCH_ROOT/export" -name '*.ipa' -print -quit)"
+          test -n "$ipa"
+          source_tree_sha="$(git rev-parse "$AUTHORIZED_SHA^{tree}")"
+          source_branch="$(git symbolic-ref --quiet --short HEAD || printf '%s' "${GITHUB_REF_NAME:-}")"
+          recovery_bundle="$RUNNER_TEMP/LifeRoute-TestFlight-Recovery-${GITHUB_RUN_NUMBER}"
+          python3 scripts/testflight_recovery_bundle.py \
+            --archive "$LIFEROUTE_BUILD_SCRATCH_ROOT/LifeRoute.xcarchive" \
+            --ipa "$ipa" \
+            --export-directory "$LIFEROUTE_BUILD_SCRATCH_ROOT/export" \
+            --output "$recovery_bundle" \
+            --source-sha "$AUTHORIZED_SHA" \
+            --source-tree-sha "$source_tree_sha" \
+            --source-ref "${GITHUB_REF:-}" \
+            --source-branch "$source_branch" \
+            --marketing-version "$RELEASE_MARKETING_VERSION" \
+            --build-number "$GITHUB_RUN_NUMBER" \
+            --app-bundle-id "$BUNDLE_ID" \
+            --widget-bundle-id "$LIVE_ACTIVITY_BUNDLE_ID" \
+            --repository "$GITHUB_REPOSITORY" \
+            --workflow "$GITHUB_WORKFLOW" \
+            --run-id "$GITHUB_RUN_ID" \
+            --run-number "$GITHUB_RUN_NUMBER" \
+            --run-attempt "${GITHUB_RUN_ATTEMPT:-1}" \
+            --workflow-ref "${GITHUB_WORKFLOW_REF:-}"
+          echo "TESTFLIGHT_RECOVERY_BUNDLE=$recovery_bundle" >> "$GITHUB_ENV"
+
+      - name: Upload TestFlight recovery bundle
+        uses: actions/upload-artifact@v6
+        with:
+          name: LifeRoute-v0.9.1-TestFlight-recovery-${{ github.run_number }}
+          path: ${{ runner.temp }}/LifeRoute-TestFlight-Recovery-${{ github.run_number }}
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Upload to TestFlight
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}

@@ -62,7 +62,7 @@ Current evidence includes `V054ContentView.swift`, the current domain/UI files, 
 
 ### Canonical automatic
 
-These are the normal validation/build-authority chain: `scripts/prepare_build.sh`, `scripts/validate_fast.sh`, `scripts/validate_full.sh`, `scripts/validate_current.py`, `scripts/run_swift_contract_test.sh`, `scripts/assess_build_warnings.sh`, and the current CI workflows. The storage boundary is canonical too: `scripts/liferoute_storage.py` provides scratch-root/checkpoint-copy/closeout policy, and `scripts/liferoute_storage_contract_tests.py` validates that policy. `.github/workflows/ios-ci.yml` invokes current validation and the storage contract checks; CI/TestFlight use the storage scratch root.
+These are the normal validation/build-authority chain: `scripts/prepare_build.sh`, `scripts/validate_fast.sh`, `scripts/validate_full.sh`, `scripts/validate_current.py`, `scripts/run_swift_contract_test.sh`, `scripts/assess_xcode_warnings.py`, and the current CI workflows. The storage boundary is canonical too: `scripts/liferoute_storage.py` provides scratch-root/checkpoint-copy/closeout policy, and `scripts/liferoute_storage_contract_tests.py` validates that policy. `.github/workflows/ios-ci.yml` invokes current validation and the storage contract checks; CI/TestFlight use the storage scratch root.
 
 ### Targeted/manual
 
@@ -74,9 +74,9 @@ Feature and evidence scripts such as `scripts/route_timeline_separator_contract_
 
 ### Orphan / needs review
 
-`scripts/route_timeline_separator_contract_test.py` was explicitly inspected. It reads current Today source and checks the separator contract, but no current wrapper, workflow, or documentation caller was found. Its current status is **APPARENTLY ORPHANED — NEEDS REVIEW**, not deleted: keep as a targeted validator while an owner decides whether to wire it into validation or formally mark it manual.
+`scripts/route_timeline_separator_contract_test.py` was explicitly inspected. It reads current Today source and checks the separator contract, but no current wrapper or workflow invocation caller was found. Its current status is **MANUAL / OWNERSHIP UNRESOLVED**: retain it as a targeted validator, do not wire it into CI or delete it, and wait for an owner decision on automatic wiring versus manual-specialized status.
 
-The root `codemagic.yaml` is similarly retained non-authoritative tooling and is not a current script/release owner. No retirement is authorized by this map.
+The root `codemagic.yaml` is similarly retained non-authoritative tooling and is not a current script/release owner. **CODEMAGIC OWNERSHIP — UNRESOLVED / DO NOT USE AS CURRENT RELEASE AUTHORITY**: no current workflow or release-document owner reference was found, while GitHub Actions/TestFlight ownership is explicit. No retirement or behavior change is authorized by this map.
 
 ## 5. CI and release authority
 
@@ -86,7 +86,7 @@ The root `codemagic.yaml` is similarly retained non-authoritative tooling and is
 | TestFlight | `.github/workflows/testflight.yml` | The sole current workflow with Apple signing, IPA export, and TestFlight upload machinery. |
 | Web preview | `.github/workflows/pages.yml` plus `scripts/build_web_preview.py` | Preview-only; it does not establish native shipping authority. |
 | Reusable workflow templates | `ReusableAppWorkflow/ios-ci.template.yml` and `ReusableAppWorkflow/testflight.template.yml` | Templates for the corresponding GitHub workflows; the live `.github/workflows` files remain the executed authority. |
-| Codemagic | `codemagic.yaml` | Current file, but **UNKNOWN — NEEDS FOLLOW-UP / NON-AUTHORITATIVE**: source and current release docs identify GitHub Actions TestFlight as the owner, and no current workflow reference to Codemagic was found. Keep until an owner decides whether it is historical or separately supported. |
+| Codemagic | `codemagic.yaml` | **CODEMAGIC OWNERSHIP — UNRESOLVED / DO NOT USE AS CURRENT RELEASE AUTHORITY**: the file is retained, but current release docs identify GitHub Actions TestFlight as the owner and no current workflow reference to Codemagic was found. Keep until an owner decides whether it is historical or separately supported; do not change its behavior here. |
 
 Supporting operational authority is documented in `docs/BUILD_ARCHITECTURE.md`, `TESTFLIGHT_SETUP.md`, and `GITHUB_ACTIONS_RUNBOOK.md`; these do not replace the workflow files.
 
@@ -99,16 +99,16 @@ Durable checkpoint/evidence roots are separate: `~/Documents/LifeRouteCheckpoint
 ## 7. Known maintenance items
 
 - The required prevention helper `/Users/brand/Documents/LifeRouteCheckpoints/consolidated-one-checkout-cleanup-20260913-20260913T170527Z-terra/prevention/liferoute-worktree-count-check.sh` is absent. Direct `git worktree list --porcelain` is the current fallback; do not recreate or silently replace the helper in this documentation task.
-- `AGENTS.md` still describes the checked-in source as v0.9.0 while current README/validator/build documentation identify v0.9.1. This is a documentation-alignment item, not evidence that the source is stale.
+- Source/application version is v0.9.1; current Git SHA and external TestFlight build identity remain separate and must be verified independently.
 - `LIFEROUTE_HANDOFF.md` is a time-bound handoff ledger and its current top material is Crystal/follow-up-specific; use current Git/project/workflow files for authority. Keep the ledger as evidence unless its owner revises it.
-- The Today separator validator has no discovered caller; preserve it pending an owner decision on automatic wiring versus manual-specialized status.
+- The Today separator validator has no discovered invocation caller; preserve it as **MANUAL / OWNERSHIP UNRESOLVED** pending an owner decision on automatic wiring versus manual-specialized status.
 - `LifeRouteApp.swift` is large, but current ownership is coherent enough that broad splitting is not a safe first maintenance action.
 
 ## 8. Recommended future sequence
 
 ### Phase A — navigation-only, low risk
 
-Keep this map and a small pointer in the repository’s worker-facing read order (`README.md`/`AGENTS.md`) aligned with the current source and project authority. Correct only demonstrably stale authority labels, such as the v0.9.0/v0.9.1 wording, in a separately authorized documentation change.
+Keep this map and a small pointer in the repository’s worker-facing read order (`README.md`/`AGENTS.md`) aligned with the current source and project authority. Correct only demonstrably stale authority labels, such as an outdated source-version wording, in a separately authorized documentation change.
 
 ### Phase B — script decisions
 

@@ -88,7 +88,7 @@ candidates, and absence from `validate_full.sh` is not proof of redundancy.
 | `scripts/run_timer_abc_tests.py` | Timer | Exercises extracted unchanged Timer ABC authorities | Swift fixture | Local/manual |
 | `scripts/run_timer_d_hero_tests.py` | Timer | Exercises production Timer D mechanics and Hero integration | Swift fixture | Local/manual |
 | `scripts/capture_theme_thumbnail_assets.sh` | Theme evidence | Captures fixed-phase Theme Center previews | Simulator screenshots/assets | Local/manual |
-| `scripts/route_timeline_separator_contract_test.py` | Today presentation | Historical/specialized separator check; not called by current default wrappers | Python static contract | Apparently orphaned; review required |
+| `scripts/route_timeline_separator_contract_test.py` | Today presentation | Specialized separator check; no current wrapper or workflow invocation caller | Python static contract | **MANUAL / OWNERSHIP UNRESOLVED** |
 | `scripts/run_swift_contract_cache_tests.sh` | Qualification tooling | Tests path-independent/cache execution semantics for the shared Swift runner | Tooling contract | Local/manual; not default current gate |
 
 The catalogue therefore contains **13 gates** and **22 specialized/manual

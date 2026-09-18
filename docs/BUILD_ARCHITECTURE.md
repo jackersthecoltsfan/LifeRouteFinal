@@ -12,6 +12,11 @@ the synchronized source development build. The separately authorized
 TestFlight workflow overrides the build number with its run number for both
 targets.
 
+The source/application version (`MARKETING_VERSION=0.9.1`), current canonical
+Git SHA, and any external TestFlight build number are separate identities.
+Verify the current `main` SHA from Git before continuity-sensitive work; do not
+infer a TestFlight build number from the source version or Git SHA.
+
 ## Canonical day planning
 
 `V054ContentView` owns one `DayRoutePlanningCore` and one

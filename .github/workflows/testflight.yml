@@ -84,6 +84,40 @@ jobs:
           mkdir -p "$build_root"
           echo "LIFEROUTE_BUILD_SCRATCH_ROOT=$build_root" >> "$GITHUB_ENV"
 
+      - name: Record hosted Apple toolchain identity
+        run: |
+          set -euo pipefail
+          runner_image="${ImageOS:-unknown}"
+          runner_image_version="${ImageVersion:-unknown}"
+          runner_os="${RUNNER_OS:-unknown}"
+          runner_arch="${RUNNER_ARCH:-unknown}"
+          runner_environment="${RUNNER_ENVIRONMENT:-unknown}"
+          selected_developer_dir="$(xcode-select -p)"
+          effective_developer_dir="${DEVELOPER_DIR:-$selected_developer_dir}"
+          xcode_identity="$(xcodebuild -version | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+          macos_identity="$(/usr/bin/sw_vers -productVersion) (build $(/usr/bin/sw_vers -buildVersion))"
+          uname_identity="$(uname -a)"
+          iphoneos_sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          iphoneos_sdk_path="$(xcrun --sdk iphoneos --show-sdk-path)"
+          iphoneos_sdk_build="$(xcrun --sdk iphoneos --show-sdk-build-version)"
+          simulator_sdk_version="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+          simulator_sdk_path="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          simulator_sdk_build="$(xcrun --sdk iphonesimulator --show-sdk-build-version)"
+          swiftc_path="$(xcrun --find swiftc)"
+          swift_identity="$("$swiftc_path" --version 2>&1 | sed -n '1,2p' | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+          {
+            printf '%s\n' 'HOSTED APPLE TOOLCHAIN'
+            printf '%s\n' "- runner: os=$runner_os arch=$runner_arch image=$runner_image image-version=$runner_image_version environment=$runner_environment"
+            printf '%s\n' "- macOS: $macos_identity"
+            printf '%s\n' "- uname: $uname_identity"
+            printf '%s\n' "- xcode-select: $selected_developer_dir"
+            printf '%s\n' "- developer dir: $effective_developer_dir"
+            printf '%s\n' "- Xcode: $xcode_identity"
+            printf '%s\n' "- Swift: $swift_identity"
+            printf '%s\n' "- iOS SDK: version=$iphoneos_sdk_version build=$iphoneos_sdk_build path=$iphoneos_sdk_path"
+            printf '%s\n' "- iOS Simulator SDK: version=$simulator_sdk_version build=$simulator_sdk_build path=$simulator_sdk_path"
+          } | tee "$RUNNER_TEMP/liferoute-hosted-apple-toolchain.txt" | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Validate Apple connection
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -221,6 +255,14 @@ jobs:
         with:
           name: LifeRoute-v0.9.1-TestFlight-recovery-${{ github.run_number }}
           path: ${{ runner.temp }}/LifeRoute-TestFlight-Recovery-${{ github.run_number }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload hosted toolchain receipt
+        uses: actions/upload-artifact@v6
+        with:
+          name: LifeRoute-v0.9.1-TestFlight-toolchain-${{ github.run_number }}
+          path: ${{ runner.temp }}/liferoute-hosted-apple-toolchain.txt
           if-no-files-found: error
           retention-days: 7
 

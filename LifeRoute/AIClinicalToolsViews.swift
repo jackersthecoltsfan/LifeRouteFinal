@@ -256,7 +256,7 @@ final class AISessionNoteRuntimeModel: ObservableObject {
                 }
                 let cleaned = result.draft.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !cleaned.isEmpty else {
-                    state = .failed("Apple Intelligence returned an empty draft. Your session facts and any previous draft were preserved.")
+                    state = .failed("LifeRoute returned an empty draft. Your session facts and any previous draft were preserved.")
                     recordRuntimeDiagnostic("emptyResult")
                     finish(requestID: currentRequestID)
                     return
@@ -714,10 +714,10 @@ struct AISessionNoteGeneratorView: View {
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Experimental AI Tool")
+                    Text("Beta-safe draft")
                         .font(.headline)
                         .foregroundStyle(palette.textPrimary)
-                    Text("AI-generated Session Notes may be incomplete or inaccurate. Review and edit every note before use. Do not rely on this tool as final clinical documentation.")
+                    Text(SessionNoteOutputCompleteness.reviewMessage)
                         .font(.subheadline)
                         .foregroundStyle(palette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -731,7 +731,7 @@ struct AISessionNoteGeneratorView: View {
                     .stroke(palette.accentSecondary.opacity(0.32), lineWidth: 1)
             }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Experimental AI Tool. AI-generated Session Notes may be incomplete or inaccurate. Review and edit every note before use. Do not rely on this tool as final clinical documentation.")
+            .accessibilityLabel("Beta-safe draft. \(SessionNoteOutputCompleteness.reviewMessage)")
         }
         .ui01OpenSection()
     }
@@ -840,7 +840,7 @@ struct AISessionNoteGeneratorView: View {
             Button {
                 startGeneration()
             } label: {
-                Label(runtime.isGenerating ? activeButtonTitle : "Draft note with AI", systemImage: "sparkles")
+                Label(runtime.isGenerating ? activeButtonTitle : "Draft note", systemImage: "sparkles")
             }
             .buttonStyle(LifeRoutePrimaryButtonStyle())
             .disabled(runtime.isGenerating || !hasEvidence)
@@ -996,12 +996,12 @@ struct AISessionNoteGeneratorView: View {
     private var statusTitle: String {
         switch runtime.state {
         case .idle: return "Ready"
-        case .checkingAvailability: return "Checking Apple Intelligence"
-        case .generating: return "Drafting on device"
-        case .compacting: return "Fitting evidence on device"
+        case .checkingAvailability: return "Preparing draft"
+        case .generating: return "Drafting from supplied facts"
+        case .compacting: return "Checking supplied facts"
         case .repairing: return "Checking clinical format"
         case .completed(let outcome): return outcome.userFacingStatusTitle
-        case .unavailable: return "Apple Intelligence unavailable"
+        case .unavailable: return "Drafting unavailable"
         case .failed: return "Generation failed"
         case .blocked(let error): return error.statusTitle
         case .timedOut: return "Generation timed out"
@@ -1014,11 +1014,11 @@ struct AISessionNoteGeneratorView: View {
         case .idle:
             return "Add session facts to begin."
         case .checkingAvailability:
-            return "Confirming that the on-device model is ready."
+            return "Preparing a draft from the facts you supplied."
         case .generating:
             return "LifeRoute is creating a draft from the facts you supplied."
         case .compacting:
-            return "Apple Intelligence requested a smaller context. LifeRoute will retry once only if all session evidence fits; terminology context is omitted."
+            return "LifeRoute is checking the supplied facts before continuing."
         case .repairing:
             return "The first draft needs a bounded second pass to meet the Master ABA format."
         case .completed(let outcome):
@@ -1028,7 +1028,7 @@ struct AISessionNoteGeneratorView: View {
         case .blocked(let error):
             return error.localizedDescription
         case .timedOut:
-            return "Apple Intelligence did not finish this step within 75 seconds. Your facts and prior draft were preserved."
+            return "Drafting did not finish within 75 seconds. Your facts and prior draft were preserved."
         case .cancelled:
             return "The request stopped safely. Your facts and prior draft were preserved."
         }

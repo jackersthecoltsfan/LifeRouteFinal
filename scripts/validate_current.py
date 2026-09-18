@@ -1110,8 +1110,8 @@ def validate_clinical_and_aba(sources: dict[str, str]) -> None:
             'case contextRetrySuccess = "context-retry-success"',
             'case contextRetryFailure = "context-retry-failure"',
             ".toolbar(.hidden, for: .tabBar)",
-            'Text("Experimental AI Tool")',
-            "Do not rely on this tool as final clinical documentation.",
+            'Text("Beta-safe draft")',
+            "SessionNoteOutputCompleteness.reviewMessage",
         ],
         "reviewable on-device Session Note flow",
     )

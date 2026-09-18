@@ -19,6 +19,7 @@ python3 "$SCRIPT_DIRECTORY/source_extract.py" \
 
 python3 - "$SCRIPT_DIRECTORY/../LifeRoute/LifeRouteIntelligenceCore.swift" "$INSTRUCTION_SEAM" <<'PYCHECK'
 from pathlib import Path
+import re
 import sys
 source = Path(sys.argv[1]).read_text()
 seam = Path(sys.argv[2]).read_text()
@@ -28,9 +29,11 @@ assert "enum SessionNoteStageInstructions" in seam
 root = Path(sys.argv[1]).parent
 views = (root / "AIClinicalToolsViews.swift").read_text()
 ui = views.split("struct AISessionNoteGeneratorView: View {", 1)[1].split("struct SessionNoteReadabilityFixtureView:", 1)[0]
+production_ui = re.sub(r"#if DEBUG.*?#endif", "", ui, flags=re.S)
 note = source.split("    static func generateABASessionNote(", 1)[1].split("    static func generateVisualScheduleDraft(", 1)[0]
 factory = views.split("enum SessionNoteGeneratorFactory {", 1)[1].split("struct AISessionNoteGeneratorView: View {", 1)[0]
 beta_adapter = views.split("final class BetaSafeDeterministicSessionNoteGenerator", 1)[1].split("final class AISessionNoteRuntimeModel", 1)[0]
+contracts = (root / "SessionNoteContracts.swift").read_text()
 checks = [
     all(token not in ui for token in ["PhotosPicker", "selectedPhotoItems", "screenshotAttachments", "loadSelectedScreenshots", "Attach data screenshots", "Add Photo", "extractionSummary", "attachmentCount"]),
     "screenshotDataItems" not in views and "screenshotDataItems" not in source,
@@ -48,6 +51,16 @@ checks = [
     "FoundationModelSessionNoteGenerator" not in factory and "LifeRouteIntelligenceCore" not in factory,
     "SessionNoteDraftingMode" in (root / "SessionNoteContracts.swift").read_text(),
     all(token not in beta_adapter for token in ["FoundationModel", "SystemLanguageModel", "LanguageModelSession", "generateABASessionNote"]),
+    'Text("Beta-safe draft")' in production_ui,
+    "SessionNoteOutputCompleteness.reviewMessage" in production_ui,
+    "Draft note with AI" not in production_ui,
+    "Experimental AI Tool" not in production_ui,
+    "AI-generated Session Notes" not in production_ui,
+    "Apple Intelligence" not in production_ui,
+    "on-device model" not in production_ui.lower(),
+    "response limit" not in production_ui.lower() and "token limit" not in production_ui.lower(),
+    "This draft is built from the facts you supply." in contracts,
+    "response limit" not in contracts.lower() and "token limit" not in contracts.lower(),
     'savedTerminologyContext: ""' in note and 'compactSessionNoteClientContext(client)' not in note,
     'profileCode: client?.code' in note,
 ]

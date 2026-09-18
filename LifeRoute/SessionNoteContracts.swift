@@ -224,7 +224,7 @@ enum SessionNoteBetaSafeDeterministicDrafting {
             let beginning = String(withoutTerminal.dropFirst("RBT modeled ".count))
             let content = String(beginning.dropLast(" on AAC".count))
             if !content.contains(" ") {
-                return "The RBT modeled the word \"\(content)\" using the client's AAC device."
+                return "The RBT modeled the word \(quotedTerm(content)) using the client's AAC device."
             }
             return "The RBT modeled \(content) using the client's AAC device."
         }
@@ -280,6 +280,19 @@ enum SessionNoteBetaSafeDeterministicDrafting {
         guard trimmed.lowercased().hasPrefix("client ") else { return trimmed }
         return ("the client " + trimmed.dropFirst("client ".count))
             .replacingOccurrences(of: " had bruise ", with: " had a bruise ", options: .caseInsensitive)
+    }
+
+    private static func quotedTerm(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let first = trimmed.first, let last = trimmed.last, trimmed.count > 1 else {
+            return "\"\(trimmed)\""
+        }
+
+        let alreadyQuoted = (first == "\"" && last == "\"")
+            || (first == "'" && last == "'")
+            || (first == "“" && last == "”")
+            || (first == "‘" && last == "’")
+        return alreadyQuoted ? trimmed : "\"\(trimmed)\""
     }
 
     private static func professionalizeParticipantList(_ list: String) -> String {
@@ -344,8 +357,11 @@ enum SessionNoteOutputCompleteness: Equatable {
     // cannot establish semantic coverage, even when the response ends with a period.
     case reviewRequired
 
+    static let reviewMessage =
+        "This draft is built from the facts you supply. Review and edit it before documentation or billing use; incomplete supplied facts may produce an incomplete draft."
+
     var message: String {
-        "This draft may be incomplete. Compare every supplied fact and measurement with the draft before use; the model may omit details or stop at its response limit."
+        Self.reviewMessage
     }
 }
 
@@ -1134,7 +1150,7 @@ enum SessionNoteRequestRaceError: LocalizedError {
     case timedOut
 
     var errorDescription: String? {
-        "Apple Intelligence did not finish this generation step in time. Your session facts and any previous draft are still here."
+        "Drafting did not finish this step in time. Your session facts and any previous draft are still here."
     }
 }
 

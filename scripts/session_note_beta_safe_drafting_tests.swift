@@ -40,6 +40,14 @@ private struct SessionNoteBetaSafeDraftingTests {
 
         let aac = try makeDraft("RBT modeled help on AAC")
         expect(aac == "The RBT modeled the word \"help\" using the client's AAC device.", "AAC shorthand is professionally expanded")
+        let alreadyQuotedAAC = try makeDraft("RBT modeled \"help\" on AAC")
+        expect(alreadyQuotedAAC == "The RBT modeled the word \"help\" using the client's AAC device.", "already-quoted AAC shorthand keeps one quote pair")
+        expect(!alreadyQuotedAAC.contains("\"\"help\"\""), "already-quoted AAC shorthand is never double-wrapped")
+        let singleQuotedAAC = try makeDraft("RBT modeled 'help' on AAC")
+        expect(singleQuotedAAC == "The RBT modeled the word 'help' using the client's AAC device.", "single-quoted supplied wording keeps its quote intent")
+        let ordinaryHelp = try makeDraft("RBT used help on AAC")
+        expect(ordinaryHelp == "The RBT used help on AAC.", "unrelated unquoted wording is not given invented quotes")
+        expect(!aac.contains("\"AAC\""), "only the supplied AAC term is quoted")
 
         let numeric = try makeDraft("client requested break 4/5 trials with verbal prompt")
         expect(numeric.contains("4/5"), "explicit measurement is retained")

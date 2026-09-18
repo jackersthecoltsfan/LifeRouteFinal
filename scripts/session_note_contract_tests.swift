@@ -36,6 +36,15 @@ private struct SessionNoteContractFixtureRunner {
         try await proseFidelityFixtures()
         let donorAssertions = assertionCount
         try expect(donorAssertions == 472, "all 472 frozen donor assertions executed unchanged")
+        let reviewMessage = SessionNoteOutputCompleteness.reviewRequired.message
+        try expect(
+            reviewMessage == "This draft is built from the facts you supply. Review and edit it before documentation or billing use; incomplete supplied facts may produce an incomplete draft.",
+            "editable-draft disclosure names supplied facts, review/editing, documentation/billing use, and incomplete supplied facts"
+        )
+        try expect(!reviewMessage.localizedCaseInsensitiveContains("model")
+                   && !reviewMessage.localizedCaseInsensitiveContains("response limit")
+                   && !reviewMessage.localizedCaseInsensitiveContains("token limit"),
+                   "editable-draft disclosure contains no model-era limit wording")
         try await finalProseAndClosingFixtures()
         try await narrativeSynthesisContractFixtures()
         try await repairContextBudgetFixtures()
@@ -1296,7 +1305,9 @@ private struct SessionNoteContractFixtureRunner {
         let omitted = try await SessionNoteGenerationPipeline.generate(packet: packet) { _ in
             "The RBT presented an instructional activity, and the client participated."
         }
-        try expect(omitted.completeness == .reviewRequired && omitted.completeness.message.contains("may be incomplete"), "known nonnumeric omission weakness remains explicitly unverified, never falsely certified by a keyword detector")
+        try expect(omitted.completeness == .reviewRequired
+                   && omitted.completeness.message.contains("incomplete supplied facts may produce an incomplete draft"),
+                   "known nonnumeric omission weakness remains explicitly unverified, never falsely certified by a keyword detector")
     }
 
     private static func boundaryDraftPreservationFixtures() async throws {

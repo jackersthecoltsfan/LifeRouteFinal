@@ -406,7 +406,7 @@ extension SessionNoteRequestRace {
     }
 
     func notes() async {
-        record("N0 beta-safe production adapter is locally available and deterministic")
+        record("N0 Generate and Regenerate use the beta-safe production adapter")
         let betaAdapter = BetaSafeDeterministicSessionNoteGenerator()
         let betaAvailability = await betaAdapter.availability()
         expect(betaAvailability == .available,
@@ -417,9 +417,17 @@ extension SessionNoteRequestRace {
             client: nil,
             progress: { _ in }
         )
+        let regenerated = try! await betaAdapter.generateNote(
+            narrative: "mom reported poor sleep\nRBT modeled help on AAC",
+            writerRole: .rbt,
+            client: nil,
+            progress: { _ in }
+        )
         expect(betaResult.outcome == .generated
+                   && regenerated.outcome == .generated
+                   && betaResult.draft == regenerated.draft
                    && betaResult.draft == "The client's mother reported poor sleep. The RBT modeled the word \"help\" using the client's AAC device.",
-               "normal beta drafting returns deterministic grounded prose through the production adapter")
+               "normal beta Generate and Regenerate return the same deterministic grounded prose")
 
         record("N0 durable draft owner reconstruction and explicit clear")
         let draftStore = SessionNoteDraftMemoryStore()

@@ -780,12 +780,6 @@ struct UI01RouteButtonStyle: ButtonStyle {
                                 UI01ChromeShine(size: 18)
                                     .offset(x: 8, y: 2)
                             }
-                            .overlay(alignment: .bottomTrailing) {
-                                Capsule()
-                                    .fill(UI01Material.goldLight.opacity(0.54))
-                                    .frame(width: compact ? 18 : 24, height: 1)
-                                    .offset(x: compact ? -10 : -14, y: -5)
-                            }
                             .allowsHitTesting(false)
                     }
                 }
